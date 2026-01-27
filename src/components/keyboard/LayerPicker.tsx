@@ -1,5 +1,5 @@
 import { EllipsisVertical, Plus, Trash } from "lucide-react"
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import undoRedoStore from "../../stores/UndoRedoStore.ts"
 import useConnectionStore from "../../stores/ConnectionStore.ts"
 import useLayerSelectionStore from "../../stores/LayerSelectionStore.ts"
@@ -71,15 +71,31 @@ export const LayerPicker = ( {
 		}) )
 	}, [ layers, selectedLayerIndex ] )
 
-	// Keep the selected layer within the available range to avoid blank keyboard renders
+	// Keep the selected layer valid only when the layer list shrinks (e.g. layer removal)
+	const previousLengthRef = useRef<number>( layers?.length ?? 0 )
 	useEffect( () => {
-		if ( !layers?.length ) return
+		const currentLength = layers?.length ?? 0
+		const previousLength = previousLengthRef.current
 
-		const maxIndex = layers.length - 1
-		if ( selectedLayerIndex > maxIndex ) {
-			setSelectedLayerIndex( maxIndex )
+		// Detect the moment just after clicking "add layer" where the layer count
+		// hasn't increased yet (selected index equals previous length).
+		const awaitingNewLayer = selectedLayerIndex === previousLength && currentLength === previousLength
+
+		// Clamp when selection is out of range and we're not waiting for a newly added layer
+		if (
+			currentLength > 0 &&
+			selectedLayerIndex >= currentLength &&
+			!awaitingNewLayer
+		) {
+			setSelectedLayerIndex( currentLength - 1 )
 		}
-	}, [ layers, selectedLayerIndex, setSelectedLayerIndex ] )
+
+		if ( selectedLayerIndex < 0 ) {
+			setSelectedLayerIndex( 0 )
+		}
+
+		previousLengthRef.current = currentLength
+	}, [ layers?.length, selectedLayerIndex, setSelectedLayerIndex ] )
 
 	// console.log(layer_items)
 
