@@ -3,12 +3,9 @@ import { useLayout } from '../helpers/useLayouts.ts'
 import { PhysicalLayoutPicker } from '../components/keyboard/PhysicalLayoutPicker.tsx'
 import { LayerPicker } from '../components/keyboard/LayerPicker.tsx'
 import undoRedoStore from '../stores/UndoRedoStore.ts'
-import {
-    Keymap,
-    // , Layer, SetLayerPropsResponse
-} from '@zmkfirmware/zmk-studio-ts-client/keymap'
 import useConnectionStore from '../stores/ConnectionStore.ts'
 import useLayerSelectionStore from '../stores/LayerSelectionStore.ts'
+import useKeymapStore from '../stores/KeymapStore.ts'
 import {
     Sidebar,
     SidebarContent,
@@ -17,16 +14,18 @@ import {
     SidebarFooter,
 } from "@/components/ui/sidebar.tsx"
 import { DeviceMenu } from '../components/DeviceMenu.tsx'
-import {  useConnectedDeviceData } from "@/services/RpcConnectionService.ts"
 import { setKeymapRequest } from "@/services/RpcEventsService.ts"
+import { callRemoteProcedureControl } from "@/services/CallRemoteProcedureControl.ts"
+import { LockState } from "@zmkfirmware/zmk-studio-ts-client/core"
 
 interface DrawerProps {
     children?: React.ReactNode
 }
 
 export function Drawer({}: DrawerProps) {
-    const { connection } = useConnectionStore()
+    const { connection, lockState } = useConnectionStore()
     const { selectedLayerIndex, setSelectedLayerIndex } = useLayerSelectionStore()
+    const { keymap, setKeymap, resetKeymap } = useKeymapStore()
     const {
         layouts,
         selectedPhysicalLayoutIndex,
@@ -34,14 +33,26 @@ export function Drawer({}: DrawerProps) {
     } = useLayout()
     const { doIt } = undoRedoStore()
 
-    const [keymap, setKeymap] = useConnectedDeviceData<Keymap>(
-        { keymap: { getKeymap: true } },
-        (keymap) => {
+    // Fetch keymap when connection changes or becomes unlocked
+    useEffect(() => {
+        if (!connection || lockState !== LockState.ZMK_STUDIO_CORE_LOCK_STATE_UNLOCKED) {
+            resetKeymap()
+            return
+        }
+
+        let ignore = false
+        async function fetchKeymap() {
+            const response = await callRemoteProcedureControl({ keymap: { getKeymap: true } })
+            const keymapData = response?.keymap?.getKeymap
             console.log('Got the keymap!')
-            return keymap?.keymap?.getKeymap
-        },
-        true,
-    )
+            if (!ignore && keymapData) {
+                setKeymap(keymapData)
+            }
+        }
+
+        fetchKeymap()
+        return () => { ignore = true }
+    }, [connection, lockState, setKeymap, resetKeymap])
 
 	useEffect(() => {
 		setSelectedLayerIndex(0)

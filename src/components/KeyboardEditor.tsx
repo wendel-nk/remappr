@@ -1,13 +1,11 @@
 import { useState } from "react"
 import Keyboard from './keyboard/Keyboard.tsx'
 import { KeyEditor } from './KeyEditor.tsx'
-import { Keymap } from '@zmkfirmware/zmk-studio-ts-client/keymap'
-
-import { useConnectedDeviceData } from "@/services/RpcConnectionService.ts"
+import useKeymapStore from '../stores/KeymapStore.ts'
 
 /**
  * KeyboardEditor Component
- * 
+ *
  * A parent component that manages the shared state between Keyboard and KeyEditor components.
  * Handles the selection state and coordinates between the keyboard display and key editing interface.
  */
@@ -20,14 +18,8 @@ export function KeyboardEditor({}: KeyboardEditorProps) {
     const [selectedKey, setSelectedKey] = useState<boolean>(false)
     const [selectedKeyPosition, setSelectedKeyPosition] = useState<number | undefined>(undefined)
 
-    const [ keymap, setKeymap ] = useConnectedDeviceData<Keymap>(
-        { keymap: { getKeymap: true } },
-        ( keymap ) => {
-            console.log( "Got the keymap!" )
-            return keymap?.keymap?.getKeymap
-        },
-        true
-    )
+    // Use centralized keymap store
+    const { keymap, setKeymap } = useKeymapStore()
 
 
     return (
