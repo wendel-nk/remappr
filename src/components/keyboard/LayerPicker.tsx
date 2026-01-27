@@ -71,17 +71,27 @@ export const LayerPicker = ( {
 		}) )
 	}, [ layers, selectedLayerIndex ] )
 
+	// Keep the selected layer within the available range to avoid blank keyboard renders
+	useEffect( () => {
+		if ( !layers?.length ) return
+
+		const maxIndex = layers.length - 1
+		if ( selectedLayerIndex > maxIndex ) {
+			setSelectedLayerIndex( maxIndex )
+		}
+	}, [ layers, selectedLayerIndex, setSelectedLayerIndex ] )
+
 	// console.log(layer_items)
 
 	const selectionChanged = useCallback( ( layerIndex: number | string ) => {
 			if ( layerIndex === "all" ) return
 			if ( typeof layerIndex !== "number" ) return
-			// console.log( s, layersArray.findIndex( ( layer ) => s === layer.index ) )
-			// onLayerClicked?.( layersArray.findIndex( ( layer ) => s === layer.index ))
-			//todo check if the index is always a number and the id is the same as the index
-			setSelectedLayerIndex( layerIndex )
+
+			const maxIndex = layers.length - 1
+			const clampedIndex = Math.min( Math.max( 0, layerIndex ), maxIndex )
+			setSelectedLayerIndex( clampedIndex )
 		},
-		[ onLayerClicked, layersArray ]
+		[ layers.length, setSelectedLayerIndex ]
 	)
 
 	// const { dragAndDropHooks } = useDragAndDrop( {
@@ -225,7 +235,7 @@ export const LayerPicker = ( {
 			</SidebarGroupAction>
 			<SidebarMenu>
 				{ layersArray.map( ( item ) => (
-					<SidebarMenuItem key={ item.name }>
+					<SidebarMenuItem key={ item.id ?? item.index }>
 						<SidebarMenuButton
 							asChild
 							isActive={ item.index === selectedLayerIndex }
