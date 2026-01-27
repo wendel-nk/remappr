@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { Keymap } from "@zmkfirmware/zmk-studio-ts-client/keymap"
 import { KeyboardLayout } from "./KeyboardLayout.tsx"
 import { useLocalStorageState } from "../../misc/useLocalStorageState.ts"
@@ -27,12 +27,20 @@ export default function Keyboard({
 	const behaviors = useBehaviors()
 	const { connection } = useConnectionStore()
 
+	// Compute effective layer index - clamp to valid bounds when out of range
+	const effectiveLayerIndex = useMemo(() => {
+		if (!keymap || keymap.layers.length === 0) {
+			return 0
+		}
+		// Clamp selectedLayerIndex to valid range
+		return Math.min(Math.max(0, selectedLayerIndex), keymap.layers.length - 1)
+	}, [keymap, selectedLayerIndex])
+
 	// Reset layer selection when connection changes
 	useEffect(() => {
-		console.log('Connection changed, resetting layer selection to 0')
 		setSelectedLayerIndex(0)
 		setSelectedKeyPosition(undefined)
-	}, [connection])
+	}, [connection, setSelectedLayerIndex, setSelectedKeyPosition])
 
 
 	//todo change to zustand storing system
@@ -50,7 +58,7 @@ export default function Keyboard({
 	const keypressConfig: KeypressDetectionConfig = {
 		layouts: layouts || [],
 		keymap: keymap!,
-		selectedLayerIndex,
+		selectedLayerIndex: effectiveLayerIndex,
 		selectedPhysicalLayoutIndex,
 		behaviors
 	}
@@ -77,12 +85,12 @@ export default function Keyboard({
 			handleKeyPressed,
 			handleKeyReleased
 		)
-	}, [layouts, keymap, behaviors, selectedLayerIndex, selectedPhysicalLayoutIndex, handleKeyPressed, handleKeyReleased])
+	}, [layouts, keymap, behaviors, effectiveLayerIndex, selectedPhysicalLayoutIndex, handleKeyPressed, handleKeyReleased])
 
 	// Clear pressed keys when layer changes
 	useEffect(() => {
 		setPressedKeys(new Set())
-	}, [selectedLayerIndex])
+	}, [effectiveLayerIndex])
 
 	useEffect( () => {
 		(async ()=> {
@@ -100,7 +108,7 @@ export default function Keyboard({
 						layout={ layouts[selectedPhysicalLayoutIndex] }
 						behaviors={ behaviors }
 						scale={ keymapScale }
-						selectedLayerIndex={ selectedLayerIndex }
+						selectedLayerIndex={ effectiveLayerIndex }
 						selectedKeyPosition={ selectedKeyPosition }
 						onKeyPositionClicked={ setSelectedKeyPosition }
 						pressedKeys={ pressedKeys }

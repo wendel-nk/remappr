@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from 'react'
+import { useCallback, useEffect } from 'react'
 import { useLayout } from '../helpers/useLayouts.ts'
 import { PhysicalLayoutPicker } from '../components/keyboard/PhysicalLayoutPicker.tsx'
 import { LayerPicker } from '../components/keyboard/LayerPicker.tsx'
@@ -18,11 +18,7 @@ import { setKeymapRequest } from "@/services/RpcEventsService.ts"
 import { callRemoteProcedureControl } from "@/services/CallRemoteProcedureControl.ts"
 import { LockState } from "@zmkfirmware/zmk-studio-ts-client/core"
 
-interface DrawerProps {
-    children?: React.ReactNode
-}
-
-export function Drawer({}: DrawerProps) {
+export function Drawer() {
     const { connection, lockState } = useConnectionStore()
     const { setSelectedLayerIndex } = useLayerSelectionStore()
     const { keymap, setKeymap, resetKeymap } = useKeymapStore()
@@ -54,9 +50,9 @@ export function Drawer({}: DrawerProps) {
         return () => { ignore = true }
     }, [connection, lockState, setKeymap, resetKeymap])
 
-	useEffect(() => {
-		setSelectedLayerIndex(0)
-	}, [connection, setSelectedLayerIndex])
+    useEffect(() => {
+        setSelectedLayerIndex(0)
+    }, [connection, setSelectedLayerIndex])
 
     const doSelectPhysicalLayout = useCallback(
         (i: number) => {
@@ -75,16 +71,14 @@ export function Drawer({}: DrawerProps) {
 
 
     useEffect(() => {
-	    if (!connection) return
+        if (!connection) return
 
-	    (async ()=> {
-		    console.log(123123)
-		    const result = await setKeymapRequest(layouts, selectedPhysicalLayoutIndex)
-		    if (result) {
-			    setKeymap(result)
-		    }
-	    })()
-
+        void (async () => {
+            const result = await setKeymapRequest(layouts, selectedPhysicalLayoutIndex)
+            if (result) {
+                setKeymap(result)
+            }
+        })()
     }, [connection, layouts, selectedPhysicalLayoutIndex, setKeymap])
 
 

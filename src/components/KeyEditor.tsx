@@ -35,6 +35,14 @@ export function KeyEditor({
 	const { selectedLayerIndex } = useLayerSelectionStore()
 	const behaviors = useBehaviors()
 
+	// Compute effective layer index - clamp to valid bounds when out of range
+	const effectiveLayerIndex = useMemo(() => {
+		if (!keymap || keymap.layers.length === 0) {
+			return 0
+		}
+		return Math.min(Math.max(0, selectedLayerIndex), keymap.layers.length - 1)
+	}, [keymap, selectedLayerIndex])
+
 	// const sortedBehaviors = useMemo(
 	// 	() =>
 	// 		Object.values(behaviors).sort((a, b) =>
@@ -56,13 +64,13 @@ export function KeyEditor({
 				param1: binding.param1,
 				param2: binding.param2,
 				selectedKeyPosition,
-				selectedLayerIndex,
+				effectiveLayerIndex,
 				// Add hex values for debugging
 				param1Hex: binding.param1?.toString(16),
 				param2Hex: binding.param2?.toString(16)
 			})
-			
-			const layer = selectedLayerIndex
+
+			const layer = effectiveLayerIndex
 			const layerId = keymap.layers[layer].id
 			const keyPosition = selectedKeyPosition
 			const oldBinding = keymap.layers[layer].bindings[keyPosition]
@@ -125,16 +133,16 @@ export function KeyEditor({
 				}
 			})
 		},
-		[connection, keymap, doIt, selectedLayerIndex, selectedKeyPosition, setKeymap]
+		[connection, keymap, doIt, effectiveLayerIndex, selectedKeyPosition, setKeymap]
 	)
 
 	const selectedBinding = useMemo(() => {
-		if (keymap == null || selectedKeyPosition == null || !keymap.layers[selectedLayerIndex]) return null
+		if (keymap == null || selectedKeyPosition == null || !keymap.layers[effectiveLayerIndex]) return null
 
 		setSelectedKey(true)
 
-		return keymap.layers[selectedLayerIndex].bindings[selectedKeyPosition]
-	}, [keymap, selectedLayerIndex, selectedKeyPosition, setSelectedKey])
+		return keymap.layers[effectiveLayerIndex].bindings[selectedKeyPosition]
+	}, [keymap, effectiveLayerIndex, selectedKeyPosition, setSelectedKey])
 
 	return (
 		<>
