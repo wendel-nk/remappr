@@ -50,9 +50,10 @@ export function Drawer() {
         return () => { ignore = true }
     }, [connection, lockState, setKeymap, resetKeymap])
 
+    // Reset the layer selection whenever the connection is swapped or locked state changes
     useEffect(() => {
         setSelectedLayerIndex(0)
-    }, [connection, setSelectedLayerIndex])
+    }, [connection, lockState, setSelectedLayerIndex])
 
     const doSelectPhysicalLayout = useCallback(
         (i: number) => {
