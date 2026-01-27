@@ -56,7 +56,7 @@ export function Drawer({}: DrawerProps) {
 
 	useEffect(() => {
 		setSelectedLayerIndex(0)
-	}, [connection])
+	}, [connection, setSelectedLayerIndex])
 
     const doSelectPhysicalLayout = useCallback(
         (i: number) => {
@@ -90,13 +90,14 @@ export function Drawer({}: DrawerProps) {
     useEffect(() => {
         if (!keymap?.layers) return
 
-        const layer = keymap.layers.find(layer => layer.id === selectedLayerIndex)
+        // Validate that selectedLayerIndex is within bounds of the layers array
+        // selectedLayerIndex is an array index, not a layer ID
+        if (selectedLayerIndex < 0 || selectedLayerIndex >= keymap.layers.length) {
+            console.log('Layer index out of bounds, resetting to 0. selectedLayerIndex:', selectedLayerIndex, 'layers count:', keymap.layers.length)
+            setSelectedLayerIndex(0)
+        }
 
-        if (!layer) setSelectedLayerIndex(keymap.layers[0].id)
-
-        console.log(selectedLayerIndex, layer, keymap.layers.length, keymap.layers)
-
-    }, [keymap, selectedLayerIndex])
+    }, [keymap, selectedLayerIndex, setSelectedLayerIndex])
 
     return (
             <Sidebar collapsible="icon" variant='inset' >
