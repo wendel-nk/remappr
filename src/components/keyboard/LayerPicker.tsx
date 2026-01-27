@@ -152,9 +152,16 @@ export const LayerPicker = ( {
 
 		const index = layerIndex
 		const layerId = keymap.layers[index].id
+		const currentLayersCount = keymap.layers.length
 
 		doIt?.( async () => {
 			await removeLayer( index, setKeymap )
+			// Adjust selected layer index if the removed layer was selected or before selected
+			if ( selectedLayerIndex >= currentLayersCount - 1 ) {
+				setSelectedLayerIndex( Math.max( 0, currentLayersCount - 2 ) )
+			} else if ( selectedLayerIndex > index ) {
+				setSelectedLayerIndex( selectedLayerIndex - 1 )
+			}
 			return () => restore( layerId, index, setKeymap, setSelectedLayerIndex )
 		} )
 	}, [ connection, doIt, keymap, selectedLayerIndex, setKeymap, setSelectedLayerIndex ] )
@@ -183,15 +190,6 @@ export const LayerPicker = ( {
 		[ changeLayerName ]
 	)
 
-	useEffect( () => {
-		if ( !keymap?.layers ) return
-
-		// Validate that selectedLayerIndex is within bounds of the layers array
-		if ( selectedLayerIndex < 0 || selectedLayerIndex >= keymap.layers.length ) {
-			setSelectedLayerIndex( 0 )
-		}
-
-	}, [ keymap, selectedLayerIndex, setSelectedKey, setSelectedLayerIndex ] )
 
 	// Close dropdown when clicking outside
 	useEffect( () => {

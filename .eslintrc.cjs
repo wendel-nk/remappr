@@ -10,7 +10,6 @@ module.exports = {
   ignorePatterns: ["dist", ".eslintrc.cjs"],
   parser: "@typescript-eslint/parser",
   plugins: ["react-refresh"],
-  indent: ["error", 'tab'],
   rules: {
     "react-refresh/only-export-components": [
       "warn",

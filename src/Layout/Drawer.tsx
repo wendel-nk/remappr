@@ -24,7 +24,7 @@ interface DrawerProps {
 
 export function Drawer({}: DrawerProps) {
     const { connection, lockState } = useConnectionStore()
-    const { selectedLayerIndex, setSelectedLayerIndex } = useLayerSelectionStore()
+    const { setSelectedLayerIndex } = useLayerSelectionStore()
     const { keymap, setKeymap, resetKeymap } = useKeymapStore()
     const {
         layouts,
@@ -87,17 +87,6 @@ export function Drawer({}: DrawerProps) {
 
     }, [connection, layouts, selectedPhysicalLayoutIndex, setKeymap])
 
-    useEffect(() => {
-        if (!keymap?.layers) return
-
-        // Validate that selectedLayerIndex is within bounds of the layers array
-        // selectedLayerIndex is an array index, not a layer ID
-        if (selectedLayerIndex < 0 || selectedLayerIndex >= keymap.layers.length) {
-            console.log('Layer index out of bounds, resetting to 0. selectedLayerIndex:', selectedLayerIndex, 'layers count:', keymap.layers.length)
-            setSelectedLayerIndex(0)
-        }
-
-    }, [keymap, selectedLayerIndex, setSelectedLayerIndex])
 
     return (
             <Sidebar collapsible="icon" variant='inset' >
