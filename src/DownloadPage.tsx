@@ -183,7 +183,7 @@ export const Download = () => {
             </div>
             <a
                 className="text-md hover:underline"
-                href="https://github.com/nicell/remappr/releases"
+                href="https://github.com/wolffyx/remappr/releases"
             >
                 See GitHub Releases →
             </a>
