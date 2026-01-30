@@ -1,5 +1,4 @@
 import React, { useEffect } from "react"
-import { ConnectModal } from "./components/Modals/ConnectModal.tsx"
 import type { RpcTransport } from "@zmkfirmware/zmk-studio-ts-client/transport/index"
 import { useEmitter, useSub } from "./helpers/usePubSub.ts"
 import { LockState } from "@zmkfirmware/zmk-studio-ts-client/core"
@@ -16,6 +15,7 @@ import { Header } from "@/Layout/Header.tsx"
 import { Footer } from "@/Layout/Footer.tsx"
 import { toast } from "sonner"
 import { callRemoteProcedureControl } from "@/services/CallRemoteProcedureControl.ts"
+import { StartPage } from "./components/StartPage.tsx"
 
 function App () {
 	const { connection, setConnection, setDeviceName, setLockState, connectionAbort } = useConnectionStore()
@@ -96,15 +96,7 @@ function App () {
 					</SidebarProvider>
 				</>
 			) : (
-				<ConnectModal
-					open={ !connection }
-					onTransportCreated={ onConnect }
-					usedFor="connectModal"
-					modalButton={ "" }
-					opened={ !connection }
-					hideCloseButton
-					hideXButton
-				/>
+				<StartPage onTransportCreated={ onConnect } />
 			) }
 			<Toaster richColors position="top-center" />
 		</ThemeProvider>
