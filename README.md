@@ -1,3 +1,3 @@
-# ZMK Studio
+# Remappr
 
-Initial work on the ZMK Studio UI.
+Initial work on the Remappr UI.

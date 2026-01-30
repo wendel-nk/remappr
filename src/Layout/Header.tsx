@@ -86,7 +86,7 @@ export function Header({}: AppHeaderProps) {
                     alt="ZMK Logo"
                     className="h-8 rounded ps-3"
                 />{' '}
-                <span className="px-3">Studio</span>
+                <span className="px-3">Remappr</span>
                 <div className="ml-auto flex items-center gap-2">
                     <Tooltip>
                         <TooltipTrigger asChild>

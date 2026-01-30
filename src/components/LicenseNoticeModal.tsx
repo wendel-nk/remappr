@@ -23,8 +23,8 @@ export const LicenseNoticeModal = ({
       <div>
         <div className="flex justify-between items-start">
           <p className="mr-2">
-            ZMK Studio is released under the open source Apache 2.0 license. A
-            copy of the NOTICE file from the ZMK Studio repository is included
+            Remappr is released under the open source Apache 2.0 license. A
+            copy of the NOTICE file from the Remappr repository is included
             here:
           </p>
           <button

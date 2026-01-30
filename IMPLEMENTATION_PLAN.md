@@ -19,12 +19,12 @@ main-DK8JczBN.js:186 Keymap changed, selectedLayerIndex: 0 layers count: 1```
 
 - **Browser:** Chrome
 - **Keyboard:** ZMK-compatible keyboard
-- **Platform:** ZMK Studio
+- **Platform:** Remappr
 
 ## Steps to Reproduce
 
-1. Ensure the keyboard has not been connected to ZMK Studio recently (or is connecting for the first time)
-2. Connect the keyboard to ZMK Studio
+1. Ensure the keyboard has not been connected to Remappr recently (or is connecting for the first time)
+2. Connect the keyboard to Remappr
 3. Create a new layer using the "Add Layer" functionality
 4. Click on the newly created layer to switch to it
 
@@ -72,12 +72,12 @@ main-DK8JczBN.js:186 Keymap changed, selectedLayerIndex: 0 layers count: 1```
 
 - **Browser:** Chrome
 - **Keyboard:** ZMK-compatible keyboard
-- **Platform:** ZMK Studio
+- **Platform:** Remappr
 
 ## Steps to Reproduce
 
-1. Ensure the keyboard has not been connected to ZMK Studio recently (or is connecting for the first time)
-2. Connect the keyboard to ZMK Studio
+1. Ensure the keyboard has not been connected to Remappr recently (or is connecting for the first time)
+2. Connect the keyboard to Remappr
 3. Create a new layer using the "Add Layer" functionality
 4. Click on the newly created layer to switch to it
 
@@ -125,12 +125,12 @@ main-DK8JczBN.js:186 Keymap changed, selectedLayerIndex: 0 layers count: 1```
 
 - **Browser:** Chrome
 - **Keyboard:** ZMK-compatible keyboard
-- **Platform:** ZMK Studio
+- **Platform:** Remappr
 
 ## Steps to Reproduce
 
-1. Ensure the keyboard has not been connected to ZMK Studio recently (or is connecting for the first time)
-2. Connect the keyboard to ZMK Studio
+1. Ensure the keyboard has not been connected to Remappr recently (or is connecting for the first time)
+2. Connect the keyboard to Remappr
 3. Create a new layer using the "Add Layer" functionality
 4. Click on the newly created layer to switch to it
 
@@ -348,12 +348,12 @@ main-DK8JczBN.js:186 Keymap changed, selectedLayerIndex: 0 layers count: 1```
 
 - **Browser:** Chrome
 - **Keyboard:** ZMK-compatible keyboard
-- **Platform:** ZMK Studio
+- **Platform:** Remappr
 
 ## Steps to Reproduce
 
-1. Ensure the keyboard has not been connected to ZMK Studio recently (or is connecting for the first time)
-2. Connect the keyboard to ZMK Studio
+1. Ensure the keyboard has not been connected to Remappr recently (or is connecting for the first time)
+2. Connect the keyboard to Remappr
 3. Create a new layer using the "Add Layer" functionality
 4. Click on the newly created layer to switch to it
 

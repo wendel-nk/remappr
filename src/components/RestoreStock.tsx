@@ -41,7 +41,7 @@ export function RestoreStock ( props: RestoreStockSettings ) {
 				success="Restore Stock Settings"
 				close="Cancel"
 				title="Restore Stock Settings"
-				description="Settings reset will remove any customizations previously made in ZMK Studio and restore the stock keymap. Continue?"
+				description="Settings reset will remove any customizations previously made in Remappr and restore the stock keymap. Continue?"
 				showFooter={ true }
 				xButton={ true }
 				type='text'
