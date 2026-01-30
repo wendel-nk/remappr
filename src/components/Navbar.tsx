@@ -6,7 +6,7 @@ export function Navbar() {
             <div className="navbar bg-base-100">
                 <div className="navbar-start">
                     <img
-                        src="/remappr.svg"
+                        src="/remappr.webp"
                         alt="Remappr Logo"
                         className="h-8 rounded"
                     />

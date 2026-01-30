@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "generate-data": "node scripts/generate-release-data.js",
-    "dev": "npm run generate-data && vite --port 5174",
+    "dev": "vite --port 5174",
     "tauri-dev": "npm run tauri dev",
     "build": "vite build",
     "generate-build": "npm run generate-data && vite build",

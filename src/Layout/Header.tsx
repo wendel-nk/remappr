@@ -49,7 +49,7 @@ export function Header({}: AppHeaderProps) {
     }, [connection, lockState, showSettingsReset])
 
     const save = useCallback(async () => {
-        let resp = await callRemoteProcedureControl({
+        const resp = await callRemoteProcedureControl({
             keymap: { saveChanges: true },
         })
 
@@ -60,7 +60,7 @@ export function Header({}: AppHeaderProps) {
     }, [connection])
 
     const discard = useCallback(async () => {
-        let resp = await callRemoteProcedureControl({
+        const resp = await callRemoteProcedureControl({
             keymap: { discardChanges: true },
         })
 
@@ -82,7 +82,7 @@ export function Header({}: AppHeaderProps) {
                     className="mx-2 data-[orientation=vertical]:h-4"
                 />
                 <img
-                    src="/remappr.svg"
+                    src="/remappr.webp"
                     alt="Remappr Logo"
                     className="h-8 rounded ps-3"
                 />{' '}

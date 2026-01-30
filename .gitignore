@@ -31,3 +31,5 @@ src/data
 
 # FlowPatch IDE-like workspace state (generated)
 .flowpatch/
+
+.trae

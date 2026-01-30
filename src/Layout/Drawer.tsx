@@ -85,7 +85,8 @@ export function Drawer() {
 
     return (
             <Sidebar collapsible="icon" variant='inset' >
-                <SidebarHeader><img src="/remappr.svg" alt="Remappr Logo" className="h-8 rounded" />
+                <SidebarHeader className="flex-row justify-center">
+                    <img src="/remappr.png" alt="Remappr Logo" className="h-8 rounded w-10" />
                     {/*<span className="px-3">Studio</span>*/}
                 </SidebarHeader>
                 <SidebarContent>
