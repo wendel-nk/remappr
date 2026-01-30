@@ -15,7 +15,7 @@ async function generateReleaseData() {
 
   try {
     const response = await fetch(
-      "https://api.github.com/repos/wolffyx/remappr/releases/latest",
+      "https://api.github.com/repos/Wolffyx/remappr/releases/latest",
       {
         headers: process.env.GITHUB_TOKEN
           ? {Authorization: `Bearer ${process.env.GITHUB_TOKEN}`}
