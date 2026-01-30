@@ -82,8 +82,8 @@ export function Header({}: AppHeaderProps) {
                     className="mx-2 data-[orientation=vertical]:h-4"
                 />
                 <img
-                    src="/zmk.svg"
-                    alt="ZMK Logo"
+                    src="/remappr.svg"
+                    alt="Remappr Logo"
                     className="h-8 rounded ps-3"
                 />{' '}
                 <span className="px-3">Remappr</span>

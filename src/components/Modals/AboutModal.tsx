@@ -16,16 +16,7 @@ export function AboutModal() {
             >
             <div className="flex justify-between items-start">
                 <p>
-                    The ZMK Project:{' '}
-                    <ExternalLink href="https://zmk.dev/">website</ExternalLink>
-                    ,{' '}
-                    <ExternalLink href="https://github.com/zmkfirmware/zmk/issues/">
-                        GitHub Issues
-                    </ExternalLink>
-                    ,{' '}
-                    <ExternalLink href="https://zmk.dev/community/discord/invite">
-                        Discord Server
-                    </ExternalLink>
+                    Remappr - Keyboard Remapping Application
                 </p>
             </div>
             <div>

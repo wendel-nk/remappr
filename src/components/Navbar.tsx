@@ -6,8 +6,8 @@ export function Navbar() {
             <div className="navbar bg-base-100">
                 <div className="navbar-start">
                     <img
-                        src="/zmk.svg"
-                        alt="ZMK Logo"
+                        src="/remappr.svg"
+                        alt="Remappr Logo"
                         className="h-8 rounded"
                     />
                     {/*<p>Studio</p>*/}

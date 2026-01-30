@@ -9,7 +9,7 @@ export function Footer () {
 			<Separator className="data-[orientation=vertical]:h-4" />
 			<div
 				className="flex h-(--footer-height) shrink-0 items-center gap-2 transition-[width,height] ease-linear justify-center">
-				<span>&copy; 2024 - The ZMK Contributors</span> -{ " " }
+				<span>&copy; 2024 - Remappr Contributors</span> -{ " " }
 				<AboutModal></AboutModal>
 				<LicenseNoticeModal></LicenseNoticeModal>
 			</div>

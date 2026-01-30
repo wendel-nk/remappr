@@ -118,7 +118,7 @@ export const Download = () => {
     return (
         <div className="bg-base-200 dark:bg-base-300 text-base-content min-h-full w-full flex flex-col justify-center items-center p-10 pb-48">
             <img
-                src="/zmk-mac-app-icon.webp"
+                src="/remappr-mac-app-icon.webp"
                 alt="Remappr"
                 className="w-64"
             />

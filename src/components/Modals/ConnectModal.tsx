@@ -74,7 +74,7 @@ export const ConnectModal = ({
                     <ExternalLink href="https://caniuse.com/web-bluetooth">
                         Web Bluetooth
                     </ExternalLink>{' '}
-                    (Linux only) to connect to ZMK devices.
+                    (Linux only) to connect to keyboard devices.
                 </p>
 
                 <div>

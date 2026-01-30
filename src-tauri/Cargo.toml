@@ -1,11 +1,11 @@
 [package]
-name = "app"
+name = "remappr"
 version = "0.3.1"
-description = "A Tauri App"
+description = "Remappr - Keyboard remapping application"
 authors = ["you"]
 license = ""
 repository = ""
-default-run = "app"
+default-run = "remappr"
 edition = "2021"
 rust-version = "1.60"
 
