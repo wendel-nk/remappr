@@ -6,10 +6,10 @@
     "devUrl": "http://localhost:5174",
     "frontendDist": "../dist/"
   },
-  "productName": "ZMK Studio",
-  "mainBinaryName": "zmk-studio",
+  "productName": "Remappr",
+  "mainBinaryName": "remappr",
   "version": "0.3.1",
-  "identifier": "dev.zmk.studio",
+  "identifier": "dev.remappr.app",
   "bundle": {
     "active": true,
     "category": "Productivity",
@@ -69,7 +69,7 @@
         "fullscreen": false,
         "height": 600,
         "resizable": true,
-        "title": "ZMK Studio",
+        "title": "Remappr",
         "width": 800
       }
     ]

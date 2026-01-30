@@ -66,7 +66,7 @@ export const ConnectModal = ({
         return (
             <div className="m-4 flex flex-col gap-2">
                 <p>
-                    Your browser is not supported. ZMK Studio uses either{' '}
+                    Your browser is not supported. Remappr uses either{' '}
                     <ExternalLink href="https://caniuse.com/web-serial">
                         Web Serial
                     </ExternalLink>{' '}
@@ -74,11 +74,11 @@ export const ConnectModal = ({
                     <ExternalLink href="https://caniuse.com/web-bluetooth">
                         Web Bluetooth
                     </ExternalLink>{' '}
-                    (Linux only) to connect to ZMK devices.
+                    (Linux only) to connect to keyboard devices.
                 </p>
 
                 <div>
-                    <p>To use ZMK Studio, either:</p>
+                    <p>To use Remappr, either:</p>
                     <ul className="list-disc list-inside">
                         <li>
                             Use a browser that supports the above web technologies,
@@ -99,7 +99,7 @@ export const ConnectModal = ({
 
     return (
         <Modal opened={open} close={false} xButton={false} success={false} customModalBoxClass='w-11/14 max-w-2xl' isDismissable={true}>
-            <h1 className="text-xl text-center">Welcome to ZMK Studio</h1>
+            <h1 className="text-xl text-center">Welcome to Remappr</h1>
             {haveTransports
                 ? connectOptions(transports, onTransportCreated, open)
                 : noTransportsOptionsPrompt()}

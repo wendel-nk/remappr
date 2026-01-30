@@ -12,25 +12,16 @@ export function AboutModal() {
                 close={false}
                 success={false}
                 type='text'
-                text=' About ZMK Studio'
+                text=' About Remappr'
             >
             <div className="flex justify-between items-start">
                 <p>
-                    The ZMK Project:{' '}
-                    <ExternalLink href="https://zmk.dev/">website</ExternalLink>
-                    ,{' '}
-                    <ExternalLink href="https://github.com/zmkfirmware/zmk/issues/">
-                        GitHub Issues
-                    </ExternalLink>
-                    ,{' '}
-                    <ExternalLink href="https://zmk.dev/community/discord/invite">
-                        Discord Server
-                    </ExternalLink>
+                    Remappr - Keyboard Remapping Application
                 </p>
             </div>
             <div>
                 <p className="py-1 mr-2">
-                    ZMK Studio is made possible thanks to the generous donation
+                    Remappr is made possible thanks to the generous donation
                     of time from our contributors, as well as the financial
                     sponsorship from the following vendors:
                 </p>

@@ -118,11 +118,11 @@ export const Download = () => {
     return (
         <div className="bg-base-200 dark:bg-base-300 text-base-content min-h-full w-full flex flex-col justify-center items-center p-10 pb-48">
             <img
-                src="/zmk-mac-app-icon.webp"
-                alt="ZMK Studio"
+                src="/remappr-mac-app-icon.webp"
+                alt="Remappr"
                 className="w-64"
             />
-            <div className="text-3xl mb-1">ZMK Studio</div>
+            <div className="text-3xl mb-1">Remappr</div>
             <div className="text-md mb-1 opacity-70">{ReleaseVersion}</div>
             <div className="bg-base-100 p-8 max-w-md w-full m-2 rounded-lg shadow-lg dark:shadow-xl">
                 {PlatformLinks[platform].length > 0 && (
@@ -183,7 +183,7 @@ export const Download = () => {
             </div>
             <a
                 className="text-md hover:underline"
-                href="https://github.com/zmkfirmware/zmk-studio/releases"
+                href="https://github.com/nicell/remappr/releases"
             >
                 See GitHub Releases →
             </a>

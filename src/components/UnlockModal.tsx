@@ -40,7 +40,7 @@ export const UnlockModal = ({}: UnlockModalProps) => {
                 <h1 className="text-xl">Unlock To Continue</h1>
                 <p>
                     For security reasons, your keyboard requires unlocking
-                    before using ZMK Studio.
+                    before using Remappr.
                 </p>
                 <p>
                     If studio unlocking hasn't been added to your keymap or a

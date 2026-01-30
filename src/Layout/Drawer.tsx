@@ -85,7 +85,7 @@ export function Drawer() {
 
     return (
             <Sidebar collapsible="icon" variant='inset' >
-                <SidebarHeader><img src="/zmk.svg" alt="ZMK Logo" className="h-8 rounded" />
+                <SidebarHeader><img src="/remappr.svg" alt="Remappr Logo" className="h-8 rounded" />
                     {/*<span className="px-3">Studio</span>*/}
                 </SidebarHeader>
                 <SidebarContent>
