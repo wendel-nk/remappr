@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { RefreshCw, Keyboard, Monitor, AlertCircle } from "lucide-react"
+import {
+    RefreshCw,
+    Keyboard,
+    Monitor,
+    AlertCircle,
+} from "lucide-react"
 import type { RpcTransport } from "@zmkfirmware/zmk-studio-ts-client/transport/index"
 import { UserCancelledError } from "@zmkfirmware/zmk-studio-ts-client/transport/errors"
 import { toast } from "sonner"

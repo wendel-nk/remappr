@@ -13,7 +13,7 @@ export interface ActiveConnection {
 }
 
 export interface TransportEventEmitter {
-  emit: (event: string, data: any) => void;
-  on: (event: string, callback: (data: any) => void) => void;
-  off: (event: string, callback: (data: any) => void) => void;
+  emit: (event: string, data: unknown) => void;
+  on: (event: string, callback: (data: unknown) => void) => void;
+  off: (event: string, callback: (data: unknown) => void) => void;
 }

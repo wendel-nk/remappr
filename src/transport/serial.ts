@@ -11,7 +11,8 @@ export class SerialTransport {
     this.eventEmitter = eventEmitter;
   }
 
-  async serialConnect(id: string): Promise<boolean> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async serialConnect(_id: string): Promise<boolean> {
     try {
       // Use Web Serial API
       if (!navigator.serial) {
@@ -65,7 +66,7 @@ export class SerialTransport {
     } finally {
       // Ensure the port is closed when the read process ends
       await this.cleanup();
-      this.eventEmitter.emit('connection_disconnected');
+      this.eventEmitter.emit('connection_disconnected', []);
     }
   }
 

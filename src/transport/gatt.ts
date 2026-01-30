@@ -19,9 +19,9 @@ export class GattTransport {
         throw new Error('Web Bluetooth API not supported in this browser');
       }
 
-      // Parse device ID
-      const deviceId = JSON.parse(id);
-      
+      // Parse device ID (validate format)
+      JSON.parse(id);
+
       // Request Bluetooth device
       this.device = await navigator.bluetooth.requestDevice({
         filters: [
@@ -119,6 +119,6 @@ export class GattTransport {
     }
     
     this.conn = undefined;
-    this.eventEmitter.emit('connection_disconnected');
+    this.eventEmitter.emit('connection_disconnected', [])
   }
 }

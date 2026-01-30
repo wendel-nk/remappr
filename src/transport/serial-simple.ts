@@ -1,5 +1,4 @@
 import { SerialPort } from 'serialport';
-import { Transform } from 'stream';
 import { TransportEventEmitter, AvailableDevice } from './types';
 
 export class SimpleSerialTransport {
@@ -31,11 +30,11 @@ export class SimpleSerialTransport {
 
       this.port.on('error', (err) => {
         console.error('Serial port error:', err);
-        this.eventEmitter.emit('connection_disconnected');
+        this.eventEmitter.emit('connection_disconnected', [])
       });
 
       this.port.on('close', () => {
-        this.eventEmitter.emit('connection_disconnected');
+        this.eventEmitter.emit('connection_disconnected', []);
       });
 
       return true;
@@ -58,10 +57,10 @@ export class SimpleSerialTransport {
   async serialDisconnect(): Promise<void> {
     if (this.port) {
       await new Promise<void>((resolve) => {
-        this.port!.close(() => resolve());
-      });
+          this.port!.close(() => resolve())
+      })
     }
-    this.eventEmitter.emit('connection_disconnected');
+    this.eventEmitter.emit('connection_disconnected', []);
   }
 
   async serialListDevices(): Promise<AvailableDevice[]> {
