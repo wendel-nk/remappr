@@ -26,3 +26,8 @@ src/data
 
 *storybook.log
 .patchwork
+# FlowPatch IDE-like workspace state (generated)
+.flowpatch/state/
+
+# FlowPatch IDE-like workspace state (generated)
+.flowpatch/
