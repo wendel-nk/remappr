@@ -4,3 +4,9 @@ public/
 *.rs
 src/data/HidUsageTables-1.5.json
 src/data/keyboard-and-consumer-usage-tables.json
+out
+dist
+pnpm-lock.yaml
+LICENSE.md
+tsconfig.json
+tsconfig.*.json
