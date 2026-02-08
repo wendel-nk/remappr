@@ -1,5 +1,5 @@
-appId: com.electron.app
-productName: app
+appId: dev.remappr.app
+productName: Remappr
 directories:
     buildResources: build
 files:
