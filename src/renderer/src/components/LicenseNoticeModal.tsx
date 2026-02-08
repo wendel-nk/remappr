@@ -11,7 +11,7 @@ export interface LicenseNoticeModalProps {
 export const LicenseNoticeModal = ({
     open,
     onClose,
-}: LicenseNoticeModalProps) => {
+}: LicenseNoticeModalProps): JSX.Element => {
     const ref = useModalRef(open, true)
 
     return (

@@ -21,13 +21,13 @@ interface DownloadProps {
     onClose?: () => void
 }
 
-export function Download({ opened = false, onClose }: DownloadProps) {
+export function Download(_props: DownloadProps): JSX.Element {
     const { connection, deviceName } = useConnectionStore()
     const behaviors = useBehaviors()
 
     const [keymap] = useConnectedDeviceData<Keymap>(
         { keymap: { getKeymap: true } },
-        (keymap) => keymap?.keymap?.getKeymap,
+        (keymap): Keymap | undefined => keymap?.keymap?.getKeymap,
         true,
     )
 
@@ -36,7 +36,7 @@ export function Download({ opened = false, onClose }: DownloadProps) {
     )
     const [keymapName, setKeymapName] = useState('default')
 
-    const handleGenerateConfig = () => {
+    const handleGenerateConfig = (): void => {
         if (!keymap || !behaviors || Object.keys(behaviors).length === 0) {
             toast.error(
                 'No keymap data available. Please connect to a keyboard first.',
@@ -65,7 +65,7 @@ export function Download({ opened = false, onClose }: DownloadProps) {
         }
     }
 
-    const handleCopyToClipboard = async () => {
+    const handleCopyToClipboard = async (): Promise<void> => {
         if (!keymap || !behaviors || Object.keys(behaviors).length === 0) {
             toast.error(
                 'No keymap data available. Please connect to a keyboard first.',
@@ -128,7 +128,7 @@ export function Download({ opened = false, onClose }: DownloadProps) {
                             <Input
                                 id="keyboard-name"
                                 value={keyboardName}
-                                onChange={(e) =>
+                                onChange={(e): void =>
                                     setKeyboardName(e.target.value)
                                 }
                                 placeholder="my-keyboard"
@@ -139,7 +139,9 @@ export function Download({ opened = false, onClose }: DownloadProps) {
                             <Input
                                 id="keymap-name"
                                 value={keymapName}
-                                onChange={(e) => setKeymapName(e.target.value)}
+                                onChange={(e): void =>
+                                    setKeymapName(e.target.value)
+                                }
                                 placeholder="default"
                             />
                         </div>
@@ -191,7 +193,7 @@ export function Download({ opened = false, onClose }: DownloadProps) {
                     <div className="space-y-3 text-sm text-muted-foreground">
                         <div>
                             <strong>1. Generate Configuration:</strong> Click
-                            "Download Config Files" to get your ZMK
+                            &quot;Download Config Files&quot; to get your ZMK
                             configuration files.
                         </div>
                         <div>

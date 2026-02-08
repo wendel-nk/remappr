@@ -19,7 +19,12 @@ import { toast } from 'sonner'
 interface KeyEditorProps {
     selectedKey: boolean
     keymap: Keymap | undefined
-    setKeymap: (keymap: Keymap | ((prev: Keymap) => Keymap)) => void
+    setKeymap: (
+        keymap:
+            | Keymap
+            | undefined
+            | ((prev: Keymap | undefined) => Keymap | undefined),
+    ) => void
     selectedKeyPosition: number | undefined
     setSelectedKeyPosition: (position: number | undefined) => void
     setSelectedKey: (value: boolean) => void
@@ -32,14 +37,14 @@ export function KeyEditor({
     selectedKeyPosition,
     setSelectedKeyPosition,
     setSelectedKey,
-}: KeyEditorProps) {
+}: KeyEditorProps): JSX.Element {
     const { doIt } = undoRedoStore()
     const { connection } = useConnectionStore()
     const { selectedLayerIndex } = useLayerSelectionStore()
     const behaviors = useBehaviors()
 
     // Compute effective layer index - clamp to valid bounds when out of range
-    const effectiveLayerIndex = useMemo(() => {
+    const effectiveLayerIndex = useMemo((): number => {
         if (!keymap || keymap.layers.length === 0) {
             return 0
         }
@@ -58,7 +63,7 @@ export function KeyEditor({
     // )
 
     const doUpdateBinding = useCallback(
-        (binding: BehaviorBinding) => {
+        (binding: BehaviorBinding): void => {
             if (!keymap || selectedKeyPosition === undefined) {
                 console.error(
                     "Can't update binding without a selected key position and loaded keymap",
@@ -83,7 +88,7 @@ export function KeyEditor({
             const keyPosition = selectedKeyPosition
             const oldBinding = keymap.layers[layer].bindings[keyPosition]
 
-            doIt?.(async () => {
+            doIt?.(async (): Promise<() => Promise<void>> => {
                 const resp = await callRemoteProcedureControl({
                     keymap: {
                         setLayerBinding: { layerId, keyPosition, binding },
@@ -96,12 +101,15 @@ export function KeyEditor({
                     resp.keymap?.setLayerBinding ===
                     SetLayerBindingResponse.SET_LAYER_BINDING_RESP_OK
                 ) {
-                    setKeymap((prev: Keymap) => {
-                        const next = produce(prev, (draft) => {
-                            draft.layers[layer].bindings[keyPosition] = binding
-                        })
-                        return next
-                    })
+                    setKeymap(
+                        (prev: Keymap | undefined): Keymap | undefined => {
+                            if (!prev) return prev
+                            return produce(prev, (draft) => {
+                                draft.layers[layer].bindings[keyPosition] =
+                                    binding
+                            })
+                        },
+                    )
                 } else {
                     toast.error(
                         'Failed to set binding' + resp.keymap?.setLayerBinding,
@@ -121,7 +129,7 @@ export function KeyEditor({
                     })
                 }
 
-                return async () => {
+                return async (): Promise<void> => {
                     if (!connection) return
 
                     const resp = await callRemoteProcedureControl({
@@ -137,13 +145,15 @@ export function KeyEditor({
                         resp.keymap?.setLayerBinding ===
                         SetLayerBindingResponse.SET_LAYER_BINDING_RESP_OK
                     ) {
-                        setKeymap((prev: Keymap) => {
-                            const next = produce(prev, (draft) => {
-                                draft.layers[layer].bindings[keyPosition] =
-                                    oldBinding
-                            })
-                            return next
-                        })
+                        setKeymap(
+                            (prev: Keymap | undefined): Keymap | undefined => {
+                                if (!prev) return prev
+                                return produce(prev, (draft) => {
+                                    draft.layers[layer].bindings[keyPosition] =
+                                        oldBinding
+                                })
+                            },
+                        )
                     } else {
                         console.error(
                             'Failed to set binding',
@@ -163,7 +173,7 @@ export function KeyEditor({
         ],
     )
 
-    const selectedBinding = useMemo(() => {
+    const selectedBinding = useMemo((): BehaviorBinding | null => {
         if (
             keymap == null ||
             selectedKeyPosition == null ||
@@ -205,7 +215,7 @@ export function KeyEditor({
                                 variant="ghost"
                                 size="sm"
                                 className="absolute right-2 top-2 h-8 w-8 p-0"
-                                onClick={() => {
+                                onClick={(): void => {
                                     setSelectedKey(false)
                                     setSelectedKeyPosition(undefined)
                                 }}

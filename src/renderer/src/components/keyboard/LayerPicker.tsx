@@ -4,6 +4,7 @@ import undoRedoStore from '@/stores/UndoRedoStore.ts'
 import useConnectionStore from '@/stores/ConnectionStore.ts'
 import useLayerSelectionStore from '@/stores/LayerSelectionStore.ts'
 import EditLabel from '../EditLabel.tsx'
+import type { Keymap } from '@zmkfirmware/zmk-studio-ts-client/keymap'
 
 import {
     SidebarGroupAction,
@@ -47,9 +48,9 @@ interface LayerPickerProps {
     canRemove?: boolean
 
     onLayerClicked?: LayerClickCallback // todo remove if not needed
-    setKeymap?: any
-    keymap?: any
-    setSelectedKey?: any
+    setKeymap?: (updater: (draft: Keymap) => void) => void
+    keymap?: Keymap
+    setSelectedKey?: (key: number | undefined) => void
 }
 
 interface EditLabelData {
@@ -62,10 +63,9 @@ export const LayerPicker = ({
     canAdd,
     canRemove,
     onLayerClicked,
-    setSelectedKey,
     setKeymap,
     keymap,
-}: LayerPickerProps) => {
+}: LayerPickerProps): JSX.Element => {
     const [editLabelData, setEditLabelData] = useState<EditLabelData | null>(
         null,
     )
@@ -75,13 +75,28 @@ export const LayerPicker = ({
     const { selectedLayerIndex, setSelectedLayerIndex } =
         useLayerSelectionStore()
 
-    const layersArray = useMemo(() => {
-        return layers.map((l, i) => ({
-            name: l.name || i.toLocaleString(),
-            id: l.id,
-            index: i,
-            selected: i === selectedLayerIndex,
-        }))
+    const layersArray = useMemo((): Array<{
+        id: number
+        name: string
+        index: number
+        selected: boolean
+    }> => {
+        return layers.map(
+            (
+                l: Layer,
+                i: number,
+            ): {
+                id: number
+                name: string
+                index: number
+                selected: boolean
+            } => ({
+                name: l.name || i.toLocaleString(),
+                id: l.id,
+                index: i,
+                selected: i === selectedLayerIndex,
+            }),
+        )
     }, [layers, selectedLayerIndex])
 
     // Keep the selected layer valid only when the layer list shrinks (e.g. layer removal)
@@ -172,7 +187,7 @@ export const LayerPicker = ({
     // )
 
     const add = useCallback(() => {
-        if (!connection) return
+        if (!connection || !setKeymap) return
 
         doIt?.(async () => {
             const index = await addLayer(
@@ -189,7 +204,7 @@ export const LayerPicker = ({
 
     const remove = useCallback(
         (layerIndex: number) => {
-            if (!connection) return
+            if (!connection || !setKeymap) return
             if (!keymap) {
                 toast.error('No keymap loaded')
                 return
@@ -223,7 +238,7 @@ export const LayerPicker = ({
 
     const changeLayerName = useCallback(
         (id: number, oldName: string, newName: string) => {
-            if (!connection) return
+            if (!connection || !setKeymap) return
 
             doIt?.(async () => {
                 await changeName(id, newName, setKeymap)
@@ -245,15 +260,15 @@ export const LayerPicker = ({
     )
 
     // Close dropdown when clicking outside
-    useEffect(() => {
-        const handleClickOutside = () => {
+    useEffect((): (() => void) => {
+        const handleClickOutside = (): void => {
             if (dropdownOpen !== null) {
                 setDropdownOpen(null)
             }
         }
 
         document.addEventListener('mousedown', handleClickOutside)
-        return () => {
+        return (): void => {
             document.removeEventListener('mousedown', handleClickOutside)
         }
     }, [dropdownOpen])

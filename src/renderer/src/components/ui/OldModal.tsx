@@ -16,7 +16,6 @@ export interface ModalProps {
 }
 
 export function OldModal({
-    usedFor = 'default',
     opened = false,
     onClose,
     onOk,
@@ -27,8 +26,8 @@ export function OldModal({
     hideXButton = false,
     hideCloseButton = false,
     okButtonText = 'OK',
-    children
-}: ModalProps) {
+    children,
+}: ModalProps): JSX.Element {
     const dialogRef = useRef<HTMLDialogElement>(null)
 
     useEffect(() => {
@@ -39,15 +38,21 @@ export function OldModal({
         opened ? dialog.showModal() : dialog.close()
     }, [opened])
 
-    const handleClose = () => onClose?.()
-    const handleOk = () => onOk?.()
+    const handleClose = (): void => {
+        onClose?.()
+    }
+    const handleOk = (): void => {
+        onOk?.()
+    }
 
     return (
         <>
             {modalButton && !opened && (
                 <span
                     className={`cursor-pointer ${type || ''}`}
-                    onClick={() => dialogRef.current?.showModal()}
+                    onClick={(): void => {
+                        dialogRef.current?.showModal()
+                    }}
                 >
                     {modalButton}
                 </span>
@@ -62,25 +67,17 @@ export function OldModal({
                     <div className="modal-action">
                         <form method="dialog">
                             {!hideCloseButton && (
-                                <button
-                                    className="btn"
-                                    onClick={handleClose}
-                                >
+                                <button className="btn" onClick={handleClose}>
                                     Close
                                 </button>
                             )}
                             {onOk && (
-                                <button
-                                    onClick={handleOk}
-                                    className="btn"
-                                >
+                                <button onClick={handleOk} className="btn">
                                     {okButtonText}
                                 </button>
                             )}
                             {!hideXButton && (
-                                <button
-                                    className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2"
-                                >
+                                <button className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">
                                     ✕
                                 </button>
                             )}

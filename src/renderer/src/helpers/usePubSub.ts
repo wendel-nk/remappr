@@ -1,45 +1,61 @@
 import Emittery from 'emittery'
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect } from 'react'
 
 const emitter = new Emittery()
 
-export const usePub = () => (name: PropertyKey, data: any) => {
+// For non-React contexts
+export const publish = (name: PropertyKey, data: unknown): void => {
     emitter.emit(name, data)
 }
 
+export const usePub =
+    (): ((name: PropertyKey, data: unknown) => void) =>
+    (name: PropertyKey, data: unknown): void => {
+        emitter.emit(name, data)
+    }
+
 export const useSub = (
     name: PropertyKey,
-    callback: (data) => void | Promise<void>,
-) => {
-    const unsub = () => {
+    callback: (data: unknown) => void | Promise<void>,
+): (() => void) => {
+    const unsub = (): void => {
         console.log('unsub', name)
         emitter.off(name, callback)
     }
 
     // Be sure we unsub if unmounted.
-    useEffect(() => {
+    useEffect((): (() => void) => {
         emitter.on(name, callback)
-        return () => unsub()
+        return (): void => unsub()
     })
 
     return unsub
 }
 
-export const useEmitter = () => {
+export const useEmitter = (): {
+    publish: (event: PropertyKey, data: unknown) => void
+    subscribe: (
+        event: PropertyKey,
+        callback: (data: unknown) => void | Promise<void>,
+    ) => () => void
+} => {
     // Memoized publish function to emit events
-    const publish = useCallback((event: PropertyKey, data) => {
-        emitter.emit(event, data);
-    }, []);
+    const publish = useCallback((event: PropertyKey, data: unknown): void => {
+        emitter.emit(event, data)
+    }, [])
 
     // Memoized subscribe function that returns an unsubscribe function
     const subscribe = useCallback(
-      (event: PropertyKey, callback: (data) => void | Promise<void>) => {
-          // console.log('unsub', event,callback)
-          emitter.on(event, callback);
-          return () => emitter.off(event, callback);
-      },
-      []
-    );
+        (
+            event: PropertyKey,
+            callback: (data: unknown) => void | Promise<void>,
+        ): (() => void) => {
+            // console.log('unsub', event,callback)
+            emitter.on(event, callback)
+            return (): void => emitter.off(event, callback)
+        },
+        [],
+    )
 
-    return { publish, subscribe };
-};
+    return { publish, subscribe }
+}

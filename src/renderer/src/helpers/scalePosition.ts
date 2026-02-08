@@ -1,5 +1,4 @@
 import { CSSProperties } from 'react'
-import { PhysicalLayoutPositionLocation } from '../components/keyboard/PhysicalLayout.tsx'
 
 export interface PhysicalLayoutPositionLocation {
     x: number

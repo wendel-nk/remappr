@@ -31,23 +31,27 @@ export const BehaviorSelector = ({
     onBehaviorSelected,
     placeholder = 'Select behavior...',
     className,
-}: BehaviorSelectorProps) => {
+}: BehaviorSelectorProps): JSX.Element => {
     const [open, setOpen] = useState(false)
 
     const sortedBehaviors = useMemo(
-        () =>
-            behaviors.sort((a, b) =>
-                a.displayName.localeCompare(b.displayName),
+        (): GetBehaviorDetailsResponse[] =>
+            behaviors.sort(
+                (
+                    a: GetBehaviorDetailsResponse,
+                    b: GetBehaviorDetailsResponse,
+                ): number => a.displayName.localeCompare(b.displayName),
             ),
         [behaviors],
     )
 
     const selectedBehavior = useMemo(
-        () => sortedBehaviors.find((b) => b.id === selectedBehaviorId),
+        (): GetBehaviorDetailsResponse | undefined =>
+            sortedBehaviors.find((b): boolean => b.id === selectedBehaviorId),
         [sortedBehaviors, selectedBehaviorId],
     )
 
-    const handleSelect = (behaviorId: number) => {
+    const handleSelect = (behaviorId: number): void => {
         onBehaviorSelected(behaviorId)
         setOpen(false)
     }

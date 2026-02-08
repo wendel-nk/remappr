@@ -9,11 +9,7 @@ import useKeymapStore from '@/stores/KeymapStore.ts'
  * A parent component that manages the shared state between Keyboard and KeyEditor components.
  * Handles the selection state and coordinates between the keyboard display and key editing interface.
  */
-interface KeyboardEditorProps {
-    // No props needed - using store directly
-}
-
-export function KeyboardEditor({}: KeyboardEditorProps) {
+export function KeyboardEditor(): JSX.Element {
     // Shared state between Keyboard and KeyEditor
     const [selectedKey, setSelectedKey] = useState<boolean>(false)
     const [selectedKeyPosition, setSelectedKeyPosition] = useState<

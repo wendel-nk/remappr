@@ -1,6 +1,5 @@
 import type { Notification } from '@zmkfirmware/zmk-studio-ts-client/studio'
-// import { usePub } from '../helpers/usePubSub.ts'
-import React, { Dispatch, SetStateAction, useEffect, useState } from 'react'
+import React, { SetStateAction, useEffect, useState } from 'react'
 import {
     call_rpc,
     create_rpc_connection as createRpcConnection,
@@ -10,8 +9,7 @@ import {
 } from '@zmkfirmware/zmk-studio-ts-client'
 import { valueAfter } from '../helpers/async.ts'
 import { RpcTransport } from '@zmkfirmware/zmk-studio-ts-client/transport/index'
-import { usePub } from '../helpers/usePubSub.ts'
-import { toast } from 'sonner'
+import { publish } from '../helpers/usePubSub.ts'
 import useConnectionStore from '@/stores/ConnectionStore.ts'
 import { LockState } from '@zmkfirmware/zmk-studio-ts-client/core'
 
@@ -37,7 +35,7 @@ import { LockState } from '@zmkfirmware/zmk-studio-ts-client/core'
 //         pub('rpc_notification', value)
 //
 //         const subsystem = Object.entries(value).find(
-//             ([_k, v]) => v !== undefined,
+//             ([, v]) => v !== undefined,
 //         )
 //         if (!subsystem) return
 //
@@ -72,17 +70,14 @@ import { LockState } from '@zmkfirmware/zmk-studio-ts-client/core'
 async function listenForNotifications(
     notification_stream: ReadableStream<Notification>,
     signal: AbortSignal,
-    callback?: (notification: Notification) => void,
 ): Promise<void> {
     const reader = notification_stream.getReader()
-    const onAbort = () => {
+    const onAbort = (): void => {
         reader.cancel()
         reader.releaseLock()
     }
     signal.addEventListener('abort', onAbort, { once: true })
     do {
-        const pub = usePub()
-
         try {
             const { done, value } = await reader.read()
             if (done) {
@@ -94,10 +89,10 @@ async function listenForNotifications(
             }
 
             console.log('Notification', value)
-            pub('rpc_notification', value)
+            publish('rpc_notification', value)
 
             const subsystem = Object.entries(value).find(
-                ([_k, v]) => v !== undefined,
+                ([, v]) => v !== undefined,
             )
             if (!subsystem) {
                 continue
@@ -105,7 +100,7 @@ async function listenForNotifications(
 
             const [subId, subData] = subsystem
             const event = Object.entries(subData).find(
-                ([_k, v]) => v !== undefined,
+                ([, v]) => v !== undefined,
             )
 
             if (!event) {
@@ -115,12 +110,13 @@ async function listenForNotifications(
             const [eventName, eventData] = event
             const topic = ['rpc_notification', subId, eventName].join('.')
 
-            pub(topic, eventData)
+            publish(topic, eventData)
         } catch (e) {
             signal.removeEventListener('abort', onAbort)
             reader.releaseLock()
             throw e
         }
+        // eslint-disable-next-line no-constant-condition
     } while (true)
 
     signal.removeEventListener('abort', onAbort)
@@ -135,32 +131,45 @@ export async function callRemoteProcedureControl(
     // console.trace('RPC Request', conn, req);
     // console.log( conn, req )
     return call_rpc(conn, req)
-        .then((r) => {
+        .then((r: RequestResponse): RequestResponse => {
             // console.log('RPC Response', r);
             return r
         })
-        .catch((e) => {
+        .catch((e: unknown): RequestResponse => {
             // console.log('RPC Error', e);
-            return e
+            console.error('RPC Error', e)
+            throw e
         })
+}
+
+interface DeviceInfoDetails {
+    name: string
+    serialNumber?: Uint8Array
 }
 
 export async function connect(
     transport: RpcTransport,
-    setConnection: any,
-    setConnectedDeviceName: Dispatch<string | undefined>,
+    setConnection: (
+        conn: RpcConnection | null,
+        communication?: 'serial' | 'ble',
+    ) => void,
+    setConnectedDeviceName: (name: string | null) => void,
     signal: AbortSignal,
     communication: 'serial' | 'ble',
-) {
+): Promise<void | string> {
     const conn = await createRpcConnection(transport, { signal })
     console.log('Connect function', conn)
     const details = await Promise.race([
         callRemoteProcedureControl(conn, { core: { getDeviceInfo: true } })
-            .then(function (response) {
+            .then(function (
+                response: RequestResponse,
+            ): DeviceInfoDetails | undefined {
                 console.log(response)
-                return response?.core?.getDeviceInfo
+                return response?.core?.getDeviceInfo as
+                    | DeviceInfoDetails
+                    | undefined
             })
-            .catch((e) => {
+            .catch((e: unknown): undefined => {
                 console.error('Failed first RPC call', e)
                 return undefined
             }),
@@ -171,15 +180,13 @@ export async function connect(
         return 'Failed to connect to the chosen device'
     }
 
-    listenForNotifications(conn.notification_readable, signal, (value) => {
-        console.log('callback', value)
-    })
-        .then(() => {
-            setConnectedDeviceName(undefined)
+    listenForNotifications(conn.notification_readable, signal)
+        .then((): void => {
+            setConnectedDeviceName(null)
             setConnection(null)
         })
-        .catch((e) => {
-            setConnectedDeviceName(undefined)
+        .catch((e: unknown): void => {
+            setConnectedDeviceName(null)
             console.log('connection lost', e)
             setConnection(null)
         })
@@ -208,7 +215,8 @@ export function useConnectedDeviceData<T>(
             }
             console.log(req, response_mapper)
 
-            async function startRequest() {
+            async function startRequest(): Promise<void> {
+                if (!connection) return
                 setData(undefined)
 
                 const response = response_mapper(
@@ -223,7 +231,7 @@ export function useConnectedDeviceData<T>(
             let ignore = false
             startRequest()
 
-            return () => {
+            return (): void => {
                 ignore = true
             }
         },

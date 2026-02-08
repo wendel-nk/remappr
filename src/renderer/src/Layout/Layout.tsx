@@ -1,23 +1,23 @@
+import { useState } from 'react'
 import { Footer } from './Footer.tsx'
 import { Header } from './Header.tsx'
 import Keyboard from '../components/keyboard/Keyboard.tsx'
+import useKeymapStore from '@/stores/KeymapStore.ts'
 
-interface LayoutProps {
-    onSave?: () => void | Promise<void>
-    onDiscard?: () => void | Promise<void>
-    onUndo?: () => Promise<void>
-    onRedo?: () => Promise<void>
-    onResetSettings?: () => void | Promise<void>
-    onDisconnect?: () => Promise<void>
-    canUndo?: boolean
-    canRedo?: boolean
-}
+export function Layout(): JSX.Element {
+    const [selectedKeyPosition, setSelectedKeyPosition] = useState<
+        number | undefined
+    >(undefined)
+    const { keymap } = useKeymapStore()
 
-export function Layout({}: LayoutProps) {
     return (
         <>
             <Header></Header>
-            <Keyboard />
+            <Keyboard
+                keymap={keymap}
+                selectedKeyPosition={selectedKeyPosition}
+                setSelectedKeyPosition={setSelectedKeyPosition}
+            />
             <Footer />
         </>
     )

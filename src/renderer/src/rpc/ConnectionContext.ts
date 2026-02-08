@@ -1,9 +1,9 @@
-import { createContext } from "react";
+import { createContext } from 'react'
 
-import { RpcConnection } from "@zmkfirmware/zmk-studio-ts-client/index";
+import { RpcConnection } from '@zmkfirmware/zmk-studio-ts-client/index'
 
 export interface ConnectionState {
-  conn: RpcConnection | null;
+    conn: RpcConnection | null
 }
 
-export const ConnectionContext = createContext<ConnectionState>({ conn: null });
+export const ConnectionContext = createContext<ConnectionState>({ conn: null })

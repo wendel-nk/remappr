@@ -13,7 +13,6 @@ import {
 } from '@/components/ui/sidebar.tsx'
 import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button.tsx'
-import { OverlayArrow, Pressable } from 'react-aria-components'
 
 export interface PhysicalLayoutItem {
     name: string
@@ -32,9 +31,9 @@ export const PhysicalLayoutPicker = ({
     layouts,
     selectedPhysicalLayoutIndex,
     onPhysicalLayoutClicked,
-}: PhysicalLayoutPickerProps) => {
+}: PhysicalLayoutPickerProps): JSX.Element => {
     const handleLayoutSelect = useCallback(
-        (index: number) => {
+        (index: number): void => {
             onPhysicalLayoutClicked?.(index)
         },
         [onPhysicalLayoutClicked],

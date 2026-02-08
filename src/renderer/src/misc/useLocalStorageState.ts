@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { type Dispatch, type SetStateAction, useEffect, useState } from 'react'
 
 function basicSerialize<T>(value: T): string {
     if (typeof value === 'object') {
@@ -14,7 +14,7 @@ export function useLocalStorageState<T>(
         serialize?: (value: T) => string
         deserialize?: (value: string) => T
     },
-) {
+): [T, Dispatch<SetStateAction<T>>] {
     const reactState = useState<T>(() => {
         const savedValue = localStorage.getItem(key)
         if (savedValue !== null) {

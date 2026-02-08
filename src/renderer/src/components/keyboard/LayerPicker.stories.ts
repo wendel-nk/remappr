@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react'
-import { fn } from '@storybook/test'
+import { fn } from 'storybook/test'
 import { LayerPicker } from './LayerPicker.tsx'
 
 // More on how to set up stories at: https://storybook.js.org/docs/writing-stories#default-export
@@ -33,13 +33,11 @@ export const Named: Story = {
             { id: 3, name: 'Nav' },
             { id: 4, name: 'Symbol' },
         ],
-        selectedLayerIndex: 2,
     },
 }
 
 export const NoNames: Story = {
     args: {
         layers: [{ id: 1 }, { id: 2 }, { id: 3 }],
-        selectedLayerIndex: 0,
     },
 }

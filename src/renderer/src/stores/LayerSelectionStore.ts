@@ -13,7 +13,8 @@ const useLayerSelectionStore = create<LayerSelectionState>()(
         persist(
             (set) => ({
                 selectedLayerIndex: 0,
-                setSelectedLayerIndex: (index) => set({ selectedLayerIndex: index }),
+                setSelectedLayerIndex: (index) =>
+                    set({ selectedLayerIndex: index }),
             }),
             {
                 name: 'layer-selection-store', // Storage key

@@ -70,7 +70,7 @@ export const BehaviorBindingPicker = ({
     layers,
     behaviors,
     onBindingChanged,
-}: BehaviorBindingPickerProps) => {
+}: BehaviorBindingPickerProps): JSX.Element => {
     const [behaviorId, setBehaviorId] = useState(binding?.behaviorId ?? 0)
     const [param1, setParam1] = useState<number | undefined>(binding?.param1)
     const [param2, setParam2] = useState<number | undefined>(binding?.param2)
@@ -83,11 +83,12 @@ export const BehaviorBindingPicker = ({
     const [isKeysLayoutActive, setIsKeysLayoutActive] = useState(false)
 
     const metadata = useMemo(
-        () => behaviors.find((b) => b.id == behaviorId)?.metadata,
+        (): GetBehaviorDetailsResponse['metadata'] =>
+            behaviors.find((b): boolean => b.id == behaviorId)?.metadata ?? [],
         [behaviorId, behaviors],
     )
 
-    useEffect(() => {
+    useEffect((): void => {
         if (!binding) {
             return
         }
@@ -116,7 +117,7 @@ export const BehaviorBindingPicker = ({
         if (
             validateBinding(
                 metadata,
-                layers.map(({ id }) => id),
+                layers.map(({ id }: { id: number }): number => id),
                 param1,
                 param2,
             )
@@ -129,7 +130,7 @@ export const BehaviorBindingPicker = ({
         }
     }, [behaviorId, param1, param2])
 
-    useEffect(() => {
+    useEffect((): void => {
         if (!binding) {
             return
         }
@@ -139,39 +140,41 @@ export const BehaviorBindingPicker = ({
         console.log(binding)
     }, [binding])
 
-    const handleBehaviorSelected = (selectedBehaviorId: number) => {
+    const handleBehaviorSelected = (selectedBehaviorId: number): void => {
         setBehaviorId(selectedBehaviorId)
         setParam1(0)
         setParam2(0)
     }
 
     // Handlers for SelectedKeysDisplay
-    const handleClearAll = () => {
+    const handleClearAll = (): void => {
         setSelectedKey(undefined)
         setSelectedModifiers([])
     }
 
-    const handleRemoveKey = (_key: number) => {
+    const handleRemoveKey = (): void => {
         setSelectedKey(undefined)
     }
 
-    const handleRemoveModifier = (keyId: number) => {
+    const handleRemoveModifier = (keyId: number): void => {
         // Find the modifier that corresponds to this keyId
         const modifier = KEY_ID_TO_MOD[keyId]
         if (modifier) {
-            setSelectedModifiers((prev) => prev.filter((m) => m !== modifier))
+            setSelectedModifiers((prev: number[]): number[] =>
+                prev.filter((m: number): boolean => m !== modifier),
+            )
         }
     }
 
-    const handleKeysLayoutActive = (isActive: boolean) => {
+    const handleKeysLayoutActive = (isActive: boolean): void => {
         setIsKeysLayoutActive(isActive)
     }
 
-    const handleKeySelected = (key: number | undefined) => {
+    const handleKeySelected = (key: number | undefined): void => {
         setSelectedKey(key)
     }
 
-    const handleModifiersChanged = (modifiers: any[]) => {
+    const handleModifiersChanged = (modifiers: number[]): void => {
         setSelectedModifiers(modifiers)
     }
 

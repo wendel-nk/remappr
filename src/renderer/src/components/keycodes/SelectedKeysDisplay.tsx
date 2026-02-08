@@ -57,14 +57,18 @@ export const SelectedKeysDisplay = ({
     onClearAll,
     onRemoveKey,
     onRemoveModifier,
-}: SelectedKeysDisplayProps) => {
+}: SelectedKeysDisplayProps): JSX.Element | null => {
     // Helper function to get key info by ID
-    function getKeyInfo(keyId: number) {
+    function getKeyInfo(
+        keyId: number,
+    ): { Label?: string; Name?: string; keyboardName: string } | null {
         for (const keyboard of keyboards) {
-            const key = keyboard.UsageIds.find((k) => {
-                const kId = typeof k.Id === 'string' ? parseInt(k.Id) : k.Id
-                return kId === keyId
-            })
+            const key = keyboard.UsageIds.find(
+                (k: { Id: number | string }): boolean => {
+                    const kId = typeof k.Id === 'string' ? parseInt(k.Id) : k.Id
+                    return kId === keyId
+                },
+            )
             if (key) {
                 return { ...key, keyboardName: keyboard.Name }
             }

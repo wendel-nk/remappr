@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect } from 'react'
 import { useEmitter } from '../helpers/usePubSub.ts'
 import { LockState } from '@zmkfirmware/zmk-studio-ts-client/core'
 import { Redo2, Save, Trash2, Undo2 } from 'lucide-react'
@@ -18,12 +18,9 @@ import {
     TooltipContent,
 } from '@/components/ui/tooltip.tsx'
 
-export interface AppHeaderProps {}
-
-export function Header({}: AppHeaderProps) {
+export function Header(): JSX.Element {
     const { connection, lockState, setConnection } = useConnectionStore()
     const { undo, redo, canUndo, canRedo, reset } = undoRedoStore()
-    const [showSettingsReset, setShowSettingsReset] = useState(false)
     const { subscribe } = useEmitter()
 
     const [unsaved, setUnsaved] = useConnectedDeviceData<boolean>(
@@ -35,24 +32,15 @@ export function Header({}: AppHeaderProps) {
         console.log(unsaved)
         return subscribe(
             'rpc_notification.keymap.unsavedChangesStatusChanged',
-            (ls) => {
+            (data: unknown): void => {
+                const ls = data as boolean
                 console.log(ls)
                 setUnsaved(ls)
             },
         )
     }, [setUnsaved, subscribe, unsaved])
 
-    useEffect(() => {
-        if (
-            (!connection ||
-                lockState !== LockState.ZMK_STUDIO_CORE_LOCK_STATE_UNLOCKED) &&
-            showSettingsReset
-        ) {
-            setShowSettingsReset(false)
-        }
-    }, [connection, lockState, showSettingsReset])
-
-    const save = useCallback(async () => {
+    const save = useCallback(async (): Promise<void> => {
         const resp = await callRemoteProcedureControl({
             keymap: { saveChanges: true },
         })
@@ -63,7 +51,7 @@ export function Header({}: AppHeaderProps) {
         }
     }, [connection])
 
-    const discard = useCallback(async () => {
+    const discard = useCallback(async (): Promise<void> => {
         const resp = await callRemoteProcedureControl({
             keymap: { discardChanges: true },
         })

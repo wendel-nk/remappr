@@ -1,4 +1,6 @@
 enum SponsorSize {
-	Large, Medium, Small,
+    Large,
+    Medium,
+    Small,
 }
-export default SponsorSize;
+export default SponsorSize

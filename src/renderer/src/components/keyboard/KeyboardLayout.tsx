@@ -4,9 +4,9 @@ import {
 } from '@zmkfirmware/zmk-studio-ts-client/keymap'
 import type { GetBehaviorDetailsResponse } from '@zmkfirmware/zmk-studio-ts-client/behaviors'
 
-import { PhysicalLayout as PhysicalLayoutComp, } from './PhysicalLayout.tsx'
+import { PhysicalLayout as PhysicalLayoutComp } from './PhysicalLayout.tsx'
 import { HidUsageLabel } from './HidUsageLabel.tsx'
-import { LayoutZoom } from "@/helpers/helpers.ts"
+import { LayoutZoom } from '@/helpers/helpers.ts'
 
 type BehaviorMap = Record<number, GetBehaviorDetailsResponse>
 
@@ -30,35 +30,73 @@ export const KeyboardLayout = ({
     selectedKeyPosition,
     onKeyPositionClicked,
     pressedKeys = new Set(),
-}: KeymapProps) => {
+}: KeymapProps): JSX.Element => {
     if (!keymap.layers[selectedLayerIndex]) {
         return <></>
     }
 
-    const positions = layout.keys.map((k, i) => {
-        const children = i >= keymap.layers[selectedLayerIndex].bindings.length
-            ? (<span></span>)
-            : (<HidUsageLabel
-                    hid_usage={ keymap.layers[selectedLayerIndex].bindings[i].param1 }
-                    header={behaviors[keymap.layers[selectedLayerIndex].bindings[i].behaviorId]?.displayName || 'Unknown'}
-                />)
-            const header = i >= keymap.layers[selectedLayerIndex].bindings.length
-                ? 'Unknown'
-                : (behaviors[keymap.layers[selectedLayerIndex].bindings[i].behaviorId]?.displayName || 'Unknown')
+    const positions = layout.keys.map(
+        (
+            k: {
+                x: number
+                y: number
+                width: number
+                height: number
+                r?: number
+                rx?: number
+                ry?: number
+            },
+            i: number,
+        ): {
+            id: string
+            header: string
+            x: number
+            y: number
+            width: number
+            height: number
+            r: number
+            rx: number
+            ry: number
+            children: JSX.Element
+        } => {
+            const children =
+                i >= keymap.layers[selectedLayerIndex].bindings.length ? (
+                    <span></span>
+                ) : (
+                    <HidUsageLabel
+                        hid_usage={
+                            keymap.layers[selectedLayerIndex].bindings[i].param1
+                        }
+                        header={
+                            behaviors[
+                                keymap.layers[selectedLayerIndex].bindings[i]
+                                    .behaviorId
+                            ]?.displayName || 'Unknown'
+                        }
+                    />
+                )
+            const header =
+                i >= keymap.layers[selectedLayerIndex].bindings.length
+                    ? 'Unknown'
+                    : behaviors[
+                          keymap.layers[selectedLayerIndex].bindings[i]
+                              .behaviorId
+                      ]?.displayName || 'Unknown'
 
-        return {
-            id: `${keymap.layers[selectedLayerIndex].id}-${i}`,
-            header: header,
-            x: k.x / 100.0,
-            y: k.y / 100.0,
-            width: k.width / 100,
-            height: k.height / 100.0,
-            r: (k.r || 0) / 100.0,
-            rx: (k.rx || 0) / 100.0,
-            ry: (k.ry || 0) / 100.0,
-            children: children,
-        }
-    })
+            return {
+                id: `${keymap.layers[selectedLayerIndex].id}-${i}`,
+                header: header,
+                x: k.x / 100.0,
+                y: k.y / 100.0,
+                width: k.width / 100,
+                height: k.height / 100.0,
+                r: (k.r || 0) / 100.0,
+                rx: (k.rx || 0) / 100.0,
+                ry: (k.ry || 0) / 100.0,
+                children: children,
+            }
+        },
+    )
     // console.log(positions,behaviors)
 
     return (

@@ -2,14 +2,14 @@ import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 
 import type { RpcTransport } from '@zmkfirmware/zmk-studio-ts-client/transport/index'
-import { AvailableDevice } from '.'
+import type { AvailableDevice } from '../transport/types'
 
 export async function list_devices(): Promise<Array<AvailableDevice>> {
     return await invoke('serial_list_devices')
 }
 
 export async function connect(dev: AvailableDevice): Promise<RpcTransport> {
-    if (!(await invoke('serial_connect', dev))) {
+    if (!(await invoke('serial_connect', { ...dev }))) {
         throw new Error('Failed to connect')
     }
 
@@ -43,7 +43,7 @@ export async function connect(dev: AvailableDevice): Promise<RpcTransport> {
 
     const signal = abortController.signal
 
-    const abort_cb = async () => {
+    const abort_cb = async (): Promise<void> => {
         unlisten_data()
         unlisten_disconnected()
         await invoke('transport_close')

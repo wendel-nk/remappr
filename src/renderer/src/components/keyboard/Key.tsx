@@ -1,9 +1,15 @@
 // import './key.css';
 
-import { PropsWithChildren, Children, CSSProperties, useRef, useState, useLayoutEffect } from 'react'
+import {
+    PropsWithChildren,
+    Children,
+    CSSProperties,
+    useRef,
+    useState,
+    useLayoutEffect,
+} from 'react'
 
 interface KeyProps {
-
     selected?: boolean
     pressed?: boolean
     width: number
@@ -34,25 +40,25 @@ function makeSize(
 
     return {
         '--zmk-key-center-width': 'calc(' + width + 'px - 2px)',
-        'width': 'calc(' + width + 'px - 2px)',
+        width: 'calc(' + width + 'px - 2px)',
         '--zmk-key-center-height': 'calc(' + height + 'px - 2px)',
-        'height': 'calc(' + height + 'px - 2px)',
+        height: 'calc(' + height + 'px - 2px)',
     }
 }
 
-const FitText = ({ 
-    children, 
-    maxFontSize, 
+const FitText = ({
+    children,
+    maxFontSize,
     minFontSize = 4,
     className = '',
-    hoverZoom
-}: { 
-    children: React.ReactNode; 
-    maxFontSize: number; 
-    minFontSize?: number;
-    className?: string;
-    hoverZoom?: boolean;
-}) => {
+    hoverZoom,
+}: {
+    children: React.ReactNode
+    maxFontSize: number
+    minFontSize?: number
+    className?: string
+    hoverZoom?: boolean
+}): JSX.Element => {
     const containerRef = useRef<HTMLDivElement>(null)
     const textRef = useRef<HTMLDivElement>(null)
     const [fontSize, setFontSize] = useState(minFontSize)
@@ -60,13 +66,13 @@ const FitText = ({
 
     useLayoutEffect(() => {
         let isSubscribed = true
-        
-        const resizeText = () => {
+
+        const resizeText = (): void => {
             if (!isSubscribed) return
-            
+
             const container = containerRef.current
             const text = textRef.current
-            
+
             if (!container || !text) {
                 // Retry if refs aren't ready yet
                 if (isSubscribed) {
@@ -77,7 +83,7 @@ const FitText = ({
 
             const containerWidth = container.clientWidth
             const containerHeight = container.clientHeight
-            
+
             // If container has no size yet, keep retrying
             if (containerWidth === 0 || containerHeight === 0) {
                 if (isSubscribed) {
@@ -94,13 +100,13 @@ const FitText = ({
             while (low <= high) {
                 const mid = Math.floor((low + high) / 2)
                 text.style.fontSize = `${mid}px`
-                
+
                 // Force reflow to get accurate measurements
                 void text.offsetHeight
-                
+
                 const fitsWidth = text.scrollWidth <= containerWidth
                 const fitsHeight = text.scrollHeight <= containerHeight
-                
+
                 if (fitsWidth && fitsHeight) {
                     bestSize = mid
                     low = mid + 1
@@ -120,13 +126,13 @@ const FitText = ({
         initialTimeouts.push(setTimeout(resizeText, 50))
         initialTimeouts.push(setTimeout(resizeText, 100))
         initialTimeouts.push(setTimeout(resizeText, 200))
-        
+
         // Set up ResizeObserver
         let resizeObserver: ResizeObserver | null = null
-        
-        const setupObserver = () => {
+
+        const setupObserver = (): void => {
             if (containerRef.current && isSubscribed) {
-                resizeObserver = new ResizeObserver(() => {
+                resizeObserver = new ResizeObserver((): void => {
                     if (resizeTimeoutRef.current) {
                         clearTimeout(resizeTimeoutRef.current)
                     }
@@ -135,12 +141,12 @@ const FitText = ({
                 resizeObserver.observe(containerRef.current)
             }
         }
-        
+
         // Try to set up observer immediately and with delays
         setupObserver()
         const observerTimeout = setTimeout(setupObserver, 50)
-        
-        return () => {
+
+        return (): void => {
             isSubscribed = false
             initialTimeouts.forEach(clearTimeout)
             clearTimeout(observerTimeout)
@@ -160,18 +166,20 @@ const FitText = ({
             <div
                 ref={textRef}
                 className="text-center"
-                style={{
-                    fontSize: `${fontSize}px`,
-                    lineHeight: '1.15',
-                    whiteSpace: 'normal',
-                    wordBreak: 'keep-all',
-                    overflowWrap: 'normal',
-                    hyphens: 'none',
-                    width: '100%',
-                    WebkitFontSmoothing: 'antialiased',
-                    MozOsxFontSmoothing: 'grayscale',
-                    textRendering: 'optimizeLegibility',
-                } as React.CSSProperties}
+                style={
+                    {
+                        fontSize: `${fontSize}px`,
+                        lineHeight: '1.15',
+                        whiteSpace: 'normal',
+                        wordBreak: 'keep-all',
+                        overflowWrap: 'normal',
+                        hyphens: 'none',
+                        width: '100%',
+                        WebkitFontSmoothing: 'antialiased',
+                        MozOsxFontSmoothing: 'grayscale',
+                        textRendering: 'optimizeLegibility',
+                    } as React.CSSProperties
+                }
             >
                 {children}
             </div>
@@ -186,31 +194,36 @@ export const Key = ({
     oneU,
     hoverZoom = true,
     ...props
-}: PropsWithChildren<KeyProps>) => {
+}: PropsWithChildren<KeyProps>): JSX.Element => {
     const size = makeSize(props, oneU)
     const maxChildFontSize = Math.max(10, oneU / 2.5)
     const maxHeaderFontSize = Math.max(6, oneU / 6)
 
-    const children = Children.map(props.children, (c) => (
-        <FitText
-            maxFontSize={maxChildFontSize}
-            minFontSize={4}
-            className="font-keycap flex-1"
-            hoverZoom={hoverZoom}
-        >
-            {c}
-        </FitText>
-    ))
+    const children = Children.map(
+        props.children,
+        (c): React.ReactElement => (
+            <FitText
+                maxFontSize={maxChildFontSize}
+                minFontSize={4}
+                className="font-keycap flex-1"
+                hoverZoom={hoverZoom}
+            >
+                {c}
+            </FitText>
+        ),
+    )
 
     return (
         <div
             className="group inline-flex b-0 flex-col justify-items-center justify-content-center items-center transition-all duration-0 hover:scale-150 hover:border rounded-md"
             data-zoomer={hoverZoom}
-            style={{
-                ...size,
-                backfaceVisibility: 'hidden',
-                transform: 'translateZ(0)',
-            } as React.CSSProperties}
+            style={
+                {
+                    ...size,
+                    backfaceVisibility: 'hidden',
+                    transform: 'translateZ(0)',
+                } as React.CSSProperties
+            }
             {...props}
         >
             <button
@@ -220,12 +233,14 @@ export const Key = ({
                     oneU > 20 ? '-md' : ''
                 } transition-all duration-100 box-border text-base-content bg-cyan-950  aria-selected:bg-primary aria-selected:text-primary-content grow
                  flex-col flex items-center justify-evenly w-full h-full overflow-hidden ${
-                    pressed ? 'bg-green-600 text-white shadow-lg scale-95' : ''
-                }`}
-                style={{
-                    WebkitFontSmoothing: 'antialiased',
-                    MozOsxFontSmoothing: 'grayscale',
-                } as React.CSSProperties}
+                     pressed ? 'bg-green-600 text-white shadow-lg scale-95' : ''
+                 }`}
+                style={
+                    {
+                        WebkitFontSmoothing: 'antialiased',
+                        MozOsxFontSmoothing: 'grayscale',
+                    } as React.CSSProperties
+                }
             >
                 {header && (
                     <FitText

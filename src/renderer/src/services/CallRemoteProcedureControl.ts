@@ -18,12 +18,13 @@ export const callRemoteProcedureControl = async (
     console.log(connection, request)
 
     return call_rpc(connection, request)
-        .then((r) => {
+        .then((r: RequestResponse): RequestResponse => {
             // console.log('RPC Response', r);
             return r
         })
-        .catch((e) => {
+        .catch((e: unknown): RequestResponse => {
             // console.log('RPC Error', e);
-            return e
+            console.error('RPC Error', e)
+            throw e
         })
 }

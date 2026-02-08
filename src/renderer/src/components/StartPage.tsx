@@ -12,14 +12,12 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card.tsx'
-import {
-    DeviceCard,
-    DeviceStatus,
-} from '@/components/DeviceCard.tsx'
+import { DeviceCard, DeviceStatus } from '@/components/DeviceCard.tsx'
 import { TransportFactory } from '@/components/Modals/ConnectModal.tsx'
 import { TRANSPORTS } from '@/helpers/transports'
 import { ExternalLink } from '@/misc/ExternalLink.tsx'
 import type { AvailableDevice } from '@/tauri'
+import { LicenseNoticeModal } from '@/components/Modals/LicenseNoticeModal.tsx'
 
 interface DeviceWithTransport {
     device: AvailableDevice
@@ -34,9 +32,12 @@ interface StartPageProps {
     ) => void
 }
 
-export function StartPage({ onTransportCreated }: StartPageProps) {
+export function StartPage({ onTransportCreated }: StartPageProps): JSX.Element {
     const transports = TRANSPORTS
-    const haveTransports = useMemo(() => transports.length > 0, [transports])
+    const haveTransports = useMemo(
+        (): boolean => transports.length > 0,
+        [transports],
+    )
 
     const [devices, setDevices] = useState<DeviceWithTransport[]>([])
     const [refreshing, setRefreshing] = useState(false)
@@ -46,30 +47,37 @@ export function StartPage({ onTransportCreated }: StartPageProps) {
 
     // Check if we have transports that support listing devices
     const hasListableTransports = useMemo(
-        () => transports.some((t) => t.pick_and_connect),
+        (): boolean => transports.some((t): boolean => !!t.pick_and_connect),
         [transports],
     )
 
     // Check if we only have simple connect transports (web browser)
     const hasSimpleConnectOnly = useMemo(
-        () => transports.every((t) => !t.pick_and_connect && t.connect),
+        (): boolean =>
+            transports.every(
+                (t): boolean => !t.pick_and_connect && !!t.connect,
+            ),
         [transports],
     )
 
-    const loadDevices = useCallback(async () => {
+    const loadDevices = useCallback(async (): Promise<void> => {
         setRefreshing(true)
         const entries: DeviceWithTransport[] = []
 
-        for (const t of transports.filter((t) => t.pick_and_connect)) {
+        for (const t of transports.filter(
+            (t): boolean => !!t.pick_and_connect,
+        )) {
             try {
                 const deviceList = await t.pick_and_connect?.list()
                 if (deviceList && deviceList.length > 0) {
                     entries.push(
-                        ...deviceList.map((d) => ({
-                            device: d,
-                            transport: t,
-                            status: 'available' as DeviceStatus,
-                        })),
+                        ...deviceList.map(
+                            (d): DeviceWithTransport => ({
+                                device: d,
+                                transport: t,
+                                status: 'available' as DeviceStatus,
+                            }),
+                        ),
                     )
                 }
             } catch (e) {
@@ -92,15 +100,16 @@ export function StartPage({ onTransportCreated }: StartPageProps) {
     }, [hasListableTransports, loadDevices])
 
     const handleConnect = useCallback(
-        async (deviceWithTransport: DeviceWithTransport) => {
+        async (deviceWithTransport: DeviceWithTransport): Promise<void> => {
             const { device, transport } = deviceWithTransport
             setConnectingDeviceId(device.id)
 
-            setDevices((prev) =>
-                prev.map((d) =>
-                    d.device.id === device.id
-                        ? { ...d, status: 'connecting' as DeviceStatus }
-                        : d,
+            setDevices((prev): DeviceWithTransport[] =>
+                prev.map(
+                    (d): DeviceWithTransport =>
+                        d.device.id === device.id
+                            ? { ...d, status: 'connecting' as DeviceStatus }
+                            : d,
                 ),
             )
 
@@ -115,11 +124,12 @@ export function StartPage({ onTransportCreated }: StartPageProps) {
                         description: e.message,
                     })
                 }
-                setDevices((prev) =>
-                    prev.map((d) =>
-                        d.device.id === device.id
-                            ? { ...d, status: 'available' as DeviceStatus }
-                            : d,
+                setDevices((prev): DeviceWithTransport[] =>
+                    prev.map(
+                        (d): DeviceWithTransport =>
+                            d.device.id === device.id
+                                ? { ...d, status: 'available' as DeviceStatus }
+                                : d,
                     ),
                 )
             } finally {
@@ -130,7 +140,7 @@ export function StartPage({ onTransportCreated }: StartPageProps) {
     )
 
     const handleSimpleConnect = useCallback(
-        async (transport: TransportFactory) => {
+        async (transport: TransportFactory): Promise<void> => {
             try {
                 const rpcTransport = await transport.connect?.()
                 if (rpcTransport) {
@@ -148,7 +158,7 @@ export function StartPage({ onTransportCreated }: StartPageProps) {
         [onTransportCreated],
     )
 
-    const handleRefresh = useCallback(() => {
+    const handleRefresh = useCallback((): void => {
         setDevices([])
         loadDevices()
     }, [loadDevices])
@@ -353,10 +363,17 @@ export function StartPage({ onTransportCreated }: StartPageProps) {
             <footer className="border-t py-6">
                 <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
                     <p>
+                        <span>
+                            &copy; {new Date().getFullYear()} - Remappr
+                            Contributors
+                        </span>
+                        {' - '}
                         Powered by{' '}
                         <ExternalLink href="https://zmk.dev">
                             ZMK Firmware
                         </ExternalLink>
+                        {' - '}
+                        <LicenseNoticeModal></LicenseNoticeModal>
                     </p>
                 </div>
             </footer>

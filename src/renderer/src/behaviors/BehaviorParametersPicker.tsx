@@ -11,7 +11,7 @@ export interface BehaviorParametersPickerProps {
     onParam2Changed: (value?: number) => void
     onKeysLayoutActive?: (isActive: boolean) => void
     onKeySelected?: (key: number | undefined) => void
-    onModifiersChanged?: (modifiers: any[]) => void
+    onModifiersChanged?: (modifiers: number[]) => void
 }
 
 export const BehaviorParametersPicker = ({
@@ -24,7 +24,7 @@ export const BehaviorParametersPicker = ({
     onKeysLayoutActive,
     onKeySelected,
     onModifiersChanged,
-}: BehaviorParametersPickerProps) => {
+}: BehaviorParametersPickerProps): JSX.Element => {
     // console.log(
     //     param1,
     //     param2,
@@ -45,7 +45,11 @@ export const BehaviorParametersPicker = ({
         )
     } else {
         const set = metadata.find((s) =>
-            validateValue( layers.map((l) => l.id), param1, s.param1 )
+            validateValue(
+                layers.map((l) => l.id),
+                param1,
+                s.param1,
+            ),
         )
         return (
             <>

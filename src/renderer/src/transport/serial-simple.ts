@@ -1,81 +1,40 @@
-import { SerialPort } from 'serialport';
-import { TransportEventEmitter, AvailableDevice } from './types';
+// Note: This file is unused in the current codebase.
+// The 'serialport' package is for Node.js native serial and is not compatible
+// with the web/Electron renderer process.
+// Use the Web Serial API via serial.ts or Tauri serial via tauri/serial.ts instead.
+// import { SerialPort } from 'serialport';
+import { TransportEventEmitter, AvailableDevice } from './types'
 
+/**
+ * SimpleSerialTransport - Placeholder for Node.js serialport-based transport
+ *
+ * This class is not currently used. If Node.js serial support is needed,
+ * install the 'serialport' package and uncomment the implementation.
+ */
 export class SimpleSerialTransport {
-  private port?: SerialPort;
-  private eventEmitter: TransportEventEmitter;
+    private _eventEmitter: TransportEventEmitter
 
-  constructor(eventEmitter: TransportEventEmitter) {
-    this.eventEmitter = eventEmitter;
-  }
-
-  async serialConnect(id: string): Promise<boolean> {
-    try {
-      this.port = new SerialPort(id, {
-        baudRate: 9600,
-        autoOpen: false,
-      });
-
-      await new Promise<void>((resolve, reject) => {
-        this.port!.open((err) => {
-          if (err) reject(err);
-          else resolve();
-        });
-      });
-
-      // Set up event handlers
-      this.port.on('data', (data: Buffer) => {
-        this.eventEmitter.emit('connection_data', Array.from(data));
-      });
-
-      this.port.on('error', (err) => {
-        console.error('Serial port error:', err);
-        this.eventEmitter.emit('connection_disconnected', [])
-      });
-
-      this.port.on('close', () => {
-        this.eventEmitter.emit('connection_disconnected', []);
-      });
-
-      return true;
-    } catch (error) {
-      throw new Error(`Failed to open the serial port: ${error}`);
+    constructor(eventEmitter: TransportEventEmitter) {
+        this._eventEmitter = eventEmitter
     }
-  }
 
-  async write(data: Uint8Array): Promise<void> {
-    if (this.port) {
-      return new Promise<void>((resolve, reject) => {
-        this.port!.write(Buffer.from(data), (err) => {
-          if (err) reject(err);
-          else resolve();
-        });
-      });
+    async serialConnect(_id: string): Promise<boolean> {
+        throw new Error(
+            'SimpleSerialTransport is not implemented. Use Web Serial API or Tauri serial instead.',
+        )
     }
-  }
 
-  async serialDisconnect(): Promise<void> {
-    if (this.port) {
-      await new Promise<void>((resolve) => {
-          this.port!.close(() => resolve())
-      })
+    async write(_data: Uint8Array): Promise<void> {
+        throw new Error(
+            'SimpleSerialTransport is not implemented. Use Web Serial API or Tauri serial instead.',
+        )
     }
-    this.eventEmitter.emit('connection_disconnected', []);
-  }
 
-  async serialListDevices(): Promise<AvailableDevice[]> {
-    try {
-      const ports = await SerialPort.list();
-      
-      return ports
-        .filter(port => port.vendorId && port.productId)
-        .map(port => ({
-          id: port.path,
-          label: port.manufacturer || port.productId || 'Unknown Device',
-        }));
-    } catch (error) {
-      console.error('Failed to list serial devices:', error);
-      return [];
+    async serialDisconnect(): Promise<void> {
+        this._eventEmitter.emit('connection_disconnected', [])
     }
-  }
+
+    async serialListDevices(): Promise<AvailableDevice[]> {
+        return []
+    }
 }

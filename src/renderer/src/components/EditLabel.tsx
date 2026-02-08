@@ -18,16 +18,19 @@ export interface EditLabelProps extends ModalProps {
     ) => void
 }
 
-export default function EditLabel(props: EditLabelProps) {
-    const [newLabelName, setNewLabelName] = useState(props.editLabelData.name)
+export default function EditLabel(props: EditLabelProps): JSX.Element | null {
+    const [newLabelName, setNewLabelName] = useState(
+        props.editLabelData?.name ?? '',
+    )
 
-    // const [label, setLabel] = useState(editLabelData);
-    function handleSave() {
-        return props.handleSaveNewLabel(
-            props.editLabelData.id,
-            props.editLabelData.name,
-            newLabelName,
-        )
+    if (!props.editLabelData || !props.handleSaveNewLabel) {
+        return null
+    }
+
+    const { editLabelData, handleSaveNewLabel } = props
+
+    function handleSave(): void {
+        handleSaveNewLabel(editLabelData.id, editLabelData.name, newLabelName)
     }
 
     return (
@@ -43,7 +46,7 @@ export default function EditLabel(props: EditLabelProps) {
                 type="text"
                 placeholder="Type here"
                 className="input input-bordered w-full max-w-xs"
-                defaultValue={props.editLabelData.name}
+                defaultValue={editLabelData.name}
                 autoFocus
                 onChange={(e) => setNewLabelName(e.target.value)}
                 onKeyDown={(e) => {

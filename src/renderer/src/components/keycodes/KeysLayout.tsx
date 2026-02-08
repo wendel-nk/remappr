@@ -34,10 +34,6 @@ interface KeysLayoutProps {
 
 // Container dimensions - easily configurable
 const CONTAINER_MAX_HEIGHT = 350 // Maximum height in pixels
-const CONTAINER_MAX_WIDTH = '100%' // Maximum width (can be changed to a pixel value if needed)
-
-// Modifier key IDs (from keyboard data)
-const MODIFIER_KEY_IDS = [224, 225, 226, 227, 228, 229, 230, 231] // Left/Right Control, Shift, Alt, GUI
 
 // Modifier key definitions (same as HidUsagePicker)
 enum Mods {
@@ -51,17 +47,6 @@ enum Mods {
     RightGUI = 0x80,
 }
 
-const mod_labels: Record<Mods, string> = {
-    [Mods.LeftControl]: 'L Ctrl',
-    [Mods.LeftShift]: 'L Shift',
-    [Mods.LeftAlt]: 'L Alt',
-    [Mods.LeftGUI]: 'L GUI',
-    [Mods.RightControl]: 'R Ctrl',
-    [Mods.RightShift]: 'R Shift',
-    [Mods.RightAlt]: 'R Alt',
-    [Mods.RightGUI]: 'R GUI',
-}
-
 const all_mods = [
     Mods.LeftControl,
     Mods.LeftShift,
@@ -73,127 +58,26 @@ const all_mods = [
     Mods.RightGUI,
 ]
 
-// Map keyboard IDs to modifier flags
-const KEY_ID_TO_MOD: Record<number, Mods> = {
-    224: Mods.LeftControl, // Keyboard LeftControl
-    225: Mods.LeftShift, // Keyboard LeftShift
-    226: Mods.LeftAlt, // Keyboard LeftAlt
-    227: Mods.LeftGUI, // Keyboard Left GUI
-    228: Mods.RightControl, // Keyboard RightControl
-    229: Mods.RightShift, // Keyboard RightShift
-    230: Mods.RightAlt, // Keyboard RightAlt
-    231: Mods.RightGUI, // Keyboard Right GUI
-}
-
 function mods_to_flags(mods: Mods[]): number {
-    return mods.reduce((a, v) => a + v, 0)
-}
-
-function mask_mods(value: number) {
-    return value & ~(mods_to_flags(all_mods) << 24)
-}
-
-// Function to convert ZMK key codes to HID usage codes
-// This is needed because ZMK uses custom key codes that don't match standard HID usage codes
-function convertZmkToHidUsage(zmkCode: number): number | undefined {
-    // Check if it's already a valid HID usage code (1-231 for keyboard keys)
-    if (zmkCode >= 1 && zmkCode <= 231) {
-        // Verify it exists in our keyboard data
-        for (const keyboard of keyboards) {
-            const key = keyboard.UsageIds.find((k) => {
-                const kId = typeof k.Id === 'string' ? parseInt(k.Id) : k.Id
-                return kId === zmkCode
-            })
-            if (key) {
-                return zmkCode // It's already a valid HID usage code
-            }
-        }
-    }
-
-    // If it's not a standard HID usage code, try to convert it using HID usage logic
-    // This handles cases like 458767 which represents page 7, ID 15 (Keyboard L)
-    const page = (zmkCode >> 16) & 0xffff
-    const id = zmkCode & 0xffff
-
-    console.log('Converting HID usage:', { zmkCode, page, id })
-
-    // Check if this page and ID combination exists in our keyboard data
-    for (const keyboard of keyboards) {
-        if (keyboard.Id === page) {
-            const key = keyboard.UsageIds.find((k) => {
-                const kId = typeof k.Id === 'string' ? parseInt(k.Id) : k.Id
-                return kId === id
-            })
-            if (key) {
-                return id // Return the ID part as the selected key
-            }
-        }
-    }
-
-    // If the page is not a standard HID page (like 519), try to extract just the key ID
-    // This handles complex ZMK binding values that include behavior information
-    if (page > 100) {
-        // Non-standard page, likely ZMK binding
-        console.log(
-            'Non-standard HID page detected, trying to extract key ID from complex ZMK value',
-        )
-
-        // Try different bit patterns to extract the actual key ID
-        // ZMK binding values might have the key ID in different bit positions
-        const possibleKeyIds = [
-            id, // Standard 16-bit ID
-            (zmkCode >> 8) & 0xff, // 8-bit ID at different position
-            zmkCode & 0xff, // 8-bit ID at lowest position
-            (zmkCode >> 24) & 0xff, // 8-bit ID at highest position
-        ]
-
-        for (const keyId of possibleKeyIds) {
-            if (keyId >= 1 && keyId <= 231) {
-                // Verify this key ID exists in our keyboard data
-                for (const keyboard of keyboards) {
-                    const key = keyboard.UsageIds.find((k) => {
-                        const kId =
-                            typeof k.Id === 'string' ? parseInt(k.Id) : k.Id
-                        return kId === keyId
-                    })
-                    if (key) {
-                        console.log(
-                            'Found valid key ID in complex ZMK value:',
-                            { keyId, keyLabel: key.Label },
-                        )
-                        return keyId
-                    }
-                }
-            }
-        }
-    }
-
-    console.warn('Unable to convert HID usage to valid key:', {
-        zmkCode,
-        page,
-        id,
-    })
-    return undefined
+    return mods.reduce((a: number, v: Mods): number => a + v, 0)
 }
 
 export function KeysLayout({
     value,
-    label,
     onValueChanged,
-    onKeySelected,
-    onModifiersChanged,
-}: KeysLayoutProps) {
+}: KeysLayoutProps): JSX.Element {
     const [activeTab, setActiveTab] = useState('0')
     const [selectedKey, setSelectedKey] = useState<number | undefined>(
         undefined,
     )
-    const [selectedModifiers, setSelectedModifiers] = useState<Mods[]>([])
     const [searchQuery, setSearchQuery] = useState('')
 
-    const mods = useMemo(() => {
+    const mods = useMemo((): string[] => {
         const flags = value ? value >> 24 : 0
 
-        return all_mods.filter((m) => m & flags).map((m) => m.toLocaleString())
+        return all_mods
+            .filter((m: Mods): boolean => (m & flags) !== 0)
+            .map((m: Mods): string => m.toLocaleString())
     }, [value])
 
     const handleKeySelect = useCallback(
@@ -206,7 +90,7 @@ export function KeysLayout({
 
             // console.log(all_mods, mods, value)
             setSelectedKey(value)
-            onValueChanged(value)
+            onValueChanged?.(value)
         },
         [onValueChanged, mods],
     )
@@ -537,7 +421,11 @@ export function KeysLayout({
         }
     }, [searchQuery, activeTab, keyboardsWithMatches])
 
-    function keysList(keyboard: KeyboardKeys, key, keyIndex: number) {
+    function keysList(
+        keyboard: KeyboardKeys,
+        key: { Id: number; Label?: string; w?: number; h?: number },
+        keyIndex: number,
+    ): JSX.Element {
         const keyId = hidUsageFromPageAndId(keyboard.Id, key.Id as number)
         const keyWidth = 'w' in key && key.w ? key.w / 2 : 50
         const keyHeight = 'h' in key && key.h ? key.h / 2 : 50
@@ -554,7 +442,7 @@ export function KeysLayout({
             >
                 <Keycode
                     value={keyId}
-                    label={key.Label}
+                    label={key.Label || ''}
                     width={keyWidth}
                     height={keyHeight}
                     x={0}
@@ -631,7 +519,7 @@ export function KeysLayout({
                     keysWithPositions.forEach((key) => {
                         const keyHeight = 'h' in key && key.h ? key.h / 2 : 50
                         const bottomPosition =
-                            (key.y / 100) * keySize + keyHeight
+                            (key.y! / 100) * keySize + keyHeight
                         if (bottomPosition > maxBottomPosition) {
                             maxBottomPosition = bottomPosition
                         }
@@ -690,11 +578,11 @@ export function KeysLayout({
                                         <Keycode
                                             key={key.Id + '-' + keyIndex}
                                             value={keyId}
-                                            label={key.Label}
+                                            label={key.Label || ''}
                                             width={keyWidth}
                                             height={keyHeight}
-                                            x={key.x / 100}
-                                            y={key.y / 100}
+                                            x={key.x! / 100}
+                                            y={key.y! / 100}
                                             baseKeyValue={key.Id}
                                             onSelect={handleKeySelect}
                                             isSelected={isKeySelected(keyId)}

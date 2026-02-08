@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import {
     Dialog,
-    DialogOverlay,
     DialogTrigger,
     DialogContent,
     DialogHeader,
@@ -11,24 +10,23 @@ import {
     DialogClose,
 } from '@/components/ui/dialog.tsx'
 import { Button } from '@/components/ui/button.tsx'
-import { LucideIcon } from 'lucide-react'
-import { ButtonProps } from 'react-aria-components'
 
 // Create a forwardRef wrapper for span
 const TextTrigger = React.forwardRef<
     HTMLSpanElement,
     React.HTMLAttributes<HTMLSpanElement>
->(({ className, ...props }, ref) => (
-    <span
-        ref={ref}
-        className={`underline-offset-4 cursor-pointer ${className || ''}`}
-        {...props}
-    />
-))
+>(
+    ({ className, ...props }, ref): JSX.Element => (
+        <span
+            ref={ref}
+            className={`underline-offset-4 cursor-pointer ${className || ''}`}
+            {...props}
+        />
+    ),
+)
 TextTrigger.displayName = 'TextTrigger'
 
 export interface ModernModalProps {
-    usedFor?: string
     opened?: boolean
     onClose?: () => void | Promise<void>
     onOk?: () => void | Promise<void>
@@ -41,7 +39,6 @@ export interface ModernModalProps {
         | 'secondary'
         | 'ghost'
         | 'link'
-    className?: string
     customModalBoxClass?: string
     text?: string | React.ReactNode
     xButton?: boolean
@@ -52,8 +49,6 @@ export interface ModernModalProps {
     children?: React.ReactNode
     isDismissable?: boolean
     showFooter?: boolean
-    widthClass?: string
-    heightClass?: string
 }
 
 export function Modal({
@@ -64,7 +59,6 @@ export function Modal({
     text,
     icon,
     variant = 'default',
-    className = '',
     customModalBoxClass = '',
     xButton = true,
     close = 'Cancel',
@@ -74,9 +68,7 @@ export function Modal({
     description,
     children,
     isDismissable = false,
-    widthClass,
-    heightClass,
-}: ModernModalProps) {
+}: ModernModalProps): JSX.Element {
     const [isOpen, setIsOpen] = useState(opened)
 
     // Update internal state when opened prop changes
@@ -84,26 +76,26 @@ export function Modal({
         setIsOpen(opened)
     }, [opened])
 
-    const handleClose = () => {
+    const handleClose = (): void => {
         setIsOpen(false)
         onClose?.()
     }
 
-    const handleOk = async () => {
+    const handleOk = async (): Promise<void> => {
         if (onOk) {
             await onOk()
         }
         handleClose()
     }
 
-    const handleOpenChange = (open: boolean) => {
+    const handleOpenChange = (open: boolean): void => {
         setIsOpen(open)
         if (!open) {
             onClose?.()
         }
     }
 
-    const blockDismiss = (e) => e.preventDefault()
+    const blockDismiss = (e: Event): void => e.preventDefault()
 
     return (
         <Dialog open={isOpen} onOpenChange={handleOpenChange}>

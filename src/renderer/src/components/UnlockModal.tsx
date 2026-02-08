@@ -17,12 +17,10 @@ export type TransportFactory = {
     }
 }
 
-export interface UnlockModalProps {}
-
-export const UnlockModal = ({}: UnlockModalProps) => {
+export const UnlockModal = (): JSX.Element => {
     const { connection, lockState } = useConnectionStore()
     const open = useMemo(
-        () =>
+        (): boolean =>
             !!connection &&
             lockState != LockState.ZMK_STUDIO_CORE_LOCK_STATE_UNLOCKED,
         [connection, lockState],
@@ -43,8 +41,8 @@ export const UnlockModal = ({}: UnlockModalProps) => {
                 using Remappr.
             </p>
             <p>
-                If studio unlocking hasn't been added to your keymap or a combo,
-                see the{' '}
+                If studio unlocking hasn&apos;t been added to your keymap or a
+                combo, see the{' '}
                 <ExternalLink href="https://zmk.dev/docs/keymaps/behaviors/studio-unlock">
                     Studio Unlock Behavior
                 </ExternalLink>{' '}

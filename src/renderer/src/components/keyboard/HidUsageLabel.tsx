@@ -8,15 +8,17 @@ export interface HidUsageLabelProps {
     header?: string
 }
 
-function remove_prefix(s?: string) {
+function remove_prefix(s?: string): string | undefined {
     return s?.replace(/^Keyboard /, '')
 }
 
-export const HidUsageLabel = ({ hid_usage }: HidUsageLabelProps) => {
-    let [page, id] = hidUsagePageAndIdFromUsage(hid_usage)
+export const HidUsageLabel = ({
+    hid_usage,
+}: HidUsageLabelProps): JSX.Element => {
+    const [pageMut, id] = hidUsagePageAndIdFromUsage(hid_usage)
 
     // TODO: Do something with implicit mods!
-    page &= 0xff
+    const page = pageMut & 0xff
 
     const labels = hid_usage_get_labels(page, id)
     return (

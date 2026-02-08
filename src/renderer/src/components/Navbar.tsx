@@ -1,6 +1,6 @@
-import { Redo2, Save, Trash2, Undo2 } from 'lucide-react';
+import { Redo2, Save, Trash2, Undo2 } from 'lucide-react'
 
-export function Navbar() {
+export function Navbar(): JSX.Element {
     return (
         <>
             <div className="navbar bg-base-100">
@@ -55,5 +55,5 @@ export function Navbar() {
                 </div>
             </div>
         </>
-    );
+    )
 }

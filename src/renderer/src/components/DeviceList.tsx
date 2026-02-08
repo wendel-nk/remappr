@@ -20,7 +20,7 @@ export function DeviceList({
     open,
     transports,
     onTransportCreated,
-}: DeviceListProps) {
+}: DeviceListProps): JSX.Element {
     const [devices, setDevices] = useState<
         Array<[TransportFactory, AvailableDevice]>
     >([])
@@ -38,11 +38,13 @@ export function DeviceList({
         details: '',
     })
 
-    async function LoadEm() {
+    async function LoadEm(): Promise<void> {
         setRefreshing(true)
         const entries: Array<[TransportFactory, AvailableDevice]> = []
 
-        for (const t of transports.filter((t) => t.pick_and_connect)) {
+        for (const t of transports.filter(
+            (t): boolean => !!t.pick_and_connect,
+        )) {
             const devices = await t.pick_and_connect?.list()
 
             if (!devices || devices.length === 0) {
@@ -50,10 +52,12 @@ export function DeviceList({
             }
             console.log(devices)
             entries.push(
-                ...devices.map<[TransportFactory, AvailableDevice]>((d) => {
-                    console.log(t, d)
-                    return [t, d]
-                }),
+                ...devices.map<[TransportFactory, AvailableDevice]>(
+                    (d): [TransportFactory, AvailableDevice] => {
+                        console.log(t, d)
+                        return [t, d]
+                    },
+                ),
             )
         }
         console.log(entries)
@@ -66,21 +70,24 @@ export function DeviceList({
         setDevices([])
 
         LoadEm()
-    }, [transports, open, setDevices])
+    }, [transports, open])
 
-    const onRefresh = useCallback(() => {
+    const onRefresh = useCallback((): void => {
         setSelectedDev(new Set())
         setDevices([])
 
         LoadEm()
-    }, [setDevices])
+    }, [])
 
     const onSelect = useCallback(
-        async (keys: Selection) => {
+        async (keys: Selection): Promise<void> => {
             if (keys === 'all') {
                 return
             }
-            const dev = devices.find(([_t, d]) => keys.has(d.id))
+            const dev = devices.find(
+                ([, d]: [TransportFactory, AvailableDevice]): boolean =>
+                    keys.has(d.id),
+            )
             if (dev) {
                 try {
                     const transport = await dev[0].pick_and_connect!.connect(
@@ -131,7 +138,7 @@ export function DeviceList({
                 selectedKeys={selectedDev}
                 className="flex flex-col gap-1 pt-1"
             >
-                {([t, d]) => (
+                {([t, d]: [TransportFactory, AvailableDevice]): JSX.Element => (
                     <ListBoxItem
                         className="grid grid-cols-[1em_1fr] rounded hover:bg-base-300 cursor-pointer px-1"
                         id={d.id}
@@ -147,8 +154,11 @@ export function DeviceList({
 
             <ErrorDialog
                 open={errorDialog.open}
-                onClose={() =>
-                    setErrorDialog((prev) => ({ ...prev, open: false }))
+                onClose={(): void =>
+                    setErrorDialog((prev): typeof errorDialog => ({
+                        ...prev,
+                        open: false,
+                    }))
                 }
                 title={errorDialog.title}
                 message={errorDialog.message}

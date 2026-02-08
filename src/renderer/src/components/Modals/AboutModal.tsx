@@ -1,10 +1,9 @@
 import sponsors from '../../data/sponsors.ts'
 import SponsorSize from '../../enums/SponsorSize.ts'
-import { ExternalLink } from '@/misc/ExternalLink.tsx'
 import React from 'react'
 import { Modal } from '@/components/ui/Modal.tsx'
 
-export function AboutModal() {
+export function AboutModal(): JSX.Element {
     return (
         <>
             <Modal

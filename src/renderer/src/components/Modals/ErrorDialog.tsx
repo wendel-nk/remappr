@@ -1,6 +1,4 @@
-import React from 'react'
 import { Modal } from '@/components/ui/Modal.tsx'
-import { AlertCircle } from 'lucide-react'
 
 interface ErrorDialogProps {
     open: boolean
@@ -16,7 +14,7 @@ export function ErrorDialog({
     title = 'Error',
     message,
     details,
-}: ErrorDialogProps) {
+}: ErrorDialogProps): JSX.Element {
     return (
         <Modal
             opened={open}

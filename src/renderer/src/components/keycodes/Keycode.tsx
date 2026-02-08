@@ -34,7 +34,7 @@ export default function Keycode({
     baseKeyValue,
     onSelect,
     isSelected = false,
-}: KeycodeProps) {
+}: KeycodeProps): JSX.Element {
     const keySize = 50
 
     const style: CSSProperties = {
@@ -47,8 +47,10 @@ export default function Keycode({
         border: isSelected ? '2px solid blue' : '1px solid gray',
     }
 
-    const handleClick = () => {
-        onSelect(value)
+    const handleClick = (): void => {
+        if (value !== undefined) {
+            onSelect(value)
+        }
     }
 
     return (

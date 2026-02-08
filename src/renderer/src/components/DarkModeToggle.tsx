@@ -9,7 +9,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu.tsx'
 
-export function DarkModeToggle() {
+export function DarkModeToggle(): JSX.Element {
     const { setTheme } = useTheme()
 
     return (
@@ -23,13 +23,13 @@ export function DarkModeToggle() {
             </DropdownMenuTrigger>
             <DropdownMenuContent>
                 <DropdownMenuGroup>
-                    <DropdownMenuItem onClick={() => setTheme('light')}>
+                    <DropdownMenuItem onClick={(): void => setTheme('light')}>
                         Light
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setTheme('dark')}>
+                    <DropdownMenuItem onClick={(): void => setTheme('dark')}>
                         Dark
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setTheme('system')}>
+                    <DropdownMenuItem onClick={(): void => setTheme('system')}>
                         System
                     </DropdownMenuItem>
                 </DropdownMenuGroup>

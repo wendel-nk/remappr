@@ -8,10 +8,7 @@ interface SettingsProps {
     onClose?: () => void
 }
 
-export function Settings({
-    opened: _opened = false,
-    onClose: _onClose,
-}: SettingsProps) {
+export function Settings(_props: SettingsProps): JSX.Element {
     return (
         <Modal
             customModalBoxClass="w-11/14 max-w-4xl"

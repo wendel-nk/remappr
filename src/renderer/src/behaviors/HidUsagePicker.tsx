@@ -35,7 +35,7 @@ export interface HidUsagePickerProps {
 
 type UsageSectionProps = HidUsagePage
 
-const UsageSection = ({ id, min, max }: UsageSectionProps) => {
+const UsageSection = ({ id, min, max }: UsageSectionProps): JSX.Element => {
     const info = useMemo(() => hid_usage_page_get_ids(id), [id])
     // console.log( id, min, max)
     const usages = useMemo(() => {
@@ -106,7 +106,7 @@ function mods_to_flags(mods: Mods[]): number {
     return mods.reduce((a, v) => a + v, 0)
 }
 
-function mask_mods(value: number) {
+function mask_mods(value: number): number {
     console.log(value & ~(mods_to_flags(all_mods) << 24))
     return value & ~(mods_to_flags(all_mods) << 24)
 }
@@ -116,15 +116,17 @@ export const HidUsagePicker = ({
     value,
     usagePages,
     onValueChanged,
-}: HidUsagePickerProps) => {
-    const mods = useMemo(() => {
+}: HidUsagePickerProps): JSX.Element => {
+    const mods = useMemo((): string[] => {
         const flags = value ? value >> 24 : 0
 
-        return all_mods.filter((m) => m & flags).map((m) => m.toLocaleString())
+        return all_mods
+            .filter((m: Mods): boolean => (m & flags) !== 0)
+            .map((m: Mods): string => m.toLocaleString())
     }, [value])
     const selectionChanged = useCallback(
-        (e: Key | null) => {
-			let value = typeof e == 'number' ? e : undefined
+        (e: Key | null): void => {
+            let value = typeof e == 'number' ? e : undefined
             if (value !== undefined) {
                 const mod_flags = mods_to_flags(mods.map((m) => parseInt(m)))
                 value = value | (mod_flags << 24)
@@ -137,7 +139,7 @@ export const HidUsagePicker = ({
     )
 
     const modifiersChanged = useCallback(
-        (m: string[]) => {
+        (m: string[]): void => {
             if (!value) {
                 return
             }
@@ -165,7 +167,11 @@ export const HidUsagePicker = ({
                     </Button>
                 </div>
 
-                <Popover isOpen={true} defaultOpen={true} className="w-[var(--trigger-width)] max-h-4 shadow-md text-base-content rounded border-base-content bg-base-100">
+                <Popover
+                    isOpen={true}
+                    defaultOpen={true}
+                    className="w-[var(--trigger-width)] max-h-4 shadow-md text-base-content rounded border-base-content bg-base-100"
+                >
                     <ListBox
                         items={usagePages}
                         className="block max-h-[30vh] min-h-[unset] overflow-auto p-2"

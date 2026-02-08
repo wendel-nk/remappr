@@ -24,7 +24,7 @@ export default function Keyboard({
     keymap,
     selectedKeyPosition,
     setSelectedKeyPosition,
-}: KeyboardProps) {
+}: KeyboardProps): JSX.Element {
     const { layouts, selectedPhysicalLayoutIndex } = useLayout()
     const { selectedLayerIndex, setSelectedLayerIndex } =
         useLayerSelectionStore()
@@ -107,6 +107,7 @@ export default function Keyboard({
     }, [effectiveLayerIndex])
 
     useEffect(() => {
+        if (!layouts) return
         ;(async () => {
             await getKeymapLayout(selectedPhysicalLayoutIndex, layouts)
         })()

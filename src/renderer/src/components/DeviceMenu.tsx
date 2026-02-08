@@ -11,19 +11,16 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu.tsx'
-import {
-    SidebarMenu,
-    SidebarMenuItem,
-} from '@/components/ui/sidebar.tsx'
+import { SidebarMenu, SidebarMenuItem } from '@/components/ui/sidebar.tsx'
 import { toast } from 'sonner'
 import { callRemoteProcedureControl } from '@/services/CallRemoteProcedureControl.ts'
 
-export const DeviceMenu = () => {
+export const DeviceMenu = (): JSX.Element => {
     const { connection, setConnection, deviceName, lockState, disconnect } =
         useConnectionStore()
     const { reset } = undoRedoStore()
 
-    const resetSettings = useCallback(async () => {
+    const resetSettings = useCallback(async (): Promise<void> => {
         const resp = await callRemoteProcedureControl({
             core: { resetSettings: true },
         })
@@ -73,7 +70,11 @@ export const DeviceMenu = () => {
                             <Power className="mr-2 h-4 w-4" />
                             Disconnect
                         </DropdownMenuItem>
-                        <RestoreStock onOk={() => resetSettings()} />
+                        <RestoreStock
+                            onOk={(): void => {
+                                resetSettings()
+                            }}
+                        />
                     </DropdownMenuContent>
                 </DropdownMenu>
             </SidebarMenuItem>

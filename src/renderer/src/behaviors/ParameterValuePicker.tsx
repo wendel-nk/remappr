@@ -17,14 +17,14 @@ export interface ParameterValuePickerProps {
     onValueChanged: (value?: number) => void
     onKeysLayoutActive?: (isActive: boolean) => void
     onKeySelected?: (key: number | undefined) => void
-    onModifiersChanged?: (modifiers: any[]) => void
+    onModifiersChanged?: (modifiers: number[]) => void
 }
 
 const ConstantValuePicker = ({
     value,
     values,
     onValueChanged,
-}: ParameterValuePickerProps) => (
+}: ParameterValuePickerProps): JSX.Element => (
     <>
         {/*<Label htmlFor="constantValuePicker">Select value</Label>*/}
         <Select
@@ -38,12 +38,16 @@ const ConstantValuePicker = ({
                 <SelectValue placeholder="Constant Value Picker" />
             </SelectTrigger>
             <SelectContent>
-                {values.map((v) => (
-                    // <option key={v.constant} value={v.constant}>{v.name}</option>
-                    <SelectItem key={v.constant} value={v.constant.toString()}>
-                        {v.name}
-                    </SelectItem>
-                ))}
+                {values.map((v) =>
+                    v.constant !== undefined ? (
+                        <SelectItem
+                            key={v.constant}
+                            value={v.constant.toString()}
+                        >
+                            {v.name}
+                        </SelectItem>
+                    ) : null,
+                )}
             </SelectContent>
         </Select>
     </>
@@ -53,7 +57,7 @@ const RangeValuePicker = ({
     value,
     values,
     onValueChanged,
-}: ParameterValuePickerProps) => (
+}: ParameterValuePickerProps): JSX.Element => (
     <>
         <Label htmlFor="rangeValuePicker">{values[0].name}: </Label>
         <Input
@@ -72,7 +76,7 @@ const LayerValuePicker = ({
     values,
     layers,
     onValueChanged,
-}: ParameterValuePickerProps) => (
+}: ParameterValuePickerProps): JSX.Element => (
     <>
         <Label htmlFor="layerValuePicker">{values[0].name}:</Label>
         <Select
@@ -101,7 +105,7 @@ export const ParameterValuePicker = ({
     onKeysLayoutActive,
     onKeySelected,
     onModifiersChanged,
-}: ParameterValuePickerProps) => {
+}: ParameterValuePickerProps): JSX.Element | null => {
     // console.log("ParameterValuePicker values:", { value, values });
 
     if (values.length === 0) {

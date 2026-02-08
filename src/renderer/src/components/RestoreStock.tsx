@@ -7,26 +7,26 @@ interface RestoreStockSettings {
     onOk: () => void
 }
 
-export function RestoreStock(props: RestoreStockSettings) {
+export function RestoreStock(props: RestoreStockSettings): JSX.Element {
     const [showModal, setShowModal] = useState(false)
 
-    const handleClick = () => {
+    const handleClick = (): void => {
         setShowModal(true)
     }
 
-    const handleOk = () => {
+    const handleOk = (): void => {
         props.onOk()
         setShowModal(false)
     }
 
-    const handleClose = () => {
+    const handleClose = (): void => {
         setShowModal(false)
     }
 
     return (
         <>
             <DropdownMenuItem
-                onSelect={(e) => e.preventDefault()}
+                onSelect={(e): void => e.preventDefault()}
                 onClick={handleClick}
             >
                 <RotateCcw className="mr-2 h-4 w-4" />

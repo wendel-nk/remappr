@@ -9,7 +9,7 @@ import {
 export function Zoom(props: {
     value: number | 'auto'
     onChange: (value: string) => void
-}) {
+}): JSX.Element {
     return (
         <div className="absolute top-2 right-2">
             <Select

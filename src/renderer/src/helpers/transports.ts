@@ -1,53 +1,61 @@
-import { TransportFactory } from "../components/Modals/ConnectModal.tsx";
-import { connect as serial_connect } from "@zmkfirmware/zmk-studio-ts-client/transport/serial";
-import { connect as gatt_connect } from "@zmkfirmware/zmk-studio-ts-client/transport/gatt";
-import { connect as tauri_ble_connect, list_devices as ble_list_devices } from "../tauri/ble.ts";
-import { connect as tauri_serial_connect, list_devices as serial_list_devices } from "../tauri/serial.ts";
+import { TransportFactory } from '../components/Modals/ConnectModal.tsx'
+import { connect as serial_connect } from '@zmkfirmware/zmk-studio-ts-client/transport/serial'
+import { connect as gatt_connect } from '@zmkfirmware/zmk-studio-ts-client/transport/gatt'
+import {
+    connect as tauri_ble_connect,
+    list_devices as ble_list_devices,
+} from '../tauri/ble.ts'
+import {
+    connect as tauri_serial_connect,
+    list_devices as serial_list_devices,
+} from '../tauri/serial.ts'
 
 declare global {
-	interface Window {
-		__TAURI_INTERNALS__?: object;
-	}
+    interface Window {
+        __TAURI_INTERNALS__?: object
+    }
 }
 
-export const TRANSPORTS: TransportFactory[] = [
-	navigator.serial && {
-		label: 'USB',
-		communication: 'serial',
-		connect: serial_connect,
-	},
-	...(navigator.bluetooth && navigator.userAgent.indexOf('Linux') >= 0
-		? [
-			{
-				label: 'BLE',
-				communication: 'ble',
-				connect: gatt_connect,
-			},
-		]
-		: []),
-	...(window.__TAURI_INTERNALS__
-		? [
-			{
-				label: 'BLE',
-				communication: 'ble',
-				isWireless: true,
-				pick_and_connect: {
-					connect: tauri_ble_connect,
-					list: ble_list_devices,
-				},
-			},
-		]
-		: []),
-	...(window.__TAURI_INTERNALS__
-		? [
-			{
-				label: 'USB',
-				communication: 'serial',
-				pick_and_connect: {
-					connect: tauri_serial_connect,
-					list: serial_list_devices,
-				},
-			},
-		]
-		: []),
-].filter((t) => t !== undefined);
+const buildTransports = (): TransportFactory[] => {
+    const transports: TransportFactory[] = []
+
+    if (navigator.serial) {
+        transports.push({
+            label: 'USB',
+            communication: 'serial',
+            connect: serial_connect,
+        })
+    }
+
+    if (navigator.bluetooth && navigator.userAgent.indexOf('Linux') >= 0) {
+        transports.push({
+            label: 'BLE',
+            communication: 'ble',
+            connect: gatt_connect,
+        })
+    }
+
+    if (window.__TAURI_INTERNALS__) {
+        transports.push({
+            label: 'BLE',
+            communication: 'ble',
+            isWireless: true,
+            pick_and_connect: {
+                connect: tauri_ble_connect,
+                list: ble_list_devices,
+            },
+        })
+        transports.push({
+            label: 'USB',
+            communication: 'serial',
+            pick_and_connect: {
+                connect: tauri_serial_connect,
+                list: serial_list_devices,
+            },
+        })
+    }
+
+    return transports
+}
+
+export const TRANSPORTS: TransportFactory[] = buildTransports()

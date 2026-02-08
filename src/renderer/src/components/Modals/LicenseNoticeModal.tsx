@@ -1,6 +1,6 @@
 import NOTICE from '../../../../../NOTICE?raw'
 import { Modal } from '@/components/ui/Modal.tsx'
-export function LicenseNoticeModal() {
+export function LicenseNoticeModal(): JSX.Element {
     return (
         <>
             <Modal
@@ -8,7 +8,7 @@ export function LicenseNoticeModal() {
                 close={false}
                 success={false}
                 type="text"
-                text=" License NOTICE"
+                text=" License"
             >
                 <div className="overflow-auto max-h-full">
                     <p className="mr-2">

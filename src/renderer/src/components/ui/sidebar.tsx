@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 'use client'
 
 import * as React from 'react'
@@ -44,7 +45,7 @@ type SidebarContextProps = {
 
 const SidebarContext = React.createContext<SidebarContextProps | null>(null)
 
-function useSidebar() {
+function useSidebar(): SidebarContextProps {
     const context = React.useContext(SidebarContext)
     if (!context) {
         throw new Error('useSidebar must be used within a SidebarProvider.')
@@ -72,7 +73,7 @@ const SidebarProvider = React.forwardRef<
             ...props
         },
         ref,
-    ) => {
+    ): JSX.Element => {
         const isMobile = useIsMobile()
         const [openMobile, setOpenMobile] = React.useState(false)
 
@@ -81,7 +82,7 @@ const SidebarProvider = React.forwardRef<
         const [_open, _setOpen] = React.useState(defaultOpen)
         const open = openProp ?? _open
         const setOpen = React.useCallback(
-            (value: boolean | ((value: boolean) => boolean)) => {
+            (value: boolean | ((value: boolean) => boolean)): void => {
                 const openState =
                     typeof value === 'function' ? value(open) : value
                 if (setOpenProp) {
@@ -97,15 +98,17 @@ const SidebarProvider = React.forwardRef<
         )
 
         // Helper to toggle the sidebar.
-        const toggleSidebar = React.useCallback(() => {
-            return isMobile
-                ? setOpenMobile((open) => !open)
-                : setOpen((open) => !open)
+        const toggleSidebar = React.useCallback((): void => {
+            if (isMobile) {
+                setOpenMobile((open: boolean): boolean => !open)
+            } else {
+                setOpen((open: boolean): boolean => !open)
+            }
         }, [isMobile, setOpen, setOpenMobile])
 
         // Adds a keyboard shortcut to toggle the sidebar.
-        React.useEffect(() => {
-            const handleKeyDown = (event: KeyboardEvent) => {
+        React.useEffect((): (() => void) => {
+            const handleKeyDown = (event: KeyboardEvent): void => {
                 if (
                     event.key === SIDEBAR_KEYBOARD_SHORTCUT &&
                     (event.metaKey || event.ctrlKey)
@@ -116,7 +119,8 @@ const SidebarProvider = React.forwardRef<
             }
 
             window.addEventListener('keydown', handleKeyDown)
-            return () => window.removeEventListener('keydown', handleKeyDown)
+            return (): void =>
+                window.removeEventListener('keydown', handleKeyDown)
         }, [toggleSidebar])
 
         // We add a state so that we can do data-state="expanded" or "collapsed".
@@ -124,7 +128,7 @@ const SidebarProvider = React.forwardRef<
         const state = open ? 'expanded' : 'collapsed'
 
         const contextValue = React.useMemo<SidebarContextProps>(
-            () => ({
+            (): SidebarContextProps => ({
                 state,
                 open,
                 setOpen,
@@ -182,7 +186,7 @@ function Sidebar({
     side?: 'left' | 'right'
     variant?: 'sidebar' | 'floating' | 'inset'
     collapsible?: 'offcanvas' | 'icon' | 'none'
-}) {
+}): JSX.Element {
     const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
 
     if (collapsible === 'none') {
@@ -574,7 +578,7 @@ const SidebarMenuButton = React.forwardRef<
             ...props
         },
         ref,
-    ) => {
+    ): JSX.Element => {
         const Comp = asChild ? Slot : 'button'
         const { isMobile, state } = useSidebar()
 
@@ -623,29 +627,34 @@ const SidebarMenuAction = React.forwardRef<
         asChild?: boolean
         showOnHover?: boolean
     }
->(({ className, asChild = false, showOnHover = false, ...props }, ref) => {
-    const Comp = asChild ? Slot : 'button'
+>(
+    (
+        { className, asChild = false, showOnHover = false, ...props },
+        ref,
+    ): JSX.Element => {
+        const Comp = asChild ? Slot : 'button'
 
-    return (
-        <Comp
-            ref={ref}
-            data-sidebar="menu-action"
-            className={cn(
-                'absolute right-1 top-1.5 flex aspect-square w-5 items-center justify-center rounded-md p-0 text-sidebar-foreground outline-none ring-sidebar-ring transition-transform hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 peer-hover/menu-button:text-sidebar-accent-foreground [&>svg]:size-4 [&>svg]:shrink-0',
-                // Increases the hit area of the button on mobile.
-                'after:absolute after:-inset-2 after:md:hidden',
-                'peer-data-[size=sm]/menu-button:top-1',
-                'peer-data-[size=default]/menu-button:top-1.5',
-                'peer-data-[size=lg]/menu-button:top-2.5',
-                'group-data-[collapsible=icon]:hidden',
-                showOnHover &&
-                    'group-focus-within/menu-item:opacity-100 group-hover/menu-item:opacity-100 data-[state=open]:opacity-100 peer-data-[active=true]/menu-button:text-sidebar-accent-foreground md:opacity-0',
-                className,
-            )}
-            {...props}
-        />
-    )
-})
+        return (
+            <Comp
+                ref={ref}
+                data-sidebar="menu-action"
+                className={cn(
+                    'absolute right-1 top-1.5 flex aspect-square w-5 items-center justify-center rounded-md p-0 text-sidebar-foreground outline-none ring-sidebar-ring transition-transform hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 peer-hover/menu-button:text-sidebar-accent-foreground [&>svg]:size-4 [&>svg]:shrink-0',
+                    // Increases the hit area of the button on mobile.
+                    'after:absolute after:-inset-2 after:md:hidden',
+                    'peer-data-[size=sm]/menu-button:top-1',
+                    'peer-data-[size=default]/menu-button:top-1.5',
+                    'peer-data-[size=lg]/menu-button:top-2.5',
+                    'group-data-[collapsible=icon]:hidden',
+                    showOnHover &&
+                        'group-focus-within/menu-item:opacity-100 group-hover/menu-item:opacity-100 data-[state=open]:opacity-100 peer-data-[active=true]/menu-button:text-sidebar-accent-foreground md:opacity-0',
+                    className,
+                )}
+                {...props}
+            />
+        )
+    },
+)
 SidebarMenuAction.displayName = 'SidebarMenuAction'
 
 const SidebarMenuBadge = React.forwardRef<
@@ -676,9 +685,9 @@ const SidebarMenuSkeleton = React.forwardRef<
     }
 >(({ className, showIcon = false, ...props }, ref) => {
     // Random width between 50 to 90%.
-    const width = React.useMemo(() => {
-        return `${Math.floor(Math.random() * 40) + 50}%`
-    }, [])
+    const [width] = React.useState(
+        () => `${Math.floor(Math.random() * 40) + 50}%`,
+    )
 
     return (
         <div

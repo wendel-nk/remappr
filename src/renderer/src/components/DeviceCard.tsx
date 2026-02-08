@@ -13,7 +13,7 @@ export interface DeviceCardProps {
     disabled?: boolean
 }
 
-function StatusBadge({ status }: { status: DeviceStatus }) {
+function StatusBadge({ status }: { status: DeviceStatus }): JSX.Element {
     const statusConfig = {
         available: {
             bgColor: 'bg-emerald-500/15',
@@ -68,7 +68,7 @@ export function DeviceCard({
     onConnect,
     onDisconnect,
     disabled = false,
-}: DeviceCardProps) {
+}: DeviceCardProps): JSX.Element {
     const isConnecting = status === 'connecting'
     const isConnected = status === 'connected'
 

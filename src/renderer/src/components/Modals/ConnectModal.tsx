@@ -6,8 +6,7 @@ import { ExternalLink } from '@/misc/ExternalLink.tsx'
 import { DeviceList } from '../DeviceList.tsx'
 import { SimpleDevicePicker } from '../SimpleDevicePicker.tsx'
 import { TRANSPORTS } from '../../helpers/transports.ts'
-import { OldModal, ModalProps } from '@/components/ui/OldModal.tsx'
-import useConnectionStore from '@/stores/ConnectionStore.ts'
+import { ModalProps } from '@/components/ui/OldModal.tsx'
 import { Modal } from '@/components/ui/Modal.tsx'
 
 export type TransportFactory = {
@@ -37,7 +36,7 @@ export interface ConnectModalProps extends ModalProps {
 export const ConnectModal = ({
     open,
     onTransportCreated,
-}: ConnectModalProps) => {
+}: ConnectModalProps): JSX.Element => {
     const transports = TRANSPORTS
     const haveTransports = useMemo(() => transports.length > 0, [transports])
 
@@ -48,10 +47,9 @@ export const ConnectModal = ({
             communication: 'serial' | 'ble',
         ) => void,
         open?: boolean,
-    ) {
-        const useSimplePicker = useMemo(
-            () => transports.every((t) => !t.pick_and_connect),
-            [transports],
+    ): JSX.Element {
+        const useSimplePicker = transports.every(
+            (t): boolean => !t.pick_and_connect,
         )
 
         return useSimplePicker ? (
@@ -68,7 +66,7 @@ export const ConnectModal = ({
         )
     }
 
-    function noTransportsOptionsPrompt() {
+    function noTransportsOptionsPrompt(): JSX.Element {
         return (
             <div className="m-4 flex flex-col gap-2">
                 <p>
