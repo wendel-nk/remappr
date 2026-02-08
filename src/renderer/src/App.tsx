@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React, { JSX, useCallback, useEffect } from 'react'
 import type { RpcTransport } from '@zmkfirmware/zmk-studio-ts-client/transport/index'
 import { useEmitter, useSub } from './helpers/usePubSub.ts'
 import { LockState } from '@zmkfirmware/zmk-studio-ts-client/core'
@@ -17,7 +17,7 @@ import { toast } from 'sonner'
 import { callRemoteProcedureControl } from '@/services/CallRemoteProcedureControl.ts'
 import { StartPage } from './components/StartPage.tsx'
 
-function App() {
+function App(): JSX.Element {
     const {
         connection,
         setConnection,
@@ -29,16 +29,32 @@ function App() {
     const { subscribe } = useEmitter()
 
     useEffect(() => {
-        return subscribe('rpc_notification.core.lockStateChanged', (data) => {
-            console.log('lockStateChanged:', data)
-            setLockState(data)
-        })
+        return subscribe(
+            'rpc_notification.core.lockStateChanged',
+            (data: unknown): void => {
+                console.log('lockStateChanged:', data)
+                setLockState(data as LockState)
+            },
+        )
     }, [subscribe])
 
-    useSub('rpc_notification.core.lockStateChanged', (ls) => {
+    useSub('rpc_notification.core.lockStateChanged', (ls): void => {
         console.log(ls)
-        setLockState(ls)
+        setLockState(ls as LockState)
     })
+
+    const updateLockState = useCallback(async (): Promise<void> => {
+        if (!connection) return
+
+        const locked_resp = await callRemoteProcedureControl({
+            core: { getLockState: true },
+        })
+        console.log(connection)
+        setLockState(
+            locked_resp.core?.getLockState ||
+                LockState.ZMK_STUDIO_CORE_LOCK_STATE_LOCKED,
+        )
+    }, [connection, setLockState])
 
     useEffect(() => {
         console.log(connection)
@@ -48,26 +64,12 @@ function App() {
         }
 
         updateLockState()
-    }, [connection, setLockState])
-
-    async function updateLockState() {
-        if (!connection) return
-
-        const locked_resp = await callRemoteProcedureControl({
-            core: { getLockState: true },
-        })
-        console.log(connection)
-        // console.log(locked_resp, locked_resp.core?.getLockState)
-        setLockState(
-            locked_resp.core?.getLockState ||
-                LockState.ZMK_STUDIO_CORE_LOCK_STATE_LOCKED,
-        )
-    }
+    }, [connection, setLockState, reset, updateLockState])
 
     const onConnect = async (
         t: RpcTransport,
         communication: 'serial' | 'ble',
-    ) => {
+    ): Promise<void> => {
         const connection = await connect(
             t,
             setConnection,
