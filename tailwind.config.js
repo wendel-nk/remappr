@@ -5,7 +5,7 @@ import defaultTheme from "tailwindcss/defaultTheme";
 import daisyui from "daisyui";
 
 export default {
-  content: ["./index.html", "./download.html", "./src/**/*.{js,ts,jsx,tsx}"],
+  content: ["./src/renderer/index.html", "./src/renderer/download.html", "./src/renderer/src/**/*.{js,ts,jsx,tsx}"],
   theme: {
     fontSize: {
       xs: "0.4rem",

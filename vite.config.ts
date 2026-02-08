@@ -1,16 +1,16 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react-swc'
 import tailwindcss from '@tailwindcss/vite'
-import path from "path"
+import path from 'path'
 // https://vitejs.dev/config/
 export default defineConfig({
     base: '/', //todo remove it after finishing refactoring
-    plugins: [
-        react(), tailwindcss(),
-    ],
+    root: path.resolve(__dirname, 'src/renderer'),
+    publicDir: path.resolve(__dirname, 'public'),
+    plugins: [react(), tailwindcss()],
     resolve: {
         alias: {
-            "@": path.resolve(__dirname, "./src"),
+            '@': path.resolve(__dirname, './src/renderer/src'),
         },
     },
     // prevent vite from obscuring rust errors
@@ -30,6 +30,7 @@ export default defineConfig({
         'TAURI_DEBUG',
     ],
     build: {
+        outDir: path.resolve(__dirname, 'dist'),
         chunkSizeWarningLimit: 1000, // todo remove after refactoring
         // Tauri uses Chromium on Windows and WebKit on macOS and Linux
         target:
@@ -41,8 +42,8 @@ export default defineConfig({
         // include download page
         rollupOptions: {
             input: {
-                main: './index.html',
-                download: './download.html',
+                main: './src/renderer/index.html',
+                download: './src/renderer/download.html',
             },
         },
     },

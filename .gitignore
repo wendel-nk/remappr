@@ -12,12 +12,15 @@ dist
 dist-ssr
 *.local
 src/data
+out
+.DS_Store
+.eslintcache
+*.log*
 
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
 .idea
-.DS_Store
 *.suo
 *.ntvs*
 *.njsproj
