@@ -1,5 +1,5 @@
-import { AboutModal } from '../components/Modals/AboutModal.tsx'
-import { LicenseNoticeModal } from '../components/Modals/LicenseNoticeModal.tsx'
+// import { AboutModal } from '../components/Modals/AboutModal.tsx'
+// import { LicenseNoticeModal } from '../components/Modals/LicenseNoticeModal.tsx'
 import { Separator } from '@/components/ui/separator.tsx'
 
 export function Footer(): JSX.Element {

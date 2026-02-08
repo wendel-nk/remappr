@@ -12,7 +12,7 @@ import { SidebarInset, SidebarProvider } from './components/ui/sidebar.tsx'
 import { ThemeProvider } from '@/providers/ThemeProvider.tsx'
 import { Toaster } from '@/components/ui/sonner.tsx'
 import { Header } from '@/Layout/Header.tsx'
-import { Footer } from '@/Layout/Footer.tsx'
+// import { Footer } from '@/Layout/Footer.tsx'
 import { toast } from 'sonner'
 import { callRemoteProcedureControl } from '@/services/CallRemoteProcedureControl.ts'
 import { StartPage } from './components/StartPage.tsx'
@@ -102,7 +102,7 @@ function App(): JSX.Element {
                         <SidebarInset>
                             <Header />
                             <KeyboardEditor />
-                            <Footer />
+                            {/*<Footer />*/}
                         </SidebarInset>
                     </SidebarProvider>
                 </>
