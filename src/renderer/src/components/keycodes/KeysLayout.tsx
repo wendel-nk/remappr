@@ -542,11 +542,22 @@ export function KeysLayout({
                     }
 
                     // Set container height to accommodate all content, with padding
+                    // When both positioned and unpositioned keys exist, stack them vertically
+                    const totalContentHeight =
+                        keysWithPositions.length > 0 &&
+                        keysWithoutPositions.length > 0
+                            ? maxBottomPosition +
+                              10 +
+                              keysWithoutPosHeight +
+                              48
+                            : Math.max(
+                                  maxBottomPosition + 48,
+                                  keysWithoutPosHeight + 48,
+                              )
                     const calculatedHeight = Math.max(
-                        maxBottomPosition + 48,
-                        keysWithoutPosHeight + 48,
+                        totalContentHeight,
                         350,
-                    ) // +48 for padding (24px top + 24px bottom)
+                    )
 
                     return (
                         <TabsContent
@@ -594,9 +605,18 @@ export function KeysLayout({
                                 {keysWithoutPositions.length > 0 && (
                                     <div
                                         style={{
-                                            position: 'absolute',
-                                            top: '0px',
-                                            left: '0px',
+                                            position:
+                                                keysWithPositions.length > 0
+                                                    ? 'absolute'
+                                                    : 'relative',
+                                            top:
+                                                keysWithPositions.length > 0
+                                                    ? `${maxBottomPosition + 10}px`
+                                                    : '0px',
+                                            left:
+                                                keysWithPositions.length > 0
+                                                    ? '0px'
+                                                    : undefined,
                                             display: 'flex',
                                             flexWrap: 'wrap',
                                             gap: '4px',
