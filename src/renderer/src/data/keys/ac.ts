@@ -844,8 +844,6 @@ export const ac = [
         Name: 'AC Next Keyboard Layout Select',
         Kinds: ['Sel'],
         Label: 'AC Next Keyboard Layout Select',
-        x: 0,
-        y: 0,
     },
     {
         Id: 670,

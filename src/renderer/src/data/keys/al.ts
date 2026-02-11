@@ -274,8 +274,6 @@ export const al = [
         Name: 'AL Keyboard Layout',
         Kinds: ['Sel'],
         Label: 'AL Keyboard Layout',
-        x: 0,
-        y: 0,
     },
     {
         Id: 431,
