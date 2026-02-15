@@ -1,8 +1,51 @@
-import { contextBridge } from 'electron'
+import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
+import {
+    IpcChannels,
+    IpcEvents,
+    type ElectronIpcApi,
+} from '../shared/ipc-types'
 
-// Custom APIs for renderer
-const api = {}
+// Allowed invoke channels (whitelist for security)
+const VALID_INVOKE_CHANNELS = new Set<string>(Object.values(IpcChannels))
+
+// Allowed event channels (whitelist for security)
+const VALID_EVENT_CHANNELS = new Set<string>(Object.values(IpcEvents))
+
+// Custom IPC API for renderer
+const api = {
+    invoke(channel: string, ...args: unknown[]): Promise<unknown> {
+        if (!VALID_INVOKE_CHANNELS.has(channel)) {
+            return Promise.reject(
+                new Error(`Invalid IPC channel: ${channel}`),
+            )
+        }
+        return ipcRenderer.invoke(channel, ...args)
+    },
+
+    on(
+        event: string,
+        callback: (...args: unknown[]) => void,
+    ): () => void {
+        if (!VALID_EVENT_CHANNELS.has(event)) {
+            throw new Error(`Invalid IPC event: ${event}`)
+        }
+
+        const listener = (
+            _event: Electron.IpcRendererEvent,
+            ...args: unknown[]
+        ): void => {
+            callback(...args)
+        }
+
+        ipcRenderer.on(event, listener)
+
+        // Return an unsubscribe function
+        return (): void => {
+            ipcRenderer.removeListener(event, listener)
+        }
+    },
+} satisfies ElectronIpcApi
 
 // Use `contextBridge` APIs to expose Electron APIs to
 // renderer only if context isolation is enabled, otherwise
