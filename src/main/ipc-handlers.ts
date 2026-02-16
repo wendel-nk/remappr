@@ -107,6 +107,7 @@ function setupEventEmitters(getWindows: () => BrowserWindow[]): void {
  * Transport implementations import this to push events to the renderer.
  */
 export const ipcHandlerContext = {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     emitConnectionData: (_data: number[]): void => {},
     emitConnectionDisconnected: (): void => {},
 }
