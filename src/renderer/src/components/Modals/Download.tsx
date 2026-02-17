@@ -21,6 +21,7 @@ interface DownloadProps {
     onClose?: () => void
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function Download(_props: DownloadProps): JSX.Element {
     const { connection, deviceName } = useConnectionStore()
     const behaviors = useBehaviors()

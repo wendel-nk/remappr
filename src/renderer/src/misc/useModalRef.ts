@@ -52,6 +52,7 @@ export function useModalRef(
             ref.current?.close()
             ref.current?.removeEventListener('cancel', reopen)
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open, closeOnOutsideClick])
 
     return ref

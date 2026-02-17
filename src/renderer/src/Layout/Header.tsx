@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/preserve-manual-memoization */
 import { useCallback, useEffect } from 'react'
 import { useEmitter } from '../helpers/usePubSub.ts'
 import { LockState } from '@zmkfirmware/zmk-studio-ts-client/core'
@@ -49,7 +50,7 @@ export function Header(): JSX.Element {
             console.error('Failed to save changes', resp.keymap?.saveChanges)
             toast.error(`Failed to save changes`)
         }
-    }, [connection])
+    }, [])
 
     const discard = useCallback(async (): Promise<void> => {
         const resp = await callRemoteProcedureControl({
@@ -63,7 +64,7 @@ export function Header(): JSX.Element {
 
         reset()
         setConnection(connection)
-    }, [connection])
+    }, [connection, reset, setConnection])
 
     return (
         <header className="flex h-(--header-height) shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)">

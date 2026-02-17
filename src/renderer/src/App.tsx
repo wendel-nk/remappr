@@ -36,7 +36,7 @@ function App(): JSX.Element {
                 setLockState(data as LockState)
             },
         )
-    }, [subscribe])
+    }, [subscribe, setLockState])
 
     useSub('rpc_notification.core.lockStateChanged', (ls): void => {
         console.log(ls)

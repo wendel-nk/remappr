@@ -546,18 +546,12 @@ export function KeysLayout({
                     const totalContentHeight =
                         keysWithPositions.length > 0 &&
                         keysWithoutPositions.length > 0
-                            ? maxBottomPosition +
-                              10 +
-                              keysWithoutPosHeight +
-                              48
+                            ? maxBottomPosition + 10 + keysWithoutPosHeight + 48
                             : Math.max(
                                   maxBottomPosition + 48,
                                   keysWithoutPosHeight + 48,
                               )
-                    const calculatedHeight = Math.max(
-                        totalContentHeight,
-                        350,
-                    )
+                    const calculatedHeight = Math.max(totalContentHeight, 350)
 
                     return (
                         <TabsContent
