@@ -2,6 +2,13 @@ import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
+import {
+    listSerialDevices,
+    connectSerial,
+    disconnectSerial,
+    writeSerial,
+    isSerialConnected,
+} from './serial'
 
 function createWindow(): void {
     // Create the browser window.
@@ -56,6 +63,30 @@ app.whenReady().then((): void => {
 
     // IPC test
     ipcMain.on('ping', (): void => console.log('pong'))
+
+    // Serial port IPC handlers
+    ipcMain.handle('serial:list', async () => {
+        return await listSerialDevices()
+    })
+
+    ipcMain.handle(
+        'serial:connect',
+        async (_, deviceId: string, baudRate?: number) => {
+            return await connectSerial(deviceId, baudRate)
+        },
+    )
+
+    ipcMain.handle('serial:disconnect', async () => {
+        return await disconnectSerial()
+    })
+
+    ipcMain.handle('serial:write', async (_, data: number[]) => {
+        return await writeSerial(new Uint8Array(data))
+    })
+
+    ipcMain.handle('serial:isConnected', () => {
+        return isSerialConnected()
+    })
 
     createWindow()
 
