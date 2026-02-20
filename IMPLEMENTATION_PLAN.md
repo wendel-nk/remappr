@@ -276,7 +276,7 @@ Define the specific, measurable condit
 Please implement the changes now.
 
 ## Iteration Context
-This is iteration 1 of 2.
+This is iteration 1 of 3.
 
 ### Implementation Phase
 Focus on implementing the card requirements:
@@ -284,14 +284,69 @@ Focus on implementing the card requirements:
 - Make meaningful progress on the feature
 - Commit working chunks of code
 
+### Current Subtask
+Focus on this subtask: Set up Electron BLE permissions and device selection in main process
+Update src/main/index.ts to handle Electron's Web Bluetooth permissions: register 'select-bluetooth-device' event handler on the webContents to present device chooser, and set up bluetooth-related permission request/check handlers. Create src/main/handlers/ble.ts with IPC handlers that coordinate the BLE flow between main and renderer processes (device selection callback, connection state tracking).
+
+Remaining subtasks: 5
+
 ### Iteration Guidelines
 - Focus on making incremental progress
 - Commit meaningful chunks of work
 - Leave the codebase in a working state
 - If you complete the current subtask, move to the next one
 
+## User Feedback from Issue Comments
+
+The following feedback was provided by users on this issue. Please address these points:
+
+### Additional Feedback
+- No changes have been made in this task to be implemented
+
 
 ## Note
-All AI providers failed. Tried: claude. Last error: Error: spawn ENAMETOOLONG
+All AI providers failed. Tried: claude, codex. Last error: Error: codex exited with code 1
+
+--- stderr (tail) ---
+- [ ] Test case 1: Description and expected result
+- [ ] Test case 2: Description and expected result
+### Integration Tests
+<!-- Test how components work together -->
+- [ ] Test case 1: Description and expected result
+### Manual Testing
+<!-- Steps to manually verify the feature -->
+- [ ] Step 1: Action to take and what to verify
+- [ ] Step 2: Action to take and what to verify
+### Edge Cases
+<!-- Unusual scenarios to test -->
+- [ ] Edge case 1: What could go wrong and how to test it
+## Acceptance Criteria
+<!--
+Define the specific, measurable condit
+…
+### Suggested files (from local index)
+- src/renderer/src/components/DeviceCard.tsx (symbol:DeviceStatus, symbol:DeviceCardProps, symbol:DeviceCard)
+- src/renderer/src/stores/ConnectionStore.ts (symbol:ConnectionState, symbol:useConnectionStore, symbol:ConnectionState)
+- src/renderer/src/components/DeviceList.tsx (symbol:DeviceList, symbol:DeviceListProps, symbol:DeviceList)
+- src/renderer/src/transport/types.ts (symbol:SerialConnectionState, symbol:AvailableDevice, symbol:AvailableDevice)
+- src/renderer/src/services/RpcConnectionService.ts (symbol:DeviceInfoDetails, symbol:useConnectedDeviceData, symbol:DeviceInfoDetails)
+- src/renderer/src/behaviors/HidUsagePicker.stories.ts (symbol:Keyboard, symbol:KeyboardModSelection, symbol:KeyboardAndConsumer)
+- src/renderer/src/rpc/ConnectionContext.ts (symbol:ConnectionState, symbol:ConnectionState, symbol:ConnectionContext)
+- src/renderer/src/components/SimpleDevicePicker.tsx (symbol:SimpleDevicePicker, symbol:SimpleDevicePickerProps, symbol:SimpleDevicePicker)
+- src/renderer/src/components/StartPage.tsx (symbol:DeviceWithTransport, symbol:DeviceWithTransport, symbol:DeviceWithTransport)
+- src/renderer/src/components/keyboard/Keyboard.tsx (symbol:Keyboard, symbol:KeyboardProps)
+- src/renderer/src/services/KeyboardKeypressService.ts (symbol:KeyboardKeypressService, symbol:keyboardKeypressService)
+- src/renderer/src/data/keys/index.ts (symbol:KeyboardKeys, symbol:keyboards)
+### Snippets (bounded, may be redacted)
+(none)
+Please implement the changes now.
+Please continue the implementation from where the previous provider left off.
+mcp startup: no servers
+Reconnecting... 1/5 (stream disconnected before completion: The model `gpt-5.3-codex` does not exist or you do not have access to it.)
+Reconnecting... 2/5 (stream disconnected before completion: The model `gpt-5.3-codex` does not exist or you do not have access to it.)
+Reconnecting... 3/5 (stream disconnected before completion: The model `gpt-5.3-codex` does not exist or you do not have access to it.)
+Reconnecting... 4/5 (stream disconnected before completion: The model `gpt-5.3-codex` does not exist or you do not have access to it.)
+Reconnecting... 5/5 (stream disconnected before completion: The model `gpt-5.3-codex` does not exist or you do not have access to it.)
+ERROR: stream disconnected before completion: The model `gpt-5.3-codex` does not exist or you do not have access to it.
 
 Please implement the changes manually following the plan above.
