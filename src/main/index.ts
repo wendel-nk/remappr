@@ -2,6 +2,7 @@ import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
+import { registerTransportHandlers } from './transport-handlers'
 
 function createWindow(): void {
     // Create the browser window.
@@ -56,6 +57,9 @@ app.whenReady().then((): void => {
 
     // IPC test
     ipcMain.on('ping', (): void => console.log('pong'))
+
+    // Register transport IPC handlers
+    registerTransportHandlers()
 
     createWindow()
 

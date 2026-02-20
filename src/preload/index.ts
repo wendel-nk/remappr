@@ -1,8 +1,52 @@
-import { contextBridge } from 'electron'
+import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 
-// Custom APIs for renderer
-const api = {}
+// Transport API for renderer process
+const transportApi = {
+    serial: {
+        listDevices: (): Promise<Array<{ label: string; id: string }>> =>
+            ipcRenderer.invoke('serial:list-devices'),
+        connect: (device: {
+            label: string
+            id: string
+        }): Promise<boolean> => ipcRenderer.invoke('serial:connect', device),
+        disconnect: (): Promise<void> =>
+            ipcRenderer.invoke('serial:disconnect'),
+    },
+    ble: {
+        listDevices: (): Promise<Array<{ label: string; id: string }>> =>
+            ipcRenderer.invoke('ble:list-devices'),
+        connect: (device: {
+            label: string
+            id: string
+        }): Promise<boolean> => ipcRenderer.invoke('ble:connect', device),
+    },
+    sendData: (data: number[]): Promise<void> =>
+        ipcRenderer.invoke('transport:send-data', data),
+    close: (): Promise<void> => ipcRenderer.invoke('transport:close'),
+    onConnectionData: (
+        callback: (data: number[]) => void,
+    ): (() => void) => {
+        const handler = (
+            _event: Electron.IpcRendererEvent,
+            data: number[],
+        ): void => callback(data)
+        ipcRenderer.on('transport:connection-data', handler)
+        return (): void => {
+            ipcRenderer.removeListener('transport:connection-data', handler)
+        }
+    },
+    onConnectionDisconnected: (callback: () => void): (() => void) => {
+        const handler = (): void => callback()
+        ipcRenderer.on('transport:connection-disconnected', handler)
+        return (): void => {
+            ipcRenderer.removeListener(
+                'transport:connection-disconnected',
+                handler,
+            )
+        }
+    },
+}
 
 // Use `contextBridge` APIs to expose Electron APIs to
 // renderer only if context isolation is enabled, otherwise
@@ -10,7 +54,7 @@ const api = {}
 if (process.contextIsolated) {
     try {
         contextBridge.exposeInMainWorld('electron', electronAPI)
-        contextBridge.exposeInMainWorld('api', api)
+        contextBridge.exposeInMainWorld('api', transportApi)
     } catch (error) {
         console.error(error)
     }
@@ -18,5 +62,5 @@ if (process.contextIsolated) {
     // @ts-ignore (define in dts)
     window.electron = electronAPI
     // @ts-ignore (define in dts)
-    window.api = api
+    window.api = transportApi
 }
