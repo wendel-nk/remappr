@@ -2,10 +2,13 @@ import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
+import { initBleHandlers, cleanupBleHandlers } from './ble'
+
+let mainWindow: BrowserWindow | null = null
 
 function createWindow(): void {
     // Create the browser window.
-    const mainWindow = new BrowserWindow({
+    mainWindow = new BrowserWindow({
         width: 900,
         height: 670,
         show: false,
@@ -17,8 +20,11 @@ function createWindow(): void {
         },
     })
 
+    // Initialize BLE handlers for this window
+    initBleHandlers(mainWindow)
+
     mainWindow.on('ready-to-show', (): void => {
-        mainWindow.show()
+        mainWindow?.show()
     })
 
     mainWindow.webContents.setWindowOpenHandler(
@@ -71,8 +77,14 @@ app.whenReady().then((): void => {
 // explicitly with Cmd + Q.
 app.on('window-all-closed', (): void => {
     if (process.platform !== 'darwin') {
+        cleanupBleHandlers()
         app.quit()
     }
+})
+
+// Clean up on before-quit
+app.on('before-quit', (): void => {
+    cleanupBleHandlers()
 })
 
 // In this file you can include the rest of your app's specific main process
