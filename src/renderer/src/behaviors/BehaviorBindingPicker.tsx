@@ -9,6 +9,7 @@ import { BehaviorParametersPicker } from './BehaviorParametersPicker'
 import { BehaviorSelector } from './BehaviorSelector'
 import { validateValue } from './parameters'
 import { SelectedKeysDisplay } from '@/components/keycodes/SelectedKeysDisplay'
+import { KeyPreview } from '@/components/keyboard/KeyPreview'
 
 // Modifier key definitions (same as HidUsagePicker)
 enum Mods {
@@ -178,40 +179,62 @@ export const BehaviorBindingPicker = ({
         setSelectedModifiers(modifiers)
     }
 
+    // Create a live binding object representing the current editor state
+    const liveBinding: BehaviorBinding = useMemo(
+        () => ({
+            behaviorId,
+            param1: param1 ?? 0,
+            param2: param2 ?? 0,
+        }),
+        [behaviorId, param1, param2],
+    )
+
     return (
-        <div className="flex flex-col w-full">
-            <div className="flex flex-row flex-1 gap-3">
-                <BehaviorSelector
+        <div className="flex flex-row w-full gap-4">
+            {/* Key Preview - shows live preview of the binding */}
+            <div className="flex-shrink-0">
+                <KeyPreview
+                    binding={liveBinding}
                     behaviors={behaviors}
-                    selectedBehaviorId={behaviorId}
-                    onBehaviorSelected={handleBehaviorSelected}
-                    placeholder="Select behavior..."
+                    layers={layers}
                 />
-                {isKeysLayoutActive && (
-                    <SelectedKeysDisplay
-                        selectedKey={selectedKey}
-                        selectedModifiers={selectedModifiers}
-                        onClearAll={handleClearAll}
-                        onRemoveKey={handleRemoveKey}
-                        onRemoveModifier={handleRemoveModifier}
+            </div>
+
+            {/* Binding Configuration */}
+            <div className="flex flex-col flex-1">
+                <div className="flex flex-row flex-1 gap-3 items-start">
+                    <BehaviorSelector
+                        behaviors={behaviors}
+                        selectedBehaviorId={behaviorId}
+                        onBehaviorSelected={handleBehaviorSelected}
+                        placeholder="Select behavior..."
                     />
+                    {isKeysLayoutActive && (
+                        <SelectedKeysDisplay
+                            selectedKey={selectedKey}
+                            selectedModifiers={selectedModifiers}
+                            onClearAll={handleClearAll}
+                            onRemoveKey={handleRemoveKey}
+                            onRemoveModifier={handleRemoveModifier}
+                        />
+                    )}
+                </div>
+                {metadata && (
+                    <div className="flex-1">
+                        <BehaviorParametersPicker
+                            metadata={metadata}
+                            param1={param1}
+                            param2={param2}
+                            layers={layers}
+                            onParam1Changed={setParam1}
+                            onParam2Changed={setParam2}
+                            onKeysLayoutActive={handleKeysLayoutActive}
+                            onKeySelected={handleKeySelected}
+                            onModifiersChanged={handleModifiersChanged}
+                        />
+                    </div>
                 )}
             </div>
-            {metadata && (
-                <div className="flex-1">
-                    <BehaviorParametersPicker
-                        metadata={metadata}
-                        param1={param1}
-                        param2={param2}
-                        layers={layers}
-                        onParam1Changed={setParam1}
-                        onParam2Changed={setParam2}
-                        onKeysLayoutActive={handleKeysLayoutActive}
-                        onKeySelected={handleKeySelected}
-                        onModifiersChanged={handleModifiersChanged}
-                    />
-                </div>
-            )}
         </div>
     )
 }
