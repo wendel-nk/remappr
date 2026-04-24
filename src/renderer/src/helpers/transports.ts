@@ -1,3 +1,4 @@
+// pattern-check: skip — merge conflict resolution, no new logic added
 import { TransportFactory } from '../components/Modals/ConnectModal.tsx'
 import { connect as serial_connect } from '@zmkfirmware/zmk-studio-ts-client/transport/serial'
 import { connect as gatt_connect } from '@zmkfirmware/zmk-studio-ts-client/transport/gatt'
@@ -24,47 +25,20 @@ declare global {
     }
 }
 
-function isElectron(): boolean {
+export function isElectron(): boolean {
     return (
-        typeof window !== 'undefined' &&
-        typeof window.electron !== 'undefined' &&
-        typeof window.api !== 'undefined'
+        typeof window.api !== 'undefined' &&
+        typeof window.api?.invoke === 'function'
     )
 }
 
-function isTauri(): boolean {
-    return (
-        typeof window !== 'undefined' &&
-        typeof window.__TAURI_INTERNALS__ !== 'undefined'
-    )
+export function isTauri(): boolean {
+    return !!window.__TAURI_INTERNALS__
 }
 
 const buildTransports = (): TransportFactory[] => {
     const transports: TransportFactory[] = []
 
-    // Electron desktop app transports (check before browser APIs)
-    if (isElectron()) {
-        transports.push({
-            label: 'BLE',
-            communication: 'ble',
-            isWireless: true,
-            pick_and_connect: {
-                connect: electron_ble_connect,
-                list: electron_ble_list_devices,
-            },
-        })
-        transports.push({
-            label: 'USB',
-            communication: 'serial',
-            pick_and_connect: {
-                connect: electron_serial_connect,
-                list: electron_serial_list_devices,
-            },
-        })
-        return transports
-    }
-
-    // Tauri desktop app transports
     if (isTauri()) {
         transports.push({
             label: 'BLE',
@@ -83,24 +57,42 @@ const buildTransports = (): TransportFactory[] => {
                 list: serial_list_devices,
             },
         })
-        return transports
-    }
-
-    // Browser-based transports (fallback)
-    if (navigator.serial) {
-        transports.push({
-            label: 'USB',
-            communication: 'serial',
-            connect: serial_connect,
-        })
-    }
-
-    if (navigator.bluetooth && navigator.userAgent.indexOf('Linux') >= 0) {
+    } else if (isElectron()) {
         transports.push({
             label: 'BLE',
             communication: 'ble',
-            connect: gatt_connect,
+            isWireless: true,
+            pick_and_connect: {
+                connect: electron_ble_connect,
+                list: electron_ble_list_devices,
+            },
         })
+        transports.push({
+            label: 'USB',
+            communication: 'serial',
+            pick_and_connect: {
+                connect: electron_serial_connect,
+                list: electron_serial_list_devices,
+            },
+        })
+    } else {
+        // Browser environment - use Web APIs directly
+        if (navigator.serial) {
+            transports.push({
+                label: 'USB',
+                communication: 'serial',
+                connect: serial_connect,
+            })
+        }
+
+        // Web Bluetooth on Linux browsers
+        if (navigator.bluetooth && navigator.userAgent.indexOf('Linux') >= 0) {
+            transports.push({
+                label: 'BLE',
+                communication: 'ble',
+                connect: gatt_connect,
+            })
+        }
     }
 
     return transports

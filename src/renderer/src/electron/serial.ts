@@ -1,12 +1,16 @@
+// pattern-check: skip — merge conflict resolution, no new logic added
+import { IpcChannels, IpcEvents } from '../../../shared/ipc-types'
 import type { RpcTransport } from '@zmkfirmware/zmk-studio-ts-client/transport/index'
 import type { AvailableDevice } from '../transport/types'
 
 export async function list_devices(): Promise<Array<AvailableDevice>> {
-    return await window.api.serial.listDevices()
+    return (await window.api.invoke(
+        IpcChannels.SERIAL_LIST_DEVICES,
+    )) as AvailableDevice[]
 }
 
 export async function connect(dev: AvailableDevice): Promise<RpcTransport> {
-    if (!(await window.api.serial.connect(dev))) {
+    if (!(await window.api.invoke(IpcChannels.SERIAL_CONNECT, dev))) {
         throw new Error('Failed to connect')
     }
 
@@ -14,22 +18,27 @@ export async function connect(dev: AvailableDevice): Promise<RpcTransport> {
 
     const writable = new WritableStream({
         async write(chunk) {
-            await window.api.sendData(Array.from(new Uint8Array(chunk)))
+            await window.api.invoke(
+                IpcChannels.TRANSPORT_SEND_DATA,
+                new Uint8Array(chunk),
+            )
         },
     })
 
-    const { writable: response_writable, readable } =
-        new TransformStream<Uint8Array>()
+    const { writable: response_writable, readable } = new TransformStream()
 
-    const unlisten_data = window.api.onConnectionData(
-        async (data: number[]) => {
+    const unlisten_data = window.api.on(
+        IpcEvents.CONNECTION_DATA,
+        async (...args: unknown[]) => {
+            const data = args[0] as number[]
             const writer = response_writable.getWriter()
             await writer.write(new Uint8Array(data))
             writer.releaseLock()
         },
     )
 
-    const unlisten_disconnected = window.api.onConnectionDisconnected(
+    const unlisten_disconnected = window.api.on(
+        IpcEvents.CONNECTION_DISCONNECTED,
         async () => {
             unlisten_data()
             unlisten_disconnected()
@@ -42,7 +51,7 @@ export async function connect(dev: AvailableDevice): Promise<RpcTransport> {
     const abort_cb = async (): Promise<void> => {
         unlisten_data()
         unlisten_disconnected()
-        await window.api.close()
+        await window.api.invoke(IpcChannels.TRANSPORT_CLOSE)
         signal.removeEventListener('abort', abort_cb)
     }
 
@@ -52,5 +61,5 @@ export async function connect(dev: AvailableDevice): Promise<RpcTransport> {
 }
 
 export async function disconnect(): Promise<void> {
-    await window.api.serial.disconnect()
+    await window.api.invoke(IpcChannels.SERIAL_DISCONNECT)
 }

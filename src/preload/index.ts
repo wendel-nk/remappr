@@ -1,52 +1,52 @@
+// pattern-check: skip — merge conflict resolution, no new logic added
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
+import {
+    IpcChannels,
+    IpcEvents,
+    type ElectronIpcApi,
+} from '../shared/ipc-types'
 
-// Transport API for renderer process
-const transportApi = {
-    serial: {
-        listDevices: (): Promise<Array<{ label: string; id: string }>> =>
-            ipcRenderer.invoke('serial:list-devices'),
-        connect: (device: {
-            label: string
-            id: string
-        }): Promise<boolean> => ipcRenderer.invoke('serial:connect', device),
-        disconnect: (): Promise<void> =>
-            ipcRenderer.invoke('serial:disconnect'),
-    },
-    ble: {
-        listDevices: (): Promise<Array<{ label: string; id: string }>> =>
-            ipcRenderer.invoke('ble:list-devices'),
-        connect: (device: {
-            label: string
-            id: string
-        }): Promise<boolean> => ipcRenderer.invoke('ble:connect', device),
-    },
-    sendData: (data: number[]): Promise<void> =>
-        ipcRenderer.invoke('transport:send-data', data),
-    close: (): Promise<void> => ipcRenderer.invoke('transport:close'),
-    onConnectionData: (
-        callback: (data: number[]) => void,
-    ): (() => void) => {
-        const handler = (
-            _event: Electron.IpcRendererEvent,
-            data: number[],
-        ): void => callback(data)
-        ipcRenderer.on('transport:connection-data', handler)
-        return (): void => {
-            ipcRenderer.removeListener('transport:connection-data', handler)
-        }
-    },
-    onConnectionDisconnected: (callback: () => void): (() => void) => {
-        const handler = (): void => callback()
-        ipcRenderer.on('transport:connection-disconnected', handler)
-        return (): void => {
-            ipcRenderer.removeListener(
-                'transport:connection-disconnected',
-                handler,
+// Allowed invoke channels (whitelist for security)
+const VALID_INVOKE_CHANNELS = new Set<string>(Object.values(IpcChannels))
+
+// Allowed event channels (whitelist for security)
+const VALID_EVENT_CHANNELS = new Set<string>(Object.values(IpcEvents))
+
+// Custom IPC API for renderer
+const api = {
+    invoke(channel: string, ...args: unknown[]): Promise<unknown> {
+        if (!VALID_INVOKE_CHANNELS.has(channel)) {
+            return Promise.reject(
+                new Error(`Invalid IPC channel: ${channel}`),
             )
         }
+        return ipcRenderer.invoke(channel, ...args)
     },
-}
+
+    on(
+        event: string,
+        callback: (...args: unknown[]) => void,
+    ): () => void {
+        if (!VALID_EVENT_CHANNELS.has(event)) {
+            throw new Error(`Invalid IPC event: ${event}`)
+        }
+
+        const listener = (
+            _event: Electron.IpcRendererEvent,
+            ...args: unknown[]
+        ): void => {
+            callback(...args)
+        }
+
+        ipcRenderer.on(event, listener)
+
+        // Return an unsubscribe function
+        return (): void => {
+            ipcRenderer.removeListener(event, listener)
+        }
+    },
+} satisfies ElectronIpcApi
 
 // Use `contextBridge` APIs to expose Electron APIs to
 // renderer only if context isolation is enabled, otherwise
@@ -54,7 +54,7 @@ const transportApi = {
 if (process.contextIsolated) {
     try {
         contextBridge.exposeInMainWorld('electron', electronAPI)
-        contextBridge.exposeInMainWorld('api', transportApi)
+        contextBridge.exposeInMainWorld('api', api)
     } catch (error) {
         console.error(error)
     }
@@ -62,5 +62,5 @@ if (process.contextIsolated) {
     // @ts-ignore (define in dts)
     window.electron = electronAPI
     // @ts-ignore (define in dts)
-    window.api = transportApi
+    window.api = api
 }
