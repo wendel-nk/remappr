@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useCallback, useEffect, useState } from 'react'
 import type { AvailableDevice } from '../tauri'
 import { Key, ListBox, ListBoxItem, Selection } from 'react-aria-components'
@@ -38,46 +39,48 @@ export function DeviceList({
         details: '',
     })
 
-    async function LoadEm(): Promise<void> {
-        setRefreshing(true)
-        const entries: Array<[TransportFactory, AvailableDevice]> = []
+    const loadDevices = useCallback(
+        async (currentTransports: TransportFactory[]): Promise<void> => {
+            setRefreshing(true)
+            const entries: Array<[TransportFactory, AvailableDevice]> = []
 
-        for (const t of transports.filter(
-            (t): boolean => !!t.pick_and_connect,
-        )) {
-            const devices = await t.pick_and_connect?.list()
+            for (const t of currentTransports.filter(
+                (t): boolean => !!t.pick_and_connect,
+            )) {
+                const devices = await t.pick_and_connect?.list()
 
-            if (!devices || devices.length === 0) {
-                continue
+                if (!devices || devices.length === 0) {
+                    continue
+                }
+                console.log(devices)
+                entries.push(
+                    ...devices.map<[TransportFactory, AvailableDevice]>(
+                        (d): [TransportFactory, AvailableDevice] => {
+                            console.log(t, d)
+                            return [t, d]
+                        },
+                    ),
+                )
             }
-            console.log(devices)
-            entries.push(
-                ...devices.map<[TransportFactory, AvailableDevice]>(
-                    (d): [TransportFactory, AvailableDevice] => {
-                        console.log(t, d)
-                        return [t, d]
-                    },
-                ),
-            )
-        }
-        console.log(entries)
-        setDevices(entries)
-        setRefreshing(false)
-    }
+            console.log(entries)
+            setDevices(entries)
+            setRefreshing(false)
+        },
+        [],
+    )
 
     useEffect(() => {
+        // Reset and load on mount/deps change
         setSelectedDev(new Set())
         setDevices([])
-
-        LoadEm()
-    }, [transports, open])
+        loadDevices(transports)
+    }, [transports, open, loadDevices])
 
     const onRefresh = useCallback((): void => {
         setSelectedDev(new Set())
         setDevices([])
-
-        LoadEm()
-    }, [])
+        loadDevices(transports)
+    }, [loadDevices, transports])
 
     const onSelect = useCallback(
         async (keys: Selection): Promise<void> => {

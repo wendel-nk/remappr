@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Keymap } from '@zmkfirmware/zmk-studio-ts-client/keymap'
 import { KeyboardLayout } from './KeyboardLayout.tsx'
@@ -60,14 +61,23 @@ export default function Keyboard({
     // State for tracking pressed keys
     const [pressedKeys, setPressedKeys] = useState<Set<number>>(new Set())
 
-    // Create keypress detection config
-    const keypressConfig: KeypressDetectionConfig = {
-        layouts: layouts || [],
-        keymap: keymap!,
-        selectedLayerIndex: effectiveLayerIndex,
-        selectedPhysicalLayoutIndex,
-        behaviors,
-    }
+    // Create keypress detection config - memoize to avoid recreating on every render
+    const keypressConfig: KeypressDetectionConfig = useMemo(
+        () => ({
+            layouts: layouts || [],
+            keymap: keymap!,
+            selectedLayerIndex: effectiveLayerIndex,
+            selectedPhysicalLayoutIndex,
+            behaviors,
+        }),
+        [
+            layouts,
+            keymap,
+            effectiveLayerIndex,
+            selectedPhysicalLayoutIndex,
+            behaviors,
+        ],
+    )
 
     // Keyboard event handlers using the service
     const handleKeyPressed = useCallback((keyPosition: number) => {
@@ -95,8 +105,7 @@ export default function Keyboard({
         layouts,
         keymap,
         behaviors,
-        effectiveLayerIndex,
-        selectedPhysicalLayoutIndex,
+        keypressConfig,
         handleKeyPressed,
         handleKeyReleased,
     ])

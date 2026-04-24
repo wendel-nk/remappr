@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
+/* eslint-disable react-hooks/set-state-in-effect */
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { AvailableDevice } from '../tauri'
 import { UserCancelledError } from '@zmkfirmware/zmk-studio-ts-client/transport/errors'
 import { TransportFactory } from '@/components/Modals/ConnectModal.tsx'
@@ -26,38 +27,49 @@ export function SimpleDevicePicker({
     >(undefined)
     const ignoreRef = useRef<boolean>(false)
 
-    async function connectTransport(): Promise<void> {
-        try {
-            const transport = await selectedTransport?.connect?.()
+    const connectTransport = useCallback(
+        async (transport: TransportFactory): Promise<void> => {
+            try {
+                const result = await transport.connect?.()
 
-            if (!ignoreRef.current) {
-                if (transport) {
-                    onTransportCreated(
-                        transport,
-                        selectedTransport!.communication,
-                    )
+                if (!ignoreRef.current) {
+                    if (result) {
+                        onTransportCreated(result, transport.communication)
+                    }
                 }
-            }
 
-            setSelectedTransport(undefined)
-        } catch (e) {
-            if (!ignoreRef.current) {
-                if (e instanceof Error && !(e instanceof UserCancelledError)) {
-                    console.error(e.message)
-                    toast.error('Failed to connect to the selected device.', {
-                        description: e.message,
-                    })
+                setSelectedTransport(undefined)
+            } catch (e) {
+                if (!ignoreRef.current) {
+                    if (
+                        e instanceof Error &&
+                        !(e instanceof UserCancelledError)
+                    ) {
+                        console.error(e.message)
+                        toast.error(
+                            'Failed to connect to the selected device.',
+                            {
+                                description: e.message,
+                            },
+                        )
+                    }
                 }
+                setSelectedTransport(undefined)
             }
-            setSelectedTransport(undefined)
-        }
-    }
+        },
+        [onTransportCreated],
+    )
 
-    async function loadAvailableDevices(): Promise<void> {
-        const devices = await selectedTransport?.pick_and_connect?.list()
-        console.log(devices)
-        setAvailableDevices(devices)
-    }
+    const loadAvailableDevices = useCallback(
+        async (transport: TransportFactory): Promise<void> => {
+            const devices = await transport.pick_and_connect?.list()
+            console.log(devices)
+            if (!ignoreRef.current) {
+                setAvailableDevices(devices)
+            }
+        },
+        [],
+    )
 
     useEffect(() => {
         // Reset ignore state at the start of each new connection attempt
@@ -68,15 +80,15 @@ export function SimpleDevicePicker({
         }
 
         if (selectedTransport.connect) {
-            connectTransport()
+            connectTransport(selectedTransport)
         } else {
-            loadAvailableDevices()
+            loadAvailableDevices(selectedTransport)
         }
 
         return (): void => {
             ignoreRef.current = true
         }
-    }, [selectedTransport])
+    }, [selectedTransport, connectTransport, loadAvailableDevices])
 
     const connections = transports.map(
         (t): JSX.Element => (

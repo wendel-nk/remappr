@@ -8,6 +8,7 @@ interface SettingsProps {
     onClose?: () => void
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function Settings(_props: SettingsProps): JSX.Element {
     return (
         <Modal

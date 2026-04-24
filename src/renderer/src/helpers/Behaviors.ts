@@ -16,6 +16,7 @@ export function useBehaviors(): BehaviorMap {
             !connection ||
             lockState !== LockState.ZMK_STUDIO_CORE_LOCK_STATE_UNLOCKED
         ) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setBehaviors({})
             return
         }
