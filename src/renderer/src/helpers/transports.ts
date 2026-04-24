@@ -10,9 +10,13 @@ import {
     list_devices as serial_list_devices,
 } from '../tauri/serial.ts'
 import {
-    connect_ble as electron_ble_connect,
-    isElectron,
-} from '../electron/index.ts'
+    connect as electron_ble_connect,
+    list_devices as electron_ble_list_devices,
+} from '../electron/ble.ts'
+import {
+    connect as electron_serial_connect,
+    list_devices as electron_serial_list_devices,
+} from '../electron/serial.ts'
 
 declare global {
     interface Window {
@@ -20,37 +24,21 @@ declare global {
     }
 }
 
+export function isElectron(): boolean {
+    return (
+        typeof window.api !== 'undefined' &&
+        typeof window.api?.invoke === 'function'
+    )
+}
+
+export function isTauri(): boolean {
+    return !!window.__TAURI_INTERNALS__
+}
+
 const buildTransports = (): TransportFactory[] => {
     const transports: TransportFactory[] = []
 
-    // Check if running in Electron
-    const runningInElectron = isElectron()
-
-    // Check if running in Tauri
-    const runningInTauri = !!window.__TAURI_INTERNALS__
-
-    if (runningInElectron) {
-        // Electron environment - use Electron BLE transport
-        // BLE is available via Web Bluetooth API in Electron
-        if (navigator.bluetooth) {
-            transports.push({
-                label: 'BLE',
-                communication: 'ble',
-                isWireless: true,
-                connect: electron_ble_connect,
-            })
-        }
-
-        // Serial via Web Serial API (supported in Electron)
-        if (navigator.serial) {
-            transports.push({
-                label: 'USB',
-                communication: 'serial',
-                connect: serial_connect,
-            })
-        }
-    } else if (runningInTauri) {
-        // Tauri environment - use Tauri native transports
+    if (isTauri()) {
         transports.push({
             label: 'BLE',
             communication: 'ble',
@@ -66,6 +54,24 @@ const buildTransports = (): TransportFactory[] => {
             pick_and_connect: {
                 connect: tauri_serial_connect,
                 list: serial_list_devices,
+            },
+        })
+    } else if (isElectron()) {
+        transports.push({
+            label: 'BLE',
+            communication: 'ble',
+            isWireless: true,
+            pick_and_connect: {
+                connect: electron_ble_connect,
+                list: electron_ble_list_devices,
+            },
+        })
+        transports.push({
+            label: 'USB',
+            communication: 'serial',
+            pick_and_connect: {
+                connect: electron_serial_connect,
+                list: electron_serial_list_devices,
             },
         })
     } else {

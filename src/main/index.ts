@@ -1,14 +1,12 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { app, shell, BrowserWindow } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
-import { initBleHandlers, cleanupBleHandlers } from './ble'
-
-let mainWindow: BrowserWindow | null = null
+import { registerIpcHandlers } from './ipc-handlers'
 
 function createWindow(): void {
     // Create the browser window.
-    mainWindow = new BrowserWindow({
+    const mainWindow = new BrowserWindow({
         width: 900,
         height: 670,
         show: false,
@@ -17,11 +15,10 @@ function createWindow(): void {
         webPreferences: {
             preload: join(__dirname, '../preload/index.js'),
             sandbox: false,
+            nodeIntegration: false,
+            contextIsolation: true,
         },
     })
-
-    // Initialize BLE handlers for this window
-    initBleHandlers(mainWindow)
 
     mainWindow.on('ready-to-show', (): void => {
         mainWindow?.show()
@@ -60,8 +57,8 @@ app.whenReady().then((): void => {
         },
     )
 
-    // IPC test
-    ipcMain.on('ping', (): void => console.log('pong'))
+    // Register all IPC handlers
+    registerIpcHandlers(() => BrowserWindow.getAllWindows())
 
     createWindow()
 
@@ -77,15 +74,6 @@ app.whenReady().then((): void => {
 // explicitly with Cmd + Q.
 app.on('window-all-closed', (): void => {
     if (process.platform !== 'darwin') {
-        cleanupBleHandlers()
         app.quit()
     }
 })
-
-// Clean up on before-quit
-app.on('before-quit', (): void => {
-    cleanupBleHandlers()
-})
-
-// In this file you can include the rest of your app's specific main process
-// code. You can also put them in separate files and require them here.

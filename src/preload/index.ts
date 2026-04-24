@@ -1,70 +1,51 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
+import {
+    IpcChannels,
+    IpcEvents,
+    type ElectronIpcApi,
+} from '../shared/ipc-types'
 
-// BLE device interface
-interface BleDevice {
-    deviceId: string
-    deviceName: string
-}
+// Allowed invoke channels (whitelist for security)
+const VALID_INVOKE_CHANNELS = new Set<string>(Object.values(IpcChannels))
 
-// BLE state interface
-interface BleState {
-    selectedDevice: BleDevice | null
-    isConnected: boolean
-    isScanning: boolean
-    discoveredDevices: BleDevice[]
-}
+// Allowed event channels (whitelist for security)
+const VALID_EVENT_CHANNELS = new Set<string>(Object.values(IpcEvents))
 
-// BLE API for renderer
-const bleApi = {
-    // Start scanning for BLE devices
-    startScan: (): Promise<BleDevice[]> => ipcRenderer.invoke('ble:start-scan'),
+// Custom IPC API for renderer
+const api = {
+    invoke(channel: string, ...args: unknown[]): Promise<unknown> {
+        if (!VALID_INVOKE_CHANNELS.has(channel)) {
+            return Promise.reject(
+                new Error(`Invalid IPC channel: ${channel}`),
+            )
+        }
+        return ipcRenderer.invoke(channel, ...args)
+    },
 
-    // Stop scanning
-    stopScan: (): Promise<void> => ipcRenderer.invoke('ble:stop-scan'),
+    on(
+        event: string,
+        callback: (...args: unknown[]) => void,
+    ): () => void {
+        if (!VALID_EVENT_CHANNELS.has(event)) {
+            throw new Error(`Invalid IPC event: ${event}`)
+        }
 
-    // Get discovered devices
-    getDevices: (): Promise<BleDevice[]> =>
-        ipcRenderer.invoke('ble:get-devices'),
-
-    // Select a device for connection
-    selectDevice: (deviceId: string): Promise<boolean> =>
-        ipcRenderer.invoke('ble:select-device', deviceId),
-
-    // Get connection state
-    getState: (): Promise<BleState> => ipcRenderer.invoke('ble:get-state'),
-
-    // Set connection state
-    setConnected: (connected: boolean): Promise<void> =>
-        ipcRenderer.invoke('ble:set-connected', connected),
-
-    // Get ZMK service UUID
-    getServiceUuid: (): Promise<string> =>
-        ipcRenderer.invoke('ble:get-service-uuid'),
-
-    // Get ZMK characteristic UUID
-    getCharacteristicUuid: (): Promise<string> =>
-        ipcRenderer.invoke('ble:get-characteristic-uuid'),
-
-    // Listen for devices discovered event
-    onDevicesDiscovered: (
-        callback: (devices: BleDevice[]) => void,
-    ): (() => void) => {
-        const handler = (
+        const listener = (
             _event: Electron.IpcRendererEvent,
-            devices: BleDevice[],
-        ): void => callback(devices)
-        ipcRenderer.on('ble:devices-discovered', handler)
+            ...args: unknown[]
+        ): void => {
+            callback(...args)
+        }
+
+        ipcRenderer.on(event, listener)
+
+        // Return an unsubscribe function
         return (): void => {
-            ipcRenderer.removeListener('ble:devices-discovered', handler)
+            ipcRenderer.removeListener(event, listener)
         }
     },
-}
-
-// Custom APIs for renderer
-const api = {
-    ble: bleApi,
-}
+} satisfies ElectronIpcApi
 
 // Use `contextBridge` APIs to expose Electron APIs to
 // renderer only if context isolation is enabled, otherwise

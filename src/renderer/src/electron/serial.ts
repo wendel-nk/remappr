@@ -4,12 +4,12 @@ import type { AvailableDevice } from '../transport/types'
 
 export async function list_devices(): Promise<Array<AvailableDevice>> {
     return (await window.api.invoke(
-        IpcChannels.BLE_LIST_DEVICES,
+        IpcChannels.SERIAL_LIST_DEVICES,
     )) as AvailableDevice[]
 }
 
 export async function connect(dev: AvailableDevice): Promise<RpcTransport> {
-    if (!(await window.api.invoke(IpcChannels.BLE_CONNECT, dev))) {
+    if (!(await window.api.invoke(IpcChannels.SERIAL_CONNECT, dev))) {
         throw new Error('Failed to connect')
     }
 
@@ -60,5 +60,5 @@ export async function connect(dev: AvailableDevice): Promise<RpcTransport> {
 }
 
 export async function disconnect(): Promise<void> {
-    await window.api.invoke(IpcChannels.TRANSPORT_CLOSE)
+    await window.api.invoke(IpcChannels.SERIAL_DISCONNECT)
 }
