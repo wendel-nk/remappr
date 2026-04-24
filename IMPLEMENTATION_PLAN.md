@@ -1,11 +1,13 @@
 # Implementation Plan (AI execution unavailable)
 
 ## Task
-Implement Electron IPC architecture and preload API
+Implement BLE communication in Electron
 
 ## Description
 ## Summary
 Set up the secure IPC foundation for Electron communication, including the preload script API surface and main process handler infrastructure.
+
+Implement Bluetooth Low Energy communication in Electron's main process for wireless keyboard connections.
 
 ## Acceptance Criteria
 - [ ] Define TypeScript interfaces for all IPC channels and payloads
@@ -14,11 +16,18 @@ Set up the secure IPC foundation for Electron communication, including the prelo
 - [ ] Ensure `nodeIntegration: false` and `contextIsolation: true` are configured
 - [ ] Create input validation utilities for IPC handlers
 - [ ] Add platform detection to choose between Tauri/Electron backends
+- [ ] Implement BLE device scanning with filters
+- [ ] Implement BLE device connection
+- [ ] Implement BLE device disconnection
+- [ ] Handle BLE connection state changes and disconnections
+- [ ] Wire up BLE UI to use Electron backend when running in Electron
 
 ## Reference Files
 - `src/preload/index.ts` - Preload script to extend
 - `src/main/index.ts` - Main process entry point
 - `src/renderer/src/tauri/index.ts` - API surface reference
+- `src/renderer/src/tauri/ble.ts` - Tauri BLE implementation
+- `src/renderer/src/transport/gatt.ts` - GATT transport layer
 
 Parent issue: #28 Implement the communication with electron
 https://github.com/Wolffyx/remappr/issues/28
@@ -27,11 +36,13 @@ https://github.com/Wolffyx/remappr/issues/28
 # Task: Implement the following issue
 
 ## Issue Title
-Implement Electron IPC architecture and preload API
+Implement BLE communication in Electron
 
 ## Issue Description
 ## Summary
 Set up the secure IPC foundation for Electron communication, including the preload script API surface and main process handler infrastructure.
+
+Implement Bluetooth Low Energy communication in Electron's main process for wireless keyboard connections.
 
 ## Acceptance Criteria
 - [ ] Define TypeScript interfaces for all IPC channels and payloads
@@ -40,11 +51,18 @@ Set up the secure IPC foundation for Electron communication, including the prelo
 - [ ] Ensure `nodeIntegration: false` and `contextIsolation: true` are configured
 - [ ] Create input validation utilities for IPC handlers
 - [ ] Add platform detection to choose between Tauri/Electron backends
+- [ ] Implement BLE device scanning with filters
+- [ ] Implement BLE device connection
+- [ ] Implement BLE device disconnection
+- [ ] Handle BLE connection state changes and disconnections
+- [ ] Wire up BLE UI to use Electron backend when running in Electron
 
 ## Reference Files
 - `src/preload/index.ts` - Preload script to extend
 - `src/main/index.ts` - Main process entry point
 - `src/renderer/src/tauri/index.ts` - API surface reference
+- `src/renderer/src/tauri/ble.ts` - Tauri BLE implementation
+- `src/renderer/src/transport/gatt.ts` - GATT transport layer
 
 Parent issue: #28 Implement the communication with electron
 https://github.com/Wolffyx/remappr/issues/28
@@ -53,11 +71,13 @@ https://github.com/Wolffyx/remappr/issues/28
 # Implementation Specification (Spec)
 
 ## Task
-Implement Electron IPC architecture and preload API
+Implement BLE communication in Electron
 
 ## Description
 ## Summary
 Set up the secure IPC foundation for Electron communication, including the preload script API surface and main process handler infrastructure.
+
+Implement Bluetooth Low Energy communication in Electron's main process for wireless keyboard connections.
 
 ## Acceptance Criteria
 - [ ] Define TypeScript interfaces for all IPC channels and payloads
@@ -66,11 +86,18 @@ Set up the secure IPC foundation for Electron communication, including the prelo
 - [ ] Ensure `nodeIntegration: false` and `contextIsolation: true` are configured
 - [ ] Create input validation utilities for IPC handlers
 - [ ] Add platform detection to choose between Tauri/Electron backends
+- [ ] Implement BLE device scanning with filters
+- [ ] Implement BLE device connection
+- [ ] Implement BLE device disconnection
+- [ ] Handle BLE connection state changes and disconnections
+- [ ] Wire up BLE UI to use Electron backend when running in Electron
 
 ## Reference Files
 - `src/preload/index.ts` - Preload script to extend
 - `src/main/index.ts` - Main process entry point
 - `src/renderer/src/tauri/index.ts` - API surface reference
+- `src/renderer/src/tauri/ble.ts` - Tauri BLE implementation
+- `src/renderer/src/transport/gatt.ts` - GATT transport layer
 
 Parent issue: #28 Implement the communication with electron
 https://github.com/Wolffyx/remappr/issues/28
@@ -117,7 +144,7 @@ Before implementing, analyze the following:
 ## Important Constraints
 - Only use these commands: pnpm install, pnpm lint, pnpm test, pnpm build
 - Do NOT modify these paths: .github/workflows/, .gitlab-ci.yml
-- Working directory: D:\Projects\Typescript\React\zmk-studio-original-worktrees\github-35-implement-electron-ipc-architecture-and-preload-ap
+- Working directory: D:\Projects\Typescript\React\zmk-studio-original-worktrees\github-37-implement-ble-communication-in-electron
 - Repo root: D:\Projects\Typescript\React\zmk-studio-original
 - After implementation, run the verification commands if they exist
 
@@ -252,19 +279,25 @@ Define how to verify the implementation works correctly:
 Define the specific, measurable condit
 …
 ### Suggested files (from local index)
-- src/renderer/src/components/ui/Alert.tsx (symbol:AlertDescription)
-- src/renderer/src/components/ui/card.tsx (symbol:CardDescription)
-- src/renderer/src/components/ui/dialog.tsx (symbol:DialogDescription)
-- src/renderer/src/components/ui/drawer.tsx (symbol:DrawerDescription)
-- src/renderer/src/components/ui/field.tsx (symbol:FormDescription)
-- src/renderer/src/components/ui/sheet.tsx (symbol:SheetDescription)
+- src/renderer/src/components/DeviceCard.tsx (symbol:DeviceStatus, symbol:DeviceCardProps, symbol:DeviceCard)
+- src/renderer/src/stores/ConnectionStore.ts (symbol:ConnectionState, symbol:useConnectionStore, symbol:ConnectionState)
+- src/renderer/src/components/DeviceList.tsx (symbol:DeviceList, symbol:DeviceListProps, symbol:DeviceList)
+- src/renderer/src/transport/types.ts (symbol:SerialConnectionState, symbol:AvailableDevice, symbol:AvailableDevice)
+- src/renderer/src/services/RpcConnectionService.ts (symbol:DeviceInfoDetails, symbol:useConnectedDeviceData, symbol:DeviceInfoDetails)
+- src/renderer/src/behaviors/HidUsagePicker.stories.ts (symbol:Keyboard, symbol:KeyboardModSelection, symbol:KeyboardAndConsumer)
+- src/renderer/src/rpc/ConnectionContext.ts (symbol:ConnectionState, symbol:ConnectionState, symbol:ConnectionContext)
+- src/renderer/src/components/SimpleDevicePicker.tsx (symbol:SimpleDevicePicker, symbol:SimpleDevicePickerProps, symbol:SimpleDevicePicker)
+- src/renderer/src/components/StartPage.tsx (symbol:DeviceWithTransport, symbol:DeviceWithTransport, symbol:DeviceWithTransport)
+- src/renderer/src/components/keyboard/Keyboard.tsx (symbol:Keyboard, symbol:KeyboardProps)
+- src/renderer/src/services/KeyboardKeypressService.ts (symbol:KeyboardKeypressService, symbol:keyboardKeypressService)
+- src/renderer/src/data/keys/index.ts (symbol:KeyboardKeys, symbol:keyboards)
 ### Snippets (bounded, may be redacted)
 (none)
 
 Please implement the changes now.
 
 ## Iteration Context
-This is iteration 1 of 2.
+This is iteration 1 of 3.
 
 ### Implementation Phase
 Focus on implementing the card requirements:
@@ -272,14 +305,23 @@ Focus on implementing the card requirements:
 - Make meaningful progress on the feature
 - Commit working chunks of code
 
+### Current Subtask
+Focus on this subtask: Set up Electron BLE permissions and device selection in main process
+Update src/main/index.ts to handle Electron's Web Bluetooth permissions: register 'select-bluetooth-device' event handler on the webContents to present device chooser, and set up bluetooth-related permission request/check handlers. Create src/main/handlers/ble.ts with IPC handlers that coordinate the BLE flow between main and renderer processes (device selection callback, connection state tracking).
+
+Remaining subtasks: 5
+
 ### Iteration Guidelines
 - Focus on making incremental progress
 - Commit meaningful chunks of work
 - Leave the codebase in a working state
 - If you complete the current subtask, move to the next one
 
+## User Feedback from Issue Comments
 
-## Note
-All AI providers failed. Tried: claude. Last error: Error: spawn ENAMETOOLONG
+The following feedback was provided by users on this issue. Please address these points:
+
+### Additional Feedback
+- No changes have been made in this task to be implemented
 
 Please implement the changes manually following the plan above.

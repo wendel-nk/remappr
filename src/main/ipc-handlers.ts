@@ -53,9 +53,13 @@ export function registerIpcHandlers(
     })
 
     // --- BLE Device Handlers ---
+    // BLE scan coordination (start-scan, stop-scan, select-device) is
+    // registered in ble-manager.ts via registerBleIpcHandlers().
+    // These handlers are retained for API completeness.
 
     ipcMain.handle(IpcChannels.BLE_LIST_DEVICES, async () => {
-        // TODO: Implement native BLE device enumeration
+        // Device discovery happens via Web Bluetooth + select-bluetooth-device event.
+        // The renderer uses BLE_START_SCAN + BLE_DEVICES_DISCOVERED instead.
         return []
     })
 
@@ -63,9 +67,11 @@ export function registerIpcHandlers(
         IpcChannels.BLE_CONNECT,
         async (_, device: unknown) => {
             const validDevice = validateAvailableDevice(device)
-            // TODO: Implement native BLE connection
-            console.log(`BLE connect requested for: ${validDevice.label}`)
-            return false
+            // BLE connection happens via Web Bluetooth in the renderer.
+            console.log(
+                `BLE connect (Web Bluetooth): ${validDevice.label}`,
+            )
+            return true
         },
     )
 

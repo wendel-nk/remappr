@@ -21,6 +21,9 @@ export const IpcChannels = {
     // BLE device operations
     BLE_LIST_DEVICES: 'ble:list-devices',
     BLE_CONNECT: 'ble:connect',
+    BLE_START_SCAN: 'ble:start-scan',
+    BLE_STOP_SCAN: 'ble:stop-scan',
+    BLE_SELECT_DEVICE: 'ble:select-device',
 
     // Transport operations (shared by serial & BLE)
     TRANSPORT_SEND_DATA: 'transport:send-data',
@@ -31,6 +34,7 @@ export const IpcChannels = {
 export const IpcEvents = {
     CONNECTION_DATA: 'connection:data',
     CONNECTION_DISCONNECTED: 'connection:disconnected',
+    BLE_DEVICES_DISCOVERED: 'ble:devices-discovered',
 } as const
 
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]
@@ -60,6 +64,18 @@ export interface IpcInvokeMap {
         params: AvailableDevice
         result: boolean
     }
+    [IpcChannels.BLE_START_SCAN]: {
+        params: void
+        result: void
+    }
+    [IpcChannels.BLE_STOP_SCAN]: {
+        params: void
+        result: void
+    }
+    [IpcChannels.BLE_SELECT_DEVICE]: {
+        params: string
+        result: boolean
+    }
     [IpcChannels.TRANSPORT_SEND_DATA]: {
         params: Uint8Array
         result: void
@@ -74,6 +90,7 @@ export interface IpcInvokeMap {
 export interface IpcEventMap {
     [IpcEvents.CONNECTION_DATA]: number[]
     [IpcEvents.CONNECTION_DISCONNECTED]: void
+    [IpcEvents.BLE_DEVICES_DISCOVERED]: AvailableDevice[]
 }
 
 // --- Preload API Surface ---

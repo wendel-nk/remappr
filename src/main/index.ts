@@ -3,6 +3,10 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { registerIpcHandlers } from './ipc-handlers'
+import {
+    setupBleDeviceSelection,
+    registerBleIpcHandlers,
+} from './ble-manager'
 
 function createWindow(): void {
     // Create the browser window.
@@ -20,8 +24,11 @@ function createWindow(): void {
         },
     })
 
+    // Set up BLE device selection handler for Web Bluetooth support
+    setupBleDeviceSelection(mainWindow)
+
     mainWindow.on('ready-to-show', (): void => {
-        mainWindow.show()
+        mainWindow?.show()
     })
 
     mainWindow.webContents.setWindowOpenHandler(
@@ -59,6 +66,7 @@ app.whenReady().then((): void => {
 
     // Register all IPC handlers
     registerIpcHandlers(() => BrowserWindow.getAllWindows())
+    registerBleIpcHandlers()
 
     createWindow()
 

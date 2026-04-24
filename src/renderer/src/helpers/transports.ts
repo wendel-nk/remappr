@@ -38,22 +38,6 @@ export function isTauri(): boolean {
 const buildTransports = (): TransportFactory[] => {
     const transports: TransportFactory[] = []
 
-    if (navigator.serial) {
-        transports.push({
-            label: 'USB',
-            communication: 'serial',
-            connect: serial_connect,
-        })
-    }
-
-    if (navigator.bluetooth && navigator.userAgent.indexOf('Linux') >= 0) {
-        transports.push({
-            label: 'BLE',
-            communication: 'ble',
-            connect: gatt_connect,
-        })
-    }
-
     if (isTauri()) {
         transports.push({
             label: 'BLE',
@@ -72,9 +56,7 @@ const buildTransports = (): TransportFactory[] => {
                 list: serial_list_devices,
             },
         })
-    }
-
-    if (isElectron()) {
+    } else if (isElectron()) {
         transports.push({
             label: 'BLE',
             communication: 'ble',
@@ -92,6 +74,24 @@ const buildTransports = (): TransportFactory[] => {
                 list: electron_serial_list_devices,
             },
         })
+    } else {
+        // Browser environment - use Web APIs directly
+        if (navigator.serial) {
+            transports.push({
+                label: 'USB',
+                communication: 'serial',
+                connect: serial_connect,
+            })
+        }
+
+        // Web Bluetooth on Linux browsers
+        if (navigator.bluetooth && navigator.userAgent.indexOf('Linux') >= 0) {
+            transports.push({
+                label: 'BLE',
+                communication: 'ble',
+                connect: gatt_connect,
+            })
+        }
     }
 
     return transports
