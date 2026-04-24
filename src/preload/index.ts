@@ -1,4 +1,4 @@
-// pattern-check: skip — merge conflict resolution, no new logic added
+// pattern-check: skip — merge conflict resolution, no new logic
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 import {
