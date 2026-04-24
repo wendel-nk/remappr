@@ -3,7 +3,10 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { registerIpcHandlers } from './ipc-handlers'
-import { setupBleDeviceSelection } from './ble-manager'
+import {
+    setupBleDeviceSelection,
+    registerBleIpcHandlers,
+} from './ble-manager'
 
 function createWindow(): void {
     // Create the browser window.
@@ -63,6 +66,7 @@ app.whenReady().then((): void => {
 
     // Register all IPC handlers
     registerIpcHandlers(() => BrowserWindow.getAllWindows())
+    registerBleIpcHandlers()
 
     createWindow()
 

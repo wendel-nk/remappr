@@ -53,13 +53,13 @@ export function registerIpcHandlers(
     })
 
     // --- BLE Device Handlers ---
-    // BLE uses Electron's built-in Web Bluetooth API in the renderer process.
-    // Device selection is handled by the 'select-bluetooth-device' event in ble-manager.ts.
-    // These IPC handlers are retained for API completeness but are not actively used.
+    // BLE scan coordination (start-scan, stop-scan, select-device) is
+    // registered in ble-manager.ts via registerBleIpcHandlers().
+    // These handlers are retained for API completeness.
 
     ipcMain.handle(IpcChannels.BLE_LIST_DEVICES, async () => {
-        // BLE device discovery happens via Web Bluetooth in the renderer.
-        // The main process coordinates device selection via select-bluetooth-device event.
+        // Device discovery happens via Web Bluetooth + select-bluetooth-device event.
+        // The renderer uses BLE_START_SCAN + BLE_DEVICES_DISCOVERED instead.
         return []
     })
 
