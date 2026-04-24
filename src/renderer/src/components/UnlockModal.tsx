@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 
 import type { RpcTransport } from '@zmkfirmware/zmk-studio-ts-client/transport/index'
-import type { AvailableDevice } from '../tauri'
+import type { AvailableDevice } from '../transport/types'
 import { LockState } from '@zmkfirmware/zmk-studio-ts-client/core'
 import { useModalRef } from '@/misc/useModalRef.ts'
 import { ExternalLink } from '@/misc/ExternalLink.tsx'

@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { AvailableDevice } from '../tauri'
+import type { AvailableDevice } from '../transport/types'
 import { UserCancelledError } from '@zmkfirmware/zmk-studio-ts-client/transport/errors'
 import { TransportFactory } from '@/components/Modals/ConnectModal.tsx'
 import { RpcTransport } from '@zmkfirmware/zmk-studio-ts-client/transport/index'
