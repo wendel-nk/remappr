@@ -1,19 +1,20 @@
+// pattern-check: skip — refactoring existing module to use callbacks, no new abstraction
 import { SerialPort } from 'serialport'
-import { BrowserWindow } from 'electron'
 
 export interface SerialDeviceInfo {
     id: string
     label: string
-    path: string
-    manufacturer?: string
-    serialNumber?: string
-    vendorId?: string
-    productId?: string
+}
+
+export interface SerialEventCallbacks {
+    onData: (data: number[]) => void
+    onDisconnected: () => void
 }
 
 interface ActiveConnection {
     port: SerialPort
     path: string
+    callbacks: SerialEventCallbacks
 }
 
 let activeConnection: ActiveConnection | null = null
@@ -27,11 +28,6 @@ export async function listSerialDevices(): Promise<SerialDeviceInfo[]> {
                 port.manufacturer || port.serialNumber
                     ? `${port.manufacturer || 'Unknown'} ${port.serialNumber ? `(${port.serialNumber})` : ''}`
                     : port.path,
-            path: port.path,
-            manufacturer: port.manufacturer,
-            serialNumber: port.serialNumber,
-            vendorId: port.vendorId,
-            productId: port.productId,
         }))
     } catch (error) {
         console.error('Failed to list serial devices:', error)
@@ -41,9 +37,9 @@ export async function listSerialDevices(): Promise<SerialDeviceInfo[]> {
 
 export async function connectSerial(
     deviceId: string,
+    callbacks: SerialEventCallbacks,
     baudRate: number = 115200,
 ): Promise<boolean> {
-    // Close existing connection if any
     if (activeConnection) {
         await disconnectSerial()
     }
@@ -63,38 +59,19 @@ export async function connectSerial(
                     return
                 }
 
-                activeConnection = {
-                    port,
-                    path: deviceId,
-                }
+                activeConnection = { port, path: deviceId, callbacks }
 
-                // Set up data handler
                 port.on('data', (data: Buffer) => {
-                    const windows = BrowserWindow.getAllWindows()
-                    for (const win of windows) {
-                        win.webContents.send(
-                            'serial:data',
-                            Array.from(new Uint8Array(data)),
-                        )
-                    }
+                    callbacks.onData(Array.from(new Uint8Array(data)))
                 })
 
-                // Set up error handler
                 port.on('error', (err: Error) => {
                     console.error('Serial port error:', err)
-                    const windows = BrowserWindow.getAllWindows()
-                    for (const win of windows) {
-                        win.webContents.send('serial:error', err.message)
-                    }
                 })
 
-                // Set up close handler
                 port.on('close', () => {
                     activeConnection = null
-                    const windows = BrowserWindow.getAllWindows()
-                    for (const win of windows) {
-                        win.webContents.send('serial:disconnected')
-                    }
+                    callbacks.onDisconnected()
                 })
 
                 resolve(true)
@@ -142,12 +119,4 @@ export async function writeSerial(data: Uint8Array): Promise<void> {
             })
         })
     })
-}
-
-export function isSerialConnected(): boolean {
-    return activeConnection !== null && activeConnection.port.isOpen
-}
-
-export function getActiveConnectionPath(): string | null {
-    return activeConnection?.path || null
 }

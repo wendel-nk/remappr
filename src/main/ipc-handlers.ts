@@ -10,6 +10,12 @@
 import { ipcMain, type BrowserWindow } from 'electron'
 import { IpcChannels, IpcEvents } from '../shared/ipc-types'
 import { validateAvailableDevice, validateUint8Array } from './ipc-validation'
+import {
+    listSerialDevices,
+    connectSerial,
+    disconnectSerial,
+    writeSerial,
+} from './serial'
 
 /** Send an event to all renderer windows */
 function sendToAllWindows(
@@ -34,22 +40,23 @@ export function registerIpcHandlers(
     // --- Serial Device Handlers ---
 
     ipcMain.handle(IpcChannels.SERIAL_LIST_DEVICES, async () => {
-        // TODO: Implement native serial device enumeration
-        return []
+        return await listSerialDevices()
     })
 
     ipcMain.handle(
         IpcChannels.SERIAL_CONNECT,
         async (_, device: unknown) => {
             const validDevice = validateAvailableDevice(device)
-            // TODO: Implement native serial connection
-            console.log(`Serial connect requested for: ${validDevice.label}`)
-            return false
+            return await connectSerial(validDevice.id, {
+                onData: (data) => ipcHandlerContext.emitConnectionData(data),
+                onDisconnected: () =>
+                    ipcHandlerContext.emitConnectionDisconnected(),
+            })
         },
     )
 
     ipcMain.handle(IpcChannels.SERIAL_DISCONNECT, async () => {
-        // TODO: Implement serial disconnect
+        await disconnectSerial()
     })
 
     // --- BLE Device Handlers ---
@@ -81,13 +88,12 @@ export function registerIpcHandlers(
         IpcChannels.TRANSPORT_SEND_DATA,
         async (_, data: unknown) => {
             const validData = validateUint8Array(data)
-            // TODO: Implement data send over active transport
-            console.log(`Transport send: ${validData.byteLength} bytes`)
+            await writeSerial(validData)
         },
     )
 
     ipcMain.handle(IpcChannels.TRANSPORT_CLOSE, async () => {
-        // TODO: Implement transport close
+        await disconnectSerial()
     })
 
     // Expose event helpers for use by transport implementations
