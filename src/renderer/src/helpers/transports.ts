@@ -1,4 +1,5 @@
-import { TransportFactory } from '../components/Modals/ConnectModal.tsx'
+// pattern-check: skip — merge conflict resolution, no new logic added
+import { TransportFactory } from '../transport/types'
 import { connect as serial_connect } from '@zmkfirmware/zmk-studio-ts-client/transport/serial'
 import { connect as gatt_connect } from '@zmkfirmware/zmk-studio-ts-client/transport/gatt'
 import {

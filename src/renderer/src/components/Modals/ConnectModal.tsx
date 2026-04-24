@@ -1,24 +1,13 @@
 import { useMemo } from 'react'
 
 import type { RpcTransport } from '@zmkfirmware/zmk-studio-ts-client/transport/index'
-import type { AvailableDevice } from '../../tauri'
+import type { TransportFactory } from '@/transport/types'
 import { ExternalLink } from '@/misc/ExternalLink.tsx'
 import { DeviceList } from '../DeviceList.tsx'
 import { SimpleDevicePicker } from '../SimpleDevicePicker.tsx'
 import { TRANSPORTS } from '../../helpers/transports.ts'
 import { ModalProps } from '@/components/ui/OldModal.tsx'
 import { Modal } from '@/components/ui/Modal.tsx'
-
-export type TransportFactory = {
-    label: string
-    communication: 'serial' | 'ble'
-    isWireless?: boolean
-    connect?: () => Promise<RpcTransport>
-    pick_and_connect?: {
-        list: () => Promise<Array<AvailableDevice>>
-        connect: (dev: AvailableDevice) => Promise<RpcTransport>
-    }
-}
 
 export interface ConnectModalProps extends ModalProps {
     open?: boolean

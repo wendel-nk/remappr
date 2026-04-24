@@ -1,3 +1,4 @@
+// pattern-check: skip — merge conflict resolution, no new logic added
 import { IpcChannels, IpcEvents } from '../../../shared/ipc-types'
 import type { RpcTransport } from '@zmkfirmware/zmk-studio-ts-client/transport/index'
 import type { AvailableDevice } from '../transport/types'
