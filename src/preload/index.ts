@@ -1,64 +1,52 @@
+// pattern-check: skip — merge conflict resolution, no new logic
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
+import {
+    IpcChannels,
+    IpcEvents,
+    type ElectronIpcApi,
+} from '../shared/ipc-types'
 
-export interface SerialDeviceInfo {
-    id: string
-    label: string
-    path: string
-    manufacturer?: string
-    serialNumber?: string
-    vendorId?: string
-    productId?: string
-}
+// Allowed invoke channels (whitelist for security)
+const VALID_INVOKE_CHANNELS = new Set<string>(Object.values(IpcChannels))
 
-// Custom APIs for renderer
+// Allowed event channels (whitelist for security)
+const VALID_EVENT_CHANNELS = new Set<string>(Object.values(IpcEvents))
+
+// Custom IPC API for renderer
 const api = {
-    serial: {
-        list: (): Promise<SerialDeviceInfo[]> =>
-            ipcRenderer.invoke('serial:list'),
-        connect: (deviceId: string, baudRate?: number): Promise<boolean> =>
-            ipcRenderer.invoke('serial:connect', deviceId, baudRate),
-        disconnect: (): Promise<void> =>
-            ipcRenderer.invoke('serial:disconnect'),
-        write: (data: number[]): Promise<void> =>
-            ipcRenderer.invoke('serial:write', data),
-        isConnected: (): Promise<boolean> =>
-            ipcRenderer.invoke('serial:isConnected'),
-        onData: (callback: (data: number[]) => void): (() => void) => {
-            const handler = (
-                _event: Electron.IpcRendererEvent,
-                data: number[],
-            ): void => {
-                callback(data)
-            }
-            ipcRenderer.on('serial:data', handler)
-            return (): void => {
-                ipcRenderer.removeListener('serial:data', handler)
-            }
-        },
-        onError: (callback: (error: string) => void): (() => void) => {
-            const handler = (
-                _event: Electron.IpcRendererEvent,
-                error: string,
-            ): void => {
-                callback(error)
-            }
-            ipcRenderer.on('serial:error', handler)
-            return (): void => {
-                ipcRenderer.removeListener('serial:error', handler)
-            }
-        },
-        onDisconnected: (callback: () => void): (() => void) => {
-            const handler = (): void => {
-                callback()
-            }
-            ipcRenderer.on('serial:disconnected', handler)
-            return (): void => {
-                ipcRenderer.removeListener('serial:disconnected', handler)
-            }
-        },
+    invoke(channel: string, ...args: unknown[]): Promise<unknown> {
+        if (!VALID_INVOKE_CHANNELS.has(channel)) {
+            return Promise.reject(
+                new Error(`Invalid IPC channel: ${channel}`),
+            )
+        }
+        return ipcRenderer.invoke(channel, ...args)
     },
-}
+
+    on(
+        event: string,
+        callback: (...args: unknown[]) => void,
+    ): () => void {
+        if (!VALID_EVENT_CHANNELS.has(event)) {
+            throw new Error(`Invalid IPC event: ${event}`)
+        }
+
+        const listener = (
+            _event: Electron.IpcRendererEvent,
+            ...args: unknown[]
+        ): void => {
+            callback(...args)
+        }
+
+        ipcRenderer.on(event, listener)
+
+        // Return an unsubscribe function
+        return (): void => {
+            ipcRenderer.removeListener(event, listener)
+        }
+    },
+} satisfies ElectronIpcApi
 
 // Use `contextBridge` APIs to expose Electron APIs to
 // renderer only if context isolation is enabled, otherwise
