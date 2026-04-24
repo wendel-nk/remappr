@@ -13,10 +13,10 @@ import {
     CardTitle,
 } from '@/components/ui/card.tsx'
 import { DeviceCard, DeviceStatus } from '@/components/DeviceCard.tsx'
-import { TransportFactory } from '@/components/Modals/ConnectModal.tsx'
+import type { TransportFactory } from '@/transport/types'
 import { TRANSPORTS } from '@/helpers/transports'
 import { ExternalLink } from '@/misc/ExternalLink.tsx'
-import type { AvailableDevice } from '@/tauri'
+import type { AvailableDevice } from '@/transport/types'
 import { LicenseNoticeModal } from '@/components/Modals/LicenseNoticeModal.tsx'
 
 interface DeviceWithTransport {
