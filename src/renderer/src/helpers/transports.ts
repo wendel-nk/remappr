@@ -9,10 +9,7 @@ import {
     connect as tauri_serial_connect,
     list_devices as serial_list_devices,
 } from '../tauri/serial.ts'
-import {
-    connect as electron_ble_connect,
-    list_devices as electron_ble_list_devices,
-} from '../electron/ble.ts'
+import { connect as electron_ble_connect } from '../electron/ble.ts'
 import {
     connect as electron_serial_connect,
     list_devices as electron_serial_list_devices,
@@ -61,10 +58,7 @@ const buildTransports = (): TransportFactory[] => {
             label: 'BLE',
             communication: 'ble',
             isWireless: true,
-            pick_and_connect: {
-                connect: electron_ble_connect,
-                list: electron_ble_list_devices,
-            },
+            connect: electron_ble_connect,
         })
         transports.push({
             label: 'USB',

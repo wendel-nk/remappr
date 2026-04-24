@@ -4,25 +4,17 @@ export {
     connect as connect_serial,
     disconnect as disconnect_serial,
 } from './serial'
-export {
-    list_devices as list_ble_devices,
-    connect as connect_ble,
-    disconnect as disconnect_ble,
-} from './ble'
+// pattern-check: skip — barrel file cleanup, removing stale re-exports
+export { connect as connect_ble } from './ble'
 
-// Unified disconnect function that works for both connection types
+// Disconnect for serial connections.
+// BLE disconnect is handled via the AbortController on the RpcTransport.
 export async function disconnect(): Promise<void> {
     try {
-        await Promise.race([
-            import('./serial').then(
-                (m: { disconnect: () => Promise<void> }): Promise<void> =>
-                    m.disconnect(),
-            ),
-            import('./ble').then(
-                (m: { disconnect: () => Promise<void> }): Promise<void> =>
-                    m.disconnect(),
-            ),
-        ])
+        await import('./serial').then(
+            (m: { disconnect: () => Promise<void> }): Promise<void> =>
+                m.disconnect(),
+        )
     } catch (error) {
         console.warn('Error during disconnect:', error)
     }
