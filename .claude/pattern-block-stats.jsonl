@@ -11,3 +11,7 @@
 {"ts":"2026-04-24T11:32:24.605Z","rule":"preamble-missing","file":"D:/Projects/Typescript/React/zmk-studio-original-worktrees/github-38-integrate-electron-transport-with-existing-transpo/src/renderer/src/electron/serial.ts","decision":null,"reasonExcerpt":""}
 {"ts":"2026-04-24T11:32:34.968Z","rule":"preamble-missing","file":"D:/Projects/Typescript/React/zmk-studio-original-worktrees/github-38-integrate-electron-transport-with-existing-transpo/src/renderer/src/helpers/transports.ts","decision":null,"reasonExcerpt":""}
 {"ts":"2026-04-24T11:37:25.952Z","rule":"preamble-missing","file":"D:/Projects/Typescript/React/zmk-studio-original-worktrees/github-38-integrate-electron-transport-with-existing-transpo/src/renderer/src/transport/types.ts","decision":null,"reasonExcerpt":""}
+{"ts":"2026-04-24T15:08:45.919Z","rule":"preamble-missing","file":"D:/Projects/Typescript/React/zmk-studio-original/src/renderer/src/helpers/transports.ts","decision":null,"reasonExcerpt":""}
+{"ts":"2026-04-24T15:10:01.960Z","rule":"preamble-missing","file":"D:/Projects/Typescript/React/zmk-studio-original/src/main/serial-picker.ts","decision":null,"reasonExcerpt":""}
+{"ts":"2026-04-24T15:30:06.993Z","rule":"preamble-missing","file":"D:/Projects/Typescript/React/zmk-studio-original/src/main/serial.ts","decision":null,"reasonExcerpt":""}
+{"ts":"2026-04-25T12:13:52.238Z","rule":"preamble-missing","file":"/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/main/ipc-handlers.ts","decision":null,"reasonExcerpt":""}

@@ -15,6 +15,10 @@ import {
     list_devices as electron_ble_list_devices,
 } from '../electron/ble.ts'
 import {
+    connect as electron_noble_connect,
+    list_devices as electron_noble_list_devices,
+} from '../electron/noble-ble.ts'
+import {
     connect as electron_serial_connect,
     list_devices as electron_serial_list_devices,
 } from '../electron/serial.ts'
@@ -36,7 +40,18 @@ export function isTauri(): boolean {
     return !!window.__TAURI_INTERNALS__
 }
 
-const buildTransports = (): TransportFactory[] => {
+let cachedTransports: TransportFactory[] | null = null
+
+export function getTransports(): TransportFactory[] {
+    if (cachedTransports) return cachedTransports
+
+    console.log('[transports] env detect', {
+        hasApi: typeof window.api,
+        hasElectron: typeof window.electron,
+        isElectron: isElectron(),
+        isTauri: isTauri(),
+    })
+
     const transports: TransportFactory[] = []
 
     if (isTauri()) {
@@ -58,15 +73,31 @@ const buildTransports = (): TransportFactory[] => {
             },
         })
     } else if (isElectron()) {
-        transports.push({
-            label: 'BLE',
-            communication: 'ble',
-            isWireless: true,
-            pick_and_connect: {
-                connect: electron_ble_connect,
-                list: electron_ble_list_devices,
-            },
-        })
+        // BLE on Linux currently broken (BlueZ writes accepted but firmware
+        // silent; noble setup blocked by nosuid mounts / adapter perms).
+        // Disable BLE transports on Linux entirely until a working backend
+        // exists. USB works.
+        const isLinux = navigator.userAgent.indexOf('Linux') >= 0
+        if (!isLinux) {
+            transports.push({
+                label: 'BLE',
+                communication: 'ble',
+                isWireless: true,
+                pick_and_connect: {
+                    connect: electron_ble_connect,
+                    list: electron_ble_list_devices,
+                },
+            })
+            transports.push({
+                label: 'BLE (Noble)',
+                communication: 'ble',
+                isWireless: true,
+                pick_and_connect: {
+                    connect: electron_noble_connect,
+                    list: electron_noble_list_devices,
+                },
+            })
+        }
         transports.push({
             label: 'USB',
             communication: 'serial',
@@ -76,7 +107,6 @@ const buildTransports = (): TransportFactory[] => {
             },
         })
     } else {
-        // Browser environment - use Web APIs directly
         if (navigator.serial) {
             transports.push({
                 label: 'USB',
@@ -85,8 +115,10 @@ const buildTransports = (): TransportFactory[] => {
             })
         }
 
-        // Web Bluetooth on Linux browsers
-        if (navigator.bluetooth && navigator.userAgent.indexOf('Linux') >= 0) {
+        // Web Bluetooth: enable wherever navigator.bluetooth exists.
+        // Chrome/Edge support it on Win/Mac/Linux/Android. Previously
+        // gated to Linux UA only (upstream historical limit).
+        if (navigator.bluetooth) {
             transports.push({
                 label: 'BLE',
                 communication: 'ble',
@@ -95,7 +127,6 @@ const buildTransports = (): TransportFactory[] => {
         }
     }
 
-    return transports
+    cachedTransports = transports
+    return cachedTransports
 }
-
-export const TRANSPORTS: TransportFactory[] = buildTransports()

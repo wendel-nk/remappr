@@ -8,6 +8,13 @@ import {
     setupBleDeviceSelection,
     registerBleIpcHandlers,
 } from './ble-manager'
+import { setupSerialDeviceSelection } from './serial-picker'
+import { startSerialDevicePolling } from './serial'
+
+// Enable Web Bluetooth (navigator.bluetooth) in Chromium. Must run before
+// app.whenReady(). Without this, Electron exposes no `navigator.bluetooth`
+// and BLE device discovery silently fails in the renderer.
+app.commandLine.appendSwitch('enable-experimental-web-platform-features')
 
 function createWindow(): void {
     // Create the browser window.
@@ -18,12 +25,42 @@ function createWindow(): void {
         autoHideMenuBar: true,
         ...(process.platform === 'linux' ? { icon } : {}),
         webPreferences: {
-            preload: join(__dirname, '../preload/index.js'),
+            preload: join(__dirname, '../preload/index.mjs'),
             sandbox: false,
             nodeIntegration: false,
             contextIsolation: true,
         },
     })
+
+    // Grant Chromium device permissions so navigator.serial / navigator.bluetooth / navigator.hid
+    // can surface pickers inside Electron. Gated by origin so external pages opened via
+    // shell.openExternal cannot self-grant.
+    const sess = mainWindow.webContents.session
+    const devUrl = process.env['ELECTRON_RENDERER_URL']
+
+    sess.setPermissionCheckHandler((_wc, permission, origin) => {
+        const allowedOrigin =
+            origin.startsWith('file://') ||
+            (!!devUrl && origin.startsWith(devUrl))
+        const p = permission as string
+        return (
+            allowedOrigin &&
+            (p === 'serial' || p === 'bluetooth' || p === 'hid')
+        )
+    })
+
+    sess.setPermissionRequestHandler((_wc, permission, cb) => {
+        const p = permission as string
+        cb(p === 'bluetooth' || p === 'serial' || p === 'hid')
+    })
+
+    sess.setDevicePermissionHandler((details) => {
+        const t = details.deviceType as string
+        return t === 'serial' || t === 'usb' || t === 'hid'
+    })
+
+    // Safety-net handler for any stray navigator.serial.requestPort() calls.
+    setupSerialDeviceSelection(mainWindow)
 
     // Set up BLE device selection handler for Web Bluetooth support
     setupBleDeviceSelection(mainWindow)
@@ -68,6 +105,9 @@ app.whenReady().then((): void => {
     // Register all IPC handlers
     registerIpcHandlers(() => BrowserWindow.getAllWindows())
     registerBleIpcHandlers()
+
+    // Start USB hotplug polling — pushes SERIAL_DEVICES_CHANGED on changes.
+    startSerialDevicePolling(() => BrowserWindow.getAllWindows())
 
     createWindow()
 

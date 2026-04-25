@@ -5,7 +5,8 @@ import type { TransportFactory } from '@/transport/types'
 import { ExternalLink } from '@/misc/ExternalLink.tsx'
 import { DeviceList } from '../DeviceList.tsx'
 import { SimpleDevicePicker } from '../SimpleDevicePicker.tsx'
-import { TRANSPORTS } from '../../helpers/transports.ts'
+// pattern-check: skip — mechanical rename TRANSPORTS -> getTransports()
+import { getTransports } from '../../helpers/transports.ts'
 import { ModalProps } from '@/components/ui/OldModal.tsx'
 import { Modal } from '@/components/ui/Modal.tsx'
 
@@ -26,7 +27,7 @@ export const ConnectModal = ({
     open,
     onTransportCreated,
 }: ConnectModalProps): JSX.Element => {
-    const transports = TRANSPORTS
+    const transports = useMemo(() => getTransports(), [])
     const haveTransports = useMemo(() => transports.length > 0, [transports])
 
     function connectOptions(

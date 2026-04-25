@@ -16,6 +16,26 @@ import {
     disconnectSerial,
     writeSerial,
 } from './serial'
+import {
+    listZmkDevices,
+    connectZmkDevice,
+    writeZmk,
+    disconnectZmkDevice,
+    hasActiveBluezConnection,
+} from './bluez'
+import {
+    listNobleDevices,
+    connectNobleDevice,
+    writeNoble,
+    disconnectNobleDevice,
+    hasActiveNobleConnection,
+} from './noble-ble'
+
+// Tracks which transport currently owns send/close. Set when a transport
+// connects, cleared on disconnect/error. Lets TRANSPORT_SEND_DATA and
+// TRANSPORT_CLOSE route to whichever transport is active.
+type ActiveKind = 'serial' | 'bluez' | 'noble' | null
+let activeKind: ActiveKind = null
 
 /** Send an event to all renderer windows */
 function sendToAllWindows(
@@ -47,16 +67,21 @@ export function registerIpcHandlers(
         IpcChannels.SERIAL_CONNECT,
         async (_, device: unknown) => {
             const validDevice = validateAvailableDevice(device)
-            return await connectSerial(validDevice.id, {
+            const ok = await connectSerial(validDevice.id, {
                 onData: (data) => ipcHandlerContext.emitConnectionData(data),
-                onDisconnected: () =>
-                    ipcHandlerContext.emitConnectionDisconnected(),
+                onDisconnected: () => {
+                    activeKind = null
+                    ipcHandlerContext.emitConnectionDisconnected()
+                },
             })
+            if (ok) activeKind = 'serial'
+            return ok
         },
     )
 
     ipcMain.handle(IpcChannels.SERIAL_DISCONNECT, async () => {
         await disconnectSerial()
+        if (activeKind === 'serial') activeKind = null
     })
 
     // --- BLE Device Handlers ---
@@ -82,18 +107,87 @@ export function registerIpcHandlers(
         },
     )
 
-    // --- Transport Handlers (shared by serial & BLE) ---
+    // --- BlueZ direct handlers (Linux) ---
+
+    ipcMain.handle(IpcChannels.BLUEZ_LIST_DEVICES, async () => {
+        return await listZmkDevices()
+    })
+
+    ipcMain.handle(IpcChannels.BLUEZ_CONNECT, async (_, devicePath: unknown) => {
+        if (typeof devicePath !== 'string' || !devicePath) {
+            return { ok: false, error: 'Invalid device path' }
+        }
+        try {
+            const label = await connectZmkDevice(devicePath, {
+                onData: (data) => ipcHandlerContext.emitConnectionData(data),
+                onDisconnected: () => {
+                    activeKind = null
+                    ipcHandlerContext.emitConnectionDisconnected()
+                },
+            })
+            activeKind = 'bluez'
+            return { ok: true, label }
+        } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e)
+            console.error('[ipc] BLUEZ_CONNECT failed:', msg)
+            return { ok: false, error: msg }
+        }
+    })
+
+    ipcMain.handle(IpcChannels.GET_PLATFORM, async () => process.platform)
+
+    // --- Noble direct handlers (Linux, raw HCI) ---
+
+    ipcMain.handle(IpcChannels.NOBLE_LIST_DEVICES, async () => {
+        return await listNobleDevices()
+    })
+
+    ipcMain.handle(IpcChannels.NOBLE_CONNECT, async (_, deviceId: unknown) => {
+        if (typeof deviceId !== 'string' || !deviceId) {
+            return { ok: false, error: 'Invalid device id' }
+        }
+        try {
+            const label = await connectNobleDevice(deviceId, {
+                onData: (data) => ipcHandlerContext.emitConnectionData(data),
+                onDisconnected: () => {
+                    activeKind = null
+                    ipcHandlerContext.emitConnectionDisconnected()
+                },
+            })
+            activeKind = 'noble'
+            return { ok: true, label }
+        } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e)
+            console.error('[ipc] NOBLE_CONNECT failed:', msg)
+            return { ok: false, error: msg }
+        }
+    })
+
+    // --- Transport Handlers (route via activeKind) ---
 
     ipcMain.handle(
         IpcChannels.TRANSPORT_SEND_DATA,
         async (_, data: unknown) => {
             const validData = validateUint8Array(data)
-            await writeSerial(validData)
+            if (activeKind === 'bluez') {
+                await writeZmk(validData)
+            } else if (activeKind === 'noble') {
+                await writeNoble(validData)
+            } else {
+                await writeSerial(validData)
+            }
         },
     )
 
     ipcMain.handle(IpcChannels.TRANSPORT_CLOSE, async () => {
-        await disconnectSerial()
+        if (activeKind === 'bluez' || hasActiveBluezConnection()) {
+            await disconnectZmkDevice()
+        } else if (activeKind === 'noble' || hasActiveNobleConnection()) {
+            await disconnectNobleDevice()
+        } else {
+            await disconnectSerial()
+        }
+        activeKind = null
     })
 
     // Expose event helpers for use by transport implementations

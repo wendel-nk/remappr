@@ -9,6 +9,10 @@ export async function list_devices(): Promise<Array<AvailableDevice>> {
     )) as AvailableDevice[]
 }
 
+export function onDevicesChanged(cb: () => void): () => void {
+    return window.api.on(IpcEvents.SERIAL_DEVICES_CHANGED, cb)
+}
+
 export async function connect(dev: AvailableDevice): Promise<RpcTransport> {
     if (!(await window.api.invoke(IpcChannels.SERIAL_CONNECT, dev))) {
         throw new Error('Failed to connect')

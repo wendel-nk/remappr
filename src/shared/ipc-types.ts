@@ -25,6 +25,17 @@ export const IpcChannels = {
     BLE_STOP_SCAN: 'ble:stop-scan',
     BLE_SELECT_DEVICE: 'ble:select-device',
 
+    // BlueZ direct (Linux only) — bypasses Web Bluetooth, sees paired devices
+    BLUEZ_LIST_DEVICES: 'bluez:list-devices',
+    BLUEZ_CONNECT: 'bluez:connect',
+
+    // Noble (Linux only) — raw HCI socket, bypasses BlueZ entirely
+    NOBLE_LIST_DEVICES: 'noble:list-devices',
+    NOBLE_CONNECT: 'noble:connect',
+
+    // Platform info
+    GET_PLATFORM: 'platform:get',
+
     // Transport operations (shared by serial & BLE)
     TRANSPORT_SEND_DATA: 'transport:send-data',
     TRANSPORT_CLOSE: 'transport:close',
@@ -35,6 +46,7 @@ export const IpcEvents = {
     CONNECTION_DATA: 'connection:data',
     CONNECTION_DISCONNECTED: 'connection:disconnected',
     BLE_DEVICES_DISCOVERED: 'ble:devices-discovered',
+    SERIAL_DEVICES_CHANGED: 'serial:devices-changed',
 } as const
 
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]
@@ -75,6 +87,26 @@ export interface IpcInvokeMap {
     [IpcChannels.BLE_SELECT_DEVICE]: {
         params: string
         result: boolean
+    }
+    [IpcChannels.BLUEZ_LIST_DEVICES]: {
+        params: void
+        result: AvailableDevice[]
+    }
+    [IpcChannels.BLUEZ_CONNECT]: {
+        params: string
+        result: { ok: boolean; label?: string; error?: string }
+    }
+    [IpcChannels.NOBLE_LIST_DEVICES]: {
+        params: void
+        result: AvailableDevice[]
+    }
+    [IpcChannels.NOBLE_CONNECT]: {
+        params: string
+        result: { ok: boolean; label?: string; error?: string }
+    }
+    [IpcChannels.GET_PLATFORM]: {
+        params: void
+        result: NodeJS.Platform
     }
     [IpcChannels.TRANSPORT_SEND_DATA]: {
         params: Uint8Array
