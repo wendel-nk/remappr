@@ -1,11 +1,12 @@
 import { PropsWithChildren, useLayoutEffect, useRef, useState } from 'react'
-import { Key } from './Key.tsx'
+import { HoldTapLabels, Key } from './Key.tsx'
 import { scalePosition } from '../../helpers/scalePosition.ts'
 import { LayoutZoom } from '@/helpers/helpers.ts'
 
 export type KeyPosition = PropsWithChildren<{
     id?: string
     header?: string
+    holdTap?: HoldTapLabels
     width: number
     height: number
     x: number
