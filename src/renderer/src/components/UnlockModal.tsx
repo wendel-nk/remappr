@@ -1,21 +1,10 @@
 import { useMemo } from 'react'
 
-import type { RpcTransport } from '@zmkfirmware/zmk-studio-ts-client/transport/index'
-import type { AvailableDevice } from '../tauri'
 import { LockState } from '@zmkfirmware/zmk-studio-ts-client/core'
 import { useModalRef } from '@/misc/useModalRef.ts'
 import { ExternalLink } from '@/misc/ExternalLink.tsx'
 import useConnectionStore from '@/stores/ConnectionStore.ts'
 import { OldModal } from '@/components/ui/OldModal.tsx'
-
-export type TransportFactory = {
-    label: string
-    connect?: () => Promise<RpcTransport>
-    pick_and_connect?: {
-        list: () => Promise<Array<AvailableDevice>>
-        connect: (dev: AvailableDevice) => Promise<RpcTransport>
-    }
-}
 
 export const UnlockModal = (): JSX.Element => {
     const { connection, lockState } = useConnectionStore()

@@ -149,7 +149,7 @@ export const HidUsagePicker = ({
             console.log(new_value)
             onValueChanged(new_value)
         },
-        [value],
+        [value, onValueChanged],
     )
 
     return (

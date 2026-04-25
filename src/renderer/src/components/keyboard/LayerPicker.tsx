@@ -273,12 +273,11 @@ export const LayerPicker = ({
         }
     }, [dropdownOpen])
 
-    // Close dropdown when edit modal opens
-    useEffect(() => {
-        if (editLabelData !== null) {
-            setDropdownOpen(null)
-        }
-    }, [editLabelData])
+    // Close dropdown when edit modal opens - using a ref to avoid setState in effect
+    const closeDropdownOnEdit = editLabelData !== null && dropdownOpen !== null
+    if (closeDropdownOnEdit) {
+        setDropdownOpen(null)
+    }
 
     return (
         <>

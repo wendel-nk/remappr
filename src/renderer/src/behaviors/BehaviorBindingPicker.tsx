@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useEffect, useMemo, useState } from 'react'
 
 import {
@@ -71,6 +72,7 @@ export const BehaviorBindingPicker = ({
     behaviors,
     onBindingChanged,
 }: BehaviorBindingPickerProps): JSX.Element => {
+    // Initialize state from binding
     const [behaviorId, setBehaviorId] = useState(binding?.behaviorId ?? 0)
     const [param1, setParam1] = useState<number | undefined>(binding?.param1)
     const [param2, setParam2] = useState<number | undefined>(binding?.param2)
@@ -128,7 +130,15 @@ export const BehaviorBindingPicker = ({
                 param2: param2 || 0,
             })
         }
-    }, [behaviorId, param1, param2])
+    }, [
+        behaviorId,
+        param1,
+        param2,
+        binding,
+        metadata,
+        layers,
+        onBindingChanged,
+    ])
 
     useEffect((): void => {
         if (!binding) {
