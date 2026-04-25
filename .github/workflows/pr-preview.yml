@@ -1,0 +1,56 @@
+name: PR preview (Cloudflare Pages)
+
+on:
+    pull_request:
+        branches: [main]
+        types: [opened, synchronize, reopened]
+
+permissions:
+    contents: read
+    pull-requests: write
+    deployments: write
+
+# One concurrent preview per PR — newer pushes cancel in-flight builds.
+concurrency:
+    group: pr-preview-${{ github.event.pull_request.number }}
+    cancel-in-progress: true
+
+jobs:
+    preview:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v5
+
+            - name: Set up Node
+              uses: actions/setup-node@v5
+              with:
+                  node-version: lts/*
+                  cache: 'npm'
+
+            - name: Install dependencies
+              run: npm ci
+
+            - name: Build
+              run: npm run build
+
+            - name: Deploy to Cloudflare Pages (preview)
+              id: cf
+              uses: cloudflare/wrangler-action@v3
+              with:
+                  apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+                  accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+                  command: pages deploy dist --project-name=remappr-preview --branch=pr-${{ github.event.pull_request.number }}
+
+            - name: Comment preview URL on PR
+              uses: marocchino/sticky-pull-request-comment@v2
+              with:
+                  header: cloudflare-preview
+                  message: |
+                      ### Cloudflare Pages preview
+
+                      **Latest deploy:** ${{ steps.cf.outputs.deployment-url }}
+
+                      **Stable alias:** https://pr-${{ github.event.pull_request.number }}.remappr-preview.pages.dev
+
+                      _Updates on every push to this PR._
