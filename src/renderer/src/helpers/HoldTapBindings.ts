@@ -184,9 +184,8 @@ export function isHoldTapBinding(
     }
 
     // Fallback: Analyze metadata structure
-    const { isHoldTap, hasLayerParam, hasTwoParams } = analyzeMetadataForHoldTap(
-        behavior.metadata,
-    )
+    const { isHoldTap, hasLayerParam, hasTwoParams } =
+        analyzeMetadataForHoldTap(behavior.metadata)
 
     if (!isHoldTap) {
         return { isHoldTap: false, type: null }
