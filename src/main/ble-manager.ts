@@ -28,9 +28,6 @@ export const ZMK_STUDIO_SERVICE_UUID = '00000000-0196-6107-c967-c5cfb1c2482a'
 /** Pending device selection callback from Electron's select-bluetooth-device event */
 let pendingDeviceCallback: ((deviceId: string) => void) | null = null
 
-/** Whether we're actively scanning for BLE devices */
-let isScanning = false
-
 /**
  * Set up the Web Bluetooth device selection handler on a BrowserWindow.
  * Must be called for each window that will use BLE.
@@ -45,23 +42,35 @@ export function setupBleDeviceSelection(window: BrowserWindow): void {
         (event, devices, callback) => {
             event.preventDefault()
 
+            console.log(
+                '[ble-manager] select-bluetooth-device fired, devices:',
+                devices.length,
+                devices.map((d) => `${d.deviceName || '(no-name)'}@${d.deviceId}`),
+            )
+
             // Store the callback so we can resolve it when the user picks a device
             pendingDeviceCallback = callback
 
-            if (!isScanning) {
-                // Not in scan mode - auto-select first device (fallback behavior)
-                if (devices.length > 0) {
-                    callback(devices[0].deviceId)
-                    pendingDeviceCallback = null
-                }
-                return
-            }
+            // Drop nameless ghosts. Chromium labels nameless advertisements
+            // as "Unknown or Unsupported Device (MAC)" — skip those too, not
+            // just truly-empty deviceName. Keyboards always advertise a real
+            // friendly name.
+            const availableDevices: AvailableDevice[] = devices
+                .filter((d) => {
+                    const n = (d.deviceName || '').trim()
+                    if (!n) return false
+                    if (/^Unknown or Unsupported/i.test(n)) return false
+                    return true
+                })
+                .map((d) => ({
+                    label: d.deviceName,
+                    id: d.deviceId,
+                }))
 
-            // Convert Electron's device format to our AvailableDevice format
-            const availableDevices: AvailableDevice[] = devices.map((d) => ({
-                label: d.deviceName || `BLE Device (${d.deviceId.slice(0, 8)})`,
-                id: d.deviceId,
-            }))
+            console.log(
+                '[ble-manager] forwarding to renderer, kept:',
+                availableDevices.length,
+            )
 
             // Send discovered devices to the renderer
             if (!window.isDestroyed()) {
@@ -80,12 +89,12 @@ export function setupBleDeviceSelection(window: BrowserWindow): void {
  */
 export function registerBleIpcHandlers(): void {
     ipcMain.handle(IpcChannels.BLE_START_SCAN, async () => {
-        isScanning = true
+        console.log('[ble-manager] BLE_START_SCAN received')
         pendingDeviceCallback = null
     })
 
     ipcMain.handle(IpcChannels.BLE_STOP_SCAN, async () => {
-        isScanning = false
+        console.log('[ble-manager] BLE_STOP_SCAN received')
         // Cancel any pending device request
         if (pendingDeviceCallback) {
             pendingDeviceCallback('')
@@ -99,8 +108,6 @@ export function registerBleIpcHandlers(): void {
             if (typeof deviceId !== 'string' || !deviceId) {
                 return false
             }
-
-            isScanning = false
 
             if (pendingDeviceCallback) {
                 pendingDeviceCallback(deviceId)

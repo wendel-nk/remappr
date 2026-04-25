@@ -1,0 +1,23 @@
+[0;1;32m●[0m bluetooth.service - Bluetooth service
+     Loaded: loaded (]8;;file://wolffyx/usr/lib/systemd/system/bluetooth.service\/usr/lib/systemd/system/bluetooth.service]8;;\; [0;1;32menabled[0m; preset: [0;1;33m[0;1;38:5:185mdisabled[0m)
+     Active: [0;1;32mactive (running)[0m since Sat 2026-04-25 17:30:25 EEST; 1min 13s ago
+ Invocation: 0833416f572b4ad68ae423463133e8f5
+       Docs: ]8;;man:bluetoothd(8)\man:bluetoothd(8)]8;;\
+   Main PID: 41223 (bluetoothd)
+     Status: "[0;1;36mRunning[0m"
+      Tasks: 1[0;90m[0;38:5:245m (limit: 76977)[0m
+     Memory: 1.1M (peak: 2.7M)
+        CPU: 47ms
+     CGroup: /system.slice/bluetooth.service
+             └─[0;90m[0;38:5:245m41223 /usr/lib/bluetooth/bluetoothd[0m
+
+apr 25 17:30:25 wolffyx bluetoothd[41223]: Endpoint registered: sender=:1.36 path=/MediaEndpoint/A2DPSource/aptx_ll_1
+apr 25 17:30:25 wolffyx bluetoothd[41223]: Endpoint registered: sender=:1.36 path=/MediaEndpoint/A2DPSource/aptx_ll_0
+apr 25 17:30:25 wolffyx bluetoothd[41223]: Endpoint registered: sender=:1.36 path=/MediaEndpoint/A2DPSource/aptx_ll_duplex_1
+apr 25 17:30:25 wolffyx bluetoothd[41223]: Endpoint registered: sender=:1.36 path=/MediaEndpoint/A2DPSource/aptx_ll_duplex_0
+apr 25 17:30:25 wolffyx bluetoothd[41223]: Endpoint registered: sender=:1.36 path=/MediaEndpoint/A2DPSource/faststream
+apr 25 17:30:25 wolffyx bluetoothd[41223]: Endpoint registered: sender=:1.36 path=/MediaEndpoint/A2DPSource/faststream_duplex
+apr 25 17:30:25 wolffyx bluetoothd[41223]: Endpoint registered: sender=:1.36 path=/MediaEndpoint/A2DPSink/opus_05
+apr 25 17:30:25 wolffyx bluetoothd[41223]: Endpoint registered: sender=:1.36 path=/MediaEndpoint/A2DPSource/opus_05
+apr 25 17:30:25 wolffyx bluetoothd[41223]: Endpoint registered: sender=:1.36 path=/MediaEndpoint/A2DPSink/opus_05_duplex
+apr 25 17:30:25 wolffyx bluetoothd[41223]: Endpoint registered: sender=:1.36 path=/MediaEndpoint/A2DPSource/opus_05_duplex

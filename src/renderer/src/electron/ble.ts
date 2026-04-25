@@ -1,29 +1,21 @@
-// pattern-check: skip — rewrite of existing adapter file, follows established electron/serial.ts pattern
+// pattern-check: skip — platform branch in renderer, no new abstraction
 /**
  * Electron BLE transport adapter.
  *
- * Coordinates with the main process to discover BLE devices, then uses
- * Electron's built-in Web Bluetooth API (Chromium) for GATT operations.
+ * Linux: talks to BlueZ via main-process D-Bus client. Lists paired devices
+ * advertising the ZMK Studio service without user gesture or chooser dialog.
+ * Connects via BlueZ GATT, so devices already paired+connected to the OS
+ * are reachable (Web Bluetooth on Linux can't see them).
  *
- * Device discovery flow:
- * 1. list_devices() tells main process to start collecting devices
- * 2. Calls navigator.bluetooth.requestDevice() which triggers Chromium's BLE scan
- * 3. Main process receives 'select-bluetooth-device' events and forwards device
- *    lists to the renderer via IPC
- * 4. list_devices() collects discovered devices and returns them
- *
- * Connection flow:
- * 1. connect(device) tells main process to select the chosen device
- * 2. Main process calls the pending callback, resolving requestDevice()
- * 3. GATT connection, service discovery, and characteristic operations proceed
- *    in the renderer via Web Bluetooth
+ * Windows/macOS: uses Chromium Web Bluetooth via navigator.bluetooth.
+ * Discovery via requestDevice() chooser, GATT in renderer.
  */
 
 import { IpcChannels, IpcEvents } from '../../../shared/ipc-types'
 import type { RpcTransport } from '@zmkfirmware/zmk-studio-ts-client/transport/index'
 import type { AvailableDevice } from '../transport/types'
 
-// ZMK Studio BLE service/characteristic UUIDs
+// ZMK Studio BLE service/characteristic UUIDs (Web Bluetooth path)
 const ZMK_SERVICE_UUID = '00000000-0196-6107-c967-c5cfb1c2482a'
 const ZMK_CHARACTERISTIC_UUID = '00000001-0196-6107-c967-c5cfb1c2482a'
 
@@ -33,52 +25,96 @@ let pendingDevicePromise: Promise<BluetoothDevice> | null = null
 /** Duration to collect BLE device discoveries before returning the list (ms) */
 const SCAN_COLLECTION_MS = 5000
 
+/** Cached platform string from main process. */
+let cachedPlatform: string | null = null
+async function getPlatform(): Promise<string> {
+    if (cachedPlatform) return cachedPlatform
+    cachedPlatform = (await window.api.invoke(
+        IpcChannels.GET_PLATFORM,
+    )) as string
+    return cachedPlatform
+}
+
 /**
- * Scan for available BLE devices matching the ZMK Studio service.
+ * Scan for available BLE devices.
  *
- * Initiates a Web Bluetooth scan and collects devices reported by the main
- * process. The scan runs for SCAN_COLLECTION_MS before returning results.
- * The pending requestDevice() promise is kept alive for connect() to resolve.
+ * Linux: queries BlueZ for paired devices advertising the ZMK service.
+ * No user gesture required, no chooser dialog. Returns immediately.
+ *
+ * Other platforms: Web Bluetooth requestDevice() chooser flow.
  */
 export async function list_devices(): Promise<AvailableDevice[]> {
+    console.log('[electron/ble] list_devices() called')
+
+    const platform = await getPlatform()
+    if (platform === 'linux') {
+        try {
+            const devices = (await window.api.invoke(
+                IpcChannels.BLUEZ_LIST_DEVICES,
+            )) as AvailableDevice[]
+            console.log('[electron/ble] BlueZ returned', devices.length, 'devices')
+            return devices
+        } catch (e) {
+            console.error('[electron/ble] BLUEZ_LIST_DEVICES failed:', e)
+            return []
+        }
+    }
+
     if (!navigator.bluetooth) {
+        console.warn('[electron/ble] navigator.bluetooth missing')
         return []
     }
 
-    // Cancel any previous pending scan
+    // Cancel any previous pending scan. Fire-and-forget to preserve
+    // user-activation token for requestDevice() below.
     if (pendingDevicePromise) {
-        await window.api.invoke(IpcChannels.BLE_STOP_SCAN).catch(() => {})
+        window.api.invoke(IpcChannels.BLE_STOP_SCAN).catch(() => {})
         pendingDevicePromise = null
     }
 
-    // Tell main process to enter scan/collection mode
-    await window.api.invoke(IpcChannels.BLE_START_SCAN)
-
-    // Start the Web Bluetooth scan — this triggers select-bluetooth-device
-    // events in the main process. Don't await; it resolves when a device is selected.
-    pendingDevicePromise = navigator.bluetooth.requestDevice({
-        filters: [{ services: [ZMK_SERVICE_UUID] }],
+    // Tell main to enter scan/collection mode. Do NOT await — Chromium
+    // consumes the user-activation token across awaits, which would make
+    // requestDevice() throw "must be handling a user gesture".
+    window.api.invoke(IpcChannels.BLE_START_SCAN).catch((e) => {
+        console.error('[electron/ble] BLE_START_SCAN failed:', e)
     })
 
-    // Handle the case where requestDevice rejects (user cancels, etc.)
-    pendingDevicePromise.catch(() => {
+    try {
+        pendingDevicePromise = navigator.bluetooth.requestDevice({
+            acceptAllDevices: true,
+            optionalServices: [ZMK_SERVICE_UUID],
+        })
+    } catch (e) {
+        console.error('[electron/ble] requestDevice threw:', e)
+        return []
+    }
+
+    pendingDevicePromise.catch((e) => {
+        console.warn('[electron/ble] requestDevice rejected:', e)
         pendingDevicePromise = null
     })
 
     return new Promise<AvailableDevice[]>((resolve) => {
         let latestDevices: AvailableDevice[] = []
 
-        // Listen for device discovery events from the main process
         const unlisten = window.api.on(
             IpcEvents.BLE_DEVICES_DISCOVERED,
             (...args: unknown[]) => {
                 latestDevices = args[0] as AvailableDevice[]
+                console.log(
+                    '[electron/ble] BLE_DEVICES_DISCOVERED:',
+                    latestDevices.length,
+                )
             },
         )
 
-        // Return collected devices after the scan period
         setTimeout(() => {
             unlisten()
+            console.log(
+                '[electron/ble] scan window closed, returning',
+                latestDevices.length,
+                'devices',
+            )
             resolve(latestDevices)
         }, SCAN_COLLECTION_MS)
     })
@@ -87,16 +123,87 @@ export async function list_devices(): Promise<AvailableDevice[]> {
 /**
  * Connect to a specific BLE device and return an RpcTransport.
  *
- * Tells the main process to select the device (resolving the pending
- * requestDevice()), then performs GATT service discovery and sets up
- * read/write streams over the ZMK Studio characteristic.
+ * Linux: routes through main-process BlueZ client. dev.id is a D-Bus path
+ * like /org/bluez/hci0/dev_CD_8F_C5_C5_8B_A4. Reads/writes flow over IPC
+ * via TRANSPORT_SEND_DATA + CONNECTION_DATA event.
+ *
+ * Other platforms: GATT in renderer via Web Bluetooth.
  */
 export async function connect(dev: AvailableDevice): Promise<RpcTransport> {
+    const platform = await getPlatform()
+    if (platform === 'linux') {
+        return connectViaBluez(dev)
+    }
+    return connectViaWebBluetooth(dev)
+}
+
+async function connectViaBluez(dev: AvailableDevice): Promise<RpcTransport> {
+    const result = (await window.api.invoke(
+        IpcChannels.BLUEZ_CONNECT,
+        dev.id,
+    )) as { ok: boolean; label?: string; error?: string }
+
+    if (!result.ok) {
+        throw new Error(result.error ?? 'Failed to connect via BlueZ')
+    }
+
+    const abortController = new AbortController()
+
+    const writable = new WritableStream<Uint8Array>({
+        async write(chunk) {
+            await window.api.invoke(
+                IpcChannels.TRANSPORT_SEND_DATA,
+                new Uint8Array(chunk),
+            )
+        },
+    })
+
+    const { writable: responseWritable, readable } =
+        new TransformStream<Uint8Array>()
+
+    const unlistenData = window.api.on(
+        IpcEvents.CONNECTION_DATA,
+        async (...args: unknown[]) => {
+            const data = args[0] as number[]
+            const writer = responseWritable.getWriter()
+            await writer.write(new Uint8Array(data))
+            writer.releaseLock()
+        },
+    )
+
+    const unlistenDisconnected = window.api.on(
+        IpcEvents.CONNECTION_DISCONNECTED,
+        async () => {
+            unlistenData()
+            unlistenDisconnected()
+            responseWritable.close().catch(() => {})
+        },
+    )
+
+    const signal = abortController.signal
+    const onAbort = async (): Promise<void> => {
+        unlistenData()
+        unlistenDisconnected()
+        await window.api.invoke(IpcChannels.TRANSPORT_CLOSE).catch(() => {})
+        signal.removeEventListener('abort', onAbort)
+    }
+    signal.addEventListener('abort', onAbort)
+
+    return {
+        label: result.label ?? dev.label ?? 'BLE Device',
+        abortController,
+        readable,
+        writable,
+    }
+}
+
+async function connectViaWebBluetooth(
+    dev: AvailableDevice,
+): Promise<RpcTransport> {
     if (!navigator.bluetooth) {
         throw new Error('Web Bluetooth API not available in this Electron build')
     }
 
-    // Tell the main process to select this device, resolving requestDevice()
     const selected = await window.api.invoke(
         IpcChannels.BLE_SELECT_DEVICE,
         dev.id,
@@ -105,7 +212,6 @@ export async function connect(dev: AvailableDevice): Promise<RpcTransport> {
         throw new Error('Failed to select BLE device')
     }
 
-    // Await the pending requestDevice() promise
     if (!pendingDevicePromise) {
         throw new Error('No pending BLE scan — call list_devices() first')
     }
@@ -117,23 +223,15 @@ export async function connect(dev: AvailableDevice): Promise<RpcTransport> {
         throw new Error('GATT not available on selected device')
     }
 
-    // Connect to GATT server
     const server = await device.gatt.connect()
-
-    // Discover the ZMK Studio service
     const service = await server.getPrimaryService(ZMK_SERVICE_UUID)
-
-    // Get the ZMK Studio characteristic for read/write
     const characteristic = await service.getCharacteristic(
         ZMK_CHARACTERISTIC_UUID,
     )
-
-    // Start notifications for incoming data
     await characteristic.startNotifications()
 
     const abortController = new AbortController()
 
-    // Set up readable stream from characteristic notifications
     const { writable: responseWritable, readable } =
         new TransformStream<Uint8Array>()
 
@@ -152,7 +250,6 @@ export async function connect(dev: AvailableDevice): Promise<RpcTransport> {
         onCharacteristicChanged,
     )
 
-    // Set up writable stream for sending data to characteristic
     const writable = new WritableStream<Uint8Array>({
         async write(chunk) {
             await characteristic.writeValueWithoutResponse(
@@ -161,29 +258,21 @@ export async function connect(dev: AvailableDevice): Promise<RpcTransport> {
         },
     })
 
-    // Handle device disconnection
     const onDisconnected = (): void => {
         cleanup()
-        responseWritable.close().catch(() => {
-            // Stream may already be closed
-        })
+        responseWritable.close().catch(() => {})
     }
 
     device.addEventListener('gattserverdisconnected', onDisconnected)
 
-    // Cleanup function
     const cleanup = (): void => {
         characteristic.removeEventListener(
             'characteristicvaluechanged',
             onCharacteristicChanged,
         )
-        device.removeEventListener(
-            'gattserverdisconnected',
-            onDisconnected,
-        )
+        device.removeEventListener('gattserverdisconnected', onDisconnected)
     }
 
-    // Handle abort (user-initiated disconnect)
     const onAbort = (): void => {
         cleanup()
         if (device.gatt?.connected) {
