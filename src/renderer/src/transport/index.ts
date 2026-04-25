@@ -1,46 +1,12 @@
-import { SerialTransport } from './serial'
-import { GattTransport } from './gatt'
-import { TransportEventEmitter, AvailableDevice } from './types'
-
-export class TransportManager {
-    private serialTransport: SerialTransport
-    private gattTransport: GattTransport
-
-    constructor(eventEmitter: TransportEventEmitter) {
-        this.serialTransport = new SerialTransport(eventEmitter)
-        this.gattTransport = new GattTransport(eventEmitter)
-    }
-
-    // Serial methods
-    async serialConnect(id: string): Promise<boolean> {
-        return this.serialTransport.serialConnect(id)
-    }
-
-    async serialDisconnect(): Promise<void> {
-        return this.serialTransport.serialDisconnect()
-    }
-
-    async serialListDevices(): Promise<AvailableDevice[]> {
-        return this.serialTransport.serialListDevices()
-    }
-
-    // GATT methods
-    async gattConnect(id: string): Promise<boolean> {
-        return this.gattTransport.gattConnect(id)
-    }
-
-    async gattListDevices(): Promise<AvailableDevice[]> {
-        return this.gattTransport.gattListDevices()
-    }
-
-    // Transport methods
-    async transportSendData(data: Uint8Array): Promise<void> {
-        return this.serialTransport.transportSendData(data)
-    }
-
-    async transportClose(): Promise<void> {
-        return this.serialTransport.transportClose()
-    }
-}
+// pattern-check: skip — barrel re-export, mechanical rename TRANSPORTS -> getTransports
+/**
+ * Transport abstraction layer — single entry point for all platform transports.
+ *
+ * Platform detection and transport construction live in helpers/transports.ts.
+ * This barrel re-exports the shared types and the lazy getTransports() getter so
+ * consumers can import from '@/transport' regardless of backend (Browser,
+ * Tauri, or Electron).
+ */
 
 export * from './types'
+export { getTransports, isElectron, isTauri } from '../helpers/transports'

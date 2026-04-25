@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useEffect, useMemo, useState } from 'react'
 
 import {
@@ -76,7 +77,6 @@ export const BehaviorBindingPicker = ({
     const [param1, setParam1] = useState<number | undefined>(binding?.param1)
     const [param2, setParam2] = useState<number | undefined>(binding?.param2)
 
-    // Add state for selected keys display
     const [selectedKey, setSelectedKey] = useState<number | undefined>(
         undefined,
     )
@@ -102,11 +102,6 @@ export const BehaviorBindingPicker = ({
             return
         }
 
-        console.log(
-            binding.behaviorId === behaviorId &&
-                binding.param1 === param1 &&
-                binding.param2 === param2,
-        )
         if (!metadata) {
             console.error(
                 "Can't find metadata for the selected behaviorId",
@@ -129,7 +124,15 @@ export const BehaviorBindingPicker = ({
                 param2: param2 || 0,
             })
         }
-    }, [behaviorId, param1, param2])
+    }, [
+        behaviorId,
+        param1,
+        param2,
+        binding,
+        metadata,
+        layers,
+        onBindingChanged,
+    ])
 
     useEffect((): void => {
         if (!binding) {
@@ -138,7 +141,6 @@ export const BehaviorBindingPicker = ({
         setBehaviorId(binding.behaviorId)
         setParam1(binding.param1)
         setParam2(binding.param2)
-        console.log(binding)
     }, [binding])
 
     const handleBehaviorSelected = (selectedBehaviorId: number): void => {
@@ -147,7 +149,6 @@ export const BehaviorBindingPicker = ({
         setParam2(0)
     }
 
-    // Handlers for SelectedKeysDisplay
     const handleClearAll = (): void => {
         setSelectedKey(undefined)
         setSelectedModifiers([])
@@ -158,11 +159,10 @@ export const BehaviorBindingPicker = ({
     }
 
     const handleRemoveModifier = (keyId: number): void => {
-        // Find the modifier that corresponds to this keyId
         const modifier = KEY_ID_TO_MOD[keyId]
         if (modifier) {
-            setSelectedModifiers((prev: number[]): number[] =>
-                prev.filter((m: number): boolean => m !== modifier),
+            setSelectedModifiers((prev: Mods[]): Mods[] =>
+                prev.filter((m: Mods): boolean => m !== modifier),
             )
         }
     }
@@ -179,7 +179,6 @@ export const BehaviorBindingPicker = ({
         setSelectedModifiers(modifiers)
     }
 
-    // Create a live binding object representing the current editor state
     const liveBinding: BehaviorBinding = useMemo(
         () => ({
             behaviorId,
@@ -191,7 +190,6 @@ export const BehaviorBindingPicker = ({
 
     return (
         <div className="flex flex-row w-full gap-4">
-            {/* Key Preview - shows live preview of the binding */}
             <div className="flex-shrink-0">
                 <KeyPreview
                     binding={liveBinding}
@@ -200,7 +198,6 @@ export const BehaviorBindingPicker = ({
                 />
             </div>
 
-            {/* Binding Configuration */}
             <div className="flex flex-col flex-1">
                 <div className="flex flex-row flex-1 gap-3 items-start">
                     <BehaviorSelector

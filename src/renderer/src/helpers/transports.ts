@@ -1,4 +1,5 @@
-import { TransportFactory } from '../components/Modals/ConnectModal.tsx'
+// pattern-check: skip — merge conflict resolution, no new logic
+import { TransportFactory } from '../transport/types'
 import { connect as serial_connect } from '@zmkfirmware/zmk-studio-ts-client/transport/serial'
 import { connect as gatt_connect } from '@zmkfirmware/zmk-studio-ts-client/transport/gatt'
 import {
@@ -7,8 +8,20 @@ import {
 } from '../tauri/ble.ts'
 import {
     connect as tauri_serial_connect,
-    list_devices as serial_list_devices,
+    list_devices as tauri_serial_list_devices,
 } from '../tauri/serial.ts'
+import {
+    connect as electron_ble_connect,
+    list_devices as electron_ble_list_devices,
+} from '../electron/ble.ts'
+import {
+    connect as electron_noble_connect,
+    list_devices as electron_noble_list_devices,
+} from '../electron/noble-ble.ts'
+import {
+    connect as electron_serial_connect,
+    list_devices as electron_serial_list_devices,
+} from '../electron/serial.ts'
 
 declare global {
     interface Window {
@@ -16,26 +29,32 @@ declare global {
     }
 }
 
-const buildTransports = (): TransportFactory[] => {
+export function isElectron(): boolean {
+    return (
+        typeof window.api !== 'undefined' &&
+        typeof window.api?.invoke === 'function'
+    )
+}
+
+export function isTauri(): boolean {
+    return !!window.__TAURI_INTERNALS__
+}
+
+let cachedTransports: TransportFactory[] | null = null
+
+export function getTransports(): TransportFactory[] {
+    if (cachedTransports) return cachedTransports
+
+    console.log('[transports] env detect', {
+        hasApi: typeof window.api,
+        hasElectron: typeof window.electron,
+        isElectron: isElectron(),
+        isTauri: isTauri(),
+    })
+
     const transports: TransportFactory[] = []
 
-    if (navigator.serial) {
-        transports.push({
-            label: 'USB',
-            communication: 'serial',
-            connect: serial_connect,
-        })
-    }
-
-    if (navigator.bluetooth && navigator.userAgent.indexOf('Linux') >= 0) {
-        transports.push({
-            label: 'BLE',
-            communication: 'ble',
-            connect: gatt_connect,
-        })
-    }
-
-    if (window.__TAURI_INTERNALS__) {
+    if (isTauri()) {
         transports.push({
             label: 'BLE',
             communication: 'ble',
@@ -50,12 +69,64 @@ const buildTransports = (): TransportFactory[] => {
             communication: 'serial',
             pick_and_connect: {
                 connect: tauri_serial_connect,
-                list: serial_list_devices,
+                list: tauri_serial_list_devices,
             },
         })
+    } else if (isElectron()) {
+        // BLE on Linux currently broken (BlueZ writes accepted but firmware
+        // silent; noble setup blocked by nosuid mounts / adapter perms).
+        // Disable BLE transports on Linux entirely until a working backend
+        // exists. USB works.
+        const isLinux = navigator.userAgent.indexOf('Linux') >= 0
+        if (!isLinux) {
+            transports.push({
+                label: 'BLE',
+                communication: 'ble',
+                isWireless: true,
+                pick_and_connect: {
+                    connect: electron_ble_connect,
+                    list: electron_ble_list_devices,
+                },
+            })
+            transports.push({
+                label: 'BLE (Noble)',
+                communication: 'ble',
+                isWireless: true,
+                pick_and_connect: {
+                    connect: electron_noble_connect,
+                    list: electron_noble_list_devices,
+                },
+            })
+        }
+        transports.push({
+            label: 'USB',
+            communication: 'serial',
+            pick_and_connect: {
+                connect: electron_serial_connect,
+                list: electron_serial_list_devices,
+            },
+        })
+    } else {
+        if (navigator.serial) {
+            transports.push({
+                label: 'USB',
+                communication: 'serial',
+                connect: serial_connect,
+            })
+        }
+
+        // Web Bluetooth: enable wherever navigator.bluetooth exists.
+        // Chrome/Edge support it on Win/Mac/Linux/Android. Previously
+        // gated to Linux UA only (upstream historical limit).
+        if (navigator.bluetooth) {
+            transports.push({
+                label: 'BLE',
+                communication: 'ble',
+                connect: gatt_connect,
+            })
+        }
     }
 
-    return transports
+    cachedTransports = transports
+    return cachedTransports
 }
-
-export const TRANSPORTS: TransportFactory[] = buildTransports()

@@ -81,8 +81,7 @@ export class GattTransport {
             })
 
             // Create write stream
-            const { readable, writable: _writable } =
-                new TransformStream<Uint8Array>()
+            const { readable } = new TransformStream<Uint8Array>()
 
             // Start read/write process
             this.startWriteProcess(readable)

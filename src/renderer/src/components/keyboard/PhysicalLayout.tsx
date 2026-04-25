@@ -1,11 +1,12 @@
 import { PropsWithChildren, useLayoutEffect, useRef, useState } from 'react'
-import { Key } from './Key.tsx'
+import { HoldTapLabels, Key } from './Key.tsx'
 import { scalePosition } from '../../helpers/scalePosition.ts'
 import { LayoutZoom } from '@/helpers/helpers.ts'
 
 export type KeyPosition = PropsWithChildren<{
     id?: string
     header?: string
+    holdTap?: HoldTapLabels
     width: number
     height: number
     x: number
@@ -37,8 +38,9 @@ export const PhysicalLayout = ({
     const ref = useRef<HTMLDivElement>(null)
     const [scale, setScale] = useState(1)
 
+    const { zoom } = props
+
     useLayoutEffect((): (() => void) | void => {
-        const { zoom } = props
         const element = ref.current
         if (!element) return
 
@@ -68,7 +70,7 @@ export const PhysicalLayout = ({
         resizeObserver.observe(parent)
 
         return (): void => resizeObserver.disconnect()
-    }, [props.zoom, ref, setScale])
+    }, [zoom])
 
     // TODO: Add a bit of padding for rotation when supported
     const { rightMost, bottomMost } = positions.reduce(

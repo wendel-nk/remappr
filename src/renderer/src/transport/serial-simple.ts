@@ -18,12 +18,14 @@ export class SimpleSerialTransport {
         this._eventEmitter = eventEmitter
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     async serialConnect(_id: string): Promise<boolean> {
         throw new Error(
             'SimpleSerialTransport is not implemented. Use Web Serial API or Tauri serial instead.',
         )
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     async write(_data: Uint8Array): Promise<void> {
         throw new Error(
             'SimpleSerialTransport is not implemented. Use Web Serial API or Tauri serial instead.',

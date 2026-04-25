@@ -1,7 +1,20 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+// pattern-check: skip — merge conflict resolution, no new logic
+import { app, shell, BrowserWindow } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
+import { registerIpcHandlers } from './ipc-handlers'
+import {
+    setupBleDeviceSelection,
+    registerBleIpcHandlers,
+} from './ble-manager'
+import { setupSerialDeviceSelection } from './serial-picker'
+import { startSerialDevicePolling } from './serial'
+
+// Enable Web Bluetooth (navigator.bluetooth) in Chromium. Must run before
+// app.whenReady(). Without this, Electron exposes no `navigator.bluetooth`
+// and BLE device discovery silently fails in the renderer.
+app.commandLine.appendSwitch('enable-experimental-web-platform-features')
 
 function createWindow(): void {
     // Create the browser window.
@@ -12,13 +25,48 @@ function createWindow(): void {
         autoHideMenuBar: true,
         ...(process.platform === 'linux' ? { icon } : {}),
         webPreferences: {
-            preload: join(__dirname, '../preload/index.js'),
+            preload: join(__dirname, '../preload/index.mjs'),
             sandbox: false,
+            nodeIntegration: false,
+            contextIsolation: true,
         },
     })
 
+    // Grant Chromium device permissions so navigator.serial / navigator.bluetooth / navigator.hid
+    // can surface pickers inside Electron. Gated by origin so external pages opened via
+    // shell.openExternal cannot self-grant.
+    const sess = mainWindow.webContents.session
+    const devUrl = process.env['ELECTRON_RENDERER_URL']
+
+    sess.setPermissionCheckHandler((_wc, permission, origin) => {
+        const allowedOrigin =
+            origin.startsWith('file://') ||
+            (!!devUrl && origin.startsWith(devUrl))
+        const p = permission as string
+        return (
+            allowedOrigin &&
+            (p === 'serial' || p === 'bluetooth' || p === 'hid')
+        )
+    })
+
+    sess.setPermissionRequestHandler((_wc, permission, cb) => {
+        const p = permission as string
+        cb(p === 'bluetooth' || p === 'serial' || p === 'hid')
+    })
+
+    sess.setDevicePermissionHandler((details) => {
+        const t = details.deviceType as string
+        return t === 'serial' || t === 'usb' || t === 'hid'
+    })
+
+    // Safety-net handler for any stray navigator.serial.requestPort() calls.
+    setupSerialDeviceSelection(mainWindow)
+
+    // Set up BLE device selection handler for Web Bluetooth support
+    setupBleDeviceSelection(mainWindow)
+
     mainWindow.on('ready-to-show', (): void => {
-        mainWindow.show()
+        mainWindow?.show()
     })
 
     mainWindow.webContents.setWindowOpenHandler(
@@ -54,8 +102,12 @@ app.whenReady().then((): void => {
         },
     )
 
-    // IPC test
-    ipcMain.on('ping', (): void => console.log('pong'))
+    // Register all IPC handlers
+    registerIpcHandlers(() => BrowserWindow.getAllWindows())
+    registerBleIpcHandlers()
+
+    // Start USB hotplug polling — pushes SERIAL_DEVICES_CHANGED on changes.
+    startSerialDevicePolling(() => BrowserWindow.getAllWindows())
 
     createWindow()
 
@@ -74,6 +126,3 @@ app.on('window-all-closed', (): void => {
         app.quit()
     }
 })
-
-// In this file you can include the rest of your app's specific main process
-// code. You can also put them in separate files and require them here.

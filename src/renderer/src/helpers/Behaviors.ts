@@ -4,6 +4,17 @@ import type { GetBehaviorDetailsResponse } from '@zmkfirmware/zmk-studio-ts-clie
 import useConnectionStore from '../stores/ConnectionStore.ts'
 import { callRemoteProcedureControl } from '@/services/CallRemoteProcedureControl.ts'
 
+// Re-export hold-tap utilities from the dedicated module
+export {
+    HoldTapType,
+    isHoldTapBinding,
+    parseHoldTapBinding,
+    getTapParam,
+    getHoldParam,
+    type HoldTapBinding,
+    type HoldTapDetectionResult,
+} from './HoldTapBindings'
+
 export type BehaviorMap = Record<number, GetBehaviorDetailsResponse>
 
 export function useBehaviors(): BehaviorMap {
@@ -16,6 +27,7 @@ export function useBehaviors(): BehaviorMap {
             !connection ||
             lockState !== LockState.ZMK_STUDIO_CORE_LOCK_STATE_UNLOCKED
         ) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setBehaviors({})
             return
         }
