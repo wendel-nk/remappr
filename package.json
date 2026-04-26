@@ -95,7 +95,6 @@
         "@typescript-eslint/parser": "^8.54.0",
         "@vitejs/plugin-react-swc": "^4.2.2",
         "autoprefixer": "^10.4.24",
-        "daisyui": "^5.5.16",
         "electron": "^39.2.6",
         "electron-builder": "^26.0.12",
         "electron-vite": "^5.0.0",
