@@ -10,6 +10,7 @@ import { BehaviorParametersPicker } from './BehaviorParametersPicker'
 import { BehaviorSelector } from './BehaviorSelector'
 import { validateValue } from './parameters'
 import { SelectedKeysDisplay } from '@/components/keycodes/SelectedKeysDisplay'
+import { KeyPreview } from '@/components/keyboard/KeyPreview'
 
 // Modifier key definitions (same as HidUsagePicker)
 enum Mods {
@@ -72,12 +73,10 @@ export const BehaviorBindingPicker = ({
     behaviors,
     onBindingChanged,
 }: BehaviorBindingPickerProps): JSX.Element => {
-    // Initialize state from binding
     const [behaviorId, setBehaviorId] = useState(binding?.behaviorId ?? 0)
     const [param1, setParam1] = useState<number | undefined>(binding?.param1)
     const [param2, setParam2] = useState<number | undefined>(binding?.param2)
 
-    // Add state for selected keys display
     const [selectedKey, setSelectedKey] = useState<number | undefined>(
         undefined,
     )
@@ -103,11 +102,6 @@ export const BehaviorBindingPicker = ({
             return
         }
 
-        console.log(
-            binding.behaviorId === behaviorId &&
-                binding.param1 === param1 &&
-                binding.param2 === param2,
-        )
         if (!metadata) {
             console.error(
                 "Can't find metadata for the selected behaviorId",
@@ -147,7 +141,6 @@ export const BehaviorBindingPicker = ({
         setBehaviorId(binding.behaviorId)
         setParam1(binding.param1)
         setParam2(binding.param2)
-        console.log(binding)
     }, [binding])
 
     const handleBehaviorSelected = (selectedBehaviorId: number): void => {
@@ -156,7 +149,6 @@ export const BehaviorBindingPicker = ({
         setParam2(0)
     }
 
-    // Handlers for SelectedKeysDisplay
     const handleClearAll = (): void => {
         setSelectedKey(undefined)
         setSelectedModifiers([])
@@ -167,11 +159,10 @@ export const BehaviorBindingPicker = ({
     }
 
     const handleRemoveModifier = (keyId: number): void => {
-        // Find the modifier that corresponds to this keyId
         const modifier = KEY_ID_TO_MOD[keyId]
         if (modifier) {
-            setSelectedModifiers((prev: number[]): number[] =>
-                prev.filter((m: number): boolean => m !== modifier),
+            setSelectedModifiers((prev: Mods[]): Mods[] =>
+                prev.filter((m: Mods): boolean => m !== modifier),
             )
         }
     }
@@ -188,40 +179,59 @@ export const BehaviorBindingPicker = ({
         setSelectedModifiers(modifiers)
     }
 
+    const liveBinding: BehaviorBinding = useMemo(
+        () => ({
+            behaviorId,
+            param1: param1 ?? 0,
+            param2: param2 ?? 0,
+        }),
+        [behaviorId, param1, param2],
+    )
+
     return (
-        <div className="flex flex-col w-full">
-            <div className="flex flex-row flex-1 gap-3">
-                <BehaviorSelector
+        <div className="flex flex-row w-full gap-4">
+            <div className="flex-shrink-0">
+                <KeyPreview
+                    binding={liveBinding}
                     behaviors={behaviors}
-                    selectedBehaviorId={behaviorId}
-                    onBehaviorSelected={handleBehaviorSelected}
-                    placeholder="Select behavior..."
+                    layers={layers}
                 />
-                {isKeysLayoutActive && (
-                    <SelectedKeysDisplay
-                        selectedKey={selectedKey}
-                        selectedModifiers={selectedModifiers}
-                        onClearAll={handleClearAll}
-                        onRemoveKey={handleRemoveKey}
-                        onRemoveModifier={handleRemoveModifier}
+            </div>
+
+            <div className="flex flex-col flex-1">
+                <div className="flex flex-row flex-1 gap-3 items-start">
+                    <BehaviorSelector
+                        behaviors={behaviors}
+                        selectedBehaviorId={behaviorId}
+                        onBehaviorSelected={handleBehaviorSelected}
+                        placeholder="Select behavior..."
                     />
+                    {isKeysLayoutActive && (
+                        <SelectedKeysDisplay
+                            selectedKey={selectedKey}
+                            selectedModifiers={selectedModifiers}
+                            onClearAll={handleClearAll}
+                            onRemoveKey={handleRemoveKey}
+                            onRemoveModifier={handleRemoveModifier}
+                        />
+                    )}
+                </div>
+                {metadata && (
+                    <div className="flex-1">
+                        <BehaviorParametersPicker
+                            metadata={metadata}
+                            param1={param1}
+                            param2={param2}
+                            layers={layers}
+                            onParam1Changed={setParam1}
+                            onParam2Changed={setParam2}
+                            onKeysLayoutActive={handleKeysLayoutActive}
+                            onKeySelected={handleKeySelected}
+                            onModifiersChanged={handleModifiersChanged}
+                        />
+                    </div>
                 )}
             </div>
-            {metadata && (
-                <div className="flex-1">
-                    <BehaviorParametersPicker
-                        metadata={metadata}
-                        param1={param1}
-                        param2={param2}
-                        layers={layers}
-                        onParam1Changed={setParam1}
-                        onParam2Changed={setParam2}
-                        onKeysLayoutActive={handleKeysLayoutActive}
-                        onKeySelected={handleKeySelected}
-                        onModifiersChanged={handleModifiersChanged}
-                    />
-                </div>
-            )}
         </div>
     )
 }

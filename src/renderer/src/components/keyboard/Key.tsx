@@ -9,6 +9,12 @@ import {
     useLayoutEffect,
 } from 'react'
 
+export interface HoldTapLabels {
+    tap: React.ReactNode
+    hold: React.ReactNode
+    tooltip?: string
+}
+
 interface KeyProps {
     selected?: boolean
     pressed?: boolean
@@ -20,6 +26,11 @@ interface KeyProps {
      * Button contents
      */
     header?: string
+    /**
+     * When set, the key renders a two-section layout (tap on top, hold on bottom)
+     * and the children/header are ignored.
+     */
+    holdTap?: HoldTapLabels
     /**
      * Optional click handler
      */
@@ -193,10 +204,12 @@ export const Key = ({
     header,
     oneU,
     hoverZoom = true,
+    holdTap,
     ...props
 }: PropsWithChildren<KeyProps>): JSX.Element => {
     const size = makeSize(props, oneU)
     const maxChildFontSize = Math.max(10, oneU / 2.5)
+    const maxHoldFontSize = Math.max(8, oneU / 4)
     const maxHeaderFontSize = Math.max(6, oneU / 6)
 
     const children = Children.map(
@@ -229,10 +242,11 @@ export const Key = ({
             <button
                 aria-selected={selected}
                 data-zoomer={hoverZoom}
+                title={holdTap?.tooltip}
                 className={`rounded${
                     oneU > 20 ? '-md' : ''
                 } transition-all duration-100 box-border text-base-content bg-cyan-950  aria-selected:bg-primary aria-selected:text-primary-content grow
-                 flex-col flex items-center justify-evenly w-full h-full overflow-hidden ${
+                 flex-col flex items-center ${holdTap ? 'justify-stretch' : 'justify-evenly'} w-full h-full overflow-hidden ${
                      pressed ? 'bg-green-600 text-white shadow-lg scale-95' : ''
                  }`}
                 style={
@@ -242,17 +256,44 @@ export const Key = ({
                     } as React.CSSProperties
                 }
             >
-                {header && (
-                    <FitText
-                        maxFontSize={maxHeaderFontSize}
-                        minFontSize={4}
-                        hoverZoom={hoverZoom}
-                        className={'flex-none'}
-                    >
-                        {header}
-                    </FitText>
+                {holdTap ? (
+                    <>
+                        <div className="key-tap-section flex items-center justify-center w-full h-[60%] overflow-hidden border-b border-border/40">
+                            <FitText
+                                maxFontSize={maxChildFontSize}
+                                minFontSize={4}
+                                hoverZoom={hoverZoom}
+                                className="font-keycap"
+                            >
+                                {holdTap.tap}
+                            </FitText>
+                        </div>
+                        <div className="key-hold-section flex items-center justify-center w-full h-[40%] overflow-hidden bg-muted/40 text-muted-foreground">
+                            <FitText
+                                maxFontSize={maxHoldFontSize}
+                                minFontSize={4}
+                                hoverZoom={hoverZoom}
+                                className="font-keycap"
+                            >
+                                {holdTap.hold}
+                            </FitText>
+                        </div>
+                    </>
+                ) : (
+                    <>
+                        {header && (
+                            <FitText
+                                maxFontSize={maxHeaderFontSize}
+                                minFontSize={4}
+                                hoverZoom={hoverZoom}
+                                className={'flex-none'}
+                            >
+                                {header}
+                            </FitText>
+                        )}
+                        {children}
+                    </>
                 )}
-                {children}
             </button>
         </div>
     )
