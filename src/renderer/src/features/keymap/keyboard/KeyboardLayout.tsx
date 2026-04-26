@@ -9,7 +9,10 @@ import { PhysicalLayout as PhysicalLayoutComp } from './PhysicalLayout.tsx'
 import { HidUsageLabel } from './HidUsageLabel.tsx'
 import { HoldTapLabels } from './Key.tsx'
 import { LayoutZoom } from '@/utils/helpers.ts'
-import { HoldTapType, parseHoldTapBinding } from '@/features/behaviors/holdTapBindings.ts'
+import {
+    HoldTapType,
+    parseHoldTapBinding,
+} from '@/features/behaviors/holdTapBindings.ts'
 import {
     formatMomentaryLayer,
     abbreviateLayerName,
@@ -93,66 +96,68 @@ export const KeyboardLayout = ({
     const positions = useMemo(() => {
         if (!keymap.layers[selectedLayerIndex]) return []
         return layout.keys.map(
-        (
-            k: {
+            (
+                k: {
+                    x: number
+                    y: number
+                    width: number
+                    height: number
+                    r?: number
+                    rx?: number
+                    ry?: number
+                },
+                i: number,
+            ): {
+                id: string
+                header: string
+                holdTap?: HoldTapLabels
                 x: number
                 y: number
                 width: number
                 height: number
-                r?: number
-                rx?: number
-                ry?: number
+                r: number
+                rx: number
+                ry: number
+                children: JSX.Element
+            } => {
+                const binding = keymap.layers[selectedLayerIndex].bindings[i]
+                const outOfRange =
+                    i >= keymap.layers[selectedLayerIndex].bindings.length
+
+                const holdTap = outOfRange
+                    ? undefined
+                    : buildHoldTapLabels(binding, behaviors, keymap)
+
+                const children = outOfRange ? (
+                    <span></span>
+                ) : (
+                    <HidUsageLabel
+                        hid_usage={binding.param1}
+                        header={
+                            behaviors[binding.behaviorId]?.displayName ||
+                            'Unknown'
+                        }
+                    />
+                )
+                const header = outOfRange
+                    ? 'Unknown'
+                    : behaviors[binding.behaviorId]?.displayName || 'Unknown'
+
+                return {
+                    id: `${keymap.layers[selectedLayerIndex].id}-${i}`,
+                    header: header,
+                    holdTap,
+                    x: k.x / 100.0,
+                    y: k.y / 100.0,
+                    width: k.width / 100,
+                    height: k.height / 100.0,
+                    r: (k.r || 0) / 100.0,
+                    rx: (k.rx || 0) / 100.0,
+                    ry: (k.ry || 0) / 100.0,
+                    children: children,
+                }
             },
-            i: number,
-        ): {
-            id: string
-            header: string
-            holdTap?: HoldTapLabels
-            x: number
-            y: number
-            width: number
-            height: number
-            r: number
-            rx: number
-            ry: number
-            children: JSX.Element
-        } => {
-            const binding = keymap.layers[selectedLayerIndex].bindings[i]
-            const outOfRange =
-                i >= keymap.layers[selectedLayerIndex].bindings.length
-
-            const holdTap = outOfRange
-                ? undefined
-                : buildHoldTapLabels(binding, behaviors, keymap)
-
-            const children = outOfRange ? (
-                <span></span>
-            ) : (
-                <HidUsageLabel
-                    hid_usage={binding.param1}
-                    header={
-                        behaviors[binding.behaviorId]?.displayName || 'Unknown'
-                    }
-                />
-            )
-            const header = outOfRange
-                ? 'Unknown'
-                : behaviors[binding.behaviorId]?.displayName || 'Unknown'
-
-            return {
-                id: `${keymap.layers[selectedLayerIndex].id}-${i}`,
-                header: header,
-                holdTap,
-                x: k.x / 100.0,
-                y: k.y / 100.0,
-                width: k.width / 100,
-                height: k.height / 100.0,
-                r: (k.r || 0) / 100.0,
-                rx: (k.rx || 0) / 100.0,
-                ry: (k.ry || 0) / 100.0,
-                children: children,
-            }
-        })
+        )
     }, [layout, keymap, behaviors, selectedLayerIndex])
 
     if (!keymap.layers[selectedLayerIndex]) {

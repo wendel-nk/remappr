@@ -45,7 +45,9 @@ export function setupBleDeviceSelection(window: BrowserWindow): void {
             console.log(
                 '[ble-manager] select-bluetooth-device fired, devices:',
                 devices.length,
-                devices.map((d) => `${d.deviceName || '(no-name)'}@${d.deviceId}`),
+                devices.map(
+                    (d) => `${d.deviceName || '(no-name)'}@${d.deviceId}`,
+                ),
             )
 
             // Store the callback so we can resolve it when the user picks a device

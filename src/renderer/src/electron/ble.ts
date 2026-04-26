@@ -52,7 +52,11 @@ export async function list_devices(): Promise<AvailableDevice[]> {
             const devices = (await window.api.invoke(
                 IpcChannels.BLUEZ_LIST_DEVICES,
             )) as AvailableDevice[]
-            console.log('[electron/ble] BlueZ returned', devices.length, 'devices')
+            console.log(
+                '[electron/ble] BlueZ returned',
+                devices.length,
+                'devices',
+            )
             return devices
         } catch (e) {
             console.error('[electron/ble] BLUEZ_LIST_DEVICES failed:', e)
@@ -201,7 +205,9 @@ async function connectViaWebBluetooth(
     dev: AvailableDevice,
 ): Promise<RpcTransport> {
     if (!navigator.bluetooth) {
-        throw new Error('Web Bluetooth API not available in this Electron build')
+        throw new Error(
+            'Web Bluetooth API not available in this Electron build',
+        )
     }
 
     const selected = await window.api.invoke(

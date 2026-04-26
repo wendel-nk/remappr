@@ -13,11 +13,7 @@ import { Separator } from '@/ui/separator.tsx'
 import { useConnectedDeviceData } from '@/features/connection/rpcConnectionService.ts'
 import { toast } from 'sonner'
 import { callRemoteProcedureControl } from '@/features/connection/callRemoteProcedureControl.ts'
-import {
-    Tooltip,
-    TooltipTrigger,
-    TooltipContent,
-} from '@/ui/tooltip.tsx'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/ui/tooltip.tsx'
 
 export function Header(): JSX.Element {
     const { connection, lockState, setConnection } = useConnectionStore()

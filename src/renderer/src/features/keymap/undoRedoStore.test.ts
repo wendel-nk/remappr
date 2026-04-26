@@ -77,7 +77,8 @@ describe('undoRedoStore', () => {
     })
 
     it('new doIt clears redoStack (preserveRedo=false)', async () => {
-        const cb = async (): Promise<() => Promise<void>> =>
+        const cb =
+            async (): Promise<() => Promise<void>> =>
             async (): Promise<void> => {}
         await useUndoRedoStore.getState().doIt(cb)
         await useUndoRedoStore.getState().undo()

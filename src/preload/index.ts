@@ -17,17 +17,12 @@ const VALID_EVENT_CHANNELS = new Set<string>(Object.values(IpcEvents))
 const api = {
     invoke(channel: string, ...args: unknown[]): Promise<unknown> {
         if (!VALID_INVOKE_CHANNELS.has(channel)) {
-            return Promise.reject(
-                new Error(`Invalid IPC channel: ${channel}`),
-            )
+            return Promise.reject(new Error(`Invalid IPC channel: ${channel}`))
         }
         return ipcRenderer.invoke(channel, ...args)
     },
 
-    on(
-        event: string,
-        callback: (...args: unknown[]) => void,
-    ): () => void {
+    on(event: string, callback: (...args: unknown[]) => void): () => void {
         if (!VALID_EVENT_CHANNELS.has(event)) {
             throw new Error(`Invalid IPC event: ${event}`)
         }

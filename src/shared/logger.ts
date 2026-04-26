@@ -31,8 +31,7 @@ const isDev = ((): boolean => {
         /* ignore — `import.meta` may not exist in plain Node */
     }
     return (
-        typeof process !== 'undefined' &&
-        process.env?.NODE_ENV !== 'production'
+        typeof process !== 'undefined' && process.env?.NODE_ENV !== 'production'
     )
 })()
 

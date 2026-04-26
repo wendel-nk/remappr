@@ -210,6 +210,7 @@ export function useConnectedDeviceData<T>(
                 (requireUnlock &&
                     lockState != LockState.ZMK_STUDIO_CORE_LOCK_STATE_UNLOCKED)
             ) {
+                // eslint-disable-next-line react-hooks/set-state-in-effect
                 setData(undefined)
                 return
             }

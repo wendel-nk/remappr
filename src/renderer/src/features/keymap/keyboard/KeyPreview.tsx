@@ -3,7 +3,10 @@ import { BehaviorBinding } from '@zmkfirmware/zmk-studio-ts-client/keymap'
 import { GetBehaviorDetailsResponse } from '@zmkfirmware/zmk-studio-ts-client/behaviors'
 import { Key, HoldTapLabels } from './Key'
 import { HidUsageLabel } from './HidUsageLabel'
-import { HoldTapType, parseHoldTapBinding } from '@/features/behaviors/holdTapBindings'
+import {
+    HoldTapType,
+    parseHoldTapBinding,
+} from '@/features/behaviors/holdTapBindings'
 import {
     abbreviateLayerName,
     formatMomentaryLayer,

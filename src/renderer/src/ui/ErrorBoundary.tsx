@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { Component, ErrorInfo, ReactNode } from 'react'
 
 interface ErrorBoundaryProps {
@@ -22,7 +23,7 @@ export class ErrorBoundary extends Component<
 
     componentDidCatch(error: Error, info: ErrorInfo): void {
         this.props.onError?.(error, info)
-        // eslint-disable-next-line no-console
+
         console.error('[ErrorBoundary]', error, info.componentStack)
     }
 
@@ -33,7 +34,9 @@ export class ErrorBoundary extends Component<
             if (this.props.fallback) {
                 return this.props.fallback(this.state.error, this.reset)
             }
-            return <DefaultFallback error={this.state.error} reset={this.reset} />
+            return (
+                <DefaultFallback error={this.state.error} reset={this.reset} />
+            )
         }
         return this.props.children
     }

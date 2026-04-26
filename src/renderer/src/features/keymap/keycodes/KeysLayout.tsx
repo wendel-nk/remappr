@@ -2,12 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { KeyboardKeys, keyboards } from '@/data/keys'
 import Keycode from './Keycode.tsx'
 import { Key } from 'react-aria-components'
-import {
-    Tabs,
-    TabsList,
-    TabsTrigger,
-    TabsContent,
-} from '@/ui/tabs.tsx'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/ui/tabs.tsx'
 import { Input } from '@/ui/input.tsx'
 import {
     hidUsageFromPageAndId,
@@ -94,6 +89,7 @@ export function KeysLayout({
     )
 
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setSelectedKey(value)
     }, [value])
 
@@ -119,6 +115,7 @@ export function KeysLayout({
                     })
                     if (key) {
                         // Found the matching keyboard tab
+                        // eslint-disable-next-line react-hooks/set-state-in-effect
                         setActiveTab(i.toString())
                         return
                     }
@@ -192,6 +189,7 @@ export function KeysLayout({
                     (k) => k.hasMatches,
                 )
                 if (firstEnabledTab) {
+                    // eslint-disable-next-line react-hooks/set-state-in-effect
                     setActiveTab(firstEnabledTab.index.toString())
                 }
             }
