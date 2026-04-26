@@ -3,7 +3,7 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/ui/popover'
 import {
     PhysicalLayoutCanvas,
     type KeyPosition,
-} from './PhysicalLayoutCanvas.tsx'
+} from '../keyboard/PhysicalLayoutCanvas'
 import {
     SidebarGroupContent,
     SidebarGroupLabel,

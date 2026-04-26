@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo } from 'react'
 import { useLayout } from '@/hooks/use-layouts'
-import { PhysicalLayoutPicker } from '@/features/keymap/keyboard/PhysicalLayoutPicker'
+import { PhysicalLayoutPicker } from '@/features/keymap/layout-picker/PhysicalLayoutPicker'
 import { LayerPicker } from '@/features/keymap/layer-picker/LayerPicker'
 import undoRedoStore from '@/stores/undoRedoStore'
 import useConnectionStore from '@/stores/connectionStore'
