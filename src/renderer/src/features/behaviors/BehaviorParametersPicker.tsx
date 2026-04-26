@@ -1,6 +1,6 @@
 import { BehaviorBindingParametersSet } from '@zmkfirmware/zmk-studio-ts-client/behaviors'
 import { ParameterValuePicker } from './ParameterValuePicker'
-import { validateValue } from './parameters'
+import { validateValue } from '@/lib/behaviors/parameters'
 
 export interface BehaviorParametersPickerProps {
     param1?: number

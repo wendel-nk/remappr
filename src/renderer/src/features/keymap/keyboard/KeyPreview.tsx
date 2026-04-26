@@ -3,18 +3,15 @@ import { BehaviorBinding } from '@zmkfirmware/zmk-studio-ts-client/keymap'
 import { GetBehaviorDetailsResponse } from '@zmkfirmware/zmk-studio-ts-client/behaviors'
 import { Key, HoldTapLabels } from './Key'
 import { HidUsageLabel } from './HidUsageLabel'
-import {
-    HoldTapType,
-    parseHoldTapBinding,
-} from '@/features/behaviors/holdTapBindings'
+import { HoldTapType, parseHoldTapBinding } from '@/lib/behaviors/holdTap'
 import {
     abbreviateLayerName,
     formatMomentaryLayer,
-} from '@/utils/keyAbbreviations'
+} from '@/lib/keyAbbreviations'
 import {
     hid_usage_get_labels,
     hidUsagePageAndIdFromUsage,
-} from '@/features/behaviors/hidUsages'
+} from '@/lib/behaviors/hidUsages'
 
 export interface KeyPreviewProps {
     binding: BehaviorBinding

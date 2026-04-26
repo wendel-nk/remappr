@@ -7,7 +7,7 @@ import {
     RequestResponse,
     RpcConnection,
 } from '@zmkfirmware/zmk-studio-ts-client'
-import { valueAfter } from '@/utils/async'
+import { valueAfter } from '@/lib/async'
 import { RpcTransport } from '@zmkfirmware/zmk-studio-ts-client/transport/index'
 import { publish } from '@/utils/usePubSub'
 import useConnectionStore from '@/stores/connectionStore.ts'

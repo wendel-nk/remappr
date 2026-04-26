@@ -13,7 +13,7 @@ export {
     getHoldParam,
     type HoldTapBinding,
     type HoldTapDetectionResult,
-} from './holdTapBindings'
+} from '@/lib/behaviors/holdTap'
 
 export type BehaviorMap = Record<number, GetBehaviorDetailsResponse>
 

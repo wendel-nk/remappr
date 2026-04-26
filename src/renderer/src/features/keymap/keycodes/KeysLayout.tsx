@@ -7,7 +7,7 @@ import { Input } from '@/ui/input.tsx'
 import {
     hidUsageFromPageAndId,
     hidUsagePageAndIdFromUsage,
-} from '@/features/behaviors/hidUsages.ts'
+} from '@/lib/behaviors/hidUsages.ts'
 
 /**
  * KeysLayout Component

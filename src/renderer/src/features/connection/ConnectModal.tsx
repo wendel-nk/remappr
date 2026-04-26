@@ -6,7 +6,7 @@ import { ExternalLink } from '@/utils/ExternalLink.tsx'
 import { DeviceList } from './DeviceList.tsx'
 import { SimpleDevicePicker } from './SimpleDevicePicker.tsx'
 // pattern-check: skip — mechanical rename TRANSPORTS -> getTransports()
-import { getTransports } from '@/utils/transports'
+import { getTransports } from '@/lib/transports'
 import { Modal } from '@/ui/modal.tsx'
 
 export interface ConnectModalProps {

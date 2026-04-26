@@ -17,7 +17,7 @@ import {
     PopoverProps,
 } from 'react-aria-components'
 
-import { cn } from '@/utils/cn'
+import { cn } from '@/lib/cn'
 
 import { Button, buttonVariants } from './button.tsx'
 import { ListBoxCollection, ListBoxSection } from './list-box.tsx'

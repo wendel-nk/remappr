@@ -9,7 +9,7 @@ import {
     type BehaviorDetailsLike,
     type BehaviorBindingLike,
     type BehaviorParameterValueDescriptionLike,
-} from './holdTapBindings'
+} from './holdTap'
 
 // Mock behavior data for testing
 const createMockBehavior = (

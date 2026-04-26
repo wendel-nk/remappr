@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
 import { fn } from 'storybook/test'
 import { PhysicalLayout } from './PhysicalLayout.tsx'
 import { HidUsageLabel } from './HidUsageLabel.tsx'
-import { hidUsageFromPageAndId } from '@/features/behaviors/hidUsages'
+import { hidUsageFromPageAndId } from '@/lib/behaviors/hidUsages'
 
 // More on how to set up stories at: https://storybook.js.org/docs/writing-stories#default-export
 const meta = {

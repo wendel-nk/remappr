@@ -13,7 +13,7 @@ import {
     generateZMKKeymapFile,
     generateZMKConfigFile,
     downloadConfigZip,
-} from '@/utils/zmkConfigGenerator.ts'
+} from '@/lib/zmkConfigGenerator.ts'
 import { Keymap } from '@zmkfirmware/zmk-studio-ts-client/keymap'
 
 interface DownloadProps {

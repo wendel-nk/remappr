@@ -1,8 +1,8 @@
 import {
     hid_usage_get_labels,
     hidUsagePageAndIdFromUsage,
-} from '@/features/behaviors/hidUsages'
-import { abbreviateKeyName } from '@/utils/keyAbbreviations'
+} from '@/lib/behaviors/hidUsages'
+import { abbreviateKeyName } from '@/lib/keyAbbreviations'
 
 export interface HidUsageLabelProps {
     hid_usage: number

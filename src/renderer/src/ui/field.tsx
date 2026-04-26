@@ -12,7 +12,7 @@ import {
     composeRenderProps,
 } from 'react-aria-components'
 
-import { cn } from '@/utils/cn'
+import { cn } from '@/lib/cn'
 
 const labelVariants = cva([
     'text-sm font-medium leading-none',

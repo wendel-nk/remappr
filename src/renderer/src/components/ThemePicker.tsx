@@ -10,7 +10,7 @@ import {
     CommandList,
 } from '@/ui/command'
 import { Popover, PopoverContent, PopoverTrigger } from '@/ui/popover'
-import { cn } from '@/utils/cn'
+import { cn } from '@/lib/cn'
 import {
     THEME_NAMES,
     type ThemeName,

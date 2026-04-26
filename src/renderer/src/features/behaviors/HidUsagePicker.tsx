@@ -16,7 +16,7 @@ import {
 import {
     hidUsageFromPageAndId,
     hid_usage_page_get_ids,
-} from '@/features/behaviors/hidUsages'
+} from '@/lib/behaviors/hidUsages'
 import { useCallback, useMemo } from 'react'
 import { ChevronDown } from 'lucide-react'
 

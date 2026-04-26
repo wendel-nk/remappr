@@ -1,5 +1,5 @@
 import { BehaviorParameterValueDescription } from '@zmkfirmware/zmk-studio-ts-client/behaviors'
-import { hidUsagePageAndIdFromUsage } from '@/features/behaviors/hidUsages'
+import { hidUsagePageAndIdFromUsage } from '@/lib/behaviors/hidUsages'
 
 export function validateValue(
     layerIds: number[],

@@ -15,7 +15,7 @@ import {
 import { DeviceCard, DeviceStatus } from '@/features/connection/DeviceCard.tsx'
 import type { TransportFactory } from '@/transport/types'
 // pattern-check: skip — mechanical rename TRANSPORTS -> getTransports()
-import { getTransports, isElectron } from '@/utils/transports'
+import { getTransports, isElectron } from '@/lib/transports'
 import { onDevicesChanged as onSerialDevicesChanged } from '@/electron/serial'
 import { ExternalLink } from '@/utils/ExternalLink.tsx'
 import type { AvailableDevice } from '@/transport/types'

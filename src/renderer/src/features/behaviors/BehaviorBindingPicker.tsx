@@ -7,7 +7,7 @@ import {
 import { BehaviorBinding } from '@zmkfirmware/zmk-studio-ts-client/keymap'
 import { BehaviorParametersPicker } from './BehaviorParametersPicker'
 import { BehaviorSelector } from './BehaviorSelector'
-import { validateValue } from './parameters'
+import { validateValue } from '@/lib/behaviors/parameters'
 import { SelectedKeysDisplay } from '@/features/keymap/keycodes/SelectedKeysDisplay'
 import { KeyPreview } from '@/features/keymap/keyboard/KeyPreview'
 
