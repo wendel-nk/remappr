@@ -9,7 +9,7 @@ import {
 } from '@zmkfirmware/zmk-studio-ts-client'
 import { valueAfter } from '@/lib/async'
 import { RpcTransport } from '@zmkfirmware/zmk-studio-ts-client/transport/index'
-import { publish } from '@/utils/usePubSub'
+import { publish } from '@/hooks/use-pub-sub'
 import useConnectionStore from '@/stores/connectionStore.ts'
 import { callRemoteProcedureControl } from '@/features/connection/callRemoteProcedureControl.ts'
 import { LockState } from '@zmkfirmware/zmk-studio-ts-client/core'

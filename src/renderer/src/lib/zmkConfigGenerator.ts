@@ -1,5 +1,5 @@
 import { Keymap } from '@zmkfirmware/zmk-studio-ts-client/keymap'
-import { BehaviorMap } from '@/features/behaviors/behaviors.ts'
+import type { BehaviorMap } from '@/lib/behaviors/types'
 
 export interface ZMKConfigOptions {
     keyboardName: string

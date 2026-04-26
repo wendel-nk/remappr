@@ -2,27 +2,14 @@ import { useEffect, useState } from 'react'
 import { LockState } from '@zmkfirmware/zmk-studio-ts-client/core'
 import type { GetBehaviorDetailsResponse } from '@zmkfirmware/zmk-studio-ts-client/behaviors'
 import useConnectionStore from '@/stores/connectionStore'
-import { callRemoteProcedureControl } from '@/features/connection/callRemoteProcedureControl.ts'
-
-// Re-export hold-tap utilities from the dedicated module
-export {
-    HoldTapType,
-    isHoldTapBinding,
-    parseHoldTapBinding,
-    getTapParam,
-    getHoldParam,
-    type HoldTapBinding,
-    type HoldTapDetectionResult,
-} from '@/lib/behaviors/holdTap'
-
-export type BehaviorMap = Record<number, GetBehaviorDetailsResponse>
+import { callRemoteProcedureControl } from '@/features/connection/callRemoteProcedureControl'
+import type { BehaviorMap } from '@/lib/behaviors/types'
 
 export function useBehaviors(): BehaviorMap {
     const { connection, lockState } = useConnectionStore()
     const [behaviors, setBehaviors] = useState<BehaviorMap>({})
 
     useEffect((): void | (() => void) => {
-        // Only fetch if connection exists and device is unlocked.
         if (
             !connection ||
             lockState !== LockState.ZMK_STUDIO_CORE_LOCK_STATE_UNLOCKED
@@ -35,17 +22,9 @@ export function useBehaviors(): BehaviorMap {
         let isCancelled = false
 
         const fetchBehaviors = async (): Promise<void> => {
-            // Reset behaviors before fetching new data.
             setBehaviors({})
 
             try {
-                console.log(
-                    'Fetching behaviors with connection:',
-                    connection,
-                    'lockState:',
-                    lockState,
-                )
-
                 const listRequest = {
                     behaviors: { listAllBehaviors: true },
                     requestId: 0,

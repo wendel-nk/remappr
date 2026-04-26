@@ -2,13 +2,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Keymap } from '@zmkfirmware/zmk-studio-ts-client/keymap'
 import { KeyboardLayout } from './KeyboardLayout.tsx'
-import { useLocalStorageState } from '@/utils/useLocalStorageState.ts'
+import { useLocalStorageState } from '@/hooks/use-local-storage-state.ts'
 import { deserializeLayoutZoom, LayoutZoom } from '@/lib/helpers'
-import { useLayout } from '@/utils/useLayouts'
+import { useLayout } from '@/hooks/use-layouts'
 import { Zoom } from '../Zoom.tsx'
 import useConnectionStore from '@/stores/connectionStore.ts'
 import useLayerSelectionStore from '@/stores/layerSelectionStore.ts'
-import { useBehaviors } from '@/features/behaviors/behaviors'
+import { useBehaviors } from '@/hooks/use-behaviors'
 import { getKeymapLayout } from '@/services/rpcEventsService.ts'
 import {
     keyboardKeypressService,

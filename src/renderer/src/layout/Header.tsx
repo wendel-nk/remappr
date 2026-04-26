@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/preserve-manual-memoization */
 import { useCallback, useEffect } from 'react'
-import { useEmitter } from '@/utils/usePubSub'
+import { useEmitter } from '@/hooks/use-pub-sub'
 import { LockState } from '@zmkfirmware/zmk-studio-ts-client/core'
 import { Redo2, Save, Trash2, Undo2 } from 'lucide-react'
 import useConnectionStore from '@/stores/connectionStore'

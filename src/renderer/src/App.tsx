@@ -1,6 +1,6 @@
 import React, { JSX, useCallback, useEffect } from 'react'
 import type { RpcTransport } from '@zmkfirmware/zmk-studio-ts-client/transport/index'
-import { useEmitter } from '@/utils/usePubSub'
+import { useEmitter } from '@/hooks/use-pub-sub'
 import { LockState } from '@zmkfirmware/zmk-studio-ts-client/core'
 import { UnlockModal } from '@/features/connection/UnlockModal'
 import { connect } from '@/features/connection/rpcConnectionService'

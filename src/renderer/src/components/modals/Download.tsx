@@ -8,7 +8,7 @@ import { Separator } from '@/ui/separator.tsx'
 import { toast } from 'sonner'
 import useConnectionStore from '@/stores/connectionStore.ts'
 import { useConnectedDeviceData } from '@/features/connection/rpcConnectionService.ts'
-import { useBehaviors } from '@/features/behaviors/behaviors.ts'
+import { useBehaviors } from '@/hooks/use-behaviors.ts'
 import {
     generateZMKKeymapFile,
     generateZMKConfigFile,

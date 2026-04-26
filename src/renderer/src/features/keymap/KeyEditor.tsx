@@ -1,6 +1,6 @@
 import { X } from 'lucide-react'
 import { BehaviorBindingPicker } from '@/features/behaviors/BehaviorBindingPicker'
-import { useBehaviors } from '@/features/behaviors/behaviors'
+import { useBehaviors } from '@/hooks/use-behaviors'
 import {
     BehaviorBinding,
     Keymap,
