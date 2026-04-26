@@ -1,6 +1,6 @@
 import { useCallback } from 'react'
 import { LockState } from '@zmkfirmware/zmk-studio-ts-client/core'
-import { RestoreStock } from './RestoreStock.tsx'
+import { RestoreStockModal } from './RestoreStockModal'
 import useConnectionStore from '@/stores/connectionStore.ts'
 import undoRedoStore from '@/stores/undoRedoStore.ts'
 import { Button } from '@/ui/button.tsx'
@@ -70,7 +70,7 @@ export const DeviceMenu = (): JSX.Element => {
                             <Power className="mr-2 h-4 w-4" />
                             Disconnect
                         </DropdownMenuItem>
-                        <RestoreStock
+                        <RestoreStockModal
                             onOk={(): void => {
                                 resetSettings()
                             }}

@@ -4,7 +4,7 @@ import type { RpcTransport } from '@zmkfirmware/zmk-studio-ts-client/transport/i
 import type { TransportFactory } from '@/transport/types'
 import { ExternalLink } from '@/utils/ExternalLink.tsx'
 import { DeviceList } from './DeviceList.tsx'
-import { SimpleDevicePicker } from './SimpleDevicePicker.tsx'
+import { DevicePicker } from './DevicePicker'
 // pattern-check: skip — mechanical rename TRANSPORTS -> getTransports()
 import { getTransports } from '@/lib/transports'
 import { Modal } from '@/ui/modal.tsx'
@@ -37,10 +37,10 @@ export const ConnectModal = ({
         )
 
         return useSimplePicker ? (
-            <SimpleDevicePicker
+            <DevicePicker
                 transports={transports}
                 onTransportCreated={onTransportCreated}
-            ></SimpleDevicePicker>
+            />
         ) : (
             <DeviceList
                 open={open || false}

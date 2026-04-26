@@ -3,11 +3,11 @@ import { Modal } from '@/ui/modal.tsx'
 import { DropdownMenuItem } from '@/ui/dropdown-menu.tsx'
 import { RotateCcw } from 'lucide-react'
 
-interface RestoreStockSettings {
+interface RestoreStockModalProps {
     onOk: () => void
 }
 
-export function RestoreStock(props: RestoreStockSettings): JSX.Element {
+export function RestoreStockModal(props: RestoreStockModalProps): JSX.Element {
     const [showModal, setShowModal] = useState(false)
 
     const handleClick = (): void => {

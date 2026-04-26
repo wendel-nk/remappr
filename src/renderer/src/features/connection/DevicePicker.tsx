@@ -6,7 +6,7 @@ import { RpcTransport } from '@zmkfirmware/zmk-studio-ts-client/transport/index'
 import { Button } from '@/ui/button.tsx'
 import { toast } from 'sonner'
 
-interface SimpleDevicePickerProps {
+interface DevicePickerProps {
     transports: TransportFactory[]
     onTransportCreated: (
         t: RpcTransport,
@@ -14,10 +14,10 @@ interface SimpleDevicePickerProps {
     ) => void
 }
 
-export function SimpleDevicePicker({
+export function DevicePicker({
     transports,
     onTransportCreated,
-}: SimpleDevicePickerProps): JSX.Element {
+}: DevicePickerProps): JSX.Element {
     const [availableDevices, setAvailableDevices] = useState<
         AvailableDevice[] | undefined
     >(undefined)
