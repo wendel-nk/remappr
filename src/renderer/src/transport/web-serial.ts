@@ -143,32 +143,5 @@ export async function requestAndConnect(): Promise<RpcTransport> {
     const info = port.getInfo()
     const id = makeId(info, portRegistry.size)
     portRegistry.set(id, port)
-
-    // Best-effort: also acquire WebUSB permission for the same vid/pid so the
-    // device shows a real productName next time without an extra prompt. If
-    // the user cancels this second dialog, we silently fall back.
-    if (
-        typeof navigator !== 'undefined' &&
-        'usb' in navigator &&
-        info.usbVendorId !== undefined &&
-        info.usbProductId !== undefined
-    ) {
-        try {
-            await navigator.usb.requestDevice({
-                filters: [
-                    {
-                        vendorId: info.usbVendorId,
-                        productId: info.usbProductId,
-                    },
-                ],
-            })
-        } catch (e) {
-            console.log(
-                '[web-serial] WebUSB grant skipped (label will use fallback)',
-                e,
-            )
-        }
-    }
-
     return openTransport(port)
 }

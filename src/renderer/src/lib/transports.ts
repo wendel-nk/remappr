@@ -129,7 +129,17 @@ export function getTransports(): TransportFactory[] {
         // requires &studio_unlock + a fresh pair. Net result: chooser
         // is empty for users. Use the Electron build (pnpm edev) for
         // BLE — it talks to the native BT stack and reaches bonded
-        // devices. Re-enable here once a workable Web BT path exists.
+        // devices. Re-enable the block below once a workable Web BT
+        // path exists.
+        //
+        // if (navigator.bluetooth) {
+        //     transports.push({
+        //         label: 'BLE',
+        //         communication: 'ble',
+        //         isWireless: true,
+        //         connect: gatt_connect,
+        //     })
+        // }
         void gatt_connect
     }
 
