@@ -1,10 +1,9 @@
 import { useMemo } from 'react'
 
 import { LockState } from '@zmkfirmware/zmk-studio-ts-client/core'
-import { useModalRef } from '@/misc/useModalRef.ts'
 import { ExternalLink } from '@/misc/ExternalLink.tsx'
 import useConnectionStore from '@/stores/ConnectionStore.ts'
-import { OldModal } from '@/components/ui/OldModal.tsx'
+import { Modal } from '@/components/ui/Modal.tsx'
 
 export const UnlockModal = (): JSX.Element => {
     const { connection, lockState } = useConnectionStore()
@@ -14,17 +13,15 @@ export const UnlockModal = (): JSX.Element => {
             lockState != LockState.ZMK_STUDIO_CORE_LOCK_STATE_UNLOCKED,
         [connection, lockState],
     )
-    const dialog = useModalRef(open, false, false)
 
     return (
-        <OldModal
-            usedFor="unlockModal"
-            modalButton={''}
-            opened={!dialog}
-            hideCloseButton
-            hideXButton
+        <Modal
+            opened={open}
+            xButton={false}
+            showFooter={false}
+            isDismissable={true}
+            title="Unlock To Continue"
         >
-            <h1 className="text-xl">Unlock To Continue</h1>
             <p>
                 For security reasons, your keyboard requires unlocking before
                 using Remappr.
@@ -37,6 +34,6 @@ export const UnlockModal = (): JSX.Element => {
                 </ExternalLink>{' '}
                 documentation for more infomation.
             </p>
-        </OldModal>
+        </Modal>
     )
 }

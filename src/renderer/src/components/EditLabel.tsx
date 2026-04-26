@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { ModalProps } from '@/components/ui/OldModal.tsx'
 import { Modal } from '@/components/ui/Modal.tsx'
 import { Input } from '@/components/ui/input.tsx'
 
@@ -9,8 +8,9 @@ interface EditLabelData {
     newName?: string | null
 }
 
-export interface EditLabelProps extends ModalProps {
+export interface EditLabelProps {
     editLabelData?: EditLabelData
+    onClose?: () => void
     handleSaveNewLabel?: (
         id: number,
         oldName: string,
@@ -37,6 +37,7 @@ export default function EditLabel(props: EditLabelProps): JSX.Element | null {
         <Modal
             success="Update"
             onOk={handleSave}
+            onClose={props.onClose}
             customModalBoxClass="w-11/14 max-w-2xl"
             text="Rename"
             type="text"

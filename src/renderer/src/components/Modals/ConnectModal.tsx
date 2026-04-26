@@ -7,20 +7,14 @@ import { DeviceList } from '../DeviceList.tsx'
 import { SimpleDevicePicker } from '../SimpleDevicePicker.tsx'
 // pattern-check: skip — mechanical rename TRANSPORTS -> getTransports()
 import { getTransports } from '../../helpers/transports.ts'
-import { ModalProps } from '@/components/ui/OldModal.tsx'
 import { Modal } from '@/components/ui/Modal.tsx'
 
-export interface ConnectModalProps extends ModalProps {
+export interface ConnectModalProps {
     open?: boolean
     onTransportCreated: (
         t: RpcTransport,
         communication: 'serial' | 'ble',
     ) => void
-    usedFor?: string
-    modalButton?: string
-    opened?: boolean
-    hideCloseButton?: boolean
-    hideXButton?: boolean
 }
 
 export const ConnectModal = ({
