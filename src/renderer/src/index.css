@@ -1,6 +1,7 @@
 @import 'tailwindcss';
 
 @import '../../../node_modules/tw-animate-css/dist/tw-animate.css';
+@import './themes.css';
 
 /*---break---*/
 
