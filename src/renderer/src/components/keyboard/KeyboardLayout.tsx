@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import {
     PhysicalLayout,
     Keymap as KeymapMsg,
@@ -17,6 +18,8 @@ import {
     hid_usage_get_labels,
     hidUsagePageAndIdFromUsage,
 } from '@/helpers/hid-usages.ts'
+
+const EMPTY_PRESSED_KEYS: ReadonlySet<number> = new Set()
 
 type BehaviorMap = Record<number, GetBehaviorDetailsResponse>
 
@@ -85,13 +88,11 @@ export const KeyboardLayout = ({
     selectedLayerIndex,
     selectedKeyPosition,
     onKeyPositionClicked,
-    pressedKeys = new Set(),
+    pressedKeys = EMPTY_PRESSED_KEYS as Set<number>,
 }: KeymapProps): JSX.Element => {
-    if (!keymap.layers[selectedLayerIndex]) {
-        return <></>
-    }
-
-    const positions = layout.keys.map(
+    const positions = useMemo(() => {
+        if (!keymap.layers[selectedLayerIndex]) return []
+        return layout.keys.map(
         (
             k: {
                 x: number
@@ -151,9 +152,12 @@ export const KeyboardLayout = ({
                 ry: (k.ry || 0) / 100.0,
                 children: children,
             }
-        },
-    )
-    // console.log(positions,behaviors)
+        })
+    }, [layout, keymap, behaviors, selectedLayerIndex])
+
+    if (!keymap.layers[selectedLayerIndex]) {
+        return <></>
+    }
 
     return (
         <PhysicalLayoutComp

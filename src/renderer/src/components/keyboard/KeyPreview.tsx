@@ -92,7 +92,7 @@ export function KeyPreview({
                     height={1}
                     oneU={PREVIEW_ONE_U}
                     hoverZoom={false}
-                    header={holdTap ? undefined : behaviorName}
+                    header={behaviorName}
                     holdTap={holdTap}
                 >
                     <HidUsageLabel hid_usage={binding.param1 ?? 0} />

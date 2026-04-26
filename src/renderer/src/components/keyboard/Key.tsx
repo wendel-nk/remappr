@@ -7,6 +7,7 @@ import {
     useRef,
     useState,
     useLayoutEffect,
+    useMemo,
 } from 'react'
 
 export interface HoldTapLabels {
@@ -73,33 +74,37 @@ const FitText = ({
     const containerRef = useRef<HTMLDivElement>(null)
     const textRef = useRef<HTMLDivElement>(null)
     const [fontSize, setFontSize] = useState(minFontSize)
-    const resizeTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+    const contentKey = useMemo(
+        () =>
+            Children.toArray(children)
+                .map((c) =>
+                    typeof c === 'string' || typeof c === 'number'
+                        ? String(c)
+                        : '',
+                )
+                .join('|'),
+        [children],
+    )
 
     useLayoutEffect(() => {
         let isSubscribed = true
+        let rafHandle: number | null = null
+        let pendingFrame = false
 
         const resizeText = (): void => {
+            pendingFrame = false
             if (!isSubscribed) return
 
             const container = containerRef.current
             const text = textRef.current
-
-            if (!container || !text) {
-                // Retry if refs aren't ready yet
-                if (isSubscribed) {
-                    resizeTimeoutRef.current = setTimeout(resizeText, 20)
-                }
-                return
-            }
+            if (!container || !text) return
 
             const containerWidth = container.clientWidth
             const containerHeight = container.clientHeight
-
-            // If container has no size yet, keep retrying
             if (containerWidth === 0 || containerHeight === 0) {
-                if (isSubscribed) {
-                    resizeTimeoutRef.current = setTimeout(resizeText, 50)
-                }
+                // Retry once on next frame; ResizeObserver covers later changes.
+                schedule()
                 return
             }
 
@@ -107,12 +112,9 @@ const FitText = ({
             let high = maxFontSize
             let bestSize = minFontSize
 
-            // Binary search for optimal font size
             while (low <= high) {
                 const mid = Math.floor((low + high) / 2)
                 text.style.fontSize = `${mid}px`
-
-                // Force reflow to get accurate measurements
                 void text.offsetHeight
 
                 const fitsWidth = text.scrollWidth <= containerWidth
@@ -127,46 +129,30 @@ const FitText = ({
             }
 
             if (isSubscribed) {
-                setFontSize(bestSize)
+                setFontSize((prev) => (prev === bestSize ? prev : bestSize))
             }
         }
 
-        // Initial resize with multiple attempts for reliability
-        const initialTimeouts: NodeJS.Timeout[] = []
-        initialTimeouts.push(setTimeout(resizeText, 0))
-        initialTimeouts.push(setTimeout(resizeText, 50))
-        initialTimeouts.push(setTimeout(resizeText, 100))
-        initialTimeouts.push(setTimeout(resizeText, 200))
+        const schedule = (): void => {
+            if (pendingFrame) return
+            pendingFrame = true
+            rafHandle = requestAnimationFrame(resizeText)
+        }
 
-        // Set up ResizeObserver
+        schedule()
+
         let resizeObserver: ResizeObserver | null = null
-
-        const setupObserver = (): void => {
-            if (containerRef.current && isSubscribed) {
-                resizeObserver = new ResizeObserver((): void => {
-                    if (resizeTimeoutRef.current) {
-                        clearTimeout(resizeTimeoutRef.current)
-                    }
-                    resizeTimeoutRef.current = setTimeout(resizeText, 10)
-                })
-                resizeObserver.observe(containerRef.current)
-            }
+        if (containerRef.current) {
+            resizeObserver = new ResizeObserver(schedule)
+            resizeObserver.observe(containerRef.current)
         }
-
-        // Try to set up observer immediately and with delays
-        setupObserver()
-        const observerTimeout = setTimeout(setupObserver, 50)
 
         return (): void => {
             isSubscribed = false
-            initialTimeouts.forEach(clearTimeout)
-            clearTimeout(observerTimeout)
-            if (resizeTimeoutRef.current) {
-                clearTimeout(resizeTimeoutRef.current)
-            }
+            if (rafHandle !== null) cancelAnimationFrame(rafHandle)
             resizeObserver?.disconnect()
         }
-    }, [children, maxFontSize, minFontSize])
+    }, [contentKey, maxFontSize, minFontSize])
 
     return (
         <div
@@ -186,9 +172,6 @@ const FitText = ({
                         overflowWrap: 'normal',
                         hyphens: 'none',
                         width: '100%',
-                        WebkitFontSmoothing: 'antialiased',
-                        MozOsxFontSmoothing: 'grayscale',
-                        textRendering: 'optimizeLegibility',
                     } as React.CSSProperties
                 }
             >
@@ -230,13 +213,7 @@ export const Key = ({
         <div
             className="group inline-flex b-0 flex-col justify-items-center justify-content-center items-center transition-all duration-0 hover:scale-150 hover:border rounded-md"
             data-zoomer={hoverZoom}
-            style={
-                {
-                    ...size,
-                    backfaceVisibility: 'hidden',
-                    transform: 'translateZ(0)',
-                } as React.CSSProperties
-            }
+            style={size as React.CSSProperties}
             {...props}
         >
             <button
@@ -249,16 +226,21 @@ export const Key = ({
                  flex-col flex items-center ${holdTap ? 'justify-stretch' : 'justify-evenly'} w-full h-full overflow-hidden ${
                      pressed ? 'bg-green-600 text-white shadow-lg scale-95' : ''
                  }`}
-                style={
-                    {
-                        WebkitFontSmoothing: 'antialiased',
-                        MozOsxFontSmoothing: 'grayscale',
-                    } as React.CSSProperties
-                }
             >
                 {holdTap ? (
                     <>
-                        <div className="key-tap-section flex items-center justify-center w-full h-[60%] overflow-hidden border-b border-border/40">
+                        {header && (
+                            <div className="key-header-section flex items-center justify-center w-full h-[20%] overflow-hidden">
+                                <FitText
+                                    maxFontSize={maxHeaderFontSize}
+                                    minFontSize={4}
+                                    hoverZoom={hoverZoom}
+                                >
+                                    {header}
+                                </FitText>
+                            </div>
+                        )}
+                        <div className="key-tap-section flex items-center justify-center w-full flex-1 overflow-hidden border-b border-border/40">
                             <FitText
                                 maxFontSize={maxChildFontSize}
                                 minFontSize={4}
@@ -268,7 +250,7 @@ export const Key = ({
                                 {holdTap.tap}
                             </FitText>
                         </div>
-                        <div className="key-hold-section flex items-center justify-center w-full h-[40%] overflow-hidden bg-muted/40 text-muted-foreground">
+                        <div className="key-hold-section flex items-center justify-center w-full h-[35%] overflow-hidden bg-muted/40 text-muted-foreground">
                             <FitText
                                 maxFontSize={maxHoldFontSize}
                                 minFontSize={4}

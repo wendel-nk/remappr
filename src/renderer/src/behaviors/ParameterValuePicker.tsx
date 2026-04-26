@@ -15,7 +15,6 @@ export interface ParameterValuePickerProps {
     values: BehaviorParameterValueDescription[]
     layers: { id: number; name: string }[]
     onValueChanged: (value?: number) => void
-    onKeysLayoutActive?: (isActive: boolean) => void
     onKeySelected?: (key: number | undefined) => void
     onModifiersChanged?: (modifiers: number[]) => void
 }
@@ -102,20 +101,14 @@ export const ParameterValuePicker = ({
     values,
     layers,
     onValueChanged,
-    onKeysLayoutActive,
     onKeySelected,
     onModifiersChanged,
 }: ParameterValuePickerProps): JSX.Element | null => {
-    // console.log("ParameterValuePicker values:", { value, values });
-
     if (values.length === 0) {
-        onKeysLayoutActive?.(false)
         return null
     }
 
     if (values.every((v) => v.constant !== undefined)) {
-        console.log('ConstantValuePicker', values)
-        onKeysLayoutActive?.(false)
         return (
             <ConstantValuePicker
                 value={value}
@@ -128,8 +121,6 @@ export const ParameterValuePicker = ({
 
     if (values.length === 1) {
         if (values[0].range) {
-            console.log('range', values[0].range)
-            onKeysLayoutActive?.(false)
             return (
                 <RangeValuePicker
                     value={value}
@@ -141,8 +132,6 @@ export const ParameterValuePicker = ({
         }
 
         if (values[0].hidUsage) {
-            console.log('KeysLayout with modifier support', values[0].hidUsage)
-            onKeysLayoutActive?.(true)
             return (
                 <KeysLayout
                     onValueChanged={onValueChanged}
@@ -155,8 +144,6 @@ export const ParameterValuePicker = ({
         }
 
         if (values[0].layerId) {
-            console.log('LayerValuePicker', values[0].layerId)
-            onKeysLayoutActive?.(false)
             return (
                 <LayerValuePicker
                     value={value}
@@ -168,7 +155,5 @@ export const ParameterValuePicker = ({
         }
     }
 
-    console.log('Unhandled value structure:', values)
-    onKeysLayoutActive?.(false)
     return <p>Unsupported parameter configuration.</p>
 }

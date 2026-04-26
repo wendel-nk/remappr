@@ -19,15 +19,14 @@ export const useSub = (
     callback: (data: unknown) => void | Promise<void>,
 ): (() => void) => {
     const unsub = (): void => {
-        console.log('unsub', name)
         emitter.off(name, callback)
     }
 
     // Be sure we unsub if unmounted.
     useEffect((): (() => void) => {
         emitter.on(name, callback)
-        return (): void => unsub()
-    })
+        return (): void => emitter.off(name, callback)
+    }, [name, callback])
 
     return unsub
 }

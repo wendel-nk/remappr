@@ -1,5 +1,4 @@
-/* eslint-disable react-hooks/set-state-in-effect */
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import {
     GetBehaviorDetailsResponse,
@@ -81,7 +80,6 @@ export const BehaviorBindingPicker = ({
         undefined,
     )
     const [selectedModifiers, setSelectedModifiers] = useState<Mods[]>([])
-    const [isKeysLayoutActive, setIsKeysLayoutActive] = useState(false)
 
     const metadata = useMemo(
         (): GetBehaviorDetailsResponse['metadata'] =>
@@ -89,64 +87,86 @@ export const BehaviorBindingPicker = ({
         [behaviorId, behaviors],
     )
 
+    const isKeysLayoutActive = useMemo((): boolean => {
+        if (!metadata.length) return false
+        const allValues = metadata.flatMap((m) => [
+            ...(m.param1 ?? []),
+            ...(m.param2 ?? []),
+        ])
+        return allValues.some((v) => v.hidUsage !== undefined)
+    }, [metadata])
+
+    // Sync local edit state when binding prop changes from outside (e.g. undo/redo).
     useEffect((): void => {
         if (!binding) {
             return
         }
-
-        if (
-            binding.behaviorId === behaviorId &&
-            binding.param1 === param1 &&
-            binding.param2 === param2
-        ) {
-            return
-        }
-
-        if (!metadata) {
-            console.error(
-                "Can't find metadata for the selected behaviorId",
-                behaviorId,
-            )
-            return
-        }
-
-        if (
-            validateBinding(
-                metadata,
-                layers.map(({ id }: { id: number }): number => id),
-                param1,
-                param2,
-            )
-        ) {
-            onBindingChanged({
-                behaviorId,
-                param1: param1 || 0,
-                param2: param2 || 0,
-            })
-        }
-    }, [
-        behaviorId,
-        param1,
-        param2,
-        binding,
-        metadata,
-        layers,
-        onBindingChanged,
-    ])
-
-    useEffect((): void => {
-        if (!binding) {
-            return
-        }
+        /* eslint-disable react-hooks/set-state-in-effect */
         setBehaviorId(binding.behaviorId)
         setParam1(binding.param1)
         setParam2(binding.param2)
+        /* eslint-enable react-hooks/set-state-in-effect */
     }, [binding])
+
+    const dispatchIfValid = useCallback(
+        (next: {
+            behaviorId: number
+            param1?: number
+            param2?: number
+        }): void => {
+            const candidateMeta =
+                next.behaviorId === behaviorId
+                    ? metadata
+                    : (behaviors.find((b) => b.id === next.behaviorId)
+                          ?.metadata ?? [])
+            if (!candidateMeta.length) return
+            if (
+                !validateBinding(
+                    candidateMeta,
+                    layers.map((l) => l.id),
+                    next.param1,
+                    next.param2,
+                )
+            ) {
+                return
+            }
+            const nextBinding: BehaviorBinding = {
+                behaviorId: next.behaviorId,
+                param1: next.param1 || 0,
+                param2: next.param2 || 0,
+            }
+            if (
+                binding &&
+                binding.behaviorId === nextBinding.behaviorId &&
+                binding.param1 === nextBinding.param1 &&
+                binding.param2 === nextBinding.param2
+            ) {
+                return
+            }
+            onBindingChanged(nextBinding)
+        },
+        [behaviorId, behaviors, binding, layers, metadata, onBindingChanged],
+    )
 
     const handleBehaviorSelected = (selectedBehaviorId: number): void => {
         setBehaviorId(selectedBehaviorId)
         setParam1(0)
         setParam2(0)
+        dispatchIfValid({
+            behaviorId: selectedBehaviorId,
+            param1: 0,
+            param2: 0,
+        })
+    }
+
+    const handleParam1Changed = (value?: number): void => {
+        setParam1(value)
+        dispatchIfValid({ behaviorId, param1: value, param2 })
+    }
+
+    const handleParam2Changed = (value?: number): void => {
+        setParam2(value)
+        dispatchIfValid({ behaviorId, param1, param2: value })
     }
 
     const handleClearAll = (): void => {
@@ -165,10 +185,6 @@ export const BehaviorBindingPicker = ({
                 prev.filter((m: Mods): boolean => m !== modifier),
             )
         }
-    }
-
-    const handleKeysLayoutActive = (isActive: boolean): void => {
-        setIsKeysLayoutActive(isActive)
     }
 
     const handleKeySelected = (key: number | undefined): void => {
@@ -223,9 +239,8 @@ export const BehaviorBindingPicker = ({
                             param1={param1}
                             param2={param2}
                             layers={layers}
-                            onParam1Changed={setParam1}
-                            onParam2Changed={setParam2}
-                            onKeysLayoutActive={handleKeysLayoutActive}
+                            onParam1Changed={handleParam1Changed}
+                            onParam2Changed={handleParam2Changed}
                             onKeySelected={handleKeySelected}
                             onModifiersChanged={handleModifiersChanged}
                         />

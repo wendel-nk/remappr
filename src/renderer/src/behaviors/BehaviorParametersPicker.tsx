@@ -9,7 +9,6 @@ export interface BehaviorParametersPickerProps {
     layers: { id: number; name: string }[]
     onParam1Changed: (value?: number) => void
     onParam2Changed: (value?: number) => void
-    onKeysLayoutActive?: (isActive: boolean) => void
     onKeySelected?: (key: number | undefined) => void
     onModifiersChanged?: (modifiers: number[]) => void
 }
@@ -43,7 +42,6 @@ export const BehaviorParametersPicker = ({
     layers,
     onParam1Changed,
     onParam2Changed,
-    onKeysLayoutActive,
     onKeySelected,
     onModifiersChanged,
 }: BehaviorParametersPickerProps): JSX.Element => {
@@ -66,7 +64,6 @@ export const BehaviorParametersPicker = ({
             value={param1}
             layers={layers}
             onValueChanged={onParam1Changed}
-            onKeysLayoutActive={onKeysLayoutActive}
             onKeySelected={onKeySelected}
             onModifiersChanged={onModifiersChanged}
         />
@@ -79,7 +76,6 @@ export const BehaviorParametersPicker = ({
             value={param2}
             layers={layers}
             onValueChanged={onParam2Changed}
-            onKeysLayoutActive={onKeysLayoutActive}
             onKeySelected={onKeySelected}
             onModifiersChanged={onModifiersChanged}
         />
