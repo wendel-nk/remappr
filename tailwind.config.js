@@ -7,7 +7,6 @@ import daisyui from 'daisyui'
 export default {
     content: [
         './src/renderer/index.html',
-        './src/renderer/download.html',
         './src/renderer/src/**/*.{js,ts,jsx,tsx}',
     ],
     theme: {

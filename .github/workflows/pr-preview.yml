@@ -22,21 +22,24 @@ jobs:
             - name: Checkout
               uses: actions/checkout@v5
 
+            - name: Set up pnpm
+              uses: pnpm/action-setup@v4
+
             - name: Set up Node
               uses: actions/setup-node@v5
               with:
-                  node-version: lts/*
-                  cache: 'npm'
+                  node-version-file: '.nvmrc'
+                  cache: 'pnpm'
 
             - name: Install dependencies
               # --ignore-scripts skips the electron-builder install-app-deps
               # postinstall, which tries to rebuild native modules (usb,
               # noble, etc.) that need system libs (libudev) the runner
               # doesn't have. Web build doesn't use those modules anyway.
-              run: npm ci --ignore-scripts
+              run: pnpm install --frozen-lockfile --ignore-scripts
 
             - name: Build
-              run: npm run build
+              run: pnpm build
 
             - name: Deploy to Cloudflare Pages (preview)
               id: cf

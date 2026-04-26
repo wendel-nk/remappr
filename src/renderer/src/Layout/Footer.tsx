@@ -1,5 +1,3 @@
-// import { AboutModal } from '../components/Modals/AboutModal.tsx'
-// import { LicenseNoticeModal } from '../components/Modals/LicenseNoticeModal.tsx'
 import { Separator } from '@/components/ui/separator.tsx'
 
 export function Footer(): JSX.Element {
@@ -9,8 +7,7 @@ export function Footer(): JSX.Element {
             <div className="flex h-(--footer-height) shrink-0 items-center gap-2 transition-[width,height] ease-linear justify-center">
                 <span>
                     &copy; {new Date().getFullYear()} - Remappr Contributors
-                </span>{' '}
-                {/*<AboutModal></AboutModal>*/}
+                </span>
             </div>
         </>
     )

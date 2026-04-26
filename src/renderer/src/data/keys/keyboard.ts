@@ -348,7 +348,7 @@ export const keyboard = [
     {
         Id: 40,
         Name: 'Keyboard Return Enter',
-        Label: '&#x21b5;',
+        Label: '↵',
         x: 1275,
         y: 350,
         w: 225,
@@ -499,7 +499,7 @@ export const keyboard = [
     {
         Id: 57,
         Name: 'Keyboard Caps Lock',
-        Label: '&#x21ea;',
+        Label: '⇪',
         x: 0,
         y: 350,
         w: 175,
@@ -695,7 +695,7 @@ export const keyboard = [
     {
         Id: 79,
         Name: 'Keyboard RightArrow',
-        Label: '&#8594;',
+        Label: '→',
         x: 1725,
         y: 550,
         w: 100,
@@ -704,7 +704,7 @@ export const keyboard = [
     {
         Id: 80,
         Name: 'Keyboard LeftArrow',
-        Label: '&#8592;',
+        Label: '←',
         x: 1525,
         y: 550,
         w: 100,
@@ -713,7 +713,7 @@ export const keyboard = [
     {
         Id: 81,
         Name: 'Keyboard DownArrow',
-        Label: '&#8595;',
+        Label: '↓',
         x: 1625,
         y: 550,
         w: 100,
@@ -722,7 +722,7 @@ export const keyboard = [
     {
         Id: 82,
         Name: 'Keyboard UpArrow',
-        Label: '&#8593;',
+        Label: '↑',
         x: 1625,
         y: 450,
         w: 100,
@@ -740,7 +740,7 @@ export const keyboard = [
     {
         Id: 84,
         Name: 'Keypad ForwardSlash',
-        Label: '&#x2215;',
+        Label: '∕',
         x: 1950,
         y: 150,
         w: 100,
@@ -749,7 +749,7 @@ export const keyboard = [
     {
         Id: 85,
         Name: 'Keypad Star',
-        Label: '&#10038;',
+        Label: '✶',
         x: 2050,
         y: 150,
         w: 100,
@@ -767,7 +767,7 @@ export const keyboard = [
     {
         Id: 87,
         Name: 'Keypad Plus',
-        Label: '&#x2b;',
+        Label: '+',
         x: 2150,
         y: 250,
         w: 100,
@@ -776,7 +776,7 @@ export const keyboard = [
     {
         Id: 88,
         Name: 'Keypad ENTER',
-        Label: '&#x21b5;',
+        Label: '↵',
         x: 2150,
         y: 450,
         w: 100,
@@ -794,7 +794,7 @@ export const keyboard = [
     {
         Id: 90,
         Name: 'Keypad 2 and Down Arrow',
-        Label: '2 &#8595;',
+        Label: '2 ↓',
         x: 1950,
         y: 450,
         w: 100,
@@ -812,7 +812,7 @@ export const keyboard = [
     {
         Id: 92,
         Name: 'Keypad 4 and Left Arrow',
-        Label: '4 &#x2190;',
+        Label: '4 ←',
         x: 1850,
         y: 350,
         w: 100,
@@ -830,7 +830,7 @@ export const keyboard = [
     {
         Id: 94,
         Name: 'Keypad 6 and Right Arrow',
-        Label: '6 &#x2192;',
+        Label: '6 →',
         x: 2050,
         y: 350,
         w: 100,
@@ -848,7 +848,7 @@ export const keyboard = [
     {
         Id: 96,
         Name: 'Keypad 8 and Up Arrow',
-        Label: '8 &#x2191;',
+        Label: '8 ↑',
         x: 1950,
         y: 250,
         w: 100,
@@ -1416,7 +1416,7 @@ export const keyboard = [
     {
         Id: 187,
         Name: 'Keypad Backspace',
-        Label: '&#x2190;',
+        Label: '←',
         x: 1300,
         y: 150,
         w: 200,

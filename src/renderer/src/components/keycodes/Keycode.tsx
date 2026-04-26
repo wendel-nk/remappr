@@ -59,14 +59,15 @@ export default function Keycode({
                 <button
                     className={`btn btn-square btn-outline absolute ${isSelected ? 'btn-active' : ''}`}
                     style={style}
-                    dangerouslySetInnerHTML={{ __html: label }}
                     value={value}
                     data-base-key-value={baseKeyValue}
                     onClick={handleClick}
-                ></button>
+                >
+                    {label}
+                </button>
             </TooltipTrigger>
             <TooltipContent>
-                <div dangerouslySetInnerHTML={{ __html: label }} />
+                <div>{label}</div>
             </TooltipContent>
         </Tooltip>
     )
