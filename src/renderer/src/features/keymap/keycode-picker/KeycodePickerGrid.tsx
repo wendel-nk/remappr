@@ -12,12 +12,14 @@ import {
     Mods,
     all_mods,
     modsToFlags,
+    maskMods,
     filterKeysBySearch,
     splitKeysByPosition,
     calculateContainerHeight,
     maxBottomForPositioned,
 } from '@/lib/keymap/keycodeGrid'
 import { useKeycodeFilter } from '@/hooks/use-keycode-filter'
+import { ModifierChipRow } from './ModifierChipRow'
 
 interface KeycodePickerGridProps {
     value?: number
@@ -63,6 +65,17 @@ export function KeycodePickerGrid({
             onValueChanged?.(v)
         },
         [onValueChanged, mods],
+    )
+
+    const handleModifiersChanged = useCallback(
+        (next: string[]): void => {
+            const mod_flags = modsToFlags(next.map((m) => parseInt(m)))
+            const base = value !== undefined ? maskMods(value) : 0
+            const v = base | (mod_flags << 24)
+            setSelectedKey(v)
+            onValueChanged?.(v)
+        },
+        [onValueChanged, value],
     )
 
     useEffect(() => {
@@ -135,6 +148,13 @@ export function KeycodePickerGrid({
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-64 flex-shrink-0 flex"
+                />
+            </div>
+
+            <div className="mb-4">
+                <ModifierChipRow
+                    selected={mods}
+                    onChange={handleModifiersChanged}
                 />
             </div>
 
