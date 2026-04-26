@@ -1,7 +1,9 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Keymap } from '@zmkfirmware/zmk-studio-ts-client/keymap'
-import { KeyboardLayout } from './KeyboardLayout.tsx'
+import { PhysicalLayoutCanvas, type KeyPosition } from './PhysicalLayoutCanvas'
+import { HidUsageLabel } from './HidUsageLabel'
+import type { HoldTapLabels } from './KeyButton'
 import { useLocalStorageState } from '@/hooks/use-local-storage-state'
 import { deserializeLayoutZoom, LayoutZoom } from '@/lib/helpers'
 import { useLayout } from '@/hooks/use-layouts'
@@ -12,11 +14,28 @@ import { useBehaviors } from '@/hooks/use-behaviors'
 import { getKeymapLayout } from '@/services/rpcEventsService'
 import { useKeypressDetection } from '@/hooks/use-keypress-detection'
 import type { KeypressDetectionConfig } from '@/lib/keypress/keypressDetector'
+import {
+    resolveBindingLabels,
+    type ResolvedHoldTapDescriptor,
+} from '@/lib/keymap/resolveBindingLabels'
 
 interface KeyboardViewProps {
     keymap: Keymap | undefined
     selectedKeyPosition: number | undefined
     setSelectedKeyPosition: (position: number | undefined) => void
+}
+
+function holdTapToLabels(desc: ResolvedHoldTapDescriptor): HoldTapLabels {
+    const tap = (
+        <HidUsageLabel hid_usage={desc.tapParam} header={desc.behaviorName} />
+    )
+    const hold =
+        desc.holdNodeKind === 'layer' ? (
+            <span>{desc.holdLayerMomentary}</span>
+        ) : (
+            <HidUsageLabel hid_usage={desc.holdParam} />
+        )
+    return { tap, hold, tooltip: desc.tooltip }
 }
 
 export default function KeyboardView({
@@ -30,25 +49,18 @@ export default function KeyboardView({
     const behaviors = useBehaviors()
     const { connection } = useConnectionStore()
 
-    // Compute effective layer index - clamp to valid bounds when out of range
     const effectiveLayerIndex = useMemo(() => {
-        if (!keymap || keymap.layers.length === 0) {
-            return 0
-        }
-        // Clamp selectedLayerIndex to valid range
+        if (!keymap || keymap.layers.length === 0) return 0
         return Math.min(
             Math.max(0, selectedLayerIndex),
             keymap.layers.length - 1,
         )
     }, [keymap, selectedLayerIndex])
 
-    // Reset layer selection when connection changes
     useEffect(() => {
         setSelectedLayerIndex(0)
         setSelectedKeyPosition(undefined)
     }, [connection, setSelectedLayerIndex, setSelectedKeyPosition])
-
-    //todo change to zustand storing system
 
     const [keymapScale, setKeymapScale] = useLocalStorageState<LayoutZoom>(
         'keymapScale',
@@ -56,7 +68,6 @@ export default function KeyboardView({
         { deserialize: deserializeLayoutZoom },
     )
 
-    // State for tracking pressed keys
     const [pressedKeys, setPressedKeys] = useState<Set<number>>(new Set())
 
     const keypressConfig: KeypressDetectionConfig | null = useMemo(
@@ -96,7 +107,6 @@ export default function KeyboardView({
         onReleased: handleKeyReleased,
     })
 
-    // Clear pressed keys when layer changes
     useEffect(() => {
         setPressedKeys(new Set())
     }, [effectiveLayerIndex])
@@ -108,18 +118,54 @@ export default function KeyboardView({
         })()
     }, [selectedPhysicalLayoutIndex, connection, layouts])
 
+    const positions: KeyPosition[] = useMemo(() => {
+        if (!layouts || !keymap || !behaviors) return []
+        const layout = layouts[selectedPhysicalLayoutIndex]
+        if (!layout) return []
+        return resolveBindingLabels(
+            layout,
+            keymap,
+            behaviors,
+            effectiveLayerIndex,
+        ).map((p) => ({
+            id: p.id,
+            header: p.header,
+            holdTap: p.holdTap ? holdTapToLabels(p.holdTap) : undefined,
+            x: p.x,
+            y: p.y,
+            width: p.width,
+            height: p.height,
+            r: p.r,
+            rx: p.rx,
+            ry: p.ry,
+            children: p.outOfRange ? (
+                <span></span>
+            ) : (
+                <HidUsageLabel
+                    hid_usage={p.bindingParam1!}
+                    header={p.behaviorName || 'Unknown'}
+                />
+            ),
+        }))
+    }, [
+        layouts,
+        keymap,
+        behaviors,
+        selectedPhysicalLayoutIndex,
+        effectiveLayerIndex,
+    ])
+
     return (
         <>
             {layouts && keymap && behaviors && (
                 <div className="p-2 col-start-2 row-start-1 items-center justify-center relative min-w-0 flex h-full bg-accent">
-                    <KeyboardLayout
-                        keymap={keymap}
-                        layout={layouts[selectedPhysicalLayoutIndex]}
-                        behaviors={behaviors}
-                        scale={keymapScale}
-                        selectedLayerIndex={effectiveLayerIndex}
-                        selectedKeyPosition={selectedKeyPosition}
-                        onKeyPositionClicked={setSelectedKeyPosition}
+                    <PhysicalLayoutCanvas
+                        positions={positions}
+                        oneU={48}
+                        hoverZoom={true}
+                        zoom={keymapScale}
+                        selectedPosition={selectedKeyPosition}
+                        onPositionClicked={setSelectedKeyPosition}
                         pressedKeys={pressedKeys}
                     />
                     <KeyboardZoomSlider

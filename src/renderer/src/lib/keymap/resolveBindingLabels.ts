@@ -1,0 +1,138 @@
+// pattern-check: skip pure-extraction codemod from KeyboardLayout
+import type {
+    PhysicalLayout,
+    Keymap as KeymapMsg,
+} from '@zmkfirmware/zmk-studio-ts-client/keymap'
+import type { GetBehaviorDetailsResponse } from '@zmkfirmware/zmk-studio-ts-client/behaviors'
+
+import { HoldTapType, parseHoldTapBinding } from '@/lib/behaviors/holdTap'
+import {
+    formatMomentaryLayer,
+    abbreviateLayerName,
+} from '@/lib/keyAbbreviations'
+import {
+    hid_usage_get_labels,
+    hidUsagePageAndIdFromUsage,
+} from '@/lib/behaviors/hidUsages'
+
+type BehaviorMap = Record<number, GetBehaviorDetailsResponse>
+
+export interface ResolvedHoldTapDescriptor {
+    behaviorName: string
+    tapParam: number
+    tapDesc: string
+    holdNodeKind: 'layer' | 'usage'
+    holdParam: number
+    holdLayerLabel?: string
+    holdLayerMomentary?: string
+    holdLayerName?: string
+    holdUsageDesc?: string
+    tooltip: string
+}
+
+export interface ResolvedBindingPosition {
+    id: string
+    header: string
+    holdTap?: ResolvedHoldTapDescriptor
+    bindingParam1?: number
+    behaviorName?: string
+    outOfRange: boolean
+    x: number
+    y: number
+    width: number
+    height: number
+    r: number
+    rx: number
+    ry: number
+}
+
+function describeUsage(usage: number): string {
+    const [pageMut, id] = hidUsagePageAndIdFromUsage(usage)
+    const page = pageMut & 0xff
+    const labels = hid_usage_get_labels(page, id)
+    const long = labels.long || labels.med || labels.short
+    return long ? long.replace(/^Keyboard /, '') : `0x${usage.toString(16)}`
+}
+
+function buildHoldTapDescriptor(
+    binding: { behaviorId: number; param1: number; param2: number },
+    behaviors: BehaviorMap,
+    keymap: KeymapMsg,
+): ResolvedHoldTapDescriptor | undefined {
+    const parsed = parseHoldTapBinding(binding, behaviors)
+    if (!parsed || !parsed.hasTapAndHold || parsed.tapParam === undefined) {
+        return undefined
+    }
+
+    const behaviorName = behaviors[binding.behaviorId]?.displayName || ''
+    const tapDesc = describeUsage(parsed.tapParam)
+
+    if (parsed.type === HoldTapType.LayerTap) {
+        const layerIndex = parsed.holdParam
+        const layerName = keymap.layers[layerIndex]?.name
+        const layerLabel = abbreviateLayerName(layerName, layerIndex)
+        const mo = formatMomentaryLayer(layerIndex)
+        const holdDesc = layerName ? `${mo} (${layerLabel})` : mo
+        return {
+            behaviorName,
+            tapParam: parsed.tapParam,
+            tapDesc,
+            holdNodeKind: 'layer',
+            holdParam: parsed.holdParam,
+            holdLayerLabel: layerLabel,
+            holdLayerMomentary: mo,
+            holdLayerName: layerName,
+            tooltip: `${behaviorName}\nTap: ${tapDesc}\nHold: ${holdDesc}`,
+        }
+    }
+
+    const holdDesc = describeUsage(parsed.holdParam)
+    return {
+        behaviorName,
+        tapParam: parsed.tapParam,
+        tapDesc,
+        holdNodeKind: 'usage',
+        holdParam: parsed.holdParam,
+        holdUsageDesc: holdDesc,
+        tooltip: `${behaviorName}\nTap: ${tapDesc}\nHold: ${holdDesc}`,
+    }
+}
+
+export function resolveBindingLabels(
+    layout: PhysicalLayout,
+    keymap: KeymapMsg,
+    behaviors: BehaviorMap,
+    selectedLayerIndex: number,
+): ResolvedBindingPosition[] {
+    if (!keymap.layers[selectedLayerIndex]) return []
+    return layout.keys.map((k, i) => {
+        const layerBindings = keymap.layers[selectedLayerIndex].bindings
+        const outOfRange = i >= layerBindings.length
+        const binding = outOfRange ? undefined : layerBindings[i]
+        const holdTap =
+            !outOfRange && binding
+                ? buildHoldTapDescriptor(binding, behaviors, keymap)
+                : undefined
+        const behaviorName = binding
+            ? behaviors[binding.behaviorId]?.displayName || 'Unknown'
+            : 'Unknown'
+
+        return {
+            id: `${keymap.layers[selectedLayerIndex].id}-${i}`,
+            header: behaviorName,
+            holdTap,
+            bindingParam1: binding?.param1,
+            behaviorName: binding
+                ? behaviors[binding.behaviorId]?.displayName
+                : undefined,
+            outOfRange,
+            x: k.x / 100.0,
+            y: k.y / 100.0,
+            width: k.width / 100,
+            height: k.height / 100.0,
+            r: (k.r || 0) / 100.0,
+            rx: (k.rx || 0) / 100.0,
+            ry: (k.ry || 0) / 100.0,
+        }
+    })
+}
