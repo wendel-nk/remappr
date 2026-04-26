@@ -10,10 +10,8 @@ import useConnectionStore from '@/stores/connectionStore.ts'
 import useLayerSelectionStore from '@/stores/layerSelectionStore.ts'
 import { useBehaviors } from '@/hooks/use-behaviors'
 import { getKeymapLayout } from '@/services/rpcEventsService.ts'
-import {
-    keyboardKeypressService,
-    KeypressDetectionConfig,
-} from '@/features/connection/keyboardKeypressService.ts'
+import { useKeypressDetection } from '@/hooks/use-keypress-detection'
+import type { KeypressDetectionConfig } from '@/lib/keypress/keypressDetector'
 
 interface KeyboardProps {
     keymap: Keymap | undefined
@@ -61,15 +59,17 @@ export default function Keyboard({
     // State for tracking pressed keys
     const [pressedKeys, setPressedKeys] = useState<Set<number>>(new Set())
 
-    // Create keypress detection config - memoize to avoid recreating on every render
-    const keypressConfig: KeypressDetectionConfig = useMemo(
-        () => ({
-            layouts: layouts || [],
-            keymap: keymap!,
-            selectedLayerIndex: effectiveLayerIndex,
-            selectedPhysicalLayoutIndex,
-            behaviors,
-        }),
+    const keypressConfig: KeypressDetectionConfig | null = useMemo(
+        () =>
+            layouts && keymap
+                ? {
+                      layouts,
+                      keymap,
+                      selectedLayerIndex: effectiveLayerIndex,
+                      selectedPhysicalLayoutIndex,
+                      behaviors,
+                  }
+                : null,
         [
             layouts,
             keymap,
@@ -79,7 +79,6 @@ export default function Keyboard({
         ],
     )
 
-    // Keyboard event handlers using the service
     const handleKeyPressed = useCallback((keyPosition: number) => {
         setPressedKeys((prev) => new Set(prev).add(keyPosition))
     }, [])
@@ -92,23 +91,10 @@ export default function Keyboard({
         })
     }, [])
 
-    // Set up keyboard event listeners using the service
-    useEffect(() => {
-        if (!layouts || !keymap || !behaviors) return
-
-        return keyboardKeypressService.setupKeyboardListeners(
-            keypressConfig,
-            handleKeyPressed,
-            handleKeyReleased,
-        )
-    }, [
-        layouts,
-        keymap,
-        behaviors,
-        keypressConfig,
-        handleKeyPressed,
-        handleKeyReleased,
-    ])
+    useKeypressDetection(keypressConfig, {
+        onPressed: handleKeyPressed,
+        onReleased: handleKeyReleased,
+    })
 
     // Clear pressed keys when layer changes
     useEffect(() => {
