@@ -1,5 +1,5 @@
 import { useCallback } from 'react'
-import { Popover, PopoverTrigger, PopoverContent } from '@/ui/popover.tsx'
+import { Popover, PopoverTrigger, PopoverContent } from '@/ui/popover'
 import {
     PhysicalLayoutCanvas,
     type KeyPosition,
@@ -9,9 +9,9 @@ import {
     SidebarGroupLabel,
     SidebarGroupAction,
     SidebarMenuButton,
-} from '@/ui/sidebar.tsx'
+} from '@/ui/sidebar'
 import { Plus } from 'lucide-react'
-import { Button } from '@/ui/button.tsx'
+import { Button } from '@/ui/button'
 
 export interface PhysicalLayoutItem {
     name: string

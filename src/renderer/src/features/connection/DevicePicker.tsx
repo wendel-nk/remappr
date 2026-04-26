@@ -3,7 +3,7 @@ import type { AvailableDevice } from '@/transport/types'
 import { UserCancelledError } from '@zmkfirmware/zmk-studio-ts-client/transport/errors'
 import type { TransportFactory } from '@/transport/types'
 import { RpcTransport } from '@zmkfirmware/zmk-studio-ts-client/transport/index'
-import { Button } from '@/ui/button.tsx'
+import { Button } from '@/ui/button'
 import { toast } from 'sonner'
 
 interface DevicePickerProps {

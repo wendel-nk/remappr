@@ -4,22 +4,22 @@ import type { RpcTransport } from '@zmkfirmware/zmk-studio-ts-client/transport/i
 import { UserCancelledError } from '@zmkfirmware/zmk-studio-ts-client/transport/errors'
 import { toast } from 'sonner'
 
-import { Button } from '@/ui/button.tsx'
+import { Button } from '@/ui/button'
 import {
     Card,
     CardContent,
     CardDescription,
     CardHeader,
     CardTitle,
-} from '@/ui/card.tsx'
-import { DeviceCard, DeviceStatus } from '@/features/connection/DeviceCard.tsx'
+} from '@/ui/card'
+import { DeviceCard, DeviceStatus } from '@/features/connection/DeviceCard'
 import type { TransportFactory } from '@/transport/types'
 // pattern-check: skip — mechanical rename TRANSPORTS -> getTransports()
 import { getTransports, isElectron } from '@/lib/transports'
 import { onDevicesChanged as onSerialDevicesChanged } from '@/electron/serial'
-import { ExternalLink } from '@/utils/ExternalLink.tsx'
+import { ExternalLink } from '@/components/ExternalLink'
 import type { AvailableDevice } from '@/transport/types'
-import { LicenseNoticeModal } from '@/components/modals/LicenseNoticeModal.tsx'
+import { LicenseNoticeModal } from '@/components/modals/LicenseNoticeModal'
 
 interface DeviceWithTransport {
     device: AvailableDevice

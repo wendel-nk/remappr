@@ -2,12 +2,12 @@ import { useMemo } from 'react'
 
 import type { RpcTransport } from '@zmkfirmware/zmk-studio-ts-client/transport/index'
 import type { TransportFactory } from '@/transport/types'
-import { ExternalLink } from '@/utils/ExternalLink.tsx'
+import { ExternalLink } from '@/components/ExternalLink'
 import { DeviceList } from './DeviceList.tsx'
 import { DevicePicker } from './DevicePicker'
 // pattern-check: skip — mechanical rename TRANSPORTS -> getTransports()
 import { getTransports } from '@/lib/transports'
-import { Modal } from '@/ui/modal.tsx'
+import { Modal } from '@/ui/modal'
 
 export interface ConnectModalProps {
     open?: boolean

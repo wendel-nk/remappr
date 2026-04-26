@@ -1,19 +1,19 @@
 import { useCallback } from 'react'
 import { LockState } from '@zmkfirmware/zmk-studio-ts-client/core'
 import { RestoreStockModal } from './RestoreStockModal'
-import useConnectionStore from '@/stores/connectionStore.ts'
-import undoRedoStore from '@/stores/undoRedoStore.ts'
-import { Button } from '@/ui/button.tsx'
+import useConnectionStore from '@/stores/connectionStore'
+import undoRedoStore from '@/stores/undoRedoStore'
+import { Button } from '@/ui/button'
 import { Settings, Power } from 'lucide-react'
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
-} from '@/ui/dropdown-menu.tsx'
-import { SidebarMenu, SidebarMenuItem } from '@/ui/sidebar.tsx'
+} from '@/ui/dropdown-menu'
+import { SidebarMenu, SidebarMenuItem } from '@/ui/sidebar'
 import { toast } from 'sonner'
-import { callRpc } from '@/services/rpcCall.ts'
+import { callRpc } from '@/services/rpcCall'
 
 export const DeviceMenu = (): JSX.Element => {
     const { connection, setConnection, deviceName, lockState, disconnect } =

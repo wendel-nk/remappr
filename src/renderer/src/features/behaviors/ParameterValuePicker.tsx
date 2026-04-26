@@ -6,9 +6,9 @@ import {
     SelectItem,
     SelectTrigger,
     SelectValue,
-} from '@/ui/select.tsx'
-import { Label } from '@/ui/label.tsx'
-import { Input } from '@/ui/input.tsx'
+} from '@/ui/select'
+import { Label } from '@/ui/label'
+import { Input } from '@/ui/input'
 
 export interface ParameterValuePickerProps {
     value?: number

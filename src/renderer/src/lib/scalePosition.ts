@@ -1,5 +1,3 @@
-import { CSSProperties } from 'react'
-
 export interface PhysicalLayoutPositionLocation {
     x: number
     y: number
@@ -8,14 +6,22 @@ export interface PhysicalLayoutPositionLocation {
     ry?: number
 }
 
+export interface ScaledPositionStyle {
+    top: number
+    left: number
+    transformOrigin: string
+    transform: string
+    willChange: 'transform'
+}
+
 export function scalePosition(
     { x, y, r, rx, ry }: PhysicalLayoutPositionLocation,
     oneU: number,
-): CSSProperties {
+): ScaledPositionStyle {
     const left = x * oneU
     const top = y * oneU
-    let transformOrigin: string = ''
-    let transform: string = ''
+    let transformOrigin = ''
+    let transform = ''
 
     if (r) {
         const transformX = ((rx || x) - x) * oneU

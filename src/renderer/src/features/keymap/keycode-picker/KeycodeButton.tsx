@@ -1,6 +1,6 @@
 import { CSSProperties } from 'react'
-import { Tooltip, TooltipTrigger, TooltipContent } from '@/ui/tooltip.tsx'
-import { Button } from '@/ui/button.tsx'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/ui/tooltip'
+import { Button } from '@/ui/button'
 
 interface KeycodeButtonProps {
     value?: number

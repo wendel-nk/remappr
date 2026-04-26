@@ -32,5 +32,34 @@ export default defineConfig(
             ...eslintPluginReactRefresh.configs.vite.rules,
         },
     },
+    {
+        // lib/ must stay pure: no React, no Zustand, no I/O, no UI features.
+        files: ['src/renderer/src/lib/**/*.{ts,tsx}'],
+        rules: {
+            'no-restricted-imports': [
+                'error',
+                {
+                    patterns: [
+                        {
+                            group: [
+                                'react',
+                                'react-dom',
+                                'zustand',
+                                'zustand/*',
+                                '@/services/*',
+                                '@/stores/*',
+                                '@/hooks/*',
+                                '@/features/*',
+                                '@/components/*',
+                                '@/ui/*',
+                            ],
+                            message:
+                                'lib/ is for pure logic only. Move React/Zustand/IO code to hooks/, services/, stores/, or features/.',
+                        },
+                    ],
+                },
+            ],
+        },
+    },
     eslintConfigPrettier,
 )

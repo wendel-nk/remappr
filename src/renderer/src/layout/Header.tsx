@@ -7,13 +7,13 @@ import useConnectionStore from '@/stores/connectionStore'
 import undoRedoStore from '@/stores/undoRedoStore'
 import { Settings } from '../components/modals/Settings.tsx'
 import { Download as DownloadModal } from '../components/modals/Download.tsx'
-import { SidebarTrigger } from '@/ui/sidebar.tsx'
-import { Button } from '@/ui/button.tsx'
-import { Separator } from '@/ui/separator.tsx'
+import { SidebarTrigger } from '@/ui/sidebar'
+import { Button } from '@/ui/button'
+import { Separator } from '@/ui/separator'
 import { useConnectedDeviceData } from '@/hooks/use-connected-device-data'
 import { toast } from 'sonner'
-import { callRpc } from '@/services/rpcCall.ts'
-import { Tooltip, TooltipTrigger, TooltipContent } from '@/ui/tooltip.tsx'
+import { callRpc } from '@/services/rpcCall'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/ui/tooltip'
 
 export function Header(): JSX.Element {
     const { connection, lockState, setConnection } = useConnectionStore()

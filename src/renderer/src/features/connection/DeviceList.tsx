@@ -6,7 +6,7 @@ import { Bluetooth, RefreshCw } from 'lucide-react'
 import type { TransportFactory } from '@/transport/types'
 import { RpcTransport } from '@zmkfirmware/zmk-studio-ts-client/transport/index'
 import { UserCancelledError } from '@zmkfirmware/zmk-studio-ts-client/transport/errors'
-import { ErrorDialog } from '@/components/modals/ErrorDialog.tsx'
+import { ErrorDialog } from '@/components/modals/ErrorDialog'
 
 interface DeviceListProps {
     open?: boolean

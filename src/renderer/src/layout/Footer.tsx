@@ -1,4 +1,4 @@
-import { Separator } from '@/ui/separator.tsx'
+import { Separator } from '@/ui/separator'
 
 export function Footer(): JSX.Element {
     return (

@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { Modal } from '@/ui/modal.tsx'
-import { DropdownMenuItem } from '@/ui/dropdown-menu.tsx'
+import { Modal } from '@/ui/modal'
+import { DropdownMenuItem } from '@/ui/dropdown-menu'
 import { RotateCcw } from 'lucide-react'
 
 interface RestoreStockModalProps {

@@ -2,12 +2,12 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { KeyboardKeys, keyboards } from '@/data/keys'
 import KeycodeButton from './KeycodeButton.tsx'
 import { Key } from 'react-aria-components'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/ui/tabs.tsx'
-import { Input } from '@/ui/input.tsx'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/ui/tabs'
+import { Input } from '@/ui/input'
 import {
     hidUsageFromPageAndId,
     hidUsagePageAndIdFromUsage,
-} from '@/lib/behaviors/hidUsages.ts'
+} from '@/lib/behaviors/hidUsages'
 
 interface KeycodePickerGridProps {
     value?: number

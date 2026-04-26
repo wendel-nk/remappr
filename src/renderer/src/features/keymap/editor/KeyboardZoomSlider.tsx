@@ -4,7 +4,7 @@ import {
     SelectItem,
     SelectTrigger,
     SelectValue,
-} from '@/ui/select.tsx'
+} from '@/ui/select'
 
 export function KeyboardZoomSlider(props: {
     value: number | 'auto'

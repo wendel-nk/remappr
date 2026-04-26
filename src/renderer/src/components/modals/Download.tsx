@@ -1,19 +1,19 @@
 import { useState } from 'react'
 import { Download as DownloadIcon, Copy, FileText } from 'lucide-react'
-import { Modal } from '@/ui/modal.tsx'
-import { Button } from '@/ui/button.tsx'
-import { Input } from '@/ui/input.tsx'
-import { Label } from '@/ui/label.tsx'
-import { Separator } from '@/ui/separator.tsx'
+import { Modal } from '@/ui/modal'
+import { Button } from '@/ui/button'
+import { Input } from '@/ui/input'
+import { Label } from '@/ui/label'
+import { Separator } from '@/ui/separator'
 import { toast } from 'sonner'
-import useConnectionStore from '@/stores/connectionStore.ts'
+import useConnectionStore from '@/stores/connectionStore'
 import { useConnectedDeviceData } from '@/hooks/use-connected-device-data'
-import { useBehaviors } from '@/hooks/use-behaviors.ts'
+import { useBehaviors } from '@/hooks/use-behaviors'
 import {
     generateZMKKeymapFile,
     generateZMKConfigFile,
     downloadConfigZip,
-} from '@/lib/zmkConfigGenerator.ts'
+} from '@/lib/zmkConfigGenerator'
 import { Keymap } from '@zmkfirmware/zmk-studio-ts-client/keymap'
 
 interface DownloadProps {

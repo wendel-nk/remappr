@@ -1,8 +1,8 @@
 import { EllipsisVertical, Plus, Trash } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import undoRedoStore from '@/stores/undoRedoStore.ts'
-import useConnectionStore from '@/stores/connectionStore.ts'
-import useLayerSelectionStore from '@/stores/layerSelectionStore.ts'
+import undoRedoStore from '@/stores/undoRedoStore'
+import useConnectionStore from '@/stores/connectionStore'
+import useLayerSelectionStore from '@/stores/layerSelectionStore'
 import LayerNameDialog from '../editor/LayerNameDialog'
 import type { Keymap } from '@zmkfirmware/zmk-studio-ts-client/keymap'
 
@@ -13,22 +13,22 @@ import {
     SidebarMenuAction,
     SidebarMenuButton,
     SidebarMenuItem,
-} from '@/ui/sidebar.tsx'
+} from '@/ui/sidebar'
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuSeparator,
     DropdownMenuTrigger,
-} from '@/ui/dropdown-menu.tsx'
+} from '@/ui/dropdown-menu'
 import {
     addLayer,
     changeName,
     removeLayer,
     restore,
-} from '@/services/rpcLayerService.ts'
+} from '@/services/rpcLayerService'
 import { toast } from 'sonner'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/ui/tooltip.tsx'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/ui/tooltip'
 
 interface Layer {
     id: number

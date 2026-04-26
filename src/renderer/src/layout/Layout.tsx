@@ -2,7 +2,7 @@ import { useState } from 'react'
 // import { Footer } from './Footer.tsx'
 import { Header } from './Header.tsx'
 import KeyboardView from '@/features/keymap/keyboard/KeyboardView'
-import useKeymapStore from '@/stores/keymapStore.ts'
+import useKeymapStore from '@/stores/keymapStore'
 
 export function Layout(): JSX.Element {
     const [selectedKeyPosition, setSelectedKeyPosition] = useState<

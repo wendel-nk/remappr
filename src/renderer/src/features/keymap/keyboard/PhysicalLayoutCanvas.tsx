@@ -1,7 +1,7 @@
 import { PropsWithChildren, useLayoutEffect, useRef, useState } from 'react'
 import { HoldTapLabels, KeyButton } from './KeyButton.tsx'
 import { scalePosition } from '@/lib/scalePosition'
-import { LayoutZoom } from '@/lib/helpers.ts'
+import { LayoutZoom } from '@/lib/helpers'
 
 export type KeyPosition = PropsWithChildren<{
     id?: string
@@ -106,7 +106,7 @@ export const PhysicalLayoutCanvas = ({
                 }}
                 className="absolute data-[zoomer=true]:hover:z-[1000] leading-[0]"
                 data-zoomer={hoverZoom}
-                style={posStyle}
+                style={posStyle as React.CSSProperties}
             >
                 <KeyButton
                     hoverZoom={hoverZoom}

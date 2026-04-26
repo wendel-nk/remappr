@@ -1,6 +1,6 @@
 import { keyboards } from '@/data/keys'
-import { Card, CardContent, CardHeader, CardTitle } from '@/ui/card.tsx'
-import { Button } from '@/ui/button.tsx'
+import { Card, CardContent, CardHeader, CardTitle } from '@/ui/card'
+import { Button } from '@/ui/button'
 import { X } from 'lucide-react'
 
 // Modifier key definitions (same as HidUsagePicker)

@@ -1,9 +1,9 @@
 import { useMemo } from 'react'
 
 import { LockState } from '@zmkfirmware/zmk-studio-ts-client/core'
-import { ExternalLink } from '@/utils/ExternalLink.tsx'
-import useConnectionStore from '@/stores/connectionStore.ts'
-import { Modal } from '@/ui/modal.tsx'
+import { ExternalLink } from '@/components/ExternalLink'
+import useConnectionStore from '@/stores/connectionStore'
+import { Modal } from '@/ui/modal'
 
 export const UnlockModal = (): JSX.Element => {
     const { connection, lockState } = useConnectionStore()

@@ -1,5 +1,5 @@
 import { Bluetooth, Usb, Loader2, SignalHigh } from 'lucide-react'
-import { Button } from '@/ui/button.tsx'
+import { Button } from '@/ui/button'
 import { cn } from '@/lib/cn'
 
 export type DeviceStatus = 'available' | 'connecting' | 'connected'

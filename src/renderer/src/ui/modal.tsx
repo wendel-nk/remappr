@@ -8,8 +8,8 @@ import {
     DialogTitle,
     DialogDescription,
     DialogClose,
-} from '@/ui/dialog.tsx'
-import { Button } from '@/ui/button.tsx'
+} from '@/ui/dialog'
+import { Button } from '@/ui/button'
 
 // Create a forwardRef wrapper for span
 const TextTrigger = React.forwardRef<

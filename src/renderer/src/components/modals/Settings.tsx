@@ -1,8 +1,8 @@
 import { Settings as SettingsIcon } from 'lucide-react'
-import { DarkModeToggle } from '@/components/DarkModeToggle.tsx'
-import { ThemePicker } from '@/components/ThemePicker.tsx'
-import { Modal } from '@/ui/modal.tsx'
-import { Label } from '@/ui/label.tsx'
+import { DarkModeToggle } from '@/components/DarkModeToggle'
+import { ThemePicker } from '@/components/ThemePicker'
+import { Modal } from '@/ui/modal'
+import { Label } from '@/ui/label'
 
 interface SettingsProps {
     opened?: boolean

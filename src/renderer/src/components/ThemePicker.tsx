@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Check, ChevronsUpDown } from 'lucide-react'
-import { Button } from '@/ui/button.tsx'
+import { Button } from '@/ui/button'
 import {
     Command,
     CommandEmpty,
@@ -15,7 +15,7 @@ import {
     THEME_NAMES,
     type ThemeName,
     useTheme,
-} from '@/providers/ThemeProvider.tsx'
+} from '@/providers/ThemeProvider'
 
 const THEME_LABELS: Record<ThemeName, string> = {
     default: 'Default',

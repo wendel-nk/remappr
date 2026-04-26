@@ -8,16 +8,16 @@ import type { GetBehaviorDetailsResponse } from '@zmkfirmware/zmk-studio-ts-clie
 import { PhysicalLayoutCanvas } from './PhysicalLayoutCanvas.tsx'
 import { HidUsageLabel } from './HidUsageLabel.tsx'
 import { HoldTapLabels } from './KeyButton.tsx'
-import { LayoutZoom } from '@/lib/helpers.ts'
-import { HoldTapType, parseHoldTapBinding } from '@/lib/behaviors/holdTap.ts'
+import { LayoutZoom } from '@/lib/helpers'
+import { HoldTapType, parseHoldTapBinding } from '@/lib/behaviors/holdTap'
 import {
     formatMomentaryLayer,
     abbreviateLayerName,
-} from '@/lib/keyAbbreviations.ts'
+} from '@/lib/keyAbbreviations'
 import {
     hid_usage_get_labels,
     hidUsagePageAndIdFromUsage,
-} from '@/lib/behaviors/hidUsages.ts'
+} from '@/lib/behaviors/hidUsages'
 
 const EMPTY_PRESSED_KEYS: ReadonlySet<number> = new Set()
 

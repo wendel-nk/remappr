@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo } from 'react'
 import { useLayout } from '@/hooks/use-layouts'
-import { PhysicalLayoutPicker } from '@/features/keymap/keyboard/PhysicalLayoutPicker.tsx'
-import { LayerPicker } from '@/features/keymap/keyboard/LayerPicker.tsx'
+import { PhysicalLayoutPicker } from '@/features/keymap/keyboard/PhysicalLayoutPicker'
+import { LayerPicker } from '@/features/keymap/keyboard/LayerPicker'
 import undoRedoStore from '@/stores/undoRedoStore'
 import useConnectionStore from '@/stores/connectionStore'
 import useLayerSelectionStore from '@/stores/layerSelectionStore'
@@ -12,10 +12,10 @@ import {
     SidebarGroup,
     SidebarHeader,
     SidebarFooter,
-} from '@/ui/sidebar.tsx'
+} from '@/ui/sidebar'
 import { DeviceMenu } from '@/features/connection/DeviceMenu'
-import { setKeymapRequest } from '@/services/rpcEventsService.ts'
-import { callRpc } from '@/services/rpcCall.ts'
+import { setKeymapRequest } from '@/services/rpcEventsService'
+import { callRpc } from '@/services/rpcCall'
 import { LockState } from '@zmkfirmware/zmk-studio-ts-client/core'
 import { Keymap } from '@zmkfirmware/zmk-studio-ts-client/keymap'
 import { produce } from 'immer'

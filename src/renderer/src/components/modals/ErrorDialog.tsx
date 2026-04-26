@@ -1,4 +1,4 @@
-import { Modal } from '@/ui/modal.tsx'
+import { Modal } from '@/ui/modal'
 
 interface ErrorDialogProps {
     open: boolean

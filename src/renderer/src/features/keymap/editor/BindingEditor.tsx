@@ -6,14 +6,14 @@ import {
     Keymap,
 } from '@zmkfirmware/zmk-studio-ts-client/keymap'
 import { useCallback, useMemo } from 'react'
-import undoRedoStore from '@/stores/undoRedoStore.ts'
-import useConnectionStore from '@/stores/connectionStore.ts'
-import useLayerSelectionStore from '@/stores/layerSelectionStore.ts'
+import undoRedoStore from '@/stores/undoRedoStore'
+import useConnectionStore from '@/stores/connectionStore'
+import useLayerSelectionStore from '@/stores/layerSelectionStore'
 import { produce } from 'immer'
 import { SetLayerBindingResponse } from '@zmkfirmware/zmk-studio-ts-client/keymap'
-import { Card, CardContent } from '@/ui/card.tsx'
-import { Button } from '@/ui/button.tsx'
-import { callRpc } from '@/services/rpcCall.ts'
+import { Card, CardContent } from '@/ui/card'
+import { Button } from '@/ui/button'
+import { callRpc } from '@/services/rpcCall'
 import { toast } from 'sonner'
 
 interface BindingEditorProps {
