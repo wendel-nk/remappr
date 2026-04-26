@@ -211,7 +211,7 @@ export const Key = ({
 
     return (
         <div
-            className="group inline-flex b-0 flex-col justify-items-center justify-content-center items-center transition-all duration-0 hover:scale-150 hover:border rounded-md"
+            className="group inline-flex box-border b-0 flex-col justify-items-center justify-content-center items-center transition-all duration-0 hover:scale-150 border border-transparent hover:border-border rounded-md"
             data-zoomer={hoverZoom}
             style={size as React.CSSProperties}
             {...props}
