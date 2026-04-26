@@ -49,7 +49,7 @@ export const DeviceMenu = (): JSX.Element => {
         <SidebarMenu>
             <SidebarMenuItem>
                 <DropdownMenu>
-                    <DropdownMenuTrigger className="w-full">
+                    <DropdownMenuTrigger asChild>
                         <Button
                             variant="outline"
                             className="w-full justify-between"

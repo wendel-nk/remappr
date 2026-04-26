@@ -10,11 +10,7 @@ import {
     CommandItem,
     CommandList,
 } from '@/ui/command'
-import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from '@/ui/popover'
+import { Popover, PopoverContent, PopoverTrigger } from '@/ui/popover'
 import { cn } from '@/utils/cn'
 
 export interface BehaviorSelectorProps {
@@ -58,8 +54,7 @@ export const BehaviorSelector = ({
 
     return (
         <Popover open={open} onOpenChange={setOpen}>
-            {/*todo search for a fix for asChild issue*/}
-            <PopoverTrigger>
+            <PopoverTrigger asChild>
                 <Button
                     variant="outline"
                     role="combobox"
