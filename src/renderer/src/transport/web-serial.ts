@@ -3,12 +3,6 @@ import type { AvailableDevice } from '@/transport/types'
 
 const BAUD_RATE = 12500
 
-interface PortRecord {
-    id: string
-    label: string
-    port: SerialPort
-}
-
 const portRegistry = new Map<string, SerialPort>()
 
 function makeId(info: SerialPortInfo, fallbackIndex: number): string {
@@ -17,10 +11,7 @@ function makeId(info: SerialPortInfo, fallbackIndex: number): string {
     return `web-serial:${vid}:${pid}:${fallbackIndex}`
 }
 
-// Web Serial only exposes vid/pid — the OS device name (e.g. "testkeyboard")
-// is not part of SerialPortInfo. Map known ZMK-friendly vendor IDs to a
-// friendlier label; the actual keyboard name can be fetched over RPC after
-// a connection is established.
+// Fallback labels when WebUSB cannot supply a productName.
 const KNOWN_VENDOR_LABELS: Record<number, string> = {
     0x1d50: 'ZMK Keyboard',
     0x239a: 'Adafruit Keyboard',
@@ -32,7 +23,7 @@ const KNOWN_VENDOR_LABELS: Record<number, string> = {
     0x1209: 'Generic ZMK Keyboard',
 }
 
-function makeLabel(info: SerialPortInfo): string {
+function fallbackLabel(info: SerialPortInfo): string {
     const vid = info.usbVendorId
     if (vid !== undefined && KNOWN_VENDOR_LABELS[vid]) {
         return KNOWN_VENDOR_LABELS[vid]
@@ -40,20 +31,62 @@ function makeLabel(info: SerialPortInfo): string {
     return 'USB Keyboard'
 }
 
-function buildRecord(port: SerialPort, index: number): PortRecord {
-    const info = port.getInfo()
-    const id = makeId(info, index)
-    return { id, label: makeLabel(info), port }
+interface UsbNameRecord {
+    productName?: string
+    manufacturerName?: string
+}
+
+// Web Serial does not expose the OS device name. WebUSB does (productName).
+// Probe getDevices() (no prompt — returns devices the origin already has
+// access to) and match by vid:pid to enrich the label. If the user has
+// previously granted WebUSB for the device they get the real name; if not,
+// we fall back to the vendor-id table.
+async function buildUsbNameMap(): Promise<Map<string, UsbNameRecord>> {
+    const map = new Map<string, UsbNameRecord>()
+    if (typeof navigator === 'undefined' || !('usb' in navigator)) return map
+    try {
+        const devices = await navigator.usb.getDevices()
+        for (const d of devices) {
+            const key = `${d.vendorId}:${d.productId}`
+            map.set(key, {
+                productName: d.productName ?? undefined,
+                manufacturerName: d.manufacturerName ?? undefined,
+            })
+        }
+    } catch (e) {
+        console.warn('[web-serial] WebUSB getDevices failed', e)
+    }
+    return map
+}
+
+function nameFromUsb(
+    info: SerialPortInfo,
+    usbNames: Map<string, UsbNameRecord>,
+): string | undefined {
+    const vid = info.usbVendorId
+    const pid = info.usbProductId
+    if (vid === undefined || pid === undefined) return undefined
+    const rec = usbNames.get(`${vid}:${pid}`)
+    if (!rec) return undefined
+    if (rec.productName && rec.productName.trim() !== '') return rec.productName
+    if (rec.manufacturerName && rec.manufacturerName.trim() !== '')
+        return rec.manufacturerName
+    return undefined
 }
 
 export async function listGrantedPorts(): Promise<AvailableDevice[]> {
     if (!navigator.serial) return []
-    const ports = await navigator.serial.getPorts()
+    const [ports, usbNames] = await Promise.all([
+        navigator.serial.getPorts(),
+        buildUsbNameMap(),
+    ])
     portRegistry.clear()
     return ports.map((port, i) => {
-        const record = buildRecord(port, i)
-        portRegistry.set(record.id, record.port)
-        return { id: record.id, label: record.label }
+        const info = port.getInfo()
+        const id = makeId(info, i)
+        const label = nameFromUsb(info, usbNames) ?? fallbackLabel(info)
+        portRegistry.set(id, port)
+        return { id, label }
     })
 }
 
@@ -71,7 +104,8 @@ async function openTransport(port: SerialPort): Promise<RpcTransport> {
     }
 
     const info = port.getInfo()
-    const label = makeLabel(info)
+    const usbNames = await buildUsbNameMap()
+    const label = nameFromUsb(info, usbNames) ?? fallbackLabel(info)
 
     const abortController = new AbortController()
     const sig = abortController.signal
@@ -106,8 +140,35 @@ export async function connectToGrantedPort(
 export async function requestAndConnect(): Promise<RpcTransport> {
     if (!navigator.serial) throw new Error('Web Serial not supported')
     const port = await navigator.serial.requestPort({})
-    const index = portRegistry.size
-    const record = buildRecord(port, index)
-    portRegistry.set(record.id, record.port)
+    const info = port.getInfo()
+    const id = makeId(info, portRegistry.size)
+    portRegistry.set(id, port)
+
+    // Best-effort: also acquire WebUSB permission for the same vid/pid so the
+    // device shows a real productName next time without an extra prompt. If
+    // the user cancels this second dialog, we silently fall back.
+    if (
+        typeof navigator !== 'undefined' &&
+        'usb' in navigator &&
+        info.usbVendorId !== undefined &&
+        info.usbProductId !== undefined
+    ) {
+        try {
+            await navigator.usb.requestDevice({
+                filters: [
+                    {
+                        vendorId: info.usbVendorId,
+                        productId: info.usbProductId,
+                    },
+                ],
+            })
+        } catch (e) {
+            console.log(
+                '[web-serial] WebUSB grant skipped (label will use fallback)',
+                e,
+            )
+        }
+    }
+
     return openTransport(port)
 }
