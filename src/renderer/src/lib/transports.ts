@@ -115,17 +115,14 @@ export function getTransports(): TransportFactory[] {
             })
         }
 
-        // Web Bluetooth: enable wherever navigator.bluetooth exists.
-        // Chrome/Edge support it on Win/Mac/Linux/Android. Previously
-        // gated to Linux UA only (upstream historical limit).
-        if (navigator.bluetooth) {
-            transports.push({
-                label: 'BLE',
-                communication: 'ble',
-                isWireless: true,
-                connect: gatt_connect,
-            })
-        }
+        // Web Bluetooth disabled in browser builds: on Windows, ZMK
+        // keyboards bonded as HID are invisible to the Web BT chooser
+        // (OS hides connected HID devices), and ZMK Studio adv mode
+        // requires &studio_unlock + a fresh pair. Net result: chooser
+        // is empty for users. Use the Electron build (pnpm edev) for
+        // BLE — it talks to the native BT stack and reaches bonded
+        // devices. Re-enable here once a workable Web BT path exists.
+        void gatt_connect
     }
 
     cachedTransports = transports
