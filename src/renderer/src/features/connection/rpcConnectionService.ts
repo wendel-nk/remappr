@@ -11,61 +11,8 @@ import { valueAfter } from '@/utils/async'
 import { RpcTransport } from '@zmkfirmware/zmk-studio-ts-client/transport/index'
 import { publish } from '@/utils/usePubSub'
 import useConnectionStore from '@/features/connection/connectionStore.ts'
+import { callRemoteProcedureControl } from '@/features/connection/callRemoteProcedureControl.ts'
 import { LockState } from '@zmkfirmware/zmk-studio-ts-client/core'
-
-// export async function listenForNotifications(
-//     notification_stream: ReadableStream<Notification>,
-//     signal: AbortSignal,
-//     callback?: (notification: Notification) => void
-// ): Promise<void> {
-//     const reader = notification_stream.getReader()
-//     const onAbort = () => {
-//         reader.cancel()
-//         reader.releaseLock()
-//     }
-//     signal.addEventListener('abort', onAbort, { once: true })
-//     do {
-//     const pub = usePub()
-//
-//     try {
-//         const { done, value } = await reader.read()
-//         if (done || !value) return
-//         console.log('done value', done, value)
-//         console.log('Notification', value)
-//         pub('rpc_notification', value)
-//
-//         const subsystem = Object.entries(value).find(
-//             ([, v]) => v !== undefined,
-//         )
-//         if (!subsystem) return
-//
-//         const [subId, subData] = subsystem
-//         const event = Object.entries(subData).find(([_k, v]) => v !== undefined)
-//
-//         if (!event) return
-//
-//         const [eventName, eventData] = event
-//         const topic = ['rpc_notification', subId, eventName].join('.')
-//         console.log(topic)
-//         pub(topic, eventData)
-//
-//     } catch (e) {
-//         console.log(e)
-//         signal.removeEventListener('abort', onAbort)
-//         reader.releaseLock()
-//         toast.error(e.message)
-//         throw e
-//     }
-//     } while (true);
-//     // signal.removeEventListener('abort', onAbort)
-//     // reader.releaseLock()
-//     // notification_stream.cancel()
-//
-//     let result: any;
-//     while (!(result = await reader.read()).done) {
-//         callback?.(result.value)
-//     }
-// }
 
 async function listenForNotifications(
     notification_stream: ReadableStream<Notification>,
@@ -124,24 +71,6 @@ async function listenForNotifications(
     notification_stream.cancel()
 }
 
-export async function callRemoteProcedureControl(
-    conn: RpcConnection,
-    req: Omit<Request, 'requestId'>,
-): Promise<RequestResponse> {
-    // console.trace('RPC Request', conn, req);
-    // console.log( conn, req )
-    return call_rpc(conn, req)
-        .then((r: RequestResponse): RequestResponse => {
-            // console.log('RPC Response', r);
-            return r
-        })
-        .catch((e: unknown): RequestResponse => {
-            // console.log('RPC Error', e);
-            console.error('RPC Error', e)
-            throw e
-        })
-}
-
 interface DeviceInfoDetails {
     name: string
     serialNumber?: Uint8Array
@@ -160,7 +89,7 @@ export async function connect(
     const conn = await createRpcConnection(transport, { signal })
     console.log('Connect function', conn)
     const details = await Promise.race([
-        callRemoteProcedureControl(conn, { core: { getDeviceInfo: true } })
+        call_rpc(conn, { core: { getDeviceInfo: true } })
             .then(function (
                 response: RequestResponse,
             ): DeviceInfoDetails | undefined {
@@ -221,7 +150,7 @@ export function useConnectedDeviceData<T>(
                 setData(undefined)
 
                 const response = response_mapper(
-                    await callRemoteProcedureControl(connection, req),
+                    await callRemoteProcedureControl(req),
                 )
                 console.log(response)
                 if (!ignore) {
