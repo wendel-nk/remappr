@@ -1,7 +1,7 @@
 // pattern-check: skip — merge conflict resolution, no new logic
 import { TransportFactory } from '../transport/types'
 import { connect as serial_connect } from '@zmkfirmware/zmk-studio-ts-client/transport/serial'
-import { connect as gatt_connect } from '@zmkfirmware/zmk-studio-ts-client/transport/gatt'
+import { connect as gatt_connect } from '../transport/web-ble'
 import {
     connect as tauri_ble_connect,
     list_devices as ble_list_devices,
