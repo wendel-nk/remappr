@@ -17,10 +17,27 @@ function makeId(info: SerialPortInfo, fallbackIndex: number): string {
     return `web-serial:${vid}:${pid}:${fallbackIndex}`
 }
 
+// Web Serial only exposes vid/pid — the OS device name (e.g. "testkeyboard")
+// is not part of SerialPortInfo. Map known ZMK-friendly vendor IDs to a
+// friendlier label; the actual keyboard name can be fetched over RPC after
+// a connection is established.
+const KNOWN_VENDOR_LABELS: Record<number, string> = {
+    0x1d50: 'ZMK Keyboard',
+    0x239a: 'Adafruit Keyboard',
+    0x303a: 'ESP32 Keyboard',
+    0x2e8a: 'Raspberry Pi Pico Keyboard',
+    0x16c0: 'V-USB / Teensy Keyboard',
+    0x1915: 'Nordic Keyboard',
+    0x05ac: 'Apple Keyboard',
+    0x1209: 'Generic ZMK Keyboard',
+}
+
 function makeLabel(info: SerialPortInfo): string {
-    const vid = info.usbVendorId?.toString(16).padStart(4, '0') ?? '????'
-    const pid = info.usbProductId?.toString(16).padStart(4, '0') ?? '????'
-    return `USB Serial (${vid}:${pid})`
+    const vid = info.usbVendorId
+    if (vid !== undefined && KNOWN_VENDOR_LABELS[vid]) {
+        return KNOWN_VENDOR_LABELS[vid]
+    }
+    return 'USB Keyboard'
 }
 
 function buildRecord(port: SerialPort, index: number): PortRecord {
