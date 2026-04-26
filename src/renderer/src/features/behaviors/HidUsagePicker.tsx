@@ -54,11 +54,11 @@ const UsageSection = ({ id, min, max }: UsageSectionProps): JSX.Element => {
 
     return (
         <Section id={id}>
-            <Header className="text-base-content/50">{info?.Name}</Header>
+            <Header className="text-foreground/50">{info?.Name}</Header>
             <Collection items={usages}>
                 {(i) => (
                     <ListBoxItem
-                        className="rac-hover:bg-base-300 pl-3 relative rac-focus:bg-base-300 cursor-default select-none rac-selected:before:content-['✔'] before:absolute before:left-[0] before:top-[0]"
+                        className="rac-hover:bg-accent pl-3 relative rac-focus:bg-accent cursor-default select-none rac-selected:before:content-['✔'] before:absolute before:left-[0] before:top-[0]"
                         id={hidUsageFromPageAndId(id, i.Id)}
                     >
                         {i.Name}
@@ -162,7 +162,7 @@ export const HidUsagePicker = ({
             >
                 <div className="flex">
                     <Input className="p-1 rounded-l" />
-                    <Button className="rounded-r bg-primary text-primary-content w-8 h-8 flex justify-center items-center">
+                    <Button className="rounded-r bg-primary text-primary-foreground w-8 h-8 flex justify-center items-center">
                         <ChevronDown className="size-4" />
                     </Button>
                 </div>
@@ -170,7 +170,7 @@ export const HidUsagePicker = ({
                 <Popover
                     isOpen={true}
                     defaultOpen={true}
-                    className="w-[var(--trigger-width)] max-h-4 shadow-md text-base-content rounded border-base-content bg-base-100"
+                    className="w-[var(--trigger-width)] max-h-4 shadow-md text-popover-foreground rounded border border-border bg-popover"
                 >
                     <ListBox
                         items={usagePages}
@@ -193,7 +193,7 @@ export const HidUsagePicker = ({
                     <Checkbox
                         key={m}
                         value={m.toLocaleString()}
-                        className="text-nowrap cursor-pointer grid px-2 content-center justify-center rac-selected:bg-primary border-base-100 bg-base-300 hover:bg-base-100 first:rounded-s-md last:rounded-e-md rac-selected:text-primary-content"
+                        className="text-nowrap cursor-pointer grid px-2 content-center justify-center rac-selected:bg-primary border-background bg-accent hover:bg-background first:rounded-s-md last:rounded-e-md rac-selected:text-primary-foreground"
                     >
                         {mod_labels[m]}
                     </Checkbox>

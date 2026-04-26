@@ -223,7 +223,7 @@ export const Key = ({
                 title={holdTap?.tooltip}
                 className={`rounded${
                     oneU > 20 ? '-md' : ''
-                } transition-all duration-100 box-border text-base-content bg-cyan-950  aria-pressed:bg-primary aria-pressed:text-primary-content grow
+                } transition-all duration-100 box-border text-foreground bg-cyan-950  aria-pressed:bg-primary aria-pressed:text-primary-foreground grow
                  flex-col flex items-center ${holdTap ? 'justify-stretch' : 'justify-evenly'} w-full h-full overflow-hidden ${
                      pressed ? 'bg-green-600 text-white shadow-lg scale-95' : ''
                  }`}

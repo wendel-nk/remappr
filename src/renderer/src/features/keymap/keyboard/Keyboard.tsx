@@ -125,7 +125,7 @@ export default function Keyboard({
     return (
         <>
             {layouts && keymap && behaviors && (
-                <div className="p-2 col-start-2 row-start-1 items-center justify-center relative min-w-0 flex h-full bg-base-300">
+                <div className="p-2 col-start-2 row-start-1 items-center justify-center relative min-w-0 flex h-full bg-accent">
                     <KeyboardLayout
                         keymap={keymap}
                         layout={layouts[selectedPhysicalLayoutIndex]}

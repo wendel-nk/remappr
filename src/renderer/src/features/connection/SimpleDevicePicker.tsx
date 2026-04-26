@@ -74,6 +74,7 @@ export function SimpleDevicePicker({
         // Reset ignore state at the start of each new connection attempt
         ignoreRef.current = false
         if (!selectedTransport) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setAvailableDevices(undefined)
             return
         }
@@ -137,7 +138,7 @@ export function SimpleDevicePicker({
                             <li key={d.id} className="m-1 p-2">
                                 <button
                                     type="button"
-                                    className="w-full text-left cursor-pointer hover:bg-base-300 rounded p-1"
+                                    className="w-full text-left cursor-pointer hover:bg-accent rounded p-1"
                                     onClick={handleSelect}
                                 >
                                     {d.label}
