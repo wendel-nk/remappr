@@ -1,11 +1,12 @@
 import { PropsWithChildren, useLayoutEffect, useRef, useState } from 'react'
-import { Key } from './Key.tsx'
+import { HoldTapLabels, Key } from './Key.tsx'
 import { scalePosition } from '../../helpers/scalePosition.ts'
 import { LayoutZoom } from '@/helpers/helpers.ts'
 
 export type KeyPosition = PropsWithChildren<{
     id?: string
     header?: string
+    holdTap?: HoldTapLabels
     width: number
     height: number
     x: number
@@ -91,21 +92,13 @@ export const PhysicalLayout = ({
     // console.log(positions)
     const keysPositions = positions.map((p, idx) => {
         const posStyle = scalePosition(p, oneU)
-        const existingTransform = posStyle.transform || ''
-
         return (
             <div
                 key={p.id}
                 onClick={() => onPositionClicked?.(idx)}
                 className="absolute data-[zoomer=true]:hover:z-[1000] leading-[0]"
                 data-zoomer={hoverZoom}
-                style={{
-                    ...posStyle,
-                    backfaceVisibility: 'hidden',
-                    transform: existingTransform
-                        ? `${existingTransform} translateZ(0)`
-                        : 'translateZ(0)',
-                }}
+                style={posStyle}
             >
                 <Key
                     hoverZoom={hoverZoom}
@@ -117,7 +110,6 @@ export const PhysicalLayout = ({
             </div>
         )
     })
-    // console.log( positions, oneU);
     return (
         <>
             <div
@@ -126,14 +118,8 @@ export const PhysicalLayout = ({
                     {
                         height: bottomMost * oneU + 'px',
                         width: rightMost * oneU + 'px',
-                        transform: `scale(${scale}) translateZ(0)`,
+                        transform: `scale(${scale})`,
                         transformOrigin: 'center',
-                        WebkitFontSmoothing: 'subpixel-antialiased',
-                        MozOsxFontSmoothing: 'grayscale',
-                        backfaceVisibility: 'hidden',
-                        perspective: 1000,
-                        willChange: 'transform',
-                        imageRendering: 'auto',
                     } as React.CSSProperties
                 }
                 ref={ref}

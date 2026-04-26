@@ -26,6 +26,7 @@ const useUndoRedoStore = create<UndoRedoState>()(
         canRedo: () => !get().locked && get().redoStack.length > 0,
 
         doIt: async (doCb, preserveRedo = false) => {
+            if (get().locked) return
             set({ locked: true })
             const undo = await doCb()
 

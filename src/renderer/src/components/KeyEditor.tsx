@@ -17,7 +17,6 @@ import { callRemoteProcedureControl } from '@/services/CallRemoteProcedureContro
 import { toast } from 'sonner'
 
 interface KeyEditorProps {
-    selectedKey: boolean
     keymap: Keymap | undefined
     setKeymap: (
         keymap:
@@ -27,18 +26,15 @@ interface KeyEditorProps {
     ) => void
     selectedKeyPosition: number | undefined
     setSelectedKeyPosition: (position: number | undefined) => void
-    setSelectedKey: (value: boolean) => void
 }
 
 export function KeyEditor({
-    selectedKey,
     keymap,
     setKeymap,
     selectedKeyPosition,
     setSelectedKeyPosition,
-    setSelectedKey,
 }: KeyEditorProps): JSX.Element {
-    const { doIt } = undoRedoStore()
+    const doIt = undoRedoStore((s) => s.doIt)
     const { connection } = useConnectionStore()
     const { selectedLayerIndex } = useLayerSelectionStore()
     const behaviors = useBehaviors()
@@ -71,18 +67,6 @@ export function KeyEditor({
                 return
             }
 
-            // Add debugging to see what binding we're trying to set
-            console.log('Attempting to set binding:', {
-                behaviorId: binding.behaviorId,
-                param1: binding.param1,
-                param2: binding.param2,
-                selectedKeyPosition,
-                effectiveLayerIndex,
-                // Add hex values for debugging
-                param1Hex: binding.param1?.toString(16),
-                param2Hex: binding.param2?.toString(16),
-            })
-
             const layer = effectiveLayerIndex
             const layerId = keymap.layers[layer].id
             const keyPosition = selectedKeyPosition
@@ -94,8 +78,6 @@ export function KeyEditor({
                         setLayerBinding: { layerId, keyPosition, binding },
                     },
                 })
-
-                console.log('Binding response:', resp.keymap?.setLayerBinding)
 
                 if (
                     resp.keymap?.setLayerBinding ===
@@ -177,18 +159,28 @@ export function KeyEditor({
         if (
             keymap == null ||
             selectedKeyPosition == null ||
-            !keymap.layers[effectiveLayerIndex]
+            !keymap.layers[effectiveLayerIndex] ||
+            selectedKeyPosition >=
+                keymap.layers[effectiveLayerIndex].bindings.length
         )
             return null
 
-        setSelectedKey(true)
-
         return keymap.layers[effectiveLayerIndex].bindings[selectedKeyPosition]
-    }, [keymap, effectiveLayerIndex, selectedKeyPosition, setSelectedKey])
+    }, [keymap, effectiveLayerIndex, selectedKeyPosition])
+
+    const behaviorList = useMemo(() => Object.values(behaviors), [behaviors])
+    const layerList = useMemo(
+        () =>
+            keymap?.layers.map(({ id, name }, li) => ({
+                id,
+                name: name || li.toLocaleString(),
+            })) ?? [],
+        [keymap],
+    )
 
     return (
         <>
-            {selectedKey && (
+            {selectedKeyPosition !== undefined && (
                 <div className="p-2 col-start-2 row-start-2 w-full">
                     <Card className="relative">
                         <CardContent className="p-4">
@@ -196,17 +188,8 @@ export function KeyEditor({
                                 {selectedBinding && (
                                     <BehaviorBindingPicker
                                         binding={selectedBinding}
-                                        behaviors={Object.values(behaviors)}
-                                        layers={
-                                            keymap?.layers.map(
-                                                ({ id, name }, li) => ({
-                                                    id,
-                                                    name:
-                                                        name ||
-                                                        li.toLocaleString(),
-                                                }),
-                                            ) || []
-                                        }
+                                        behaviors={behaviorList}
+                                        layers={layerList}
                                         onBindingChanged={doUpdateBinding}
                                     />
                                 )}
@@ -216,7 +199,6 @@ export function KeyEditor({
                                 size="sm"
                                 className="absolute right-2 top-2 h-8 w-8 p-0"
                                 onClick={(): void => {
-                                    setSelectedKey(false)
                                     setSelectedKeyPosition(undefined)
                                 }}
                             >

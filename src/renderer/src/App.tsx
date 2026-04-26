@@ -1,6 +1,6 @@
 import React, { JSX, useCallback, useEffect } from 'react'
 import type { RpcTransport } from '@zmkfirmware/zmk-studio-ts-client/transport/index'
-import { useEmitter, useSub } from './helpers/usePubSub.ts'
+import { useEmitter } from './helpers/usePubSub.ts'
 import { LockState } from '@zmkfirmware/zmk-studio-ts-client/core'
 import { UnlockModal } from './components/UnlockModal.tsx'
 import { connect } from './services/RpcConnectionService.ts'
@@ -32,16 +32,10 @@ function App(): JSX.Element {
         return subscribe(
             'rpc_notification.core.lockStateChanged',
             (data: unknown): void => {
-                console.log('lockStateChanged:', data)
                 setLockState(data as LockState)
             },
         )
     }, [subscribe, setLockState])
-
-    useSub('rpc_notification.core.lockStateChanged', (ls): void => {
-        console.log(ls)
-        setLockState(ls as LockState)
-    })
 
     const updateLockState = useCallback(async (): Promise<void> => {
         if (!connection) return
@@ -49,7 +43,6 @@ function App(): JSX.Element {
         const locked_resp = await callRemoteProcedureControl({
             core: { getLockState: true },
         })
-        console.log(connection)
         setLockState(
             locked_resp.core?.getLockState ||
                 LockState.ZMK_STUDIO_CORE_LOCK_STATE_LOCKED,
@@ -57,7 +50,6 @@ function App(): JSX.Element {
     }, [connection, setLockState])
 
     useEffect(() => {
-        console.log(connection)
         if (!connection) {
             reset()
             setLockState(LockState.ZMK_STUDIO_CORE_LOCK_STATE_LOCKED)

@@ -10,8 +10,6 @@ import useKeymapStore from '@/stores/KeymapStore.ts'
  * Handles the selection state and coordinates between the keyboard display and key editing interface.
  */
 export function KeyboardEditor(): JSX.Element {
-    // Shared state between Keyboard and KeyEditor
-    const [selectedKey, setSelectedKey] = useState<boolean>(false)
     const [selectedKeyPosition, setSelectedKeyPosition] = useState<
         number | undefined
     >(undefined)
@@ -27,12 +25,10 @@ export function KeyboardEditor(): JSX.Element {
                 setSelectedKeyPosition={setSelectedKeyPosition}
             />
             <KeyEditor
-                selectedKey={selectedKey}
                 keymap={keymap}
                 setKeymap={setKeymap}
                 selectedKeyPosition={selectedKeyPosition}
                 setSelectedKeyPosition={setSelectedKeyPosition}
-                setSelectedKey={setSelectedKey}
             />
         </div>
     )

@@ -1,151 +1,89 @@
 # Implementation Plan (AI execution unavailable)
 
 ## Task
-Implement BLE communication in Electron
+Detect and parse hold-tap bindings
 
 ## Description
 ## Summary
-Set up the secure IPC foundation for Electron communication, including the preload script API surface and main process handler infrastructure.
-
-Implement Bluetooth Low Energy communication in Electron's main process for wireless keyboard connections.
+Create utility functions to identify and parse hold-tap behavior bindings (Layer-Tap, Mod-Tap, Sticky Key) and extract their tap/hold parameters.
 
 ## Acceptance Criteria
-- [ ] Define TypeScript interfaces for all IPC channels and payloads
-- [ ] Implement `contextBridge.exposeInMainWorld()` API in preload script
-- [ ] Set up main process IPC handler registration pattern
-- [ ] Ensure `nodeIntegration: false` and `contextIsolation: true` are configured
-- [ ] Create input validation utilities for IPC handlers
-- [ ] Add platform detection to choose between Tauri/Electron backends
-- [ ] Implement BLE device scanning with filters
-- [ ] Implement BLE device connection
-- [ ] Implement BLE device disconnection
-- [ ] Handle BLE connection state changes and disconnections
-- [ ] Wire up BLE UI to use Electron backend when running in Electron
+- [ ] Create helper function to detect if a binding is a hold-tap type (`&lt`, `&mt`, `&sk`, custom hold-tap)
+- [ ] Create parser to extract tap action parameter from binding
+- [ ] Create parser to extract hold action parameter from binding
+- [ ] Add TypeScript types for hold-tap binding structure
+- [ ] Unit tests for parsing various hold-tap binding formats
 
-## Reference Files
-- `src/preload/index.ts` - Preload script to extend
-- `src/main/index.ts` - Main process entry point
-- `src/renderer/src/tauri/index.ts` - API surface reference
-- `src/renderer/src/tauri/ble.ts` - Tauri BLE implementation
-- `src/renderer/src/transport/gatt.ts` - GATT transport layer
+## Files to Modify
+- `src/renderer/src/helpers/Behaviors.ts` - Add detection and parsing utilities
 
-Parent issue: #28 Implement the communication with electron
-https://github.com/Wolffyx/remappr/issues/28
+Parent issue: #29 Show Layer-Tap/Mod-Tap on keys
+https://github.com/Wolffyx/remappr/issues/29
 
 ## Plan
 # Task: Implement the following issue
 
 ## Issue Title
-Implement BLE communication in Electron
+Detect and parse hold-tap bindings
 
 ## Issue Description
 ## Summary
-Set up the secure IPC foundation for Electron communication, including the preload script API surface and main process handler infrastructure.
-
-Implement Bluetooth Low Energy communication in Electron's main process for wireless keyboard connections.
+Create utility functions to identify and parse hold-tap behavior bindings (Layer-Tap, Mod-Tap, Sticky Key) and extract their tap/hold parameters.
 
 ## Acceptance Criteria
-- [ ] Define TypeScript interfaces for all IPC channels and payloads
-- [ ] Implement `contextBridge.exposeInMainWorld()` API in preload script
-- [ ] Set up main process IPC handler registration pattern
-- [ ] Ensure `nodeIntegration: false` and `contextIsolation: true` are configured
-- [ ] Create input validation utilities for IPC handlers
-- [ ] Add platform detection to choose between Tauri/Electron backends
-- [ ] Implement BLE device scanning with filters
-- [ ] Implement BLE device connection
-- [ ] Implement BLE device disconnection
-- [ ] Handle BLE connection state changes and disconnections
-- [ ] Wire up BLE UI to use Electron backend when running in Electron
+- [ ] Create helper function to detect if a binding is a hold-tap type (`&lt`, `&mt`, `&sk`, custom hold-tap)
+- [ ] Create parser to extract tap action parameter from binding
+- [ ] Create parser to extract hold action parameter from binding
+- [ ] Add TypeScript types for hold-tap binding structure
+- [ ] Unit tests for parsing various hold-tap binding formats
 
-## Reference Files
-- `src/preload/index.ts` - Preload script to extend
-- `src/main/index.ts` - Main process entry point
-- `src/renderer/src/tauri/index.ts` - API surface reference
-- `src/renderer/src/tauri/ble.ts` - Tauri BLE implementation
-- `src/renderer/src/transport/gatt.ts` - GATT transport layer
+## Files to Modify
+- `src/renderer/src/helpers/Behaviors.ts` - Add detection and parsing utilities
 
-Parent issue: #28 Implement the communication with electron
-https://github.com/Wolffyx/remappr/issues/28
+Parent issue: #29 Show Layer-Tap/Mod-Tap on keys
+https://github.com/Wolffyx/remappr/issues/29
 
 ## Implementation Plan
-# Implementation Specification (Spec)
+# Implementation Plan (Lite)
 
 ## Task
-Implement BLE communication in Electron
+Detect and parse hold-tap bindings
 
 ## Description
 ## Summary
-Set up the secure IPC foundation for Electron communication, including the preload script API surface and main process handler infrastructure.
-
-Implement Bluetooth Low Energy communication in Electron's main process for wireless keyboard connections.
+Create utility functions to identify and parse hold-tap behavior bindings (Layer-Tap, Mod-Tap, Sticky Key) and extract their tap/hold parameters.
 
 ## Acceptance Criteria
-- [ ] Define TypeScript interfaces for all IPC channels and payloads
-- [ ] Implement `contextBridge.exposeInMainWorld()` API in preload script
-- [ ] Set up main process IPC handler registration pattern
-- [ ] Ensure `nodeIntegration: false` and `contextIsolation: true` are configured
-- [ ] Create input validation utilities for IPC handlers
-- [ ] Add platform detection to choose between Tauri/Electron backends
-- [ ] Implement BLE device scanning with filters
-- [ ] Implement BLE device connection
-- [ ] Implement BLE device disconnection
-- [ ] Handle BLE connection state changes and disconnections
-- [ ] Wire up BLE UI to use Electron backend when running in Electron
+- [ ] Create helper function to detect if a binding is a hold-tap type (`&lt`, `&mt`, `&sk`, custom hold-tap)
+- [ ] Create parser to extract tap action parameter from binding
+- [ ] Create parser to extract hold action parameter from binding
+- [ ] Add TypeScript types for hold-tap binding structure
+- [ ] Unit tests for parsing various hold-tap binding formats
 
-## Reference Files
-- `src/preload/index.ts` - Preload script to extend
-- `src/main/index.ts` - Main process entry point
-- `src/renderer/src/tauri/index.ts` - API surface reference
-- `src/renderer/src/tauri/ble.ts` - Tauri BLE implementation
-- `src/renderer/src/transport/gatt.ts` - GATT transport layer
+## Files to Modify
+- `src/renderer/src/helpers/Behaviors.ts` - Add detection and parsing utilities
 
-Parent issue: #28 Implement the communication with electron
-https://github.com/Wolffyx/remappr/issues/28
+Parent issue: #29 Show Layer-Tap/Mod-Tap on keys
+https://github.com/Wolffyx/remappr/issues/29
 
-## Analysis Requirements
-Before implementing, analyze the following:
-1. Identify all files that need to be modified
-2. List any new files that need to be created
-3. Check for existing patterns in the codebase to follow
-4. Identify any dependencies or related components
+## Approach
+1. Analyze the requirements
+2. Identify files to modify
+3. Implement changes
+4. Run verification commands
+5. Commit and push
 
-## Implementation Steps
-1. **Preparation**
-   - Review existing code structure
-   - Identify integration points
-
-2. **Core Changes**
-   - Implement the main functionality
-   - Follow existing code patterns and conventions
-
-3. **Integration**
-   - Wire up new components
-   - Update any necessary imports/exports
-
-4. **Testing**
-   - Add or update tests as needed
-   - Verify existing tests still pass
-
-## Verification
-- Lint: `pnpm lint`
-- Test: `pnpm test`
-- Build: `pnpm build`
-
-## Allowed Commands
+## Commands to Run
 - pnpm install
 - pnpm lint
 - pnpm test
 - pnpm build
 
-## Forbidden Paths
-- .github/workflows/
-- .gitlab-ci.yml
-
 ## Important Constraints
 - Only use these commands: pnpm install, pnpm lint, pnpm test, pnpm build
 - Do NOT modify these paths: .github/workflows/, .gitlab-ci.yml
-- Working directory: D:\Projects\Typescript\React\zmk-studio-original-worktrees\github-37-implement-ble-communication-in-electron
-- Repo root: D:\Projects\Typescript\React\zmk-studio-original
+- Working directory: /run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original-worktrees/github-30-detect-and-parse-hold-tap-bindings
+- Repo root: /run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original
 - After implementation, run the verification commands if they exist
 
 ## Verification Commands
@@ -279,18 +217,18 @@ Define how to verify the implementation works correctly:
 Define the specific, measurable condit
 …
 ### Suggested files (from local index)
-- src/renderer/src/components/DeviceCard.tsx (symbol:DeviceStatus, symbol:DeviceCardProps, symbol:DeviceCard)
-- src/renderer/src/stores/ConnectionStore.ts (symbol:ConnectionState, symbol:useConnectionStore, symbol:ConnectionState)
-- src/renderer/src/components/DeviceList.tsx (symbol:DeviceList, symbol:DeviceListProps, symbol:DeviceList)
-- src/renderer/src/transport/types.ts (symbol:SerialConnectionState, symbol:AvailableDevice, symbol:AvailableDevice)
-- src/renderer/src/services/RpcConnectionService.ts (symbol:DeviceInfoDetails, symbol:useConnectedDeviceData, symbol:DeviceInfoDetails)
-- src/renderer/src/behaviors/HidUsagePicker.stories.ts (symbol:Keyboard, symbol:KeyboardModSelection, symbol:KeyboardAndConsumer)
-- src/renderer/src/rpc/ConnectionContext.ts (symbol:ConnectionState, symbol:ConnectionState, symbol:ConnectionContext)
-- src/renderer/src/components/SimpleDevicePicker.tsx (symbol:SimpleDevicePicker, symbol:SimpleDevicePickerProps, symbol:SimpleDevicePicker)
-- src/renderer/src/components/StartPage.tsx (symbol:DeviceWithTransport, symbol:DeviceWithTransport, symbol:DeviceWithTransport)
-- src/renderer/src/components/keyboard/Keyboard.tsx (symbol:Keyboard, symbol:KeyboardProps)
-- src/renderer/src/services/KeyboardKeypressService.ts (symbol:KeyboardKeypressService, symbol:keyboardKeypressService)
-- src/renderer/src/data/keys/index.ts (symbol:KeyboardKeys, symbol:keyboards)
+- src/renderer/src/components/keyboard/LayerPicker.tsx (symbol:Layer, symbol:LayerClickCallback, symbol:LayerMovedCallback)
+- src/renderer/src/behaviors/BehaviorParametersPicker.tsx (symbol:BehaviorParametersPickerProps, symbol:BehaviorParametersPicker, symbol:BehaviorParametersPickerProps)
+- src/renderer/src/behaviors/BehaviorBindingPicker.tsx (symbol:BehaviorBindingPickerProps, symbol:BehaviorBindingPicker)
+- src/renderer/src/behaviors/BehaviorSelector.tsx (symbol:BehaviorSelectorProps, symbol:BehaviorSelector)
+- src/main/index.ts (symbol:createWindow, symbol:createWindow)
+- src/renderer/src/helpers/Behaviors.ts (symbol:BehaviorMap, symbol:useBehaviors)
+- src/renderer/src/helpers/useLayouts.ts (symbol:BehaviorMap, symbol:useBehaviors)
+- src/renderer/src/stores/LayerSelectionStore.ts (symbol:LayerSelectionState, symbol:useLayerSelectionStore)
+- src/renderer/src/services/RpcEventsService.ts (symbol:getBehaviors, symbol:getBehavior)
+- src/renderer/src/services/RpcEventsLayerService.ts (symbol:addLayer, symbol:removeLayer)
+- src/renderer/src/behaviors/ParameterValuePicker.stories.ts (symbol:LayerId)
+- src/renderer/src/components/keyboard/KeyboardLayout.tsx (symbol:BehaviorMap)
 ### Snippets (bounded, may be redacted)
 (none)
 
@@ -305,23 +243,23 @@ Focus on implementing the card requirements:
 - Make meaningful progress on the feature
 - Commit working chunks of code
 
-### Current Subtask
-Focus on this subtask: Set up Electron BLE permissions and device selection in main process
-Update src/main/index.ts to handle Electron's Web Bluetooth permissions: register 'select-bluetooth-device' event handler on the webContents to present device chooser, and set up bluetooth-related permission request/check handlers. Create src/main/handlers/ble.ts with IPC handlers that coordinate the BLE flow between main and renderer processes (device selection callback, connection state tracking).
-
-Remaining subtasks: 5
-
 ### Iteration Guidelines
 - Focus on making incremental progress
 - Commit meaningful chunks of work
 - Leave the codebase in a working state
 - If you complete the current subtask, move to the next one
 
-## User Feedback from Issue Comments
 
-The following feedback was provided by users on this issue. Please address these points:
+## Note
+All AI providers failed. Tried: claude. Last error: Error: claude exited with code 1
 
-### Additional Feedback
-- No changes have been made in this task to be implemented
+--- stderr (tail) ---
+Error: claude native binary not installed.
+Either postinstall did not run (--ignore-scripts, some pnpm configs)
+or the platform-native optional dependency was not downloaded
+(--omit=optional).
+Run the postinstall manually (adjust path for local vs global install):
+  node node_modules/@anthropic-ai/claude-code/install.cjs
+Or reinstall without --ignore-scripts / --omit=optional.
 
 Please implement the changes manually following the plan above.
