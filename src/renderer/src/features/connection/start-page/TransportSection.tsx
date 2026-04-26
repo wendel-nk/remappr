@@ -1,4 +1,4 @@
-import { RefreshCw, Monitor } from 'lucide-react'
+import { RefreshCw, Monitor, Plus } from 'lucide-react'
 import { Button } from '@/ui/button'
 import {
     Card,
@@ -21,6 +21,7 @@ interface TransportSectionProps {
     onRefresh: () => void
     onConnect: (d: DeviceWithTransport) => void
     onSimpleConnect: (t: TransportFactory) => void
+    onRequestNew: (t: TransportFactory) => void
 }
 
 export function TransportSection({
@@ -33,7 +34,10 @@ export function TransportSection({
     onRefresh,
     onConnect,
     onSimpleConnect,
+    onRequestNew,
 }: TransportSectionProps): JSX.Element {
+    const pairableTransports = transports.filter((t) => !!t.request_new)
+
     return (
         <Card className="mb-8">
             <CardHeader>
@@ -84,11 +88,28 @@ export function TransportSection({
                         ))}
                     </div>
                 ) : hasListableTransports && devices.length > 0 ? (
-                    <DiscoveredDeviceList
-                        devices={devices}
-                        connectingDeviceId={connectingDeviceId}
-                        onConnect={onConnect}
-                    />
+                    <div className="space-y-3">
+                        <DiscoveredDeviceList
+                            devices={devices}
+                            connectingDeviceId={connectingDeviceId}
+                            onConnect={onConnect}
+                        />
+                        {pairableTransports.length > 0 && (
+                            <div className="flex flex-wrap gap-2 pt-2">
+                                {pairableTransports.map((t) => (
+                                    <Button
+                                        key={t.label}
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => onRequestNew(t)}
+                                    >
+                                        <Plus className="mr-2 h-4 w-4" />
+                                        Pair new {t.label} device
+                                    </Button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                 ) : hasListableTransports ? (
                     <div className="flex flex-col items-center justify-center py-12 text-center">
                         <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
@@ -99,16 +120,28 @@ export function TransportSection({
                             Make sure your keyboard is connected and ZMK Studio
                             is enabled in your firmware.
                         </p>
-                        <Button
-                            variant="outline"
-                            onClick={onRefresh}
-                            disabled={refreshing}
-                        >
-                            <RefreshCw
-                                className={`mr-2 h-4 w-4 ${refreshing ? 'animate-spin' : ''}`}
-                            />
-                            Scan for Devices
-                        </Button>
+                        <div className="flex flex-wrap justify-center gap-2">
+                            <Button
+                                variant="outline"
+                                onClick={onRefresh}
+                                disabled={refreshing}
+                            >
+                                <RefreshCw
+                                    className={`mr-2 h-4 w-4 ${refreshing ? 'animate-spin' : ''}`}
+                                />
+                                Scan for Devices
+                            </Button>
+                            {pairableTransports.map((t) => (
+                                <Button
+                                    key={t.label}
+                                    variant="default"
+                                    onClick={() => onRequestNew(t)}
+                                >
+                                    <Plus className="mr-2 h-4 w-4" />
+                                    Pair new {t.label} device
+                                </Button>
+                            ))}
+                        </div>
                     </div>
                 ) : null}
             </CardContent>

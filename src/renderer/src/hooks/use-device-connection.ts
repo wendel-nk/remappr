@@ -10,6 +10,7 @@ interface UseDeviceConnectionResult {
     connectingDeviceId: string | null
     handleConnect: (d: DeviceWithTransport) => Promise<void>
     handleSimpleConnect: (t: TransportFactory) => Promise<void>
+    handleRequestNew: (t: TransportFactory) => Promise<void>
 }
 
 export function useDeviceConnection(
@@ -108,5 +109,40 @@ export function useDeviceConnection(
         [onTransportCreated],
     )
 
-    return { connectingDeviceId, handleConnect, handleSimpleConnect }
+    const handleRequestNew = useCallback(
+        async (transport: TransportFactory): Promise<void> => {
+            console.log('[connect] request new clicked', {
+                label: transport.label,
+            })
+            if (!transport.request_new) {
+                toast.error('Pairing not supported for this transport')
+                return
+            }
+            try {
+                const rpcTransport = await transport.request_new()
+                if (rpcTransport) {
+                    onTransportCreated(rpcTransport, transport.communication)
+                }
+            } catch (e) {
+                console.error('[connect] request_new error', e)
+                if (e instanceof UserCancelledError) return
+                if (e instanceof DOMException && e.name === 'NotFoundError') {
+                    return
+                }
+                if (e instanceof Error) {
+                    toast.error('Failed to pair device.', {
+                        description: e.message,
+                    })
+                }
+            }
+        },
+        [onTransportCreated],
+    )
+
+    return {
+        connectingDeviceId,
+        handleConnect,
+        handleSimpleConnect,
+        handleRequestNew,
+    }
 }

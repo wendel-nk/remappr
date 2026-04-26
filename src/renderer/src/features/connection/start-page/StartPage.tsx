@@ -26,8 +26,12 @@ interface StartPageProps {
 export function StartPage({ onTransportCreated }: StartPageProps): JSX.Element {
     const [devices, setDevices] = useState<DeviceWithTransport[]>([])
 
-    const { connectingDeviceId, handleConnect, handleSimpleConnect } =
-        useDeviceConnection(onTransportCreated, setDevices)
+    const {
+        connectingDeviceId,
+        handleConnect,
+        handleSimpleConnect,
+        handleRequestNew,
+    } = useDeviceConnection(onTransportCreated, setDevices)
 
     const {
         transports,
@@ -75,6 +79,7 @@ export function StartPage({ onTransportCreated }: StartPageProps): JSX.Element {
                         onRefresh={refresh}
                         onConnect={handleConnect}
                         onSimpleConnect={handleSimpleConnect}
+                        onRequestNew={handleRequestNew}
                     />
 
                     <Card className="border-dashed">

@@ -35,4 +35,11 @@ export type TransportFactory = {
         list: () => Promise<Array<AvailableDevice>>
         connect: (dev: AvailableDevice) => Promise<RpcTransport>
     }
+    /**
+     * Optional: trigger the browser/OS chooser to grant access to a new
+     * device, then connect to it. Used by Web Serial / Web BLE where the
+     * granted-device list (pick_and_connect.list) is empty until the user
+     * has gone through the native chooser at least once.
+     */
+    request_new?: () => Promise<RpcTransport>
 }
