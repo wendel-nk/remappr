@@ -65,14 +65,40 @@ export function useDeviceConnection(
 
     const handleSimpleConnect = useCallback(
         async (transport: TransportFactory): Promise<void> => {
+            console.log('[connect] simple connect clicked', {
+                label: transport.label,
+                communication: transport.communication,
+                isWireless: transport.isWireless,
+                hasNavigatorBluetooth:
+                    typeof navigator !== 'undefined' &&
+                    'bluetooth' in navigator,
+                hasNavigatorSerial:
+                    typeof navigator !== 'undefined' && 'serial' in navigator,
+            })
+            if (!transport.connect) {
+                console.warn(
+                    '[connect] transport has no connect() function',
+                    transport,
+                )
+                toast.error('Transport not available')
+                return
+            }
             try {
-                const rpcTransport = await transport.connect?.()
+                console.log('[connect] calling transport.connect()...')
+                const rpcTransport = await transport.connect()
+                console.log('[connect] transport.connect() resolved', {
+                    hasTransport: !!rpcTransport,
+                })
                 if (rpcTransport) {
                     onTransportCreated(rpcTransport, transport.communication)
                 }
             } catch (e) {
-                console.error('Connection error:', e)
-                if (e instanceof Error && !(e instanceof UserCancelledError)) {
+                console.error('[connect] error from transport.connect()', e)
+                if (e instanceof UserCancelledError) {
+                    console.log('[connect] user cancelled chooser dialog')
+                    return
+                }
+                if (e instanceof Error) {
                     toast.error('Failed to connect to the selected device.', {
                         description: e.message,
                     })
