@@ -122,6 +122,7 @@ export function getTransports(): TransportFactory[] {
             transports.push({
                 label: 'BLE',
                 communication: 'ble',
+                isWireless: true,
                 connect: gatt_connect,
             })
         }
