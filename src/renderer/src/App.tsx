@@ -16,7 +16,7 @@ import { Header } from '@/layout/Header'
 import { ErrorBoundary } from '@/ui/ErrorBoundary'
 import { toast } from 'sonner'
 import { callRpc } from '@/services/rpcCall'
-import { StartPage } from '@/features/connection/StartPage'
+import { StartPage } from '@/features/connection/start-page/StartPage'
 
 function App(): JSX.Element {
     const {
