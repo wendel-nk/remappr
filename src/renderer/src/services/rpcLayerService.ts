@@ -113,6 +113,38 @@ export async function removeLayer(
     )
 }
 
+export async function moveLayer(
+    startIndex: number,
+    destIndex: number,
+    setKeymap: (updater: (draft: Keymap) => void) => void,
+    setSelectedLayerIndex: (index: number) => void,
+): Promise<void> {
+    const resp = await callRpc({
+        keymap: { moveLayer: { startIndex, destIndex } },
+    })
+
+    if (!resp.keymap) {
+        console.warn(
+            'Move layer: No response (connection may have been closed)',
+        )
+        return
+    }
+
+    if (!resp.keymap?.moveLayer?.ok) {
+        console.error('Move error', resp.keymap?.moveLayer?.err)
+        toast.error('Failed to move layer:' + resp.keymap?.moveLayer?.err)
+        return
+    }
+
+    setKeymap(
+        produce((draft: Keymap) => {
+            const [moved] = draft.layers.splice(startIndex, 1)
+            draft.layers.splice(destIndex, 0, moved)
+        }),
+    )
+    setSelectedLayerIndex(destIndex)
+}
+
 export async function restore(
     layerId: number,
     atIndex: number,

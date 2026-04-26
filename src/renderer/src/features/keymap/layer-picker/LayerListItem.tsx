@@ -1,4 +1,4 @@
-import { EllipsisVertical, Trash } from 'lucide-react'
+import { EllipsisVertical, GripVertical, Trash } from 'lucide-react'
 import LayerNameDialog from '../editor/LayerNameDialog'
 import {
     SidebarMenuAction,
@@ -12,6 +12,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/ui/dropdown-menu'
+import type { DragHandlers } from '@/hooks/use-layer-drag-reorder'
 
 interface LayerItem {
     id: number
@@ -24,6 +25,9 @@ interface LayerListItemProps {
     item: LayerItem
     selectedLayerIndex: number
     canRemove?: boolean
+    dragHandlers?: DragHandlers
+    isDragSource?: boolean
+    isDragOver?: boolean
     onSelect: (index: number) => void
     onRemove: (index: number) => void
     onSaveNewLabel: (
@@ -37,12 +41,29 @@ export function LayerListItem({
     item,
     selectedLayerIndex,
     canRemove,
+    dragHandlers,
+    isDragSource,
+    isDragOver,
     onSelect,
     onRemove,
     onSaveNewLabel,
 }: LayerListItemProps): JSX.Element {
     return (
-        <SidebarMenuItem>
+        <SidebarMenuItem
+            className={
+                (isDragOver ? 'outline outline-1 outline-accent ' : '') +
+                (isDragSource ? 'opacity-50 ' : '')
+            }
+            {...(dragHandlers ?? {})}
+        >
+            {dragHandlers && (
+                <span
+                    aria-label="Drag to reorder"
+                    className="absolute left-0 top-1/2 -translate-y-1/2 cursor-grab text-muted-foreground/60 hover:text-foreground"
+                >
+                    <GripVertical className="size-3" />
+                </span>
+            )}
             <SidebarMenuButton
                 asChild
                 isActive={item.index === selectedLayerIndex}

@@ -10,6 +10,7 @@ import {
 } from '@/ui/sidebar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/ui/tooltip'
 import { useLayerActions } from '@/hooks/use-layer-actions'
+import { useLayerDragReorder } from '@/hooks/use-layer-drag-reorder'
 
 import { LayerListItem } from './LayerListItem'
 
@@ -43,6 +44,9 @@ export const LayerPicker = ({
         useLayerSelectionStore()
     const { add, remove, handleSaveNewLabel, selectionChanged } =
         useLayerActions({ keymap, setKeymap })
+    const { dragSourceIndex, dragOverIndex, handlersFor } = useLayerDragReorder(
+        { setKeymap },
+    )
 
     const layersArray = useMemo(
         () =>
@@ -103,6 +107,9 @@ export const LayerPicker = ({
                         item={item}
                         selectedLayerIndex={selectedLayerIndex}
                         canRemove={canRemove}
+                        dragHandlers={handlersFor(item.index)}
+                        isDragSource={dragSourceIndex === item.index}
+                        isDragOver={dragOverIndex === item.index}
                         onSelect={(idx) => {
                             selectionChanged(idx)
                             onLayerClicked?.(idx)
