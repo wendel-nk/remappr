@@ -1,15 +1,15 @@
 import { useState } from 'react'
-import { Modal } from '@/ui/modal.tsx'
-import { Input } from '@/ui/input.tsx'
+import { Modal } from '@/ui/modal'
+import { Input } from '@/ui/input'
 
-interface EditLabelData {
+interface LayerNameDialogData {
     id: number
     name: string
     newName?: string | null
 }
 
-export interface EditLabelProps {
-    editLabelData?: EditLabelData
+export interface LayerNameDialogProps {
+    editLabelData?: LayerNameDialogData
     onClose?: () => void
     handleSaveNewLabel?: (
         id: number,
@@ -18,7 +18,9 @@ export interface EditLabelProps {
     ) => void
 }
 
-export default function EditLabel(props: EditLabelProps): JSX.Element | null {
+export default function LayerNameDialog(
+    props: LayerNameDialogProps,
+): JSX.Element | null {
     const [newLabelName, setNewLabelName] = useState(
         props.editLabelData?.name ?? '',
     )
@@ -57,17 +59,6 @@ export default function EditLabel(props: EditLabelProps): JSX.Element | null {
                     }
                 }}
             />
-            {/*<input*/}
-            {/*	type="text" placeholder="Type here" className="input input-bordered w-full max-w-xs"*/}
-            {/*	defaultValue={ props.editLabelData.name }*/}
-            {/*	autoFocus*/}
-            {/*	onChange={ ( e ) => setNewLabelName( e.target.value ) }*/}
-            {/*	onKeyDown={ ( e ) => {*/}
-            {/*		if ( e.key === "Enter" ) {*/}
-            {/*			handleSave()*/}
-            {/*		}*/}
-            {/*	} }*/}
-            {/*/>*/}
         </Modal>
     )
 }

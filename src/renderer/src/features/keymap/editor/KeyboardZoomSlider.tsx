@@ -6,7 +6,7 @@ import {
     SelectValue,
 } from '@/ui/select.tsx'
 
-export function Zoom(props: {
+export function KeyboardZoomSlider(props: {
     value: number | 'auto'
     onChange: (value: string) => void
 }): JSX.Element {

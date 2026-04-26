@@ -5,7 +5,7 @@ import { KeyboardLayout } from './KeyboardLayout.tsx'
 import { useLocalStorageState } from '@/hooks/use-local-storage-state.ts'
 import { deserializeLayoutZoom, LayoutZoom } from '@/lib/helpers'
 import { useLayout } from '@/hooks/use-layouts'
-import { Zoom } from '../Zoom.tsx'
+import { KeyboardZoomSlider } from '../editor/KeyboardZoomSlider'
 import useConnectionStore from '@/stores/connectionStore.ts'
 import useLayerSelectionStore from '@/stores/layerSelectionStore.ts'
 import { useBehaviors } from '@/hooks/use-behaviors'
@@ -122,7 +122,7 @@ export default function KeyboardView({
                         onKeyPositionClicked={setSelectedKeyPosition}
                         pressedKeys={pressedKeys}
                     />
-                    <Zoom
+                    <KeyboardZoomSlider
                         value={keymapScale}
                         onChange={(e) => {
                             setKeymapScale(deserializeLayoutZoom(e))

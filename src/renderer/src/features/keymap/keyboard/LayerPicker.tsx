@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import undoRedoStore from '@/stores/undoRedoStore.ts'
 import useConnectionStore from '@/stores/connectionStore.ts'
 import useLayerSelectionStore from '@/stores/layerSelectionStore.ts'
-import EditLabel from '../EditLabel.tsx'
+import LayerNameDialog from '../editor/LayerNameDialog'
 import type { Keymap } from '@zmkfirmware/zmk-studio-ts-client/keymap'
 
 import {
@@ -321,7 +321,7 @@ export const LayerPicker = ({
                                 <DropdownMenuItem
                                     onSelect={(e) => e.preventDefault()}
                                 >
-                                    <EditLabel
+                                    <LayerNameDialog
                                         onClose={() => setEditLabelData(null)}
                                         editLabelData={item}
                                         handleSaveNewLabel={handleSaveNewLabel}

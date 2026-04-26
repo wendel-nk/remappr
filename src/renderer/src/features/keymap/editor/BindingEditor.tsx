@@ -16,7 +16,7 @@ import { Button } from '@/ui/button.tsx'
 import { callRpc } from '@/services/rpcCall.ts'
 import { toast } from 'sonner'
 
-interface KeyEditorProps {
+interface BindingEditorProps {
     keymap: Keymap | undefined
     setKeymap: (
         keymap:
@@ -28,12 +28,12 @@ interface KeyEditorProps {
     setSelectedKeyPosition: (position: number | undefined) => void
 }
 
-export function KeyEditor({
+export function BindingEditor({
     keymap,
     setKeymap,
     selectedKeyPosition,
     setSelectedKeyPosition,
-}: KeyEditorProps): JSX.Element {
+}: BindingEditorProps): JSX.Element {
     const doIt = undoRedoStore((s) => s.doIt)
     const { connection } = useConnectionStore()
     const { selectedLayerIndex } = useLayerSelectionStore()

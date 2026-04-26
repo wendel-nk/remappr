@@ -6,7 +6,7 @@ import { UnlockModal } from '@/features/connection/UnlockModal'
 import { connectDevice } from '@/services/rpcConnect'
 import useConnectionStore from '@/stores/connectionStore'
 import undoRedoStore from '@/stores/undoRedoStore'
-import { KeyboardEditor } from '@/features/keymap/KeyboardEditor'
+import { KeymapEditor } from '@/features/keymap/editor/KeymapEditor'
 import { Drawer } from '@/layout/Drawer.tsx'
 import { SidebarInset, SidebarProvider } from '@/ui/sidebar.tsx'
 import { ThemeProvider } from '@/providers/ThemeProvider.tsx'
@@ -95,7 +95,7 @@ function App(): JSX.Element {
                         <SidebarInset>
                             <Header />
                             <ErrorBoundary>
-                                <KeyboardEditor />
+                                <KeymapEditor />
                             </ErrorBoundary>
                             {/*<Footer />*/}
                         </SidebarInset>
