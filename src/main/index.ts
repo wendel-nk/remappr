@@ -10,6 +10,9 @@ import {
 } from './ble-manager'
 import { setupSerialDeviceSelection } from './serial-picker'
 import { startSerialDevicePolling } from './serial'
+import { silenceConsoleInProduction } from '../shared/logger'
+
+silenceConsoleInProduction()
 
 // Enable Web Bluetooth (navigator.bluetooth) in Chromium. Must run before
 // app.whenReady(). Without this, Electron exposes no `navigator.bluetooth`
