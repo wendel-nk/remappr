@@ -1,0 +1,46 @@
+name: CI
+
+on:
+    pull_request:
+        branches: [main]
+    push:
+        branches: [main]
+
+concurrency:
+    group: ci-${{ github.ref }}
+    cancel-in-progress: true
+
+jobs:
+    check:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v5
+
+            - name: Set up pnpm
+              uses: pnpm/action-setup@v4
+
+            - name: Set up Node
+              uses: actions/setup-node@v5
+              with:
+                  node-version-file: '.nvmrc'
+                  cache: 'pnpm'
+
+            - name: Install dependencies
+              # --ignore-scripts skips electron-builder install-app-deps
+              # postinstall, which needs system libs (libudev, etc.) the
+              # runner doesn't have. Web typecheck/lint/test don't use
+              # native modules.
+              run: pnpm install --frozen-lockfile --ignore-scripts
+
+            - name: Typecheck
+              run: pnpm typecheck
+
+            - name: Lint
+              run: pnpm lint
+
+            - name: Test
+              run: pnpm test
+
+            - name: Build (web)
+              run: pnpm build

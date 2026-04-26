@@ -26,6 +26,7 @@
         "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
         "typecheck:web": "tsc --noEmit -p tsconfig.web.json --composite false",
         "typecheck": "pnpm typecheck:node && pnpm typecheck:web",
+        "prepare": "husky",
         "postinstall": "electron-builder install-app-deps",
         "build:unpack": "pnpm build && electron-builder --dir",
         "build:win": "pnpm build && electron-builder --win",
@@ -75,6 +76,8 @@
     },
     "devDependencies": {
         "@chromatic-com/storybook": "^5.0.0",
+        "@commitlint/cli": "^19.6.1",
+        "@commitlint/config-conventional": "^19.6.0",
         "@electron-toolkit/eslint-config-prettier": "^3.0.0",
         "@electron-toolkit/eslint-config-ts": "^3.1.0",
         "@electron-toolkit/tsconfig": "^2.0.0",
@@ -101,6 +104,8 @@
         "eslint-plugin-react-hooks": "^7.0.1",
         "eslint-plugin-react-refresh": "^0.4.24",
         "eslint-plugin-storybook": "^10.2.3",
+        "husky": "^9.1.7",
+        "lint-staged": "^16.1.0",
         "postcss": "^8.5.6",
         "prettier": "^3.7.4",
         "react": "^19.2.1",
@@ -118,5 +123,18 @@
         "glob": "^13.0.0",
         "tar": "^7.4.3",
         "uuid": "^11.0.3"
+    },
+    "lint-staged": {
+        "*.{ts,tsx}": [
+            "eslint --fix --no-warn-ignored",
+            "prettier --write"
+        ],
+        "*.{js,mjs,cjs}": [
+            "eslint --fix --no-warn-ignored",
+            "prettier --write"
+        ],
+        "*.{json,md,yml,yaml,css}": [
+            "prettier --write"
+        ]
     }
 }
