@@ -10,7 +10,7 @@ import {
 import { valueAfter } from '@/utils/async'
 import { RpcTransport } from '@zmkfirmware/zmk-studio-ts-client/transport/index'
 import { publish } from '@/utils/usePubSub'
-import useConnectionStore from '@/features/connection/connectionStore.ts'
+import useConnectionStore from '@/stores/connectionStore.ts'
 import { callRemoteProcedureControl } from '@/features/connection/callRemoteProcedureControl.ts'
 import { LockState } from '@zmkfirmware/zmk-studio-ts-client/core'
 

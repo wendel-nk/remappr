@@ -2,10 +2,10 @@ import { useCallback, useEffect, useMemo } from 'react'
 import { useLayout } from '@/utils/useLayouts'
 import { PhysicalLayoutPicker } from '@/features/keymap/keyboard/PhysicalLayoutPicker.tsx'
 import { LayerPicker } from '@/features/keymap/keyboard/LayerPicker.tsx'
-import undoRedoStore from '@/features/keymap/undoRedoStore'
-import useConnectionStore from '@/features/connection/connectionStore'
-import useLayerSelectionStore from '@/features/keymap/layerSelectionStore'
-import useKeymapStore from '@/features/keymap/keymapStore'
+import undoRedoStore from '@/stores/undoRedoStore'
+import useConnectionStore from '@/stores/connectionStore'
+import useLayerSelectionStore from '@/stores/layerSelectionStore'
+import useKeymapStore from '@/stores/keymapStore'
 import {
     Sidebar,
     SidebarContent,

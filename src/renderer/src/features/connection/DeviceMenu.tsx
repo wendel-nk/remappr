@@ -1,8 +1,8 @@
 import { useCallback } from 'react'
 import { LockState } from '@zmkfirmware/zmk-studio-ts-client/core'
 import { RestoreStock } from './RestoreStock.tsx'
-import useConnectionStore from '@/features/connection/connectionStore.ts'
-import undoRedoStore from '@/features/keymap/undoRedoStore.ts'
+import useConnectionStore from '@/stores/connectionStore.ts'
+import undoRedoStore from '@/stores/undoRedoStore.ts'
 import { Button } from '@/ui/button.tsx'
 import { Settings, Power } from 'lucide-react'
 import {

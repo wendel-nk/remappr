@@ -6,7 +6,7 @@ import { Input } from '@/ui/input.tsx'
 import { Label } from '@/ui/label.tsx'
 import { Separator } from '@/ui/separator.tsx'
 import { toast } from 'sonner'
-import useConnectionStore from '@/features/connection/connectionStore.ts'
+import useConnectionStore from '@/stores/connectionStore.ts'
 import { useConnectedDeviceData } from '@/features/connection/rpcConnectionService.ts'
 import { useBehaviors } from '@/features/behaviors/behaviors.ts'
 import {

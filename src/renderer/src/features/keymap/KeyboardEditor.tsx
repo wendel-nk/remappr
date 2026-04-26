@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import Keyboard from '@/features/keymap/keyboard/Keyboard.tsx'
 import { KeyEditor } from './KeyEditor.tsx'
-import useKeymapStore from '@/features/keymap/keymapStore.ts'
+import useKeymapStore from '@/stores/keymapStore.ts'
 
 /**
  * KeyboardEditor Component

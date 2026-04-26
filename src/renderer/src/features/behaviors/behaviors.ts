@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { LockState } from '@zmkfirmware/zmk-studio-ts-client/core'
 import type { GetBehaviorDetailsResponse } from '@zmkfirmware/zmk-studio-ts-client/behaviors'
-import useConnectionStore from '@/features/connection/connectionStore'
+import useConnectionStore from '@/stores/connectionStore'
 import { callRemoteProcedureControl } from '@/features/connection/callRemoteProcedureControl.ts'
 
 // Re-export hold-tap utilities from the dedicated module

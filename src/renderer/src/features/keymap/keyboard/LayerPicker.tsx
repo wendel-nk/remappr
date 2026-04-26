@@ -1,8 +1,8 @@
 import { EllipsisVertical, Plus, Trash } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import undoRedoStore from '@/features/keymap/undoRedoStore.ts'
-import useConnectionStore from '@/features/connection/connectionStore.ts'
-import useLayerSelectionStore from '@/features/keymap/layerSelectionStore.ts'
+import undoRedoStore from '@/stores/undoRedoStore.ts'
+import useConnectionStore from '@/stores/connectionStore.ts'
+import useLayerSelectionStore from '@/stores/layerSelectionStore.ts'
 import EditLabel from '../EditLabel.tsx'
 import type { Keymap } from '@zmkfirmware/zmk-studio-ts-client/keymap'
 

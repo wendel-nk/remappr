@@ -3,7 +3,7 @@ import {
     Request,
     RequestResponse,
 } from '@zmkfirmware/zmk-studio-ts-client'
-import useConnectionStore from '@/features/connection/connectionStore.ts'
+import useConnectionStore from '@/stores/connectionStore.ts'
 
 export const callRemoteProcedureControl = async (
     request: Omit<Request, 'requestId'>,

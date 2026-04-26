@@ -6,9 +6,9 @@ import {
     Keymap,
 } from '@zmkfirmware/zmk-studio-ts-client/keymap'
 import { useCallback, useMemo } from 'react'
-import undoRedoStore from '@/features/keymap/undoRedoStore.ts'
-import useConnectionStore from '@/features/connection/connectionStore.ts'
-import useLayerSelectionStore from '@/features/keymap/layerSelectionStore.ts'
+import undoRedoStore from '@/stores/undoRedoStore.ts'
+import useConnectionStore from '@/stores/connectionStore.ts'
+import useLayerSelectionStore from '@/stores/layerSelectionStore.ts'
 import { produce } from 'immer'
 import { SetLayerBindingResponse } from '@zmkfirmware/zmk-studio-ts-client/keymap'
 import { Card, CardContent } from '@/ui/card.tsx'
