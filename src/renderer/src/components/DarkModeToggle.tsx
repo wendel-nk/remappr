@@ -1,5 +1,5 @@
 import { useTheme } from '@/providers/ThemeProvider.tsx'
-import { Button } from '@/components/ui/button.tsx'
+import { Button } from '@/ui/button.tsx'
 import { Moon, Sun } from 'lucide-react'
 import {
     DropdownMenu,
@@ -7,7 +7,7 @@ import {
     DropdownMenuGroup,
     DropdownMenuItem,
     DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu.tsx'
+} from '@/ui/dropdown-menu.tsx'
 
 export function DarkModeToggle(): JSX.Element {
     const { setTheme } = useTheme()

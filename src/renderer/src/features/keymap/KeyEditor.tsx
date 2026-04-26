@@ -1,0 +1,213 @@
+import { X } from 'lucide-react'
+import { BehaviorBindingPicker } from '@/features/behaviors/BehaviorBindingPicker'
+import { useBehaviors } from '@/features/behaviors/behaviors'
+import {
+    BehaviorBinding,
+    Keymap,
+} from '@zmkfirmware/zmk-studio-ts-client/keymap'
+import { useCallback, useMemo } from 'react'
+import undoRedoStore from '@/features/keymap/undoRedoStore.ts'
+import useConnectionStore from '@/features/connection/connectionStore.ts'
+import useLayerSelectionStore from '@/features/keymap/layerSelectionStore.ts'
+import { produce } from 'immer'
+import { SetLayerBindingResponse } from '@zmkfirmware/zmk-studio-ts-client/keymap'
+import { Card, CardContent } from '@/ui/card.tsx'
+import { Button } from '@/ui/button.tsx'
+import { callRemoteProcedureControl } from '@/features/connection/callRemoteProcedureControl.ts'
+import { toast } from 'sonner'
+
+interface KeyEditorProps {
+    keymap: Keymap | undefined
+    setKeymap: (
+        keymap:
+            | Keymap
+            | undefined
+            | ((prev: Keymap | undefined) => Keymap | undefined),
+    ) => void
+    selectedKeyPosition: number | undefined
+    setSelectedKeyPosition: (position: number | undefined) => void
+}
+
+export function KeyEditor({
+    keymap,
+    setKeymap,
+    selectedKeyPosition,
+    setSelectedKeyPosition,
+}: KeyEditorProps): JSX.Element {
+    const doIt = undoRedoStore((s) => s.doIt)
+    const { connection } = useConnectionStore()
+    const { selectedLayerIndex } = useLayerSelectionStore()
+    const behaviors = useBehaviors()
+
+    // Compute effective layer index - clamp to valid bounds when out of range
+    const effectiveLayerIndex = useMemo((): number => {
+        if (!keymap || keymap.layers.length === 0) {
+            return 0
+        }
+        return Math.min(
+            Math.max(0, selectedLayerIndex),
+            keymap.layers.length - 1,
+        )
+    }, [keymap, selectedLayerIndex])
+
+    // const sortedBehaviors = useMemo(
+    // 	() =>
+    // 		Object.values(behaviors).sort((a, b) =>
+    // 			a.displayName.localeCompare(b.displayName)
+    // 		),
+    // 	[behaviors]
+    // )
+
+    const doUpdateBinding = useCallback(
+        (binding: BehaviorBinding): void => {
+            if (!keymap || selectedKeyPosition === undefined) {
+                console.error(
+                    "Can't update binding without a selected key position and loaded keymap",
+                )
+                return
+            }
+
+            const layer = effectiveLayerIndex
+            const layerId = keymap.layers[layer].id
+            const keyPosition = selectedKeyPosition
+            const oldBinding = keymap.layers[layer].bindings[keyPosition]
+
+            doIt?.(async (): Promise<() => Promise<void>> => {
+                const resp = await callRemoteProcedureControl({
+                    keymap: {
+                        setLayerBinding: { layerId, keyPosition, binding },
+                    },
+                })
+
+                if (
+                    resp.keymap?.setLayerBinding ===
+                    SetLayerBindingResponse.SET_LAYER_BINDING_RESP_OK
+                ) {
+                    setKeymap(
+                        (prev: Keymap | undefined): Keymap | undefined => {
+                            if (!prev) return prev
+                            return produce(prev, (draft) => {
+                                draft.layers[layer].bindings[keyPosition] =
+                                    binding
+                            })
+                        },
+                    )
+                } else {
+                    toast.error(
+                        'Failed to set binding' + resp.keymap?.setLayerBinding,
+                    )
+                    // Log more details about the failed binding
+                    console.error('Failed binding details:', {
+                        layerId,
+                        keyPosition,
+                        binding,
+                        setLayerBinding: resp.keymap?.setLayerBinding,
+                        response: resp,
+                        // Add more debugging info
+                        oldBinding,
+                        behaviorId: binding.behaviorId,
+                        param1: binding.param1,
+                        param2: binding.param2,
+                    })
+                }
+
+                return async (): Promise<void> => {
+                    if (!connection) return
+
+                    const resp = await callRemoteProcedureControl({
+                        keymap: {
+                            setLayerBinding: {
+                                layerId,
+                                keyPosition,
+                                binding: oldBinding,
+                            },
+                        },
+                    })
+                    if (
+                        resp.keymap?.setLayerBinding ===
+                        SetLayerBindingResponse.SET_LAYER_BINDING_RESP_OK
+                    ) {
+                        setKeymap(
+                            (prev: Keymap | undefined): Keymap | undefined => {
+                                if (!prev) return prev
+                                return produce(prev, (draft) => {
+                                    draft.layers[layer].bindings[keyPosition] =
+                                        oldBinding
+                                })
+                            },
+                        )
+                    } else {
+                        console.error(
+                            'Failed to set binding',
+                            resp.keymap?.setLayerBinding,
+                        )
+                    }
+                }
+            })
+        },
+        [
+            connection,
+            keymap,
+            doIt,
+            effectiveLayerIndex,
+            selectedKeyPosition,
+            setKeymap,
+        ],
+    )
+
+    const selectedBinding = useMemo((): BehaviorBinding | null => {
+        if (
+            keymap == null ||
+            selectedKeyPosition == null ||
+            !keymap.layers[effectiveLayerIndex] ||
+            selectedKeyPosition >=
+                keymap.layers[effectiveLayerIndex].bindings.length
+        )
+            return null
+
+        return keymap.layers[effectiveLayerIndex].bindings[selectedKeyPosition]
+    }, [keymap, effectiveLayerIndex, selectedKeyPosition])
+
+    const behaviorList = useMemo(() => Object.values(behaviors), [behaviors])
+    const layerList = useMemo(
+        () =>
+            keymap?.layers.map(({ id, name }, li) => ({
+                id,
+                name: name || li.toLocaleString(),
+            })) ?? [],
+        [keymap],
+    )
+
+    return (
+        <>
+            {selectedKeyPosition !== undefined && (
+                <div className="p-2 col-start-2 row-start-2 w-full">
+                    <Card className="relative">
+                        <CardContent className="p-4">
+                            <div className="flex flex-row gap-4 w-full">
+                                {selectedBinding && (
+                                    <BehaviorBindingPicker
+                                        binding={selectedBinding}
+                                        behaviors={behaviorList}
+                                        layers={layerList}
+                                        onBindingChanged={doUpdateBinding}
+                                    />
+                                )}
+                            </div>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="absolute right-2 top-2 h-8 w-8 p-0"
+                                onClick={(): void => {
+                                    setSelectedKeyPosition(undefined)
+                                }}
+                            >
+                                <X className="h-4 w-4" />
+                            </Button>
+                        </CardContent>
+                    </Card>
+                </div>
+            )}
+        </>
+    )
+}
