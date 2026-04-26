@@ -1,42 +1,25 @@
 import type { RpcTransport } from '@zmkfirmware/zmk-studio-ts-client/transport/index'
 import { UserCancelledError } from '@zmkfirmware/zmk-studio-ts-client/transport/errors'
+import type { AvailableDevice } from '@/transport/types'
 
 const SERVICE_UUID = '00000000-0196-6107-c967-c5cfb1c2482a'
 const RPC_CHRC_UUID = '00000001-0196-6107-c967-c5cfb1c2482a'
 
-/**
- * Replacement for the upstream Web BLE connect that broadens the device
- * chooser. Some ZMK firmware builds expose the Studio GATT service but do
- * NOT include it in the BLE advertising payload, so the strict service
- * filter shows an empty chooser. This impl uses acceptAllDevices and
- * declares the Studio service as optional, then verifies it post-connect.
- */
-export async function connect(): Promise<RpcTransport> {
-    const dev = await navigator.bluetooth
-        .requestDevice({
-            acceptAllDevices: true,
-            optionalServices: [SERVICE_UUID],
-        })
-        .catch((e: unknown) => {
-            if (e instanceof DOMException && e.name === 'NotFoundError') {
-                throw new UserCancelledError(
-                    'User cancelled the connection attempt',
-                    { cause: e },
-                )
-            }
-            throw e
-        })
+const deviceRegistry = new Map<string, BluetoothDevice>()
 
-    console.log('[web-ble] device picked', {
-        name: dev.name,
-        id: dev.id,
-        hasGatt: !!dev.gatt,
-    })
+function makeId(dev: BluetoothDevice): string {
+    return `web-ble:${dev.id}`
+}
 
+function makeLabel(dev: BluetoothDevice): string {
+    return dev.name || 'Unknown BLE Device'
+}
+
+async function openTransport(dev: BluetoothDevice): Promise<RpcTransport> {
     if (!dev.gatt) throw new Error('No GATT server on selected device')
 
     const abortController = new AbortController()
-    const label = dev.name || 'Unknown'
+    const label = makeLabel(dev)
 
     if (!dev.gatt.connected) {
         console.log('[web-ble] connecting GATT...')
@@ -103,3 +86,77 @@ export async function connect(): Promise<RpcTransport> {
 
     return { label, abortController, readable, writable }
 }
+
+/**
+ * Returns BLE devices the origin has previously been granted access to
+ * (Chrome 92+: navigator.bluetooth.getDevices). Empty for first-time
+ * users — they pair via requestAndConnect() to populate the list.
+ */
+export async function listGrantedDevices(): Promise<AvailableDevice[]> {
+    if (typeof navigator === 'undefined' || !('bluetooth' in navigator))
+        return []
+    const getDevices = (
+        navigator.bluetooth as Bluetooth & {
+            getDevices?: () => Promise<BluetoothDevice[]>
+        }
+    ).getDevices
+    if (typeof getDevices !== 'function') return []
+    try {
+        const devs = await getDevices.call(navigator.bluetooth)
+        deviceRegistry.clear()
+        return devs.map((d) => {
+            const id = makeId(d)
+            deviceRegistry.set(id, d)
+            return { id, label: makeLabel(d) }
+        })
+    } catch (e) {
+        console.warn('[web-ble] getDevices failed', e)
+        return []
+    }
+}
+
+export async function connectToGrantedDevice(
+    device: AvailableDevice,
+): Promise<RpcTransport> {
+    const dev = deviceRegistry.get(device.id)
+    if (!dev) {
+        throw new Error(
+            'Selected BLE device is no longer available. Refresh the list.',
+        )
+    }
+    return openTransport(dev)
+}
+
+/**
+ * Triggers the browser BLE chooser. Uses acceptAllDevices because some
+ * ZMK firmware builds expose the Studio GATT service without including
+ * it in the advertising payload — strict service filter shows empty.
+ */
+export async function requestAndConnect(): Promise<RpcTransport> {
+    const dev = await navigator.bluetooth
+        .requestDevice({
+            acceptAllDevices: true,
+            optionalServices: [SERVICE_UUID],
+        })
+        .catch((e: unknown) => {
+            if (e instanceof DOMException && e.name === 'NotFoundError') {
+                throw new UserCancelledError(
+                    'User cancelled the connection attempt',
+                    { cause: e },
+                )
+            }
+            throw e
+        })
+
+    console.log('[web-ble] device picked', {
+        name: dev.name,
+        id: dev.id,
+        hasGatt: !!dev.gatt,
+    })
+
+    deviceRegistry.set(makeId(dev), dev)
+    return openTransport(dev)
+}
+
+// Back-compat alias for the original single-call connect().
+export const connect = requestAndConnect

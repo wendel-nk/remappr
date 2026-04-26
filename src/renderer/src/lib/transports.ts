@@ -1,6 +1,10 @@
 // pattern-check: skip — merge conflict resolution, no new logic
 import { TransportFactory } from '../transport/types'
-import { connect as gatt_connect } from '../transport/web-ble'
+import {
+    listGrantedDevices as web_ble_list,
+    connectToGrantedDevice as web_ble_connect_granted,
+    requestAndConnect as web_ble_request_new,
+} from '../transport/web-ble'
 import {
     listGrantedPorts as web_serial_list,
     connectToGrantedPort as web_serial_connect_granted,
@@ -130,17 +134,26 @@ export function getTransports(): TransportFactory[] {
         // is empty for users. Use the Electron build (pnpm edev) for
         // BLE — it talks to the native BT stack and reaches bonded
         // devices. Re-enable the block below once a workable Web BT
-        // path exists.
+        // path exists. Shape mirrors the Web Serial branch above:
+        // pick_and_connect lists previously-granted devices via
+        // navigator.bluetooth.getDevices(), request_new opens the
+        // chooser for first-time pairing.
         //
         // if (navigator.bluetooth) {
         //     transports.push({
         //         label: 'BLE',
         //         communication: 'ble',
         //         isWireless: true,
-        //         connect: gatt_connect,
+        //         pick_and_connect: {
+        //             list: web_ble_list,
+        //             connect: web_ble_connect_granted,
+        //         },
+        //         request_new: web_ble_request_new,
         //     })
         // }
-        void gatt_connect
+        void web_ble_list
+        void web_ble_connect_granted
+        void web_ble_request_new
     }
 
     cachedTransports = transports
