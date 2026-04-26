@@ -122,7 +122,7 @@ export function DeviceList({
     return (
         <div>
             <div className="grid grid-cols-[1fr_auto]">
-                <label>Select A Device:</label>
+                <span>Select A Device:</span>
                 <button
                     className="p-1 rounded hover:bg-base-300 disabled:bg-base-100 disabled:opacity-75"
                     disabled={refreshing}

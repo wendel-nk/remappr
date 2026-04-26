@@ -14,18 +14,17 @@ export function Navbar(): JSX.Element {
                 </div>
                 <div className="navbar-center">
                     <div className="dropdown">
-                        <div tabIndex={0} role="button" className="btn m-1">
+                        <button type="button" className="btn m-1">
                             Click
-                        </div>
-                        <ul
-                            tabIndex={0}
-                            className="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow"
-                        >
+                        </button>
+                        <ul className="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
                             <li>
-                                <a>Disconnect</a>
+                                <button type="button">Disconnect</button>
                             </li>
                             <li>
-                                <a>Restore Stock Settings</a>
+                                <button type="button">
+                                    Restore Stock Settings
+                                </button>
                             </li>
                         </ul>
                     </div>

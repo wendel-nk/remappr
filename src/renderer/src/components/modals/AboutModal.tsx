@@ -51,7 +51,7 @@ export function AboutModal(): JSX.Element {
                                                 target="_blank"
                                                 rel="noreferrer"
                                             >
-                                                <picture aria-label={v.name}>
+                                                <picture>
                                                     {v.darkModeImg && (
                                                         <source
                                                             className={
@@ -72,6 +72,7 @@ export function AboutModal(): JSX.Element {
                                                             ]
                                                         }
                                                         src={v.img}
+                                                        alt={v.name}
                                                     />
                                                 </picture>
                                             </a>

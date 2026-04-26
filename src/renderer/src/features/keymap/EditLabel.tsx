@@ -48,6 +48,7 @@ export default function EditLabel(props: EditLabelProps): JSX.Element | null {
                 placeholder="Type here"
                 className="input input-bordered w-full max-w-xs"
                 defaultValue={editLabelData.name}
+                // eslint-disable-next-line jsx-a11y/no-autofocus -- modal opens specifically to rename; focus expected.
                 autoFocus
                 onChange={(e) => setNewLabelName(e.target.value)}
                 onKeyDown={(e) => {

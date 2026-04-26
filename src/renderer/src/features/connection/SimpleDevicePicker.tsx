@@ -108,42 +108,43 @@ export function SimpleDevicePicker({
             <ul className="flex gap-2 pt-2">{connections}</ul>
             {selectedTransport && availableDevices && (
                 <ul>
-                    {availableDevices.map(
-                        (d): JSX.Element => (
-                            <li
-                                key={d.id}
-                                className="m-1 p-1 cursor-pointer hover:bg-base-300 rounded p-2"
-                                onClick={async (): Promise<void> => {
-                                    try {
-                                        const transport =
-                                            await selectedTransport!.pick_and_connect!.connect(
-                                                d,
-                                            )
-                                        onTransportCreated(
-                                            transport,
-                                            selectedTransport!.communication,
-                                        )
-                                    } catch (e) {
-                                        console.log(e)
-                                        if (
-                                            e instanceof Error &&
-                                            !(e instanceof UserCancelledError)
-                                        ) {
-                                            toast.error(
-                                                'Failed to connect to the selected device.',
-                                                {
-                                                    description: e.message,
-                                                },
-                                            )
-                                        }
-                                    }
-                                    setSelectedTransport(undefined)
-                                }}
-                            >
-                                {d.label}
+                    {availableDevices.map((d): JSX.Element => {
+                        const handleSelect = async (): Promise<void> => {
+                            try {
+                                const transport =
+                                    await selectedTransport!.pick_and_connect!.connect(
+                                        d,
+                                    )
+                                onTransportCreated(
+                                    transport,
+                                    selectedTransport!.communication,
+                                )
+                            } catch (e) {
+                                console.log(e)
+                                if (
+                                    e instanceof Error &&
+                                    !(e instanceof UserCancelledError)
+                                ) {
+                                    toast.error(
+                                        'Failed to connect to the selected device.',
+                                        { description: e.message },
+                                    )
+                                }
+                            }
+                            setSelectedTransport(undefined)
+                        }
+                        return (
+                            <li key={d.id} className="m-1 p-2">
+                                <button
+                                    type="button"
+                                    className="w-full text-left cursor-pointer hover:bg-base-300 rounded p-1"
+                                    onClick={handleSelect}
+                                >
+                                    {d.label}
+                                </button>
                             </li>
-                        ),
-                    )}
+                        )
+                    })}
                 </ul>
             )}
         </div>

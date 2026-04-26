@@ -95,7 +95,15 @@ export const PhysicalLayout = ({
         return (
             <div
                 key={p.id}
+                role="button"
+                tabIndex={0}
                 onClick={() => onPositionClicked?.(idx)}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        onPositionClicked?.(idx)
+                    }
+                }}
                 className="absolute data-[zoomer=true]:hover:z-[1000] leading-[0]"
                 data-zoomer={hoverZoom}
                 style={posStyle}

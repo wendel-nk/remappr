@@ -5,12 +5,14 @@ import eslintPluginReact from 'eslint-plugin-react'
 import eslintPluginReactHooks from 'eslint-plugin-react-hooks'
 import eslintPluginReactRefresh from 'eslint-plugin-react-refresh'
 import eslintPluginStorybook from 'eslint-plugin-storybook'
+import eslintPluginJsxA11y from 'eslint-plugin-jsx-a11y'
 
 export default defineConfig(
     { ignores: ['**/node_modules', '**/dist', '**/out'] },
     tseslint.configs.recommended,
     eslintPluginReact.configs.flat.recommended,
     eslintPluginReact.configs.flat['jsx-runtime'],
+    eslintPluginJsxA11y.flatConfigs.recommended,
     eslintPluginStorybook.configs['flat/recommended'],
     {
         settings: {

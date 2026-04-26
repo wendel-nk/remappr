@@ -36,6 +36,7 @@ const AlertTitle = React.forwardRef<
     HTMLParagraphElement,
     React.HTMLAttributes<HTMLHeadingElement>
 >(({ className, ...props }, ref) => (
+    // eslint-disable-next-line jsx-a11y/heading-has-content -- shadcn primitive: heading content provided via children at call site; eslint cannot statically see runtime children spread.
     <h5
         ref={ref}
         className={cn(

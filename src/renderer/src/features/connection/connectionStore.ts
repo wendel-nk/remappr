@@ -1,4 +1,4 @@
-import { create } from 'zustand'
+import { create, StateCreator } from 'zustand'
 import { devtools } from 'zustand/middleware'
 import { RpcConnection } from '@zmkfirmware/zmk-studio-ts-client'
 import { LockState } from '@zmkfirmware/zmk-studio-ts-client/core'
@@ -24,19 +24,20 @@ interface ConnectionState {
 }
 
 // Middleware to check if a connection exists and show the modal if not
-const connectionMiddleware = (config) => (set, get, api) =>
-    config(
-        (args) => {
-            if (args.connection === null) {
-                set({ showConnectionModal: true })
-            } else {
-                set({ showConnectionModal: false })
-            }
-            set(args)
-        },
-        get,
-        api,
-    )
+const connectionMiddleware =
+    (config: StateCreator<ConnectionState>): StateCreator<ConnectionState> =>
+    (set, get, api) =>
+        config(
+            (args, replace) => {
+                const next = args as Partial<ConnectionState>
+                if ('connection' in next) {
+                    set({ showConnectionModal: next.connection === null })
+                }
+                set(args, replace as false | undefined)
+            },
+            get,
+            api,
+        )
 
 // Create Zustand store with middleware and persistence
 const useConnectionStore = create<ConnectionState>()(
@@ -47,8 +48,8 @@ const useConnectionStore = create<ConnectionState>()(
             deviceName: null,
             lockState: LockState.ZMK_STUDIO_CORE_LOCK_STATE_LOCKED,
             connectionAbort: new AbortController(),
-            setConnection: (connection, communication = null) =>
-                set({ connection, communication }),
+            setConnection: (connection, communication) =>
+                set({ connection, communication: communication ?? null }),
             setDeviceName: (name) => set({ deviceName: name }),
             setLockState: (state) => set({ lockState: state }),
             setConnectionAbort: (abort) => set({ connectionAbort: abort }),
