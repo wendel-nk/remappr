@@ -1,40 +1,18 @@
-// import './key.css';
+import { Children, CSSProperties, PropsWithChildren } from 'react'
+import { KeyLabel } from './KeyLabel'
+import { HoldTapKeyLabel, type HoldTapLabels } from './HoldTapKeyLabel'
 
-import {
-    PropsWithChildren,
-    Children,
-    CSSProperties,
-    useRef,
-    useState,
-    useLayoutEffect,
-    useMemo,
-} from 'react'
-
-export interface HoldTapLabels {
-    tap: React.ReactNode
-    hold: React.ReactNode
-    tooltip?: string
-}
+export type { HoldTapLabels }
 
 interface KeyButtonProps {
     selected?: boolean
     pressed?: boolean
     width: number
     height: number
-    oneU: number // Button size
+    oneU: number
     hoverZoom?: boolean
-    /**
-     * Button contents
-     */
     header?: string
-    /**
-     * When set, the key renders a two-section layout (tap on top, hold on bottom)
-     * and the children/header are ignored.
-     */
     holdTap?: HoldTapLabels
-    /**
-     * Optional click handler
-     */
     onClick?: () => void
 }
 
@@ -58,129 +36,6 @@ function makeSize(
     }
 }
 
-const FitText = ({
-    children,
-    maxFontSize,
-    minFontSize = 4,
-    className = '',
-    hoverZoom,
-}: {
-    children: React.ReactNode
-    maxFontSize: number
-    minFontSize?: number
-    className?: string
-    hoverZoom?: boolean
-}): JSX.Element => {
-    const containerRef = useRef<HTMLDivElement>(null)
-    const textRef = useRef<HTMLDivElement>(null)
-    const [fontSize, setFontSize] = useState(minFontSize)
-
-    const contentKey = useMemo(
-        () =>
-            Children.toArray(children)
-                .map((c) =>
-                    typeof c === 'string' || typeof c === 'number'
-                        ? String(c)
-                        : '',
-                )
-                .join('|'),
-        [children],
-    )
-
-    useLayoutEffect(() => {
-        let isSubscribed = true
-        let rafHandle: number | null = null
-        let pendingFrame = false
-
-        const resizeText = (): void => {
-            pendingFrame = false
-            if (!isSubscribed) return
-
-            const container = containerRef.current
-            const text = textRef.current
-            if (!container || !text) return
-
-            const containerWidth = container.clientWidth
-            const containerHeight = container.clientHeight
-            if (containerWidth === 0 || containerHeight === 0) {
-                // Retry once on next frame; ResizeObserver covers later changes.
-                schedule()
-                return
-            }
-
-            let low = minFontSize
-            let high = maxFontSize
-            let bestSize = minFontSize
-
-            while (low <= high) {
-                const mid = Math.floor((low + high) / 2)
-                text.style.fontSize = `${mid}px`
-                void text.offsetHeight
-
-                const fitsWidth = text.scrollWidth <= containerWidth
-                const fitsHeight = text.scrollHeight <= containerHeight
-
-                if (fitsWidth && fitsHeight) {
-                    bestSize = mid
-                    low = mid + 1
-                } else {
-                    high = mid - 1
-                }
-            }
-
-            if (isSubscribed) {
-                setFontSize((prev) => (prev === bestSize ? prev : bestSize))
-            }
-        }
-
-        const schedule = (): void => {
-            if (pendingFrame) return
-            pendingFrame = true
-            rafHandle = requestAnimationFrame(resizeText)
-        }
-
-        schedule()
-
-        let resizeObserver: ResizeObserver | null = null
-        if (containerRef.current) {
-            resizeObserver = new ResizeObserver(schedule)
-            resizeObserver.observe(containerRef.current)
-        }
-
-        return (): void => {
-            isSubscribed = false
-            if (rafHandle !== null) cancelAnimationFrame(rafHandle)
-            resizeObserver?.disconnect()
-        }
-    }, [contentKey, maxFontSize, minFontSize])
-
-    return (
-        <div
-            ref={containerRef}
-            data-zoomer={hoverZoom}
-            className={`flex items-center justify-center w-full overflow-hidden p-[2px] ${className}`}
-        >
-            <div
-                ref={textRef}
-                className="text-center"
-                style={
-                    {
-                        fontSize: `${fontSize}px`,
-                        lineHeight: '1.15',
-                        whiteSpace: 'normal',
-                        wordBreak: 'keep-all',
-                        overflowWrap: 'normal',
-                        hyphens: 'none',
-                        width: '100%',
-                    } as React.CSSProperties
-                }
-            >
-                {children}
-            </div>
-        </div>
-    )
-}
-
 export const KeyButton = ({
     selected = false,
     pressed = false,
@@ -198,14 +53,14 @@ export const KeyButton = ({
     const children = Children.map(
         props.children,
         (c): React.ReactElement => (
-            <FitText
+            <KeyLabel
                 maxFontSize={maxChildFontSize}
                 minFontSize={4}
                 className="font-keycap flex-1"
                 hoverZoom={hoverZoom}
             >
                 {c}
-            </FitText>
+            </KeyLabel>
         ),
     )
 
@@ -229,50 +84,25 @@ export const KeyButton = ({
                  }`}
             >
                 {holdTap ? (
-                    <>
-                        {header && (
-                            <div className="key-header-section flex items-center justify-center w-full h-[20%] overflow-hidden">
-                                <FitText
-                                    maxFontSize={maxHeaderFontSize}
-                                    minFontSize={4}
-                                    hoverZoom={hoverZoom}
-                                >
-                                    {header}
-                                </FitText>
-                            </div>
-                        )}
-                        <div className="key-tap-section flex items-center justify-center w-full flex-1 overflow-hidden border-b border-border/40">
-                            <FitText
-                                maxFontSize={maxChildFontSize}
-                                minFontSize={4}
-                                hoverZoom={hoverZoom}
-                                className="font-keycap"
-                            >
-                                {holdTap.tap}
-                            </FitText>
-                        </div>
-                        <div className="key-hold-section flex items-center justify-center w-full h-[35%] overflow-hidden bg-muted/40 text-muted-foreground">
-                            <FitText
-                                maxFontSize={maxHoldFontSize}
-                                minFontSize={4}
-                                hoverZoom={hoverZoom}
-                                className="font-keycap"
-                            >
-                                {holdTap.hold}
-                            </FitText>
-                        </div>
-                    </>
+                    <HoldTapKeyLabel
+                        holdTap={holdTap}
+                        header={header}
+                        maxChildFontSize={maxChildFontSize}
+                        maxHoldFontSize={maxHoldFontSize}
+                        maxHeaderFontSize={maxHeaderFontSize}
+                        hoverZoom={hoverZoom}
+                    />
                 ) : (
                     <>
                         {header && (
-                            <FitText
+                            <KeyLabel
                                 maxFontSize={maxHeaderFontSize}
                                 minFontSize={4}
                                 hoverZoom={hoverZoom}
                                 className={'flex-none'}
                             >
                                 {header}
-                            </FitText>
+                            </KeyLabel>
                         )}
                         {children}
                     </>
