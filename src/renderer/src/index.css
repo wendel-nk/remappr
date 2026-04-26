@@ -1,11 +1,11 @@
 @import 'tailwindcss';
 
 @import '../../../node_modules/tw-animate-css/dist/tw-animate.css';
+@import './themes.css';
 
 /*---break---*/
 
 @custom-variant dark (&:is(.dark *));
-/*@plugin "daisyui";*/
 
 @layer base {
     @font-face {

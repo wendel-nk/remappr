@@ -1,9 +1,6 @@
 import { CSSProperties } from 'react'
-import {
-    Tooltip,
-    TooltipTrigger,
-    TooltipContent,
-} from '@/ui/tooltip.tsx'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/ui/tooltip.tsx'
+import { Button } from '@/ui/button.tsx'
 
 /**
  * Keycode Component
@@ -56,15 +53,18 @@ export default function Keycode({
     return (
         <Tooltip>
             <TooltipTrigger asChild>
-                <button
-                    className={`btn btn-square btn-outline absolute ${isSelected ? 'btn-active' : ''}`}
+                <Button
+                    variant="outline"
+                    size="icon"
+                    aria-pressed={isSelected}
+                    className={`absolute aspect-square ${isSelected ? 'bg-accent text-accent-foreground' : ''}`}
                     style={style}
                     value={value}
                     data-base-key-value={baseKeyValue}
                     onClick={handleClick}
                 >
                     {label}
-                </button>
+                </Button>
             </TooltipTrigger>
             <TooltipContent>
                 <div>{label}</div>

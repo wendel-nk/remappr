@@ -1,9 +1,5 @@
 import { useCallback } from 'react'
-import {
-    Popover,
-    PopoverTrigger,
-    PopoverContent,
-} from '@/ui/popover.tsx'
+import { Popover, PopoverTrigger, PopoverContent } from '@/ui/popover.tsx'
 import { PhysicalLayout, type KeyPosition } from './PhysicalLayout.tsx'
 import {
     SidebarGroupContent,
@@ -50,7 +46,7 @@ export const PhysicalLayoutPicker = ({
                     {layouts.map((layout, index) => (
                         <div key={layout.name} className="w-full">
                             <Popover>
-                                <PopoverTrigger className="w-full">
+                                <PopoverTrigger asChild>
                                     <SidebarMenuButton>
                                         <h3 className="font-medium">
                                             {layout.name}

@@ -28,11 +28,7 @@ import {
     restore,
 } from '@/features/keymap/rpcEventsLayerService.ts'
 import { toast } from 'sonner'
-import {
-    Tooltip,
-    TooltipContent,
-    TooltipTrigger,
-} from '@/ui/tooltip.tsx'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/ui/tooltip.tsx'
 
 interface Layer {
     id: number
@@ -288,8 +284,10 @@ export const LayerPicker = ({
                 disabled={!canAdd}
             >
                 <Tooltip>
-                    <TooltipTrigger>
-                        <Plus className="size-4" />
+                    <TooltipTrigger asChild>
+                        <span>
+                            <Plus className="size-4" />
+                        </span>
                     </TooltipTrigger>
                     <TooltipContent>
                         <p>Add Layer</p>

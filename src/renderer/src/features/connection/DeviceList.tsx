@@ -124,7 +124,7 @@ export function DeviceList({
             <div className="grid grid-cols-[1fr_auto]">
                 <span>Select A Device:</span>
                 <button
-                    className="p-1 rounded hover:bg-base-300 disabled:bg-base-100 disabled:opacity-75"
+                    className="p-1 rounded hover:bg-accent disabled:bg-background disabled:opacity-75"
                     disabled={refreshing}
                     onClick={onRefresh}
                 >
@@ -143,7 +143,7 @@ export function DeviceList({
             >
                 {([t, d]: [TransportFactory, AvailableDevice]): JSX.Element => (
                     <ListBoxItem
-                        className="grid grid-cols-[1em_1fr] rounded hover:bg-base-300 cursor-pointer px-1"
+                        className="grid grid-cols-[1em_1fr] rounded hover:bg-accent cursor-pointer px-1"
                         id={d.id}
                         aria-label={d.label}
                     >

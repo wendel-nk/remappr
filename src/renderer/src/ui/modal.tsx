@@ -52,7 +52,7 @@ export interface ModernModalProps {
 }
 
 export function Modal({
-    opened = false,
+    opened,
     onClose,
     onOk,
     type = 'button',
@@ -69,12 +69,14 @@ export function Modal({
     children,
     isDismissable = false,
 }: ModernModalProps): JSX.Element {
-    const [isOpen, setIsOpen] = useState(opened)
+    const isControlled = opened !== undefined
+    const [isOpen, setIsOpen] = useState(opened ?? false)
 
     // Update internal state when opened prop changes
     useEffect(() => {
-        setIsOpen(opened)
-    }, [opened])
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        if (isControlled) setIsOpen(opened ?? false)
+    }, [opened, isControlled])
 
     const handleClose = (): void => {
         setIsOpen(false)
@@ -99,19 +101,19 @@ export function Modal({
 
     return (
         <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-            {type == 'button' && !opened && (
+            {!isControlled && type == 'button' && (
                 <DialogTrigger asChild>
                     <Button variant={variant} className="cursor-pointer">
                         {text}
                     </Button>
                 </DialogTrigger>
             )}
-            {type == 'text' && !opened && (
+            {!isControlled && type == 'text' && (
                 <DialogTrigger asChild>
                     <TextTrigger>{text}</TextTrigger>
                 </DialogTrigger>
             )}
-            {type == 'icon' && !opened && (
+            {!isControlled && type == 'icon' && (
                 <DialogTrigger asChild>
                     <Button
                         variant={variant}
