@@ -1,11 +1,9 @@
-import { Request, RequestResponse } from '@zmkfirmware/zmk-studio-ts-client'
 import { toast } from 'sonner'
 import {
     Keymap,
     PhysicalLayout,
 } from '@zmkfirmware/zmk-studio-ts-client/keymap'
-import { GetBehaviorDetailsResponse } from '@zmkfirmware/zmk-studio-ts-client/behaviors'
-import { callRemoteProcedureControl } from '@/features/connection/callRemoteProcedureControl.ts'
+import { callRpc } from '@/services/rpcCall'
 
 export const getKeymapLayout = async (
     layoutIndex: number,
@@ -13,40 +11,17 @@ export const getKeymapLayout = async (
 ): Promise<void> => {
     if (!layouts) return
 
-    const resp = await callRemoteProcedureControl({
+    const resp = await callRpc({
         keymap: { setActivePhysicalLayout: layoutIndex },
     })
 
     const new_keymap = resp?.keymap?.setActivePhysicalLayout?.ok
-    if (new_keymap) {
-        console.log('New keymap received from physical layout change')
-    } else {
+    if (!new_keymap) {
         console.error(
             'Failed to set the active physical layout err:',
             resp?.keymap?.setActivePhysicalLayout?.err,
         )
     }
-}
-
-export const getBehaviors = async (): Promise<RequestResponse> => {
-    const behaviorsRequest: Request = {
-        behaviors: { listAllBehaviors: true },
-        requestId: 0,
-    }
-
-    return await callRemoteProcedureControl(behaviorsRequest)
-}
-
-export const getBehavior = async (
-    behavior: number,
-): Promise<GetBehaviorDetailsResponse | undefined> => {
-    const details_req = {
-        behaviors: { getBehaviorDetails: { behaviorId: behavior } },
-        requestId: 0,
-    }
-    const behaviorDetailsResponse =
-        await callRemoteProcedureControl(details_req)
-    return behaviorDetailsResponse?.behaviors?.getBehaviorDetails
 }
 
 export async function setKeymapRequest(
@@ -57,9 +32,7 @@ export async function setKeymapRequest(
         return
     }
 
-    console.log(selectedPhysicalLayoutIndex)
-
-    const resp = await callRemoteProcedureControl({
+    const resp = await callRpc({
         keymap: {
             setActivePhysicalLayout: selectedPhysicalLayoutIndex,
         },

@@ -10,9 +10,9 @@ import { Download as DownloadModal } from '../components/modals/Download.tsx'
 import { SidebarTrigger } from '@/ui/sidebar.tsx'
 import { Button } from '@/ui/button.tsx'
 import { Separator } from '@/ui/separator.tsx'
-import { useConnectedDeviceData } from '@/features/connection/rpcConnectionService.ts'
+import { useConnectedDeviceData } from '@/hooks/use-connected-device-data'
 import { toast } from 'sonner'
-import { callRemoteProcedureControl } from '@/features/connection/callRemoteProcedureControl.ts'
+import { callRpc } from '@/services/rpcCall.ts'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/ui/tooltip.tsx'
 
 export function Header(): JSX.Element {
@@ -38,7 +38,7 @@ export function Header(): JSX.Element {
     }, [setUnsaved, subscribe, unsaved])
 
     const save = useCallback(async (): Promise<void> => {
-        const resp = await callRemoteProcedureControl({
+        const resp = await callRpc({
             keymap: { saveChanges: true },
         })
 
@@ -49,7 +49,7 @@ export function Header(): JSX.Element {
     }, [])
 
     const discard = useCallback(async (): Promise<void> => {
-        const resp = await callRemoteProcedureControl({
+        const resp = await callRpc({
             keymap: { discardChanges: true },
         })
 

@@ -13,7 +13,7 @@ import { produce } from 'immer'
 import { SetLayerBindingResponse } from '@zmkfirmware/zmk-studio-ts-client/keymap'
 import { Card, CardContent } from '@/ui/card.tsx'
 import { Button } from '@/ui/button.tsx'
-import { callRemoteProcedureControl } from '@/features/connection/callRemoteProcedureControl.ts'
+import { callRpc } from '@/services/rpcCall.ts'
 import { toast } from 'sonner'
 
 interface KeyEditorProps {
@@ -73,7 +73,7 @@ export function KeyEditor({
             const oldBinding = keymap.layers[layer].bindings[keyPosition]
 
             doIt?.(async (): Promise<() => Promise<void>> => {
-                const resp = await callRemoteProcedureControl({
+                const resp = await callRpc({
                     keymap: {
                         setLayerBinding: { layerId, keyPosition, binding },
                     },
@@ -114,7 +114,7 @@ export function KeyEditor({
                 return async (): Promise<void> => {
                     if (!connection) return
 
-                    const resp = await callRemoteProcedureControl({
+                    const resp = await callRpc({
                         keymap: {
                             setLayerBinding: {
                                 layerId,

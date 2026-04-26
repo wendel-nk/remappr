@@ -13,7 +13,7 @@ import {
 } from '@/ui/dropdown-menu.tsx'
 import { SidebarMenu, SidebarMenuItem } from '@/ui/sidebar.tsx'
 import { toast } from 'sonner'
-import { callRemoteProcedureControl } from '@/features/connection/callRemoteProcedureControl.ts'
+import { callRpc } from '@/services/rpcCall.ts'
 
 export const DeviceMenu = (): JSX.Element => {
     const { connection, setConnection, deviceName, lockState, disconnect } =
@@ -21,7 +21,7 @@ export const DeviceMenu = (): JSX.Element => {
     const { reset } = undoRedoStore()
 
     const resetSettings = useCallback(async (): Promise<void> => {
-        const resp = await callRemoteProcedureControl({
+        const resp = await callRpc({
             core: { resetSettings: true },
         })
 

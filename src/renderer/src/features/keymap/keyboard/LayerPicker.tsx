@@ -26,7 +26,7 @@ import {
     changeName,
     removeLayer,
     restore,
-} from '@/features/keymap/rpcEventsLayerService.ts'
+} from '@/services/rpcLayerService.ts'
 import { toast } from 'sonner'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/ui/tooltip.tsx'
 
@@ -163,7 +163,7 @@ export const LayerPicker = ({
     // 				return
     // 			}
     //
-    // 			const resp = await callRemoteProcedureControl( connection, {
+    // 			const resp = await callRpc( connection, {
     // 				keymap: { moveLayer: { startIndex, destIndex } }
     // 			} )
     //

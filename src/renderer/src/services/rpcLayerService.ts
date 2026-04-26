@@ -5,7 +5,7 @@ import {
     SetLayerPropsResponse,
 } from '@zmkfirmware/zmk-studio-ts-client/keymap'
 import { produce } from 'immer'
-import { callRemoteProcedureControl } from '@/features/connection/callRemoteProcedureControl'
+import { callRpc } from '@/services/rpcCall'
 
 export async function addLayer(
     keymap: Keymap | undefined,
@@ -14,7 +14,7 @@ export async function addLayer(
 ): Promise<number> {
     if (!keymap) throw new Error('Not connected')
 
-    const resp = await callRemoteProcedureControl({
+    const resp = await callRpc({
         keymap: { addLayer: {} },
     })
 
@@ -53,7 +53,7 @@ export async function changeName(
     name: string,
     setKeymap: (updater: (draft: Keymap) => void) => void,
 ): Promise<void> {
-    const resp = await callRemoteProcedureControl({
+    const resp = await callRpc({
         keymap: { setLayerProps: { layerId, name } },
     })
 
@@ -87,7 +87,7 @@ export async function removeLayer(
     layerIndex: number,
     setKeymap: (updater: (draft: Keymap) => void) => void,
 ): Promise<void> {
-    const resp = await callRemoteProcedureControl({
+    const resp = await callRpc({
         keymap: { removeLayer: { layerIndex } },
     })
 
@@ -119,7 +119,7 @@ export async function restore(
     setKeymap: (updater: (draft: Keymap) => void) => void,
     setSelectedLayerIndex: (index: number) => void,
 ): Promise<void> {
-    const resp = await callRemoteProcedureControl({
+    const resp = await callRpc({
         keymap: { restoreLayer: { layerId, atIndex } },
     })
 

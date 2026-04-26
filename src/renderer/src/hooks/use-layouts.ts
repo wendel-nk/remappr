@@ -2,7 +2,7 @@ import { PhysicalLayout } from '@zmkfirmware/zmk-studio-ts-client/keymap'
 import { Dispatch, SetStateAction, useEffect, useState } from 'react'
 import { LockState } from '@zmkfirmware/zmk-studio-ts-client/core'
 import useConnectionStore from '@/stores/connectionStore'
-import { callRemoteProcedureControl } from '@/features/connection/callRemoteProcedureControl'
+import { callRpc } from '@/services/rpcCall'
 
 interface UseLayoutsReturn {
     layouts: PhysicalLayout[] | undefined
@@ -36,7 +36,7 @@ export function useLayout(): UseLayoutsReturn {
             setLayouts(undefined)
 
             try {
-                const response = await callRemoteProcedureControl({
+                const response = await callRpc({
                     keymap: { getPhysicalLayouts: true },
                 })
 

@@ -15,7 +15,7 @@ import {
 } from '@/ui/sidebar.tsx'
 import { DeviceMenu } from '@/features/connection/DeviceMenu'
 import { setKeymapRequest } from '@/services/rpcEventsService.ts'
-import { callRemoteProcedureControl } from '@/features/connection/callRemoteProcedureControl.ts'
+import { callRpc } from '@/services/rpcCall.ts'
 import { LockState } from '@zmkfirmware/zmk-studio-ts-client/core'
 import { Keymap } from '@zmkfirmware/zmk-studio-ts-client/keymap'
 import { produce } from 'immer'
@@ -54,7 +54,7 @@ export function Drawer(): JSX.Element {
 
         let ignore = false
         async function fetchKeymap(): Promise<void> {
-            const response = await callRemoteProcedureControl({
+            const response = await callRpc({
                 keymap: { getKeymap: true },
             })
             const keymapData = response?.keymap?.getKeymap

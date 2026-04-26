@@ -3,7 +3,7 @@ import type { RpcTransport } from '@zmkfirmware/zmk-studio-ts-client/transport/i
 import { useEmitter } from '@/hooks/use-pub-sub'
 import { LockState } from '@zmkfirmware/zmk-studio-ts-client/core'
 import { UnlockModal } from '@/features/connection/UnlockModal'
-import { connect } from '@/features/connection/rpcConnectionService'
+import { connectDevice } from '@/services/rpcConnect'
 import useConnectionStore from '@/stores/connectionStore'
 import undoRedoStore from '@/stores/undoRedoStore'
 import { KeyboardEditor } from '@/features/keymap/KeyboardEditor'
@@ -15,7 +15,7 @@ import { Header } from '@/layout/Header.tsx'
 // import { Footer } from '@/layout/Footer.tsx'
 import { ErrorBoundary } from '@/ui/ErrorBoundary.tsx'
 import { toast } from 'sonner'
-import { callRemoteProcedureControl } from '@/features/connection/callRemoteProcedureControl.ts'
+import { callRpc } from '@/services/rpcCall.ts'
 import { StartPage } from '@/features/connection/StartPage'
 
 function App(): JSX.Element {
@@ -41,7 +41,7 @@ function App(): JSX.Element {
     const updateLockState = useCallback(async (): Promise<void> => {
         if (!connection) return
 
-        const locked_resp = await callRemoteProcedureControl({
+        const locked_resp = await callRpc({
             core: { getLockState: true },
         })
         setLockState(
@@ -63,7 +63,7 @@ function App(): JSX.Element {
         t: RpcTransport,
         communication: 'serial' | 'ble',
     ): Promise<void> => {
-        const connection = await connect(
+        const connection = await connectDevice(
             t,
             setConnection,
             setDeviceName,
