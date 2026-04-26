@@ -13,6 +13,7 @@ import { ThemeProvider } from '@/providers/ThemeProvider.tsx'
 import { Toaster } from '@/ui/sonner.tsx'
 import { Header } from '@/layout/Header.tsx'
 // import { Footer } from '@/layout/Footer.tsx'
+import { ErrorBoundary } from '@/ui/ErrorBoundary.tsx'
 import { toast } from 'sonner'
 import { callRemoteProcedureControl } from '@/features/connection/callRemoteProcedureControl.ts'
 import { StartPage } from '@/features/connection/StartPage'
@@ -79,7 +80,7 @@ function App(): JSX.Element {
     return (
         <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
             {connection ? (
-                <>
+                <ErrorBoundary>
                     <UnlockModal />
                     <SidebarProvider
                         style={
@@ -93,13 +94,17 @@ function App(): JSX.Element {
                         <Drawer />
                         <SidebarInset>
                             <Header />
-                            <KeyboardEditor />
+                            <ErrorBoundary>
+                                <KeyboardEditor />
+                            </ErrorBoundary>
                             {/*<Footer />*/}
                         </SidebarInset>
                     </SidebarProvider>
-                </>
+                </ErrorBoundary>
             ) : (
-                <StartPage onTransportCreated={onConnect} />
+                <ErrorBoundary>
+                    <StartPage onTransportCreated={onConnect} />
+                </ErrorBoundary>
             )}
             <Toaster richColors position="top-center" />
         </ThemeProvider>
