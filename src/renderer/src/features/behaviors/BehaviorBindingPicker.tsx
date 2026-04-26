@@ -8,7 +8,7 @@ import { BehaviorBinding } from '@zmkfirmware/zmk-studio-ts-client/keymap'
 import { BehaviorParametersPicker } from './BehaviorParametersPicker'
 import { BehaviorSelector } from './BehaviorSelector'
 import { validateValue } from '@/lib/behaviors/parameters'
-import { SelectedKeysDisplay } from '@/features/keymap/keycodes/SelectedKeysDisplay'
+import { SelectedKeycodeCard } from '@/features/keymap/keycode-picker/SelectedKeycodeCard'
 import { KeyHoverPreview } from '@/features/keymap/keyboard/KeyHoverPreview'
 
 // Modifier key definitions (same as HidUsagePicker)
@@ -223,7 +223,7 @@ export const BehaviorBindingPicker = ({
                         placeholder="Select behavior..."
                     />
                     {isKeysLayoutActive && (
-                        <SelectedKeysDisplay
+                        <SelectedKeycodeCard
                             selectedKey={selectedKey}
                             selectedModifiers={selectedModifiers}
                             onClearAll={handleClearAll}

@@ -1,5 +1,5 @@
 import { BehaviorParameterValueDescription } from '@zmkfirmware/zmk-studio-ts-client/behaviors'
-import { KeysLayout } from '@/features/keymap/keycodes/KeysLayout'
+import { KeycodePickerGrid } from '@/features/keymap/keycode-picker/KeycodePickerGrid'
 import {
     Select,
     SelectContent,
@@ -133,7 +133,7 @@ export const ParameterValuePicker = ({
 
         if (values[0].hidUsage) {
             return (
-                <KeysLayout
+                <KeycodePickerGrid
                     onValueChanged={onValueChanged}
                     label={values[0].name}
                     value={value}

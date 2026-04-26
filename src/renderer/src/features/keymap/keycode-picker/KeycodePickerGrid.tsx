@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { KeyboardKeys, keyboards } from '@/data/keys'
-import Keycode from './Keycode.tsx'
+import KeycodeButton from './KeycodeButton.tsx'
 import { Key } from 'react-aria-components'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/ui/tabs.tsx'
 import { Input } from '@/ui/input.tsx'
@@ -9,17 +9,7 @@ import {
     hidUsagePageAndIdFromUsage,
 } from '@/lib/behaviors/hidUsages.ts'
 
-/**
- * KeysLayout Component
- *
- * A keyboard layout picker that works like HidUsagePicker:
- * - Shows the currently selected key from the keyboard
- * - Allows changing the selected key by clicking on keys in the layout
- * - Maintains keyboard-like visual display with key positions
- * - Supports modifier keys for HID usage behaviors
- * - Combines key value with modifier flags using bitwise OR
- */
-interface KeysLayoutProps {
+interface KeycodePickerGridProps {
     value?: number
     label?: string
     onValueChanged?: (value?: number) => void
@@ -57,10 +47,10 @@ function mods_to_flags(mods: Mods[]): number {
     return mods.reduce((a: number, v: Mods): number => a + v, 0)
 }
 
-export function KeysLayout({
+export function KeycodePickerGrid({
     value,
     onValueChanged,
-}: KeysLayoutProps): JSX.Element {
+}: KeycodePickerGridProps): JSX.Element {
     const [activeTab, setActiveTab] = useState('0')
     const [selectedKey, setSelectedKey] = useState<number | undefined>(
         undefined,
@@ -215,7 +205,7 @@ export function KeysLayout({
                     flexShrink: 0,
                 }}
             >
-                <Keycode
+                <KeycodeButton
                     value={keyId}
                     label={key.Label || ''}
                     width={keyWidth}
@@ -289,7 +279,7 @@ export function KeysLayout({
                     )
 
                     // Calculate the maximum bottom position needed for keys with positions
-                    const keySize = 50 // base key size used in Keycode component
+                    const keySize = 50
                     let maxBottomPosition = 0
                     keysWithPositions.forEach((key) => {
                         const keyHeight = 'h' in key && key.h ? key.h / 2 : 50
@@ -355,7 +345,7 @@ export function KeysLayout({
                                         'h' in key && key.h ? key.h / 2 : 50
 
                                     return (
-                                        <Keycode
+                                        <KeycodeButton
                                             key={key.Id + '-' + keyIndex}
                                             value={keyId}
                                             label={key.Label || ''}

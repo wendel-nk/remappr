@@ -2,14 +2,7 @@ import { CSSProperties } from 'react'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/ui/tooltip.tsx'
 import { Button } from '@/ui/button.tsx'
 
-/**
- * Keycode Component
- *
- * Represents a single key in the keyboard layout.
- * Supports selection state for multiple key selection functionality.
- * Uses baseKeyValue as a hidden attribute for selection.
- */
-interface KeycodeProps {
+interface KeycodeButtonProps {
     value?: number
     label: string
     width?: number
@@ -21,7 +14,7 @@ interface KeycodeProps {
     isSelected?: boolean
 }
 
-export default function Keycode({
+export default function KeycodeButton({
     value,
     label,
     width = 50,
@@ -31,7 +24,7 @@ export default function Keycode({
     baseKeyValue,
     onSelect,
     isSelected = false,
-}: KeycodeProps): JSX.Element {
+}: KeycodeButtonProps): JSX.Element {
     const keySize = 50
 
     const style: CSSProperties = {

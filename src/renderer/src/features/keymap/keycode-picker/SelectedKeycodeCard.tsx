@@ -38,7 +38,7 @@ const KEY_ID_TO_MOD: Record<number, Mods> = {
     231: Mods.RightGUI, // Keyboard Right GUI
 }
 
-interface SelectedKeysDisplayProps {
+interface SelectedKeycodeCardProps {
     selectedKey?: number
     selectedModifiers: Mods[]
     onClearAll: () => void
@@ -46,13 +46,13 @@ interface SelectedKeysDisplayProps {
     onRemoveModifier: (keyId: number) => void
 }
 
-export const SelectedKeysDisplay = ({
+export const SelectedKeycodeCard = ({
     selectedKey,
     selectedModifiers,
     onClearAll,
     onRemoveKey,
     onRemoveModifier,
-}: SelectedKeysDisplayProps): JSX.Element | null => {
+}: SelectedKeycodeCardProps): JSX.Element | null => {
     // Helper function to get key info by ID
     function getKeyInfo(
         keyId: number,
