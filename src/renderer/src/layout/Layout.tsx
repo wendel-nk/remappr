@@ -1,7 +1,7 @@
 import { useState } from 'react'
 // import { Footer } from './Footer.tsx'
 import { Header } from './Header.tsx'
-import Keyboard from '@/features/keymap/keyboard/Keyboard.tsx'
+import KeyboardView from '@/features/keymap/keyboard/KeyboardView'
 import useKeymapStore from '@/stores/keymapStore.ts'
 
 export function Layout(): JSX.Element {
@@ -13,7 +13,7 @@ export function Layout(): JSX.Element {
     return (
         <>
             <Header></Header>
-            <Keyboard
+            <KeyboardView
                 keymap={keymap}
                 selectedKeyPosition={selectedKeyPosition}
                 setSelectedKeyPosition={setSelectedKeyPosition}

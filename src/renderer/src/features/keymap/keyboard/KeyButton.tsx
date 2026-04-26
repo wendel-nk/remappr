@@ -16,7 +16,7 @@ export interface HoldTapLabels {
     tooltip?: string
 }
 
-interface KeyProps {
+interface KeyButtonProps {
     selected?: boolean
     pressed?: boolean
     width: number
@@ -181,7 +181,7 @@ const FitText = ({
     )
 }
 
-export const Key = ({
+export const KeyButton = ({
     selected = false,
     pressed = false,
     header,
@@ -189,7 +189,7 @@ export const Key = ({
     hoverZoom = true,
     holdTap,
     ...props
-}: PropsWithChildren<KeyProps>): JSX.Element => {
+}: PropsWithChildren<KeyButtonProps>): JSX.Element => {
     const size = makeSize(props, oneU)
     const maxChildFontSize = Math.max(10, oneU / 2.5)
     const maxHoldFontSize = Math.max(8, oneU / 4)

@@ -1,5 +1,5 @@
 import { PropsWithChildren, useLayoutEffect, useRef, useState } from 'react'
-import { HoldTapLabels, Key } from './Key.tsx'
+import { HoldTapLabels, KeyButton } from './KeyButton.tsx'
 import { scalePosition } from '@/lib/scalePosition'
 import { LayoutZoom } from '@/lib/helpers.ts'
 
@@ -16,7 +16,7 @@ export type KeyPosition = PropsWithChildren<{
     ry?: number
 }>
 
-interface PhysicalLayoutProps {
+interface PhysicalLayoutCanvasProps {
     positions: Array<KeyPosition>
     selectedPosition?: number
     oneU?: number
@@ -26,7 +26,7 @@ interface PhysicalLayoutProps {
     pressedKeys?: Set<number>
 }
 
-export const PhysicalLayout = ({
+export const PhysicalLayoutCanvas = ({
     positions,
     selectedPosition,
     oneU = 48,
@@ -34,7 +34,7 @@ export const PhysicalLayout = ({
     onPositionClicked,
     pressedKeys = new Set(),
     ...props
-}: PhysicalLayoutProps): JSX.Element => {
+}: PhysicalLayoutCanvasProps): JSX.Element => {
     const ref = useRef<HTMLDivElement>(null)
     const [scale, setScale] = useState(1)
 
@@ -108,7 +108,7 @@ export const PhysicalLayout = ({
                 data-zoomer={hoverZoom}
                 style={posStyle}
             >
-                <Key
+                <KeyButton
                     hoverZoom={hoverZoom}
                     oneU={oneU}
                     selected={idx === selectedPosition}

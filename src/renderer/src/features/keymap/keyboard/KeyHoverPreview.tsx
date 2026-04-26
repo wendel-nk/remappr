@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { BehaviorBinding } from '@zmkfirmware/zmk-studio-ts-client/keymap'
 import { GetBehaviorDetailsResponse } from '@zmkfirmware/zmk-studio-ts-client/behaviors'
-import { Key, HoldTapLabels } from './Key'
+import { KeyButton, HoldTapLabels } from './KeyButton'
 import { HidUsageLabel } from './HidUsageLabel'
 import { HoldTapType, parseHoldTapBinding } from '@/lib/behaviors/holdTap'
 import {
@@ -13,7 +13,7 @@ import {
     hidUsagePageAndIdFromUsage,
 } from '@/lib/behaviors/hidUsages'
 
-export interface KeyPreviewProps {
+export interface KeyHoverPreviewProps {
     binding: BehaviorBinding
     behaviors: GetBehaviorDetailsResponse[]
     layers?: { id: number; name: string }[]
@@ -29,11 +29,11 @@ function describeUsage(usage: number): string {
     return long ? long.replace(/^Keyboard /, '') : `0x${usage.toString(16)}`
 }
 
-export function KeyPreview({
+export function KeyHoverPreview({
     binding,
     behaviors,
     layers = [],
-}: KeyPreviewProps): JSX.Element {
+}: KeyHoverPreviewProps): JSX.Element {
     const behaviorMap = useMemo(
         () =>
             behaviors.reduce<Record<number, GetBehaviorDetailsResponse>>(
@@ -87,7 +87,7 @@ export function KeyPreview({
         <div className="flex flex-col items-center gap-2">
             <span className="text-sm text-muted-foreground">Preview:</span>
             <div style={{ width: PREVIEW_ONE_U, height: PREVIEW_ONE_U }}>
-                <Key
+                <KeyButton
                     width={1}
                     height={1}
                     oneU={PREVIEW_ONE_U}
@@ -96,7 +96,7 @@ export function KeyPreview({
                     holdTap={holdTap}
                 >
                     <HidUsageLabel hid_usage={binding.param1 ?? 0} />
-                </Key>
+                </KeyButton>
             </div>
         </div>
     )

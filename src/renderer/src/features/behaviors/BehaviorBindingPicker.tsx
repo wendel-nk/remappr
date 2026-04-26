@@ -9,7 +9,7 @@ import { BehaviorParametersPicker } from './BehaviorParametersPicker'
 import { BehaviorSelector } from './BehaviorSelector'
 import { validateValue } from '@/lib/behaviors/parameters'
 import { SelectedKeysDisplay } from '@/features/keymap/keycodes/SelectedKeysDisplay'
-import { KeyPreview } from '@/features/keymap/keyboard/KeyPreview'
+import { KeyHoverPreview } from '@/features/keymap/keyboard/KeyHoverPreview'
 
 // Modifier key definitions (same as HidUsagePicker)
 enum Mods {
@@ -207,7 +207,7 @@ export const BehaviorBindingPicker = ({
     return (
         <div className="flex flex-row w-full gap-4">
             <div className="flex-shrink-0">
-                <KeyPreview
+                <KeyHoverPreview
                     binding={liveBinding}
                     behaviors={behaviors}
                     layers={layers}

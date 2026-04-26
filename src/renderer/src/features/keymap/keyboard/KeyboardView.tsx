@@ -13,17 +13,17 @@ import { getKeymapLayout } from '@/services/rpcEventsService.ts'
 import { useKeypressDetection } from '@/hooks/use-keypress-detection'
 import type { KeypressDetectionConfig } from '@/lib/keypress/keypressDetector'
 
-interface KeyboardProps {
+interface KeyboardViewProps {
     keymap: Keymap | undefined
     selectedKeyPosition: number | undefined
     setSelectedKeyPosition: (position: number | undefined) => void
 }
 
-export default function Keyboard({
+export default function KeyboardView({
     keymap,
     selectedKeyPosition,
     setSelectedKeyPosition,
-}: KeyboardProps): JSX.Element {
+}: KeyboardViewProps): JSX.Element {
     const { layouts, selectedPhysicalLayoutIndex } = useLayout()
     const { selectedLayerIndex, setSelectedLayerIndex } =
         useLayerSelectionStore()

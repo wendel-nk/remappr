@@ -5,9 +5,9 @@ import {
 } from '@zmkfirmware/zmk-studio-ts-client/keymap'
 import type { GetBehaviorDetailsResponse } from '@zmkfirmware/zmk-studio-ts-client/behaviors'
 
-import { PhysicalLayout as PhysicalLayoutComp } from './PhysicalLayout.tsx'
+import { PhysicalLayoutCanvas } from './PhysicalLayoutCanvas.tsx'
 import { HidUsageLabel } from './HidUsageLabel.tsx'
-import { HoldTapLabels } from './Key.tsx'
+import { HoldTapLabels } from './KeyButton.tsx'
 import { LayoutZoom } from '@/lib/helpers.ts'
 import { HoldTapType, parseHoldTapBinding } from '@/lib/behaviors/holdTap.ts'
 import {
@@ -162,7 +162,7 @@ export const KeyboardLayout = ({
     }
 
     return (
-        <PhysicalLayoutComp
+        <PhysicalLayoutCanvas
             positions={positions}
             oneU={48}
             hoverZoom={true}

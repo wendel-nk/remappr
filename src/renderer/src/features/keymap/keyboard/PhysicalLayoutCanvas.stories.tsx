@@ -1,13 +1,13 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { fn } from 'storybook/test'
-import { PhysicalLayout } from './PhysicalLayout.tsx'
+import { PhysicalLayoutCanvas } from './PhysicalLayoutCanvas.tsx'
 import { HidUsageLabel } from './HidUsageLabel.tsx'
 import { hidUsageFromPageAndId } from '@/lib/behaviors/hidUsages'
 
 // More on how to set up stories at: https://storybook.js.org/docs/writing-stories#default-export
 const meta = {
-    title: 'Keyboard/PhysicalLayout',
-    component: PhysicalLayout,
+    title: 'Keyboard/PhysicalLayoutCanvas',
+    component: PhysicalLayoutCanvas,
     parameters: {
         // Optional parameter to center the component in the Canvas. More info: https://storybook.js.org/docs/configure/story-layout
     },
@@ -18,7 +18,7 @@ const meta = {
     args: {
         onPositionClicked: fn(),
     },
-} satisfies Meta<typeof PhysicalLayout>
+} satisfies Meta<typeof PhysicalLayoutCanvas>
 
 export default meta
 type Story = StoryObj<typeof meta>

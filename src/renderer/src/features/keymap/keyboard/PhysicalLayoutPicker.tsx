@@ -1,6 +1,9 @@
 import { useCallback } from 'react'
 import { Popover, PopoverTrigger, PopoverContent } from '@/ui/popover.tsx'
-import { PhysicalLayout, type KeyPosition } from './PhysicalLayout.tsx'
+import {
+    PhysicalLayoutCanvas,
+    type KeyPosition,
+} from './PhysicalLayoutCanvas.tsx'
 import {
     SidebarGroupContent,
     SidebarGroupLabel,
@@ -59,7 +62,7 @@ export const PhysicalLayoutPicker = ({
                                 <PopoverContent>
                                     <div className="space-y-4 ">
                                         <div className="flex justify-center">
-                                            <PhysicalLayout
+                                            <PhysicalLayoutCanvas
                                                 oneU={20}
                                                 hoverZoom={false}
                                                 positions={layout.keys.map(

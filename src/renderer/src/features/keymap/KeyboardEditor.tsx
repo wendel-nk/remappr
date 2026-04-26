@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import Keyboard from '@/features/keymap/keyboard/Keyboard.tsx'
+import KeyboardView from '@/features/keymap/keyboard/KeyboardView'
 import { KeyEditor } from './KeyEditor.tsx'
 import useKeymapStore from '@/stores/keymapStore.ts'
 
@@ -19,7 +19,7 @@ export function KeyboardEditor(): JSX.Element {
 
     return (
         <div className="flex flex-col flex-1">
-            <Keyboard
+            <KeyboardView
                 keymap={keymap}
                 selectedKeyPosition={selectedKeyPosition}
                 setSelectedKeyPosition={setSelectedKeyPosition}
