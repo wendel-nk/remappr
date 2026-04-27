@@ -222,4 +222,14 @@
         image-rendering: -webkit-optimize-contrast;
         backface-visibility: hidden;
     }
+
+    /* Offset shadcn sidebar below custom titlebar (electron only) */
+    body.app-electron [data-slot='sidebar-container'],
+    body.app-electron [data-slot='sidebar-gap'] {
+        top: 2.25rem !important;
+        height: calc(100svh - 2.25rem) !important;
+    }
+    body.app-electron [class~='group/sidebar-wrapper'] {
+        min-height: calc(100svh - 2.25rem) !important;
+    }
 }

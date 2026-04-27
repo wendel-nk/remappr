@@ -1,7 +1,7 @@
 {
     "name": "remappr",
     "private": true,
-    "version": "0.3.1",
+    "version": "0.0.0",
     "type": "module",
     "main": "./out/main/index.js",
     "packageManager": "pnpm@10.30.3",
@@ -9,11 +9,9 @@
         "node": ">=20"
     },
     "scripts": {
-        "generate-data": "node scripts/generate-release-data.js",
         "dev": "vite --port 5174",
         "tauri-dev": "pnpm tauri dev",
         "build": "vite build",
-        "generate-build": "pnpm generate-data && vite build",
         "lint": "eslint . --report-unused-disable-directives",
         "preview": "vite preview",
         "tauri": "tauri",
@@ -28,8 +26,8 @@
         "typecheck": "pnpm typecheck:node && pnpm typecheck:web",
         "prepare": "husky",
         "postinstall": "electron-builder install-app-deps",
-        "build:unpack": "pnpm build && electron-builder --dir",
-        "build:win": "pnpm build && electron-builder --win",
+        "build:unpack": "electron-vite build && electron-builder --dir",
+        "build:win": "electron-vite build && electron-builder --win",
         "build:mac": "electron-vite build && electron-builder --mac",
         "build:linux": "electron-vite build && electron-builder --linux",
         "test": "vitest run",

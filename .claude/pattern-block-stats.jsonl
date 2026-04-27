@@ -39,3 +39,8 @@
 {"ts":"2026-04-27T16:39:08.425Z","rule":"preamble-missing","file":"/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/renderer/src/transport/web-serial.ts","decision":null,"reasonExcerpt":""}
 {"ts":"2026-04-27T16:43:53.568Z","rule":"preamble-missing","file":"/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/renderer/src/transport/web-serial.ts","decision":null,"reasonExcerpt":""}
 {"ts":"2026-04-27T20:25:46.425Z","rule":"preamble-missing","file":"/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/renderer/src/transport/web-serial.ts","decision":null,"reasonExcerpt":""}
+{"ts":"2026-04-27T21:12:56.178Z","rule":"preamble-missing","file":"/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/renderer/src/layout/Footer.tsx","decision":null,"reasonExcerpt":""}
+{"ts":"2026-04-27T21:15:54.143Z","rule":"preamble-missing","file":"/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/shared/ipc-types.ts","decision":null,"reasonExcerpt":""}
+{"ts":"2026-04-27T21:28:24.672Z","rule":"preamble-missing","file":"/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/renderer/src/lib/github.ts","decision":null,"reasonExcerpt":""}
+{"ts":"2026-04-27T21:32:25.464Z","rule":"preamble-missing","file":"/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/renderer/src/components/modals/Settings.tsx","decision":null,"reasonExcerpt":""}
+{"ts":"2026-04-27T21:46:05.102Z","rule":"preamble-missing","file":"/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/renderer/src/App.tsx","decision":null,"reasonExcerpt":""}

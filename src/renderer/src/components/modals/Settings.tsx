@@ -1,8 +1,22 @@
-import { Settings as SettingsIcon } from 'lucide-react'
+// pattern-check: skip — adding manual check button + IPC plumbing, no abstraction
+import { useState } from 'react'
+import { Settings as SettingsIcon, RefreshCw } from 'lucide-react'
+import { toast } from 'sonner'
 import { DarkModeToggle } from '@/components/DarkModeToggle'
 import { ThemePicker } from '@/components/ThemePicker'
+import { DownloadLatestButton } from '@/components/DownloadLatestButton'
 import { Modal } from '@/ui/modal'
+import { Button } from '@/ui/button'
 import { Label } from '@/ui/label'
+import { APP_VERSION } from '@/lib/constants'
+import { IpcChannels } from '../../../../shared/ipc-types'
+import type { UpdateCheckResultPayload } from '../../../../shared/ipc-types'
+
+interface ElectronWindow {
+    api?: {
+        invoke: (channel: string, ...args: unknown[]) => Promise<unknown>
+    }
+}
 
 interface SettingsProps {
     opened?: boolean
@@ -11,6 +25,36 @@ interface SettingsProps {
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function Settings(_props: SettingsProps): JSX.Element {
+    const [checking, setChecking] = useState(false)
+    const api = (window as unknown as ElectronWindow).api
+    const isElectron = Boolean(api)
+
+    const handleCheckUpdates = async (): Promise<void> => {
+        if (!api) return
+        setChecking(true)
+        try {
+            const result = (await api.invoke(
+                IpcChannels.UPDATES_CHECK,
+            )) as UpdateCheckResultPayload
+            if (result.status === 'newer' && result.version) {
+                toast.success(`Update available: v${result.version}`, {
+                    description:
+                        'A toast with download options should appear shortly.',
+                })
+            } else if (result.status === 'current') {
+                toast.success('You are on the latest version', {
+                    description: `Remappr v${APP_VERSION} is up to date.`,
+                })
+            } else {
+                toast.error('Could not check for updates', {
+                    description: result.error ?? 'Unknown error',
+                })
+            }
+        } finally {
+            setChecking(false)
+        }
+    }
+
     return (
         <Modal
             customModalBoxClass="w-11/14 max-w-4xl"
@@ -39,6 +83,32 @@ export function Settings(_props: SettingsProps): JSX.Element {
                             </p>
                         </div>
                         <DarkModeToggle />
+                    </div>
+                </div>
+
+                {/* About */}
+                <div className="space-y-3">
+                    <h3 className="text-lg font-semibold">About</h3>
+                    <p className="text-sm">
+                        Remappr{' '}
+                        <span className="font-mono">v{APP_VERSION}</span>
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                        <DownloadLatestButton />
+                        {isElectron && (
+                            <Button
+                                variant="ghost"
+                                onClick={handleCheckUpdates}
+                                disabled={checking}
+                            >
+                                <RefreshCw
+                                    className={`mr-2 h-4 w-4 ${
+                                        checking ? 'animate-spin' : ''
+                                    }`}
+                                />
+                                {checking ? 'Checking…' : 'Check for updates'}
+                            </Button>
+                        )}
                     </div>
                 </div>
             </div>

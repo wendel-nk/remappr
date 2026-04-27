@@ -1,0 +1,38 @@
+name: release-please
+
+on:
+    push:
+        branches: [main]
+
+permissions:
+    contents: write
+    pull-requests: write
+
+concurrency:
+    group: release-please
+    cancel-in-progress: false
+
+jobs:
+    release-please:
+        runs-on: ubuntu-latest
+        outputs:
+            release_created: ${{ steps.rp.outputs.release_created }}
+            tag_name: ${{ steps.rp.outputs.tag_name }}
+            pr: ${{ steps.rp.outputs.pr }}
+        steps:
+            - name: Run release-please
+              id: rp
+              uses: googleapis/release-please-action@v4
+              with:
+                  config-file: release.config.json
+                  manifest-file: .release-manifest.json
+                  token: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Auto-merge release PR
+              if: ${{ steps.rp.outputs.pr }}
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: |
+                  PR_NUM=$(echo '${{ steps.rp.outputs.pr }}' | jq -r '.number')
+                  echo "Enabling auto-merge on release PR #$PR_NUM"
+                  gh pr merge "$PR_NUM" --squash --auto --repo "$GITHUB_REPOSITORY"
