@@ -8,6 +8,8 @@ import { setupBleDeviceSelection, registerBleIpcHandlers } from './ble-manager'
 import { setupSerialDeviceSelection } from './serial-picker'
 import { startSerialDevicePolling } from './serial'
 import { silenceConsoleInProduction } from '../shared/logger'
+import { checkForUpdates, registerUpdateIpc } from './update-checker'
+import { registerWindowControlsIpc } from './window-controls'
 
 silenceConsoleInProduction()
 
@@ -18,12 +20,25 @@ app.commandLine.appendSwitch('enable-experimental-web-platform-features')
 
 function createWindow(): void {
     // Create the browser window.
+    const isMac = process.platform === 'darwin'
+    const isLinux = process.platform === 'linux'
+
     const mainWindow = new BrowserWindow({
-        width: 1000,
-        height: 800,
+        width: 1200,
+        height: 900,
+        minWidth: 800,
+        minHeight: 600,
+        useContentSize: true,
         show: false,
         autoHideMenuBar: true,
-        ...(process.platform === 'linux' ? { icon } : {}),
+        frame: false,
+        ...(isMac
+            ? {
+                  titleBarStyle: 'hiddenInset',
+                  trafficLightPosition: { x: 12, y: 10 },
+              }
+            : {}),
+        ...(isLinux ? { icon } : {}),
         webPreferences: {
             preload: join(__dirname, '../preload/index.mjs'),
             sandbox: false,
@@ -69,6 +84,10 @@ function createWindow(): void {
         mainWindow?.show()
     })
 
+    mainWindow.webContents.once('did-finish-load', (): void => {
+        void checkForUpdates(mainWindow)
+    })
+
     mainWindow.webContents.setWindowOpenHandler(
         (details): { action: 'deny' } => {
             shell.openExternal(details.url)
@@ -105,6 +124,8 @@ app.whenReady().then((): void => {
     // Register all IPC handlers
     registerIpcHandlers(() => BrowserWindow.getAllWindows())
     registerBleIpcHandlers()
+    registerUpdateIpc(() => BrowserWindow.getAllWindows()[0] ?? null)
+    registerWindowControlsIpc(() => BrowserWindow.getAllWindows()[0] ?? null)
 
     // Start USB hotplug polling — pushes SERIAL_DEVICES_CHANGED on changes.
     startSerialDevicePolling(() => BrowserWindow.getAllWindows())

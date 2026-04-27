@@ -17,6 +17,8 @@ import { ErrorBoundary } from '@/ui/ErrorBoundary'
 import { toast } from 'sonner'
 import { callRpc } from '@/services/rpcCall'
 import { StartPage } from '@/features/connection/start-page/StartPage'
+import { UpdateNotification } from '@/components/UpdateNotification'
+import { TitleBar } from '@/layout/TitleBar'
 
 function App(): JSX.Element {
     const {
@@ -77,35 +79,55 @@ function App(): JSX.Element {
         }
     }
 
+    const isElectron =
+        typeof window !== 'undefined' &&
+        Boolean((window as unknown as { api?: unknown }).api)
+
+    useEffect(() => {
+        if (!isElectron) return
+        document.body.classList.add('app-electron')
+        return () => document.body.classList.remove('app-electron')
+    }, [isElectron])
+
     return (
         <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
-            {connection ? (
-                <ErrorBoundary>
-                    <UnlockModal />
-                    <SidebarProvider
-                        style={
-                            {
-                                '--sidebar-width': 'calc(var(--spacing) * 72)',
-                                '--header-height': 'calc(var(--spacing) * 12)',
-                                '--footer-height': 'calc(var(--spacing) * 8)',
-                            } as React.CSSProperties
-                        }
-                    >
-                        <Drawer />
-                        <SidebarInset>
-                            <Header />
-                            <ErrorBoundary>
-                                <KeymapEditor />
-                            </ErrorBoundary>
-                            {/*<Footer />*/}
-                        </SidebarInset>
-                    </SidebarProvider>
-                </ErrorBoundary>
-            ) : (
-                <ErrorBoundary>
-                    <StartPage onTransportCreated={onConnect} />
-                </ErrorBoundary>
-            )}
+            <div className="flex h-screen flex-col overflow-hidden">
+                <TitleBar />
+                <div className="flex-1 min-h-0 overflow-hidden">
+                    {connection ? (
+                        <ErrorBoundary>
+                            <UnlockModal />
+                            <SidebarProvider
+                                className="!min-h-0 h-full"
+                                style={
+                                    {
+                                        '--sidebar-width':
+                                            'calc(var(--spacing) * 72)',
+                                        '--header-height':
+                                            'calc(var(--spacing) * 12)',
+                                        '--footer-height':
+                                            'calc(var(--spacing) * 8)',
+                                    } as React.CSSProperties
+                                }
+                            >
+                                <Drawer />
+                                <SidebarInset>
+                                    <Header />
+                                    <ErrorBoundary>
+                                        <KeymapEditor />
+                                    </ErrorBoundary>
+                                    {/*<Footer />*/}
+                                </SidebarInset>
+                            </SidebarProvider>
+                        </ErrorBoundary>
+                    ) : (
+                        <ErrorBoundary>
+                            <StartPage onTransportCreated={onConnect} />
+                        </ErrorBoundary>
+                    )}
+                </div>
+            </div>
+            <UpdateNotification />
             <Toaster richColors position="top-center" />
         </ThemeProvider>
     )

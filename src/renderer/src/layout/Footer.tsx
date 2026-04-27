@@ -1,4 +1,6 @@
+// pattern-check: skip — single inline span for version display
 import { Separator } from '@/ui/separator'
+import { APP_VERSION } from '@/lib/constants'
 
 export function Footer(): JSX.Element {
     return (
@@ -8,6 +10,7 @@ export function Footer(): JSX.Element {
                 <span>
                     &copy; {new Date().getFullYear()} - Remappr Contributors
                 </span>
+                <span className="text-xs opacity-60">v{APP_VERSION}</span>
             </div>
         </>
     )

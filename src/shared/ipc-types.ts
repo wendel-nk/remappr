@@ -39,6 +39,15 @@ export const IpcChannels = {
     // Transport operations (shared by serial & BLE)
     TRANSPORT_SEND_DATA: 'transport:send-data',
     TRANSPORT_CLOSE: 'transport:close',
+
+    // Update check (manual trigger from renderer)
+    UPDATES_CHECK: 'updates:check',
+
+    // Window controls (custom titlebar)
+    WINDOW_MINIMIZE: 'window:minimize',
+    WINDOW_MAXIMIZE_TOGGLE: 'window:maximize-toggle',
+    WINDOW_CLOSE: 'window:close',
+    WINDOW_IS_MAXIMIZED: 'window:is-maximized',
 } as const
 
 /** Event channels (main pushes to renderer) */
@@ -47,7 +56,23 @@ export const IpcEvents = {
     CONNECTION_DISCONNECTED: 'connection:disconnected',
     BLE_DEVICES_DISCOVERED: 'ble:devices-discovered',
     SERIAL_DEVICES_CHANGED: 'serial:devices-changed',
+    UPDATE_AVAILABLE: 'update:available',
 } as const
+
+// pattern-check: skip — flat IPC DTO, no behavior
+export interface UpdateAvailablePayload {
+    version: string
+    url: string
+    notes: string
+}
+
+// pattern-check: skip — flat IPC DTO, no behavior
+export interface UpdateCheckResultPayload {
+    status: 'newer' | 'current' | 'unchanged' | 'error'
+    version?: string
+    url?: string
+    error?: string
+}
 
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]
 export type IpcEvent = (typeof IpcEvents)[keyof typeof IpcEvents]
@@ -116,6 +141,26 @@ export interface IpcInvokeMap {
         params: void
         result: void
     }
+    [IpcChannels.UPDATES_CHECK]: {
+        params: void
+        result: UpdateCheckResultPayload
+    }
+    [IpcChannels.WINDOW_MINIMIZE]: {
+        params: void
+        result: void
+    }
+    [IpcChannels.WINDOW_MAXIMIZE_TOGGLE]: {
+        params: void
+        result: boolean
+    }
+    [IpcChannels.WINDOW_CLOSE]: {
+        params: void
+        result: void
+    }
+    [IpcChannels.WINDOW_IS_MAXIMIZED]: {
+        params: void
+        result: boolean
+    }
 }
 
 /** Map of event channel -> payload type */
@@ -123,6 +168,7 @@ export interface IpcEventMap {
     [IpcEvents.CONNECTION_DATA]: number[]
     [IpcEvents.CONNECTION_DISCONNECTED]: void
     [IpcEvents.BLE_DEVICES_DISCOVERED]: AvailableDevice[]
+    [IpcEvents.UPDATE_AVAILABLE]: UpdateAvailablePayload
 }
 
 // --- Preload API Surface ---

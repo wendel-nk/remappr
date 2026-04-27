@@ -19,6 +19,7 @@ import { callRpc } from '@/services/rpcCall'
 import { LockState } from '@zmkfirmware/zmk-studio-ts-client/core'
 import { Keymap } from '@zmkfirmware/zmk-studio-ts-client/keymap'
 import { produce } from 'immer'
+import { APP_VERSION } from '@/lib/constants'
 
 export function Drawer(): JSX.Element {
     const { connection, lockState } = useConnectionStore()
@@ -105,13 +106,15 @@ export function Drawer(): JSX.Element {
 
     return (
         <Sidebar collapsible="icon" variant="inset">
-            <SidebarHeader className="flex-row justify-center">
+            <SidebarHeader className="flex-col items-center gap-1">
                 <img
                     src="/remappr.png"
                     alt="Remappr Logo"
                     className="h-8 rounded w-10"
                 />
-                {/*<span className="px-3">Studio</span>*/}
+                <span className="text-[10px] text-muted-foreground group-data-[collapsible=icon]:hidden">
+                    v{APP_VERSION}
+                </span>
             </SidebarHeader>
             <SidebarContent>
                 <SidebarGroup>

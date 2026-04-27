@@ -7,7 +7,8 @@ import { Button } from '@/ui/button'
 import { Card, CardContent } from '@/ui/card'
 import { ExternalLink } from '@/components/ExternalLink'
 import { GitHubIcon } from '@/components/GitHubIcon'
-import { REPO_URL } from '@/lib/constants'
+import { DownloadLatestButton } from '@/components/DownloadLatestButton'
+import { APP_VERSION, REPO_URL } from '@/lib/constants'
 import { LicenseNoticeModal } from '@/components/modals/LicenseNoticeModal'
 import {
     useTransportDiscovery,
@@ -49,12 +50,15 @@ export function StartPage({ onTransportCreated }: StartPageProps): JSX.Element {
     }
 
     return (
-        <div className="flex min-h-screen flex-col bg-background">
+        <div className="flex h-full flex-col overflow-auto bg-background">
             <header className="border-b">
                 <div className="container mx-auto flex h-16 items-center px-4">
                     <div className="flex items-center gap-2">
                         <Keyboard className="h-6 w-6 text-primary" />
                         <span className="text-xl font-semibold">Remappr</span>
+                        <span className="text-xs text-muted-foreground">
+                            v{APP_VERSION}
+                        </span>
                     </div>
                     <a
                         href={REPO_URL}
@@ -93,28 +97,47 @@ export function StartPage({ onTransportCreated }: StartPageProps): JSX.Element {
                         onRequestNew={handleRequestNew}
                     />
 
-                    <Card className="border-dashed">
-                        <CardContent className="flex flex-col items-center justify-center py-8 text-center sm:flex-row sm:justify-between sm:text-left">
-                            <div className="mb-4 sm:mb-0">
-                                <h3 className="font-semibold">Try Demo Mode</h3>
-                                <p className="text-sm text-muted-foreground">
-                                    Explore Remappr with a simulated keyboard -
-                                    no device required.
-                                </p>
-                            </div>
-                            <Button
-                                variant="secondary"
-                                onClick={() => {
-                                    toast.info('Demo mode coming soon!', {
-                                        description:
-                                            'This feature is currently under development.',
-                                    })
-                                }}
-                            >
-                                Try Demo
-                            </Button>
-                        </CardContent>
-                    </Card>
+                    <div className="mt-6 grid gap-6 md:grid-cols-2">
+                        <Card className="border-dashed">
+                            <CardContent className="flex h-full flex-col items-center justify-between gap-4 py-8 text-center">
+                                <div>
+                                    <h3 className="font-semibold">
+                                        Try Demo Mode
+                                    </h3>
+                                    <p className="text-sm text-muted-foreground">
+                                        Explore Remappr with a simulated
+                                        keyboard - no device required.
+                                    </p>
+                                </div>
+                                <Button
+                                    variant="secondary"
+                                    onClick={() => {
+                                        toast.info('Demo mode coming soon!', {
+                                            description:
+                                                'This feature is currently under development.',
+                                        })
+                                    }}
+                                >
+                                    Try Demo
+                                </Button>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="border-dashed">
+                            <CardContent className="flex h-full flex-col items-center justify-between gap-4 py-8 text-center">
+                                <div>
+                                    <h3 className="font-semibold">
+                                        Get the desktop app
+                                    </h3>
+                                    <p className="text-sm text-muted-foreground">
+                                        Download the latest Remappr build for
+                                        your operating system.
+                                    </p>
+                                </div>
+                                <DownloadLatestButton />
+                            </CardContent>
+                        </Card>
+                    </div>
                 </div>
             </main>
 
