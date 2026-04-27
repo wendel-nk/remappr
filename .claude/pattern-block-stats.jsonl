@@ -31,3 +31,4 @@
 {"ts":"2026-04-26T19:19:55.547Z","rule":"preamble-missing","file":"D:/Projects/Typescript/React/zmk-studio-original/src/renderer/src/features/keymap/keycode-picker/KeycodeButton.tsx","decision":null,"reasonExcerpt":""}
 {"ts":"2026-04-26T19:26:34.130Z","rule":"preamble-missing","file":"D:/Projects/Typescript/React/zmk-studio-original/src/renderer/src/features/connection/DevicePicker.tsx","decision":null,"reasonExcerpt":""}
 {"ts":"2026-04-26T19:49:32.770Z","rule":"preamble-missing","file":"D:/Projects/Typescript/React/zmk-studio-original/src/renderer/src/features/connection/start-page/StartPage.tsx","decision":null,"reasonExcerpt":""}
+{"ts":"2026-04-26T20:09:13.958Z","rule":"preamble-missing","file":"D:/Projects/Typescript/React/zmk-studio-original/src/renderer/src/services/rpcLayerService.ts","decision":null,"reasonExcerpt":""}

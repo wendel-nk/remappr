@@ -13,7 +13,7 @@
 
 import { IpcChannels, IpcEvents } from '../../../shared/ipc-types'
 import type { RpcTransport } from '@zmkfirmware/zmk-studio-ts-client/transport/index'
-import type { AvailableDevice } from '../transport/types'
+import type { AvailableDevice } from '@/transport'
 
 // ZMK Studio BLE service/characteristic UUIDs (Web Bluetooth path)
 const ZMK_SERVICE_UUID = '00000000-0196-6107-c967-c5cfb1c2482a'
