@@ -189,6 +189,7 @@ async function openTransport(port: SerialPort): Promise<RpcTransport> {
     }
 
     const info = port.getInfo()
+    lastOpenedPortInfo = info
     const usbNames = await buildUsbNameMap()
     const label = resolveLabel(info, usbNames)
 
@@ -222,7 +223,7 @@ export async function connectToGrantedPort(
     return openTransport(port)
 }
 
-// Set by requestAndConnect; read by rememberConnectedDeviceName after the
+// Set by openTransport; read by rememberConnectedDeviceName after the
 // RPC handshake reports the firmware's keyboard name.
 let lastOpenedPortInfo: SerialPortInfo | null = null
 
@@ -238,7 +239,6 @@ export async function requestAndConnect(): Promise<RpcTransport> {
     // persist it keyed by vid:pid, so future sessions resolve the name
     // silently from cache.
     const info = port.getInfo()
-    lastOpenedPortInfo = info
     const id = makeId(info, portRegistry.size)
     portRegistry.set(id, port)
     return openTransport(port)
