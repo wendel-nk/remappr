@@ -38,7 +38,11 @@ jobs:
                   node-version-file: '.nvmrc'
                   cache: 'pnpm'
             - name: Install dependencies
-              run: pnpm install --frozen-lockfile
+              # --ignore-scripts skips the electron-builder install-app-deps
+              # postinstall, which tries to rebuild native modules (usb,
+              # noble, etc.) that need system libs (libudev) the runner
+              # doesn't have. Web build doesn't use those modules anyway.
+              run: pnpm install --frozen-lockfile --ignore-scripts
             - name: Build
               run: pnpm build
             - name: Setup Pages
