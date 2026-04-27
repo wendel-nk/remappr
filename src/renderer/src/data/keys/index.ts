@@ -1,9 +1,9 @@
-import { keyboard } from './keyboard.ts'
-import { consumer } from './consumer.ts'
-import { ac } from '@/data/keys/ac.ts'
-import { contact } from '@/data/keys/contact.ts'
-import { al } from '@/data/keys/al.ts'
-import { media } from '@/data/keys/media.ts'
+import keyboard from './keyboard.json'
+import consumer from './consumer.json'
+import ac from './ac.json'
+import al from './al.json'
+import media from './media.json'
+import contact from './contact.json'
 
 export interface KeyboardKeys {
     Kind: string
@@ -31,7 +31,7 @@ export const keyboards: KeyboardKeys[] = [
         Kind: 'Defined',
         Id: 7,
         Name: 'Keyboard/Keypad',
-        UsageIds: keyboard,
+        UsageIds: keyboard as Keys[],
         UsageIdGenerator: null,
         slug: 'keyboard',
     },
@@ -39,7 +39,7 @@ export const keyboards: KeyboardKeys[] = [
         Kind: 'Defined',
         Id: 12,
         Name: 'Consumer',
-        UsageIds: consumer,
+        UsageIds: consumer as Keys[],
         UsageIdGenerator: null,
         slug: 'consumer',
     },
@@ -47,7 +47,7 @@ export const keyboards: KeyboardKeys[] = [
         Kind: 'Defined',
         Id: 12,
         Name: 'AC',
-        UsageIds: ac,
+        UsageIds: ac as Keys[],
         UsageIdGenerator: null,
         slug: 'ac',
     },
@@ -55,7 +55,7 @@ export const keyboards: KeyboardKeys[] = [
         Kind: 'Defined',
         Id: 12,
         Name: 'AL',
-        UsageIds: al,
+        UsageIds: al as Keys[],
         UsageIdGenerator: null,
         slug: 'al',
     },
@@ -63,7 +63,7 @@ export const keyboards: KeyboardKeys[] = [
         Kind: 'Defined',
         Id: 12,
         Name: 'Contact',
-        UsageIds: contact,
+        UsageIds: contact as Keys[],
         UsageIdGenerator: null,
         slug: 'ac',
     },
@@ -71,7 +71,7 @@ export const keyboards: KeyboardKeys[] = [
         Kind: 'Defined',
         Id: 12,
         Name: 'Media',
-        UsageIds: media,
+        UsageIds: media as Keys[],
         UsageIdGenerator: null,
         slug: 'media',
     },

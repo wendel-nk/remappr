@@ -13,7 +13,7 @@
 
 import { IpcChannels, IpcEvents } from '../../../shared/ipc-types'
 import type { RpcTransport } from '@zmkfirmware/zmk-studio-ts-client/transport/index'
-import type { AvailableDevice } from '../transport/types'
+import type { AvailableDevice } from '@/transport'
 
 // ZMK Studio BLE service/characteristic UUIDs (Web Bluetooth path)
 const ZMK_SERVICE_UUID = '00000000-0196-6107-c967-c5cfb1c2482a'
@@ -52,7 +52,11 @@ export async function list_devices(): Promise<AvailableDevice[]> {
             const devices = (await window.api.invoke(
                 IpcChannels.BLUEZ_LIST_DEVICES,
             )) as AvailableDevice[]
-            console.log('[electron/ble] BlueZ returned', devices.length, 'devices')
+            console.log(
+                '[electron/ble] BlueZ returned',
+                devices.length,
+                'devices',
+            )
             return devices
         } catch (e) {
             console.error('[electron/ble] BLUEZ_LIST_DEVICES failed:', e)
@@ -201,7 +205,9 @@ async function connectViaWebBluetooth(
     dev: AvailableDevice,
 ): Promise<RpcTransport> {
     if (!navigator.bluetooth) {
-        throw new Error('Web Bluetooth API not available in this Electron build')
+        throw new Error(
+            'Web Bluetooth API not available in this Electron build',
+        )
     }
 
     const selected = await window.api.invoke(

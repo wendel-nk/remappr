@@ -248,7 +248,10 @@ export async function connectZmkDevice(
     const busInternal = bus as unknown as {
         _addMatch: (rule: string) => Promise<void>
         _removeMatch: (rule: string) => Promise<void>
-        _signals: { on: (k: string, cb: (msg: unknown) => void) => void; off: (k: string, cb: (msg: unknown) => void) => void }
+        _signals: {
+            on: (k: string, cb: (msg: unknown) => void) => void
+            off: (k: string, cb: (msg: unknown) => void) => void
+        }
     }
     await busInternal._addMatch(charMatchRule)
     await busInternal._addMatch(deviceMatchRule)
@@ -289,8 +292,14 @@ export async function connectZmkDevice(
         }
     }
 
-    busInternal._signals.on(charSignalKey, onCharProps as (msg: unknown) => void)
-    busInternal._signals.on(deviceSignalKey, onDeviceProps as (msg: unknown) => void)
+    busInternal._signals.on(
+        charSignalKey,
+        onCharProps as (msg: unknown) => void,
+    )
+    busInternal._signals.on(
+        deviceSignalKey,
+        onDeviceProps as (msg: unknown) => void,
+    )
     console.log('[bluez] subscribed PropertiesChanged via raw match rule')
     console.log('[bluez] charSignalKey:', charSignalKey)
 
@@ -380,10 +389,7 @@ export async function connectZmkDevice(
             const cccdObj = await bus.getProxyObject(BLUEZ_BUS, cccdPath)
             const cccd = cccdObj.getInterface('org.bluez.GattDescriptor1')
             const val = (await cccd.ReadValue({})) as Buffer
-            console.log(
-                '[bluez] CCCD value =',
-                Array.from(new Uint8Array(val)),
-            )
+            console.log('[bluez] CCCD value =', Array.from(new Uint8Array(val)))
             // ZMK indicate-only char needs CCCD=0x0002. If BlueZ wrote
             // 0x0001 (notify), device ignores — manually write 0x0002.
             if (val.length >= 1 && val[0] !== 0x02) {
@@ -412,10 +418,7 @@ export async function connectZmkDevice(
 
     const devObj2 = await bus.getProxyObject(BLUEZ_BUS, devicePath)
     const deviceProps2 = devObj2.getInterface(IFACE_PROPERTIES)
-    const nameV = (await deviceProps2.Get(
-        IFACE_DEVICE,
-        'Name',
-    )) as dbus.Variant
+    const nameV = (await deviceProps2.Get(IFACE_DEVICE, 'Name')) as dbus.Variant
     const label = (nameV?.value as string) || 'BLE Device'
 
     active = {

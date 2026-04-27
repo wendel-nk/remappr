@@ -1,11 +1,11 @@
 @import 'tailwindcss';
 
 @import '../../../node_modules/tw-animate-css/dist/tw-animate.css';
+@import './themes.css';
 
 /*---break---*/
 
 @custom-variant dark (&:is(.dark *));
-/*@plugin "daisyui";*/
 
 @layer base {
     @font-face {
@@ -97,7 +97,7 @@
 }
 
 .dark {
-    --background: oklch(0.21 0.01 254.13);
+    --background: oklch(0.21 0 0);
     --foreground: oklch(0.985 0 0);
     --card: oklch(0.205 0 0);
     --card-foreground: oklch(0.985 0 0);

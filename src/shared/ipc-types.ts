@@ -134,8 +134,5 @@ export interface IpcEventMap {
  */
 export interface ElectronIpcApi {
     invoke(channel: string, ...args: unknown[]): Promise<unknown>
-    on(
-        event: string,
-        callback: (...args: unknown[]) => void,
-    ): () => void
+    on(event: string, callback: (...args: unknown[]) => void): () => void
 }

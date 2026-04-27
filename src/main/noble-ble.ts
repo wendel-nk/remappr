@@ -174,10 +174,7 @@ export async function connectNobleDevice(
     }
 
     const characteristic = characteristics[0]
-    console.log(
-        '[noble] char found, properties:',
-        characteristic.properties,
-    )
+    console.log('[noble] char found, properties:', characteristic.properties)
 
     const onData = (data: Buffer, isNotification: boolean): void => {
         console.log(
@@ -210,8 +207,9 @@ export async function connectNobleDevice(
 
 export async function writeNoble(data: Uint8Array): Promise<void> {
     if (!active) throw new Error('[noble] no active connection')
-    const supportsWithoutResponse =
-        active.characteristic.properties.includes('writeWithoutResponse')
+    const supportsWithoutResponse = active.characteristic.properties.includes(
+        'writeWithoutResponse',
+    )
     console.log(
         `[noble] write ${data.length} bytes (withoutResponse=${supportsWithoutResponse}):`,
         Array.from(data.subarray(0, Math.min(16, data.length))),

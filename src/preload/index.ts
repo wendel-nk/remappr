@@ -17,17 +17,12 @@ const VALID_EVENT_CHANNELS = new Set<string>(Object.values(IpcEvents))
 const api = {
     invoke(channel: string, ...args: unknown[]): Promise<unknown> {
         if (!VALID_INVOKE_CHANNELS.has(channel)) {
-            return Promise.reject(
-                new Error(`Invalid IPC channel: ${channel}`),
-            )
+            return Promise.reject(new Error(`Invalid IPC channel: ${channel}`))
         }
         return ipcRenderer.invoke(channel, ...args)
     },
 
-    on(
-        event: string,
-        callback: (...args: unknown[]) => void,
-    ): () => void {
+    on(event: string, callback: (...args: unknown[]) => void): () => void {
         if (!VALID_EVENT_CHANNELS.has(event)) {
             throw new Error(`Invalid IPC event: ${event}`)
         }
@@ -59,8 +54,9 @@ if (process.contextIsolated) {
         console.error(error)
     }
 } else {
-    // @ts-ignore (define in dts)
+    // @ts-expect-error window typings live in src/preload/index.d.ts which is
+    // surfaced to renderer; preload's own typecheck doesn't load it.
     window.electron = electronAPI
-    // @ts-ignore (define in dts)
+    // @ts-expect-error see above
     window.api = api
 }

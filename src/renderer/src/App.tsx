@@ -1,21 +1,22 @@
 import React, { JSX, useCallback, useEffect } from 'react'
 import type { RpcTransport } from '@zmkfirmware/zmk-studio-ts-client/transport/index'
-import { useEmitter } from './helpers/usePubSub.ts'
+import { useEmitter } from '@/hooks/use-pub-sub'
 import { LockState } from '@zmkfirmware/zmk-studio-ts-client/core'
-import { UnlockModal } from './components/UnlockModal.tsx'
-import { connect } from './services/RpcConnectionService.ts'
-import useConnectionStore from './stores/ConnectionStore.ts'
-import undoRedoStore from './stores/UndoRedoStore.ts'
-import { KeyboardEditor } from './components/KeyboardEditor.tsx'
-import { Drawer } from '@/Layout/Drawer.tsx'
-import { SidebarInset, SidebarProvider } from './components/ui/sidebar.tsx'
-import { ThemeProvider } from '@/providers/ThemeProvider.tsx'
-import { Toaster } from '@/components/ui/sonner.tsx'
-import { Header } from '@/Layout/Header.tsx'
-// import { Footer } from '@/Layout/Footer.tsx'
+import { UnlockModal } from '@/features/connection/UnlockModal'
+import { connectDevice } from '@/services/rpcConnect'
+import useConnectionStore from '@/stores/connectionStore'
+import undoRedoStore from '@/stores/undoRedoStore'
+import { KeymapEditor } from '@/features/keymap/editor/KeymapEditor'
+import { Drawer } from '@/layout/Drawer'
+import { SidebarInset, SidebarProvider } from '@/ui/sidebar'
+import { ThemeProvider } from '@/providers/ThemeProvider'
+import { Toaster } from '@/ui/sonner'
+import { Header } from '@/layout/Header'
+// import { Footer } from '@/layout/Footer'
+import { ErrorBoundary } from '@/ui/ErrorBoundary'
 import { toast } from 'sonner'
-import { callRemoteProcedureControl } from '@/services/CallRemoteProcedureControl.ts'
-import { StartPage } from './components/StartPage.tsx'
+import { callRpc } from '@/services/rpcCall'
+import { StartPage } from '@/features/connection/start-page/StartPage'
 
 function App(): JSX.Element {
     const {
@@ -40,7 +41,7 @@ function App(): JSX.Element {
     const updateLockState = useCallback(async (): Promise<void> => {
         if (!connection) return
 
-        const locked_resp = await callRemoteProcedureControl({
+        const locked_resp = await callRpc({
             core: { getLockState: true },
         })
         setLockState(
@@ -62,7 +63,7 @@ function App(): JSX.Element {
         t: RpcTransport,
         communication: 'serial' | 'ble',
     ): Promise<void> => {
-        const connection = await connect(
+        const connection = await connectDevice(
             t,
             setConnection,
             setDeviceName,
@@ -79,7 +80,7 @@ function App(): JSX.Element {
     return (
         <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
             {connection ? (
-                <>
+                <ErrorBoundary>
                     <UnlockModal />
                     <SidebarProvider
                         style={
@@ -93,13 +94,17 @@ function App(): JSX.Element {
                         <Drawer />
                         <SidebarInset>
                             <Header />
-                            <KeyboardEditor />
+                            <ErrorBoundary>
+                                <KeymapEditor />
+                            </ErrorBoundary>
                             {/*<Footer />*/}
                         </SidebarInset>
                     </SidebarProvider>
-                </>
+                </ErrorBoundary>
             ) : (
-                <StartPage onTransportCreated={onConnect} />
+                <ErrorBoundary>
+                    <StartPage onTransportCreated={onConnect} />
+                </ErrorBoundary>
             )}
             <Toaster richColors position="top-center" />
         </ThemeProvider>

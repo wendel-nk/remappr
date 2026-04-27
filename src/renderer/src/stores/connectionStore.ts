@@ -1,0 +1,86 @@
+import { create, StateCreator } from 'zustand'
+import { devtools } from 'zustand/middleware'
+import { RpcConnection } from '@zmkfirmware/zmk-studio-ts-client'
+import { LockState } from '@zmkfirmware/zmk-studio-ts-client/core'
+
+// Define the store interface
+interface ConnectionState {
+    connection: RpcConnection | null
+    communication: 'serial' | 'ble' | null
+    deviceName: string | null
+    lockState: LockState
+    connectionAbort: AbortController
+    setConnection: (
+        connection: RpcConnection | null,
+        communication?: 'serial' | 'ble',
+    ) => void
+    setDeviceName: (name: string | null) => void
+    setLockState: (state: LockState) => void
+    setConnectionAbort: (abort: AbortController) => void
+    resetConnection: () => void
+    showConnectionModal: boolean
+    setShowConnectionModal: (visible: boolean) => void
+    disconnect: () => Promise<void>
+}
+
+// Middleware to check if a connection exists and show the modal if not
+const connectionMiddleware =
+    (config: StateCreator<ConnectionState>): StateCreator<ConnectionState> =>
+    (set, get, api) =>
+        config(
+            (args, replace) => {
+                const next = args as Partial<ConnectionState>
+                if ('connection' in next) {
+                    set({ showConnectionModal: next.connection === null })
+                }
+                set(args, replace as false | undefined)
+            },
+            get,
+            api,
+        )
+
+// Create Zustand store with middleware and persistence
+const useConnectionStore = create<ConnectionState>()(
+    devtools(
+        connectionMiddleware((set, get) => ({
+            connection: null,
+            communication: null,
+            deviceName: null,
+            lockState: LockState.ZMK_STUDIO_CORE_LOCK_STATE_LOCKED,
+            connectionAbort: new AbortController(),
+            setConnection: (connection, communication) =>
+                set({ connection, communication: communication ?? null }),
+            setDeviceName: (name) => set({ deviceName: name }),
+            setLockState: (state) => set({ lockState: state }),
+            setConnectionAbort: (abort) => set({ connectionAbort: abort }),
+            resetConnection: () =>
+                set({
+                    connection: null,
+                    communication: null,
+                    deviceName: null,
+                    lockState: LockState.ZMK_STUDIO_CORE_LOCK_STATE_LOCKED,
+                }),
+            showConnectionModal: false,
+            setShowConnectionModal: (visible) =>
+                set({ showConnectionModal: visible }),
+            disconnect: async () => {
+                const { connection, connectionAbort, resetConnection } = get()
+                if (!connection) {
+                    return
+                }
+
+                try {
+                    await connection.request_writable.close()
+                } catch (error) {
+                    console.warn('Failed to close connection cleanly', error)
+                }
+
+                connectionAbort.abort('User disconnected')
+                resetConnection()
+                set({ connectionAbort: new AbortController() })
+            },
+        })),
+    ),
+)
+
+export default useConnectionStore

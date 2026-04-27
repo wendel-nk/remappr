@@ -9,4 +9,4 @@
  */
 
 export * from './types'
-export { getTransports, isElectron, isTauri } from '../helpers/transports'
+export { getTransports, isElectron, isTauri } from '@/lib/transports'

@@ -54,30 +54,25 @@ function sendToAllWindows(
  * Register all IPC handlers. Call this once during app initialization.
  * @param getWindows - Function that returns current BrowserWindow instances for event broadcasting
  */
-export function registerIpcHandlers(
-    getWindows: () => BrowserWindow[],
-): void {
+export function registerIpcHandlers(getWindows: () => BrowserWindow[]): void {
     // --- Serial Device Handlers ---
 
     ipcMain.handle(IpcChannels.SERIAL_LIST_DEVICES, async () => {
         return await listSerialDevices()
     })
 
-    ipcMain.handle(
-        IpcChannels.SERIAL_CONNECT,
-        async (_, device: unknown) => {
-            const validDevice = validateAvailableDevice(device)
-            const ok = await connectSerial(validDevice.id, {
-                onData: (data) => ipcHandlerContext.emitConnectionData(data),
-                onDisconnected: () => {
-                    activeKind = null
-                    ipcHandlerContext.emitConnectionDisconnected()
-                },
-            })
-            if (ok) activeKind = 'serial'
-            return ok
-        },
-    )
+    ipcMain.handle(IpcChannels.SERIAL_CONNECT, async (_, device: unknown) => {
+        const validDevice = validateAvailableDevice(device)
+        const ok = await connectSerial(validDevice.id, {
+            onData: (data) => ipcHandlerContext.emitConnectionData(data),
+            onDisconnected: () => {
+                activeKind = null
+                ipcHandlerContext.emitConnectionDisconnected()
+            },
+        })
+        if (ok) activeKind = 'serial'
+        return ok
+    })
 
     ipcMain.handle(IpcChannels.SERIAL_DISCONNECT, async () => {
         await disconnectSerial()
@@ -95,17 +90,12 @@ export function registerIpcHandlers(
         return []
     })
 
-    ipcMain.handle(
-        IpcChannels.BLE_CONNECT,
-        async (_, device: unknown) => {
-            const validDevice = validateAvailableDevice(device)
-            // BLE connection happens via Web Bluetooth in the renderer.
-            console.log(
-                `BLE connect (Web Bluetooth): ${validDevice.label}`,
-            )
-            return true
-        },
-    )
+    ipcMain.handle(IpcChannels.BLE_CONNECT, async (_, device: unknown) => {
+        const validDevice = validateAvailableDevice(device)
+        // BLE connection happens via Web Bluetooth in the renderer.
+        console.log(`BLE connect (Web Bluetooth): ${validDevice.label}`)
+        return true
+    })
 
     // --- BlueZ direct handlers (Linux) ---
 
@@ -113,26 +103,30 @@ export function registerIpcHandlers(
         return await listZmkDevices()
     })
 
-    ipcMain.handle(IpcChannels.BLUEZ_CONNECT, async (_, devicePath: unknown) => {
-        if (typeof devicePath !== 'string' || !devicePath) {
-            return { ok: false, error: 'Invalid device path' }
-        }
-        try {
-            const label = await connectZmkDevice(devicePath, {
-                onData: (data) => ipcHandlerContext.emitConnectionData(data),
-                onDisconnected: () => {
-                    activeKind = null
-                    ipcHandlerContext.emitConnectionDisconnected()
-                },
-            })
-            activeKind = 'bluez'
-            return { ok: true, label }
-        } catch (e) {
-            const msg = e instanceof Error ? e.message : String(e)
-            console.error('[ipc] BLUEZ_CONNECT failed:', msg)
-            return { ok: false, error: msg }
-        }
-    })
+    ipcMain.handle(
+        IpcChannels.BLUEZ_CONNECT,
+        async (_, devicePath: unknown) => {
+            if (typeof devicePath !== 'string' || !devicePath) {
+                return { ok: false, error: 'Invalid device path' }
+            }
+            try {
+                const label = await connectZmkDevice(devicePath, {
+                    onData: (data) =>
+                        ipcHandlerContext.emitConnectionData(data),
+                    onDisconnected: () => {
+                        activeKind = null
+                        ipcHandlerContext.emitConnectionDisconnected()
+                    },
+                })
+                activeKind = 'bluez'
+                return { ok: true, label }
+            } catch (e) {
+                const msg = e instanceof Error ? e.message : String(e)
+                console.error('[ipc] BLUEZ_CONNECT failed:', msg)
+                return { ok: false, error: msg }
+            }
+        },
+    )
 
     ipcMain.handle(IpcChannels.GET_PLATFORM, async () => process.platform)
 

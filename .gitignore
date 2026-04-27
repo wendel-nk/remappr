@@ -17,6 +17,12 @@ out
 .eslintcache
 *.log*
 
+# Editor / build backups and stray caches
+*.json~
+*.bak
+eslint-return-types.json
+package-lock.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

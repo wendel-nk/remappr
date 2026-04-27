@@ -4,12 +4,12 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { registerIpcHandlers } from './ipc-handlers'
-import {
-    setupBleDeviceSelection,
-    registerBleIpcHandlers,
-} from './ble-manager'
+import { setupBleDeviceSelection, registerBleIpcHandlers } from './ble-manager'
 import { setupSerialDeviceSelection } from './serial-picker'
 import { startSerialDevicePolling } from './serial'
+import { silenceConsoleInProduction } from '../shared/logger'
+
+silenceConsoleInProduction()
 
 // Enable Web Bluetooth (navigator.bluetooth) in Chromium. Must run before
 // app.whenReady(). Without this, Electron exposes no `navigator.bluetooth`
