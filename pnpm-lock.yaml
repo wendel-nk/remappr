@@ -165,6 +165,9 @@ importers:
       '@types/w3c-web-serial':
         specifier: ^1.0.8
         version: 1.0.8
+      '@types/w3c-web-usb':
+        specifier: ^1.0.14
+        version: 1.0.14
       '@types/web-bluetooth':
         specifier: ^0.0.21
         version: 0.0.21
@@ -7109,8 +7112,7 @@ snapshots:
 
   '@types/w3c-web-serial@1.0.8': {}
 
-  '@types/w3c-web-usb@1.0.14':
-    optional: true
+  '@types/w3c-web-usb@1.0.14': {}
 
   '@types/web-bluetooth@0.0.21': {}
 
