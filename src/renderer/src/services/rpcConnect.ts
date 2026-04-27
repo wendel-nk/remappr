@@ -8,6 +8,7 @@ import {
 import { RpcTransport } from '@zmkfirmware/zmk-studio-ts-client/transport/index'
 import { valueAfter } from '@/lib/async'
 import { publish } from '@/hooks/use-pub-sub'
+import { rememberConnectedDeviceName } from '@/transport/web-serial'
 
 interface DeviceInfoDetails {
     name: string
@@ -102,5 +103,8 @@ export async function connectDevice(
         })
 
     setConnectedDeviceName(details.name)
+    if (communication === 'serial') {
+        rememberConnectedDeviceName(details.name)
+    }
     setConnection(conn, communication)
 }

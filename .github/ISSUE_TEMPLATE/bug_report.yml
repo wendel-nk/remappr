@@ -1,0 +1,188 @@
+name: Bug report
+description: Something broken? File a report so it can be reproduced and fixed.
+title: '[Bug]: '
+labels: ['bug', 'needs-triage']
+body:
+    - type: markdown
+      attributes:
+          value: |
+              Thanks for taking the time to file a bug report. The more detail you give, the faster the issue can be reproduced and fixed.
+
+              **Before submitting**, please search [existing issues](../issues?q=is%3Aissue) to avoid duplicates.
+
+    - type: checkboxes
+      id: prereqs
+      attributes:
+          label: Pre-submit checklist
+          options:
+              - label: I searched existing issues and this is not a duplicate.
+                required: true
+              - label: I am running the latest release (or `main`) and the bug still reproduces.
+                required: true
+              - label: My ZMK firmware has Studio enabled (`CONFIG_ZMK_STUDIO=y`) and a working transport.
+                required: false
+
+    - type: textarea
+      id: summary
+      attributes:
+          label: Summary
+          description: One-sentence description of the bug.
+          placeholder: e.g. Pairing a USB keyboard on Linux shows generic "ZMK Keyboard" instead of the firmware product name.
+      validations:
+          required: true
+
+    - type: textarea
+      id: repro
+      attributes:
+          label: Steps to reproduce
+          description: Minimal numbered steps. Include exact button labels, menu paths, and inputs.
+          value: |
+              1.
+              2.
+              3.
+      validations:
+          required: true
+
+    - type: textarea
+      id: expected
+      attributes:
+          label: Expected behavior
+          placeholder: What did you think would happen?
+      validations:
+          required: true
+
+    - type: textarea
+      id: actual
+      attributes:
+          label: Actual behavior
+          description: What actually happened? Include exact error messages.
+      validations:
+          required: true
+
+    - type: dropdown
+      id: build
+      attributes:
+          label: Remappr build
+          options:
+              - Web (remappr.com)
+              - Web (self-hosted)
+              - Desktop — Electron (.AppImage / .deb / .snap)
+              - Desktop — Electron (.dmg)
+              - Desktop — Electron (.exe)
+              - Desktop — Tauri
+              - Local dev (`pnpm dev` / `pnpm edev`)
+      validations:
+          required: true
+
+    - type: input
+      id: version
+      attributes:
+          label: Remappr version
+          description: Found in Settings → About, or the bottom of the page. For local dev, paste the short commit SHA (`git rev-parse --short HEAD`).
+          placeholder: e.g. 0.3.1 or 891fd92
+      validations:
+          required: true
+
+    - type: dropdown
+      id: transport
+      attributes:
+          label: Transport in use when bug occurred
+          options:
+              - USB (Web Serial)
+              - USB (Electron / serialport)
+              - BLE (Web Bluetooth)
+              - BLE (Electron — Chromium bridge)
+              - BLE (Electron — noble)
+              - BLE (Tauri)
+              - Demo mode (no device)
+              - N/A
+      validations:
+          required: true
+
+    - type: dropdown
+      id: os
+      attributes:
+          label: Operating system
+          options:
+              - Linux
+              - macOS
+              - Windows
+              - Other
+      validations:
+          required: true
+
+    - type: input
+      id: os_version
+      attributes:
+          label: OS version / distribution
+          placeholder: e.g. Arch Linux (kernel 6.18), macOS 15.2, Windows 11 23H2
+      validations:
+          required: true
+
+    - type: input
+      id: browser
+      attributes:
+          label: Browser (web build only)
+          description: Leave blank for desktop builds.
+          placeholder: e.g. Chrome 146.0.7680.188, Edge 131, Brave 1.72
+
+    - type: input
+      id: keyboard
+      attributes:
+          label: Keyboard / controller
+          description: Hardware + controller chip if known.
+          placeholder: e.g. Corne with nice!nano v2, Lily58 with Seeed XIAO BLE
+      validations:
+          required: true
+
+    - type: input
+      id: zmk_version
+      attributes:
+          label: ZMK firmware version / commit
+          description: From `west list` or your firmware build artifact.
+          placeholder: e.g. zmk@v0.3.0 or commit a1b2c3d
+      validations:
+          required: true
+
+    - type: textarea
+      id: logs
+      attributes:
+          label: Console / serial logs
+          description: |
+              Paste relevant browser console output (DevTools → Console) or Electron logs. For serial issues, include any RPC error lines.
+              Wrap long output in a `<details>` block.
+          render: shell
+
+    - type: textarea
+      id: screenshots
+      attributes:
+          label: Screenshots / recordings
+          description: Drag images or video here. A short screen recording is often clearer than text for UI bugs.
+
+    - type: dropdown
+      id: regression
+      attributes:
+          label: Is this a regression?
+          options:
+              - 'No / Unsure'
+              - 'Yes — worked in a previous version (note version below)'
+      validations:
+          required: true
+
+    - type: input
+      id: last_good
+      attributes:
+          label: Last known good version (if regression)
+          placeholder: e.g. 0.3.0
+
+    - type: textarea
+      id: workaround
+      attributes:
+          label: Workaround
+          description: Anything that makes the bug go away or reduces its impact?
+
+    - type: textarea
+      id: extra
+      attributes:
+          label: Additional context
+          description: Anything else that might help — related issues, hardware quirks, network setup, recent OS updates.

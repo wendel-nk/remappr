@@ -3,6 +3,7 @@ import type { TransportFactory, AvailableDevice } from '@/transport/types'
 import type { DeviceStatus } from '@/features/connection/DeviceCard'
 import { getTransports, isElectron } from '@/lib/transports'
 import { onDevicesChanged as onSerialDevicesChanged } from '@/electron/serial'
+import { onPortsChanged as onWebSerialPortsChanged } from '@/transport/web-serial'
 
 export interface DeviceWithTransport {
     device: AvailableDevice
@@ -88,10 +89,23 @@ export function useTransportDiscovery(
         })
     }, [hasListableTransports, loadDevices, connectingDeviceId])
 
+    // Browser path: navigator.serial fires connect/disconnect on physical
+    // plug events for already-granted ports. Refresh the list so the UI
+    // reflects plug-and-play without a manual scan.
+    useEffect(() => {
+        if (isElectron() || !hasListableTransports) return
+        return onWebSerialPortsChanged(() => {
+            if (connectingDeviceId === null) loadDevices()
+        })
+    }, [hasListableTransports, loadDevices, connectingDeviceId])
+
     const refresh = useCallback((): void => {
-        setDevices([])
+        // Don't clear the existing list — that flashes "No Devices Found"
+        // for the duration of the scan. loadDevices() replaces the list in
+        // a single setState once results arrive. The refreshing flag lets
+        // the UI disable Connect during the in-flight scan.
         loadDevices()
-    }, [loadDevices, setDevices])
+    }, [loadDevices])
 
     return {
         transports,

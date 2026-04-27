@@ -3,6 +3,8 @@ import { useCallback, useEffect } from 'react'
 import { useEmitter } from '@/hooks/use-pub-sub'
 import { LockState } from '@zmkfirmware/zmk-studio-ts-client/core'
 import { Redo2, Save, Trash2, Undo2 } from 'lucide-react'
+import { GitHubIcon } from '@/components/GitHubIcon'
+import { REPO_URL } from '@/lib/constants'
 import useConnectionStore from '@/stores/connectionStore'
 import undoRedoStore from '@/stores/undoRedoStore'
 import { Settings } from '../components/modals/Settings.tsx'
@@ -95,6 +97,23 @@ export function Header(): JSX.Element {
                         </TooltipTrigger>
                         <TooltipContent>
                             <p>Settings</p>
+                        </TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button variant="ghost" size="icon" asChild>
+                                <a
+                                    href={REPO_URL}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    aria-label="View source on GitHub"
+                                >
+                                    <GitHubIcon className="h-4 w-4" />
+                                </a>
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>GitHub Repository</p>
                         </TooltipContent>
                     </Tooltip>
                     <Tooltip>

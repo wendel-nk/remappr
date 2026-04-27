@@ -86,7 +86,12 @@ async function ensureNobleReady(): Promise<void> {
 }
 
 export async function listNobleDevices(): Promise<AvailableDevice[]> {
-    if (process.platform !== 'linux') return []
+    // noble supports Linux (BlueZ HCI) and macOS (CoreBluetooth) out of the
+    // box. Windows is intentionally not enabled here — the native Web
+    // Bluetooth bridge (ble-manager.ts) covers it.
+    if (process.platform !== 'linux' && process.platform !== 'darwin') {
+        return []
+    }
 
     try {
         await ensureNobleReady()

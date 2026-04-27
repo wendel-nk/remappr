@@ -1,0 +1,137 @@
+name: Feature request
+description: Suggest a new feature, improvement, or workflow change.
+title: '[Feature]: '
+labels: ['enhancement', 'needs-triage']
+body:
+    - type: markdown
+      attributes:
+          value: |
+              Thanks for suggesting an improvement. Please fill in the sections below — concrete, well-scoped requests are far more likely to be picked up.
+
+              **Before submitting**, search [existing issues](../issues?q=is%3Aissue) and the roadmap to avoid duplicates.
+
+    - type: checkboxes
+      id: prereqs
+      attributes:
+          label: Pre-submit checklist
+          options:
+              - label: I searched existing issues and discussions for this idea.
+                required: true
+              - label: This is a single, focused request (not a bundle of unrelated ideas).
+                required: true
+
+    - type: textarea
+      id: problem
+      attributes:
+          label: Problem
+          description: What user pain or limitation are you trying to solve? Describe the situation, not the solution.
+          placeholder: |
+              When I try to <do X> with <Y>, I have to <painful workaround> because <missing capability>.
+              This affects me when ...
+      validations:
+          required: true
+
+    - type: textarea
+      id: solution
+      attributes:
+          label: Proposed solution
+          description: What should happen? Describe the user-facing behavior. UI sketches, mockups, or example flows welcome.
+          placeholder: |
+              Add a <thing> in <location> that lets the user <action>. When clicked, it should <result>.
+      validations:
+          required: true
+
+    - type: textarea
+      id: user_story
+      attributes:
+          label: User story
+          description: One-sentence framing.
+          placeholder: As a <role>, I want <capability> so that <outcome>.
+      validations:
+          required: true
+
+    - type: textarea
+      id: acceptance
+      attributes:
+          label: Acceptance criteria
+          description: Bullet list of testable conditions. Reviewers and contributors use these to verify the feature is "done".
+          value: |
+              - [ ]
+              - [ ]
+              - [ ]
+      validations:
+          required: true
+
+    - type: dropdown
+      id: scope
+      attributes:
+          label: Where should this apply?
+          multiple: true
+          options:
+              - Web build (remappr.com)
+              - Desktop — Electron (Linux)
+              - Desktop — Electron (macOS)
+              - Desktop — Electron (Windows)
+              - Desktop — Tauri
+              - Documentation / README
+              - Build / CI / release pipeline
+      validations:
+          required: true
+
+    - type: dropdown
+      id: area
+      attributes:
+          label: Functional area
+          options:
+              - Connection / pairing (USB / BLE / transports)
+              - Keymap editor
+              - Behaviors (hold-tap, layers, macros, etc.)
+              - Layout / visual keyboard rendering
+              - Settings / preferences
+              - Accessibility / i18n
+              - Theming / UI polish
+              - Performance
+              - Developer experience / tooling
+              - Other (describe below)
+      validations:
+          required: true
+
+    - type: textarea
+      id: alternatives
+      attributes:
+          label: Alternatives considered
+          description: What other approaches did you think about, and why did you reject them?
+
+    - type: dropdown
+      id: priority
+      attributes:
+          label: How important is this to you?
+          options:
+              - 'Nice to have — would be cool, can live without it'
+              - 'Painful — works around it daily'
+              - 'Blocker — cannot use Remappr for my workflow without it'
+      validations:
+          required: true
+
+    - type: dropdown
+      id: contribution
+      attributes:
+          label: Are you willing to contribute the implementation?
+          options:
+              - 'No — requesting only'
+              - 'Maybe, with guidance'
+              - 'Yes — I plan to open a PR'
+      validations:
+          required: true
+
+    - type: textarea
+      id: refs
+      attributes:
+          label: References
+          description: Links to ZMK docs, related issues / PRs, similar features in other tools, prior art.
+
+    - type: textarea
+      id: extra
+      attributes:
+          label: Additional context
+          description: Anything else — screenshots, hardware specifics, edge cases to consider.

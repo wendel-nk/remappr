@@ -92,7 +92,9 @@ export function TransportSection({
                         <DiscoveredDeviceList
                             devices={devices}
                             connectingDeviceId={connectingDeviceId}
+                            refreshing={refreshing}
                             onConnect={onConnect}
+                            onRefresh={onRefresh}
                         />
                         {pairableTransports.length > 0 && (
                             <div className="flex flex-wrap gap-2 pt-2">
@@ -115,22 +117,17 @@ export function TransportSection({
                         <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
                             <Monitor className="h-8 w-8 text-muted-foreground" />
                         </div>
-                        <h3 className="mb-2 font-semibold">No Devices Found</h3>
+                        <h3 className="mb-2 font-semibold">
+                            {pairableTransports.length > 0
+                                ? 'No Paired Devices'
+                                : 'No Devices Found'}
+                        </h3>
                         <p className="mb-4 max-w-sm text-sm text-muted-foreground">
-                            Make sure your keyboard is connected and ZMK Studio
-                            is enabled in your firmware.
+                            {pairableTransports.length > 0
+                                ? 'Browsers only show keyboards you have paired with this site. Click below to pick yours from the system chooser — it stays remembered for next time.'
+                                : 'Make sure your keyboard is connected and ZMK Studio is enabled in your firmware.'}
                         </p>
                         <div className="flex flex-wrap justify-center gap-2">
-                            <Button
-                                variant="outline"
-                                onClick={onRefresh}
-                                disabled={refreshing}
-                            >
-                                <RefreshCw
-                                    className={`mr-2 h-4 w-4 ${refreshing ? 'animate-spin' : ''}`}
-                                />
-                                Scan for Devices
-                            </Button>
                             {pairableTransports.map((t) => (
                                 <Button
                                     key={t.label}
@@ -141,6 +138,20 @@ export function TransportSection({
                                     Pair new {t.label} device
                                 </Button>
                             ))}
+                            {pairableTransports.length === 0 && (
+                                <Button
+                                    variant="outline"
+                                    onClick={onRefresh}
+                                    disabled={refreshing}
+                                >
+                                    <RefreshCw
+                                        className={`mr-2 h-4 w-4 ${refreshing ? 'animate-spin' : ''}`}
+                                    />
+                                    {refreshing
+                                        ? 'Scanning…'
+                                        : 'Scan for Devices'}
+                                </Button>
+                            )}
                         </div>
                     </div>
                 ) : null}

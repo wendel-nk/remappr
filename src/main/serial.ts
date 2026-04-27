@@ -54,6 +54,56 @@ function getLinuxProductName(devPath: string): string | undefined {
     }
 }
 
+// pattern-check: skip — parallel macOS enrichment helper, mirrors getLinuxProductName
+// macOS USB product string lookup via `ioreg`. Cached for a short window
+// so a single listSerialDevices() call doesn't fork ioreg per port.
+const MAC_CACHE_TTL_MS = 5000
+let macIoregCache: {
+    ts: number
+    byCallout: Map<string, string>
+} | null = null
+
+async function loadMacIoregMap(): Promise<Map<string, string>> {
+    const now = Date.now()
+    if (macIoregCache && now - macIoregCache.ts < MAC_CACHE_TTL_MS) {
+        return macIoregCache.byCallout
+    }
+    const map = new Map<string, string>()
+    try {
+        const { stdout } = await execAsync(
+            'ioreg -r -c IOUSBHostDevice -l -w 0',
+            { timeout: 3000, maxBuffer: 4 * 1024 * 1024 },
+        )
+        // ioreg output is grouped per device, separated by blank lines.
+        // Within each block we look for `"USB Product Name" = "<name>"` and
+        // any `"IOCalloutDevice" = "/dev/cu.*"` entries (one per child
+        // IOSerialBSDClient). Multiple callouts can map to the same
+        // product name (composite USB devices expose several CDC ifaces).
+        const blocks = stdout.split(/\n\s*\n/)
+        for (const block of blocks) {
+            const nameMatch = block.match(/"USB Product Name"\s*=\s*"([^"]+)"/)
+            if (!nameMatch) continue
+            const productName = nameMatch[1].trim()
+            if (!productName) continue
+            const calloutRegex = /"IOCalloutDevice"\s*=\s*"([^"]+)"/g
+            let m: RegExpExecArray | null
+            while ((m = calloutRegex.exec(block)) !== null) {
+                map.set(m[1], productName)
+            }
+        }
+    } catch (e) {
+        console.warn('[serial] ioreg lookup failed:', e)
+    }
+    macIoregCache = { ts: now, byCallout: map }
+    return map
+}
+
+async function getMacProductName(devPath: string): Promise<string | undefined> {
+    if (process.platform !== 'darwin') return undefined
+    const map = await loadMacIoregMap()
+    return map.get(devPath)
+}
+
 async function getWindowsProductName(
     pnpId: string | undefined,
 ): Promise<string | undefined> {
@@ -115,6 +165,10 @@ export async function listSerialDevices(): Promise<SerialDeviceInfo[]> {
                 const linuxProduct = getLinuxProductName(port.path)
                 if (linuxProduct) {
                     return { id: port.path, label: linuxProduct }
+                }
+                const macProduct = await getMacProductName(port.path)
+                if (macProduct) {
+                    return { id: port.path, label: macProduct }
                 }
                 const product = await getWindowsProductName(port.pnpId)
                 const label = product
