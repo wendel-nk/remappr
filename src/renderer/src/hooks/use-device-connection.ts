@@ -125,8 +125,11 @@ export function useDeviceConnection(
                 }
             } catch (e) {
                 console.error('[connect] request_new error', e)
-                if (e instanceof UserCancelledError) return
-                if (e instanceof DOMException && e.name === 'NotFoundError') {
+                if (
+                    e instanceof UserCancelledError ||
+                    (e instanceof DOMException && e.name === 'NotFoundError')
+                ) {
+                    toast.info('Pairing cancelled.')
                     return
                 }
                 if (e instanceof Error) {

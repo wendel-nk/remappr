@@ -21,11 +21,7 @@ nsis:
 mac:
     entitlementsInherit: build/entitlements.mac.plist
     extendInfo:
-    #        todo make the app to work on MacOs
-    #        - NSCameraUsageDescription: Application requests access to the device's camera.
-    #        - NSMicrophoneUsageDescription: Application requests access to the device's microphone.
-    #        - NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
-    #        - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
+        NSBluetoothAlwaysUsageDescription: Remappr uses Bluetooth to connect to ZMK keyboards over BLE.
     notarize: false
 dmg:
     artifactName: ${name}-${version}.${ext}

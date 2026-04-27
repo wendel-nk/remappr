@@ -32,3 +32,10 @@
 {"ts":"2026-04-26T19:26:34.130Z","rule":"preamble-missing","file":"D:/Projects/Typescript/React/zmk-studio-original/src/renderer/src/features/connection/DevicePicker.tsx","decision":null,"reasonExcerpt":""}
 {"ts":"2026-04-26T19:49:32.770Z","rule":"preamble-missing","file":"D:/Projects/Typescript/React/zmk-studio-original/src/renderer/src/features/connection/start-page/StartPage.tsx","decision":null,"reasonExcerpt":""}
 {"ts":"2026-04-26T20:09:13.958Z","rule":"preamble-missing","file":"D:/Projects/Typescript/React/zmk-studio-original/src/renderer/src/services/rpcLayerService.ts","decision":null,"reasonExcerpt":""}
+{"ts":"2026-04-27T15:48:52.021Z","rule":"preamble-missing","file":"/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/renderer/src/transport/web-serial.ts","decision":null,"reasonExcerpt":""}
+{"ts":"2026-04-27T15:50:44.369Z","rule":"preamble-missing","file":"/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/main/serial.ts","decision":null,"reasonExcerpt":""}
+{"ts":"2026-04-27T15:51:14.574Z","rule":"preamble-missing","file":"/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/main/noble-ble.ts","decision":null,"reasonExcerpt":""}
+{"ts":"2026-04-27T16:08:30.143Z","rule":"preamble-missing","file":"/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/renderer/src/lib/constants.ts","decision":null,"reasonExcerpt":""}
+{"ts":"2026-04-27T16:39:08.425Z","rule":"preamble-missing","file":"/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/renderer/src/transport/web-serial.ts","decision":null,"reasonExcerpt":""}
+{"ts":"2026-04-27T16:43:53.568Z","rule":"preamble-missing","file":"/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/renderer/src/transport/web-serial.ts","decision":null,"reasonExcerpt":""}
+{"ts":"2026-04-27T20:25:46.425Z","rule":"preamble-missing","file":"/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/renderer/src/transport/web-serial.ts","decision":null,"reasonExcerpt":""}

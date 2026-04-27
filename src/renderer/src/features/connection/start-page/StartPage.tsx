@@ -6,6 +6,8 @@ import type { RpcTransport } from '@zmkfirmware/zmk-studio-ts-client/transport/i
 import { Button } from '@/ui/button'
 import { Card, CardContent } from '@/ui/card'
 import { ExternalLink } from '@/components/ExternalLink'
+import { GitHubIcon } from '@/components/GitHubIcon'
+import { REPO_URL } from '@/lib/constants'
 import { LicenseNoticeModal } from '@/components/modals/LicenseNoticeModal'
 import {
     useTransportDiscovery,
@@ -54,6 +56,15 @@ export function StartPage({ onTransportCreated }: StartPageProps): JSX.Element {
                         <Keyboard className="h-6 w-6 text-primary" />
                         <span className="text-xl font-semibold">Remappr</span>
                     </div>
+                    <a
+                        href={REPO_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label="View source on GitHub"
+                        className="ml-auto inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+                    >
+                        <GitHubIcon className="h-5 w-5" />
+                    </a>
                 </div>
             </header>
 

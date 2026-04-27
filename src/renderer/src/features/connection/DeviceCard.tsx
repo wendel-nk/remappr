@@ -1,5 +1,15 @@
-import { Bluetooth, Usb, Loader2, SignalHigh } from 'lucide-react'
+import { useRef, useState } from 'react'
+import {
+    Bluetooth,
+    Usb,
+    Loader2,
+    SignalHigh,
+    Pencil,
+    Check,
+    X,
+} from 'lucide-react'
 import { Button } from '@/ui/button'
+import { Input } from '@/ui/input'
 import { cn } from '@/lib/cn'
 
 export type DeviceStatus = 'available' | 'connecting' | 'connected'
@@ -11,6 +21,8 @@ export interface DeviceCardProps {
     onConnect: () => void
     onDisconnect?: () => void
     disabled?: boolean
+    canRename?: boolean
+    onRename?: (newName: string) => void
 }
 
 function StatusBadge({ status }: { status: DeviceStatus }): JSX.Element {
@@ -68,9 +80,30 @@ export function DeviceCard({
     onConnect,
     onDisconnect,
     disabled = false,
+    canRename = false,
+    onRename,
 }: DeviceCardProps): JSX.Element {
     const isConnecting = status === 'connecting'
     const isConnected = status === 'connected'
+
+    const [editing, setEditing] = useState(false)
+    const [draft, setDraft] = useState(name)
+    const inputRef = useRef<HTMLInputElement>(null)
+
+    const startEdit = (): void => {
+        setDraft(name)
+        setEditing(true)
+        queueMicrotask(() => inputRef.current?.select())
+    }
+    const commit = (): void => {
+        const next = draft.trim()
+        if (next && next !== name && onRename) onRename(next)
+        setEditing(false)
+    }
+    const cancel = (): void => {
+        setDraft(name)
+        setEditing(false)
+    }
 
     return (
         <div
@@ -116,11 +149,60 @@ export function DeviceCard({
                     {/* Device info */}
                     <div className="min-w-0 space-y-1">
                         <div className="flex items-center gap-2">
-                            <p className="font-semibold truncate text-foreground">
-                                {name}
-                            </p>
-                            {isWireless && (
-                                <SignalHigh className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                            {editing ? (
+                                <>
+                                    <Input
+                                        ref={inputRef}
+                                        value={draft}
+                                        onChange={(e) =>
+                                            setDraft(e.target.value)
+                                        }
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') commit()
+                                            else if (e.key === 'Escape')
+                                                cancel()
+                                        }}
+                                        className="h-7 text-sm"
+                                    />
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 shrink-0"
+                                        onClick={commit}
+                                        aria-label="Save name"
+                                    >
+                                        <Check className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 shrink-0"
+                                        onClick={cancel}
+                                        aria-label="Cancel rename"
+                                    >
+                                        <X className="h-4 w-4" />
+                                    </Button>
+                                </>
+                            ) : (
+                                <>
+                                    <p className="font-semibold truncate text-foreground">
+                                        {name}
+                                    </p>
+                                    {canRename && onRename && (
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-6 w-6 shrink-0 opacity-60 hover:opacity-100"
+                                            onClick={startEdit}
+                                            aria-label="Rename device"
+                                        >
+                                            <Pencil className="h-3.5 w-3.5" />
+                                        </Button>
+                                    )}
+                                    {isWireless && (
+                                        <SignalHigh className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                                    )}
+                                </>
                             )}
                         </div>
                         <div className="flex items-center gap-2">
