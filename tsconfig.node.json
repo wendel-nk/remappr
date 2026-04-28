@@ -25,5 +25,8 @@
     "src/preload/**/*",
     "src/shared/**/*",
     "src/firmware/**/*"
+  ],
+  "exclude": [
+    "src/firmware/zmk/**"
   ]
 }

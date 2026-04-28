@@ -1,8 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import {
-    generateZMKKeymapFile,
-    generateZMKConfigFile,
-} from './zmkConfigGenerator'
+import { generateZMKKeymapFile, generateZMKConfigFile } from './export'
 import type { Keymap, Layer } from '@zmkfirmware/zmk-studio-ts-client/keymap'
 
 const keyPress = { displayName: 'Key Press' }
