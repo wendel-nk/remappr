@@ -23,17 +23,6 @@ export const all_mods: Mods[] = [
     Mods.RightGUI,
 ]
 
-export const mod_labels: Record<Mods, string> = {
-    [Mods.LeftControl]: 'L Ctrl',
-    [Mods.LeftShift]: 'L Shift',
-    [Mods.LeftAlt]: 'L Alt',
-    [Mods.LeftGUI]: 'L GUI',
-    [Mods.RightControl]: 'R Ctrl',
-    [Mods.RightShift]: 'R Shift',
-    [Mods.RightAlt]: 'R Alt',
-    [Mods.RightGUI]: 'R GUI',
-}
-
 export function modsToFlags(mods: Mods[]): number {
     return mods.reduce((a: number, v: Mods): number => a + v, 0)
 }
