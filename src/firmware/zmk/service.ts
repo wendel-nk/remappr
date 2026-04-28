@@ -271,6 +271,22 @@ export class ZmkKeyboardService implements KeyboardService {
         }
     }
 
+    // pattern-check: skip — bug fix; sync cachedKeymap with each layer mutation
+    private async ensureCachedKeymap(): Promise<ZmkKeymap> {
+        if (this.cachedKeymap) return this.cachedKeymap
+        await this.getKeymap()
+        if (!this.cachedKeymap) {
+            throw new ProtocolError('cachedKeymap unavailable')
+        }
+        return this.cachedKeymap
+    }
+
+    private layerIndexById(layerId: number): number {
+        return (
+            this.cachedKeymap?.layers.findIndex((l) => l.id === layerId) ?? -1
+        )
+    }
+
     async addLayer(): Promise<Layer> {
         const resp = await this.call({ keymap: { addLayer: {} } })
         const ok = resp.keymap?.addLayer?.ok
@@ -281,6 +297,10 @@ export class ZmkKeyboardService implements KeyboardService {
         }
         this.markPending(true)
         const zmkLayer = ok.layer
+        if (this.cachedKeymap) {
+            this.cachedKeymap.layers.push(zmkLayer)
+            this.cachedKeymap.availableLayers--
+        }
         return {
             id: zmkLayer.id,
             name: zmkLayer.name,
@@ -291,9 +311,12 @@ export class ZmkKeyboardService implements KeyboardService {
     }
 
     async removeLayer(layerId: number): Promise<void> {
-        if (!this.cachedKeymap) await this.getKeymap()
-        const layerIndex =
-            this.cachedKeymap?.layers.findIndex((l) => l.id === layerId) ?? -1
+        await this.ensureCachedKeymap()
+        let layerIndex = this.layerIndexById(layerId)
+        if (layerIndex < 0) {
+            await this.getKeymap()
+            layerIndex = this.layerIndexById(layerId)
+        }
         if (layerIndex < 0) {
             throw new ProtocolError(`Unknown layer id: ${layerId}`)
         }
@@ -304,6 +327,10 @@ export class ZmkKeyboardService implements KeyboardService {
             throw new ProtocolError(
                 `removeLayer failed: ${resp.keymap?.removeLayer?.err}`,
             )
+        }
+        if (this.cachedKeymap) {
+            this.cachedKeymap.layers.splice(layerIndex, 1)
+            this.cachedKeymap.availableLayers++
         }
         this.markPending(true)
     }
@@ -317,6 +344,10 @@ export class ZmkKeyboardService implements KeyboardService {
                 `setLayerProps failed: ${resp.keymap?.setLayerProps}`,
             )
         }
+        if (this.cachedKeymap) {
+            const layer = this.cachedKeymap.layers.find((l) => l.id === layerId)
+            if (layer) layer.name = name
+        }
         this.markPending(true)
     }
 
@@ -328,6 +359,10 @@ export class ZmkKeyboardService implements KeyboardService {
             throw new ProtocolError(
                 `moveLayer failed: ${resp.keymap?.moveLayer?.err}`,
             )
+        }
+        if (this.cachedKeymap) {
+            const [moved] = this.cachedKeymap.layers.splice(startIndex, 1)
+            this.cachedKeymap.layers.splice(destIndex, 0, moved)
         }
         this.markPending(true)
     }
@@ -341,6 +376,10 @@ export class ZmkKeyboardService implements KeyboardService {
             throw new ProtocolError(
                 `restoreLayer failed: ${resp.keymap?.restoreLayer?.err}`,
             )
+        }
+        if (this.cachedKeymap) {
+            this.cachedKeymap.layers.splice(atIndex, 0, ok)
+            this.cachedKeymap.availableLayers--
         }
         this.markPending(true)
         return {
