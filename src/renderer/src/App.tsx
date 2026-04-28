@@ -1,7 +1,10 @@
 import React, { JSX, useCallback, useEffect } from 'react'
 import type { RpcTransport } from '@zmkfirmware/zmk-studio-ts-client/transport/index'
 import { useEmitter } from '@/hooks/use-pub-sub'
-import { LockState } from '@zmkfirmware/zmk-studio-ts-client/core'
+import type { LockState } from '@firmware/types'
+
+const mapZmkLockState = (raw: unknown): LockState =>
+    raw === 1 || raw === 'unlocked' ? 'unlocked' : 'locked'
 import { UnlockModal } from '@/features/connection/UnlockModal'
 import { connectDevice } from '@firmware/zmk/rpc/rpcConnect'
 import useConnectionStore from '@/stores/connectionStore'
@@ -35,7 +38,7 @@ function App(): JSX.Element {
         return subscribe(
             'rpc_notification.core.lockStateChanged',
             (data: unknown): void => {
-                setLockState(data as LockState)
+                setLockState(mapZmkLockState(data))
             },
         )
     }, [subscribe, setLockState])
@@ -46,16 +49,13 @@ function App(): JSX.Element {
         const locked_resp = await callRpc({
             core: { getLockState: true },
         })
-        setLockState(
-            locked_resp.core?.getLockState ||
-                LockState.ZMK_STUDIO_CORE_LOCK_STATE_LOCKED,
-        )
+        setLockState(mapZmkLockState(locked_resp.core?.getLockState))
     }, [connection, setLockState])
 
     useEffect(() => {
         if (!connection) {
             reset()
-            setLockState(LockState.ZMK_STUDIO_CORE_LOCK_STATE_LOCKED)
+            setLockState('locked')
         }
 
         updateLockState()

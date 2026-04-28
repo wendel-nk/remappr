@@ -16,7 +16,6 @@ import {
 import { DeviceMenu } from '@/features/connection/DeviceMenu'
 import { setKeymapRequest } from '@firmware/zmk/rpc/rpcEventsService'
 import { callRpc } from '@firmware/zmk/rpc/rpcCall'
-import { LockState } from '@zmkfirmware/zmk-studio-ts-client/core'
 import { Keymap } from '@zmkfirmware/zmk-studio-ts-client/keymap'
 import { produce } from 'immer'
 import { APP_VERSION } from '@/lib/constants'
@@ -45,10 +44,7 @@ export function Drawer(): JSX.Element {
 
     // Fetch keymap when connection changes or becomes unlocked
     useEffect(() => {
-        if (
-            !connection ||
-            lockState !== LockState.ZMK_STUDIO_CORE_LOCK_STATE_UNLOCKED
-        ) {
+        if (!connection || lockState !== 'unlocked') {
             resetKeymap()
             return
         }

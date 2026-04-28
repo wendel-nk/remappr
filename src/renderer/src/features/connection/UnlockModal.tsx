@@ -1,6 +1,5 @@
 import { useMemo } from 'react'
 
-import { LockState } from '@zmkfirmware/zmk-studio-ts-client/core'
 import { ExternalLink } from '@/components/ExternalLink'
 import useConnectionStore from '@/stores/connectionStore'
 import { Modal } from '@/ui/modal'
@@ -8,9 +7,7 @@ import { Modal } from '@/ui/modal'
 export const UnlockModal = (): JSX.Element => {
     const { connection, lockState } = useConnectionStore()
     const open = useMemo(
-        (): boolean =>
-            !!connection &&
-            lockState != LockState.ZMK_STUDIO_CORE_LOCK_STATE_UNLOCKED,
+        (): boolean => !!connection && lockState != 'unlocked',
         [connection, lockState],
     )
 

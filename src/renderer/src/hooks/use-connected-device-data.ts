@@ -1,6 +1,5 @@
 import React, { SetStateAction, useEffect, useState } from 'react'
 import { Request, RequestResponse } from '@zmkfirmware/zmk-studio-ts-client'
-import { LockState } from '@zmkfirmware/zmk-studio-ts-client/core'
 import useConnectionStore from '@/stores/connectionStore'
 import { callRpc } from '@firmware/zmk/rpc/rpcCall'
 
@@ -14,11 +13,7 @@ export function useConnectedDeviceData<T>(
 
     useEffect(
         () => {
-            if (
-                !connection ||
-                (requireUnlock &&
-                    lockState != LockState.ZMK_STUDIO_CORE_LOCK_STATE_UNLOCKED)
-            ) {
+            if (!connection || (requireUnlock && lockState != 'unlocked')) {
                 // eslint-disable-next-line react-hooks/set-state-in-effect
                 setData(undefined)
                 return

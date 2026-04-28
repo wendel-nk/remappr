@@ -1,7 +1,7 @@
 import { create, StateCreator } from 'zustand'
 import { devtools } from 'zustand/middleware'
 import { RpcConnection } from '@zmkfirmware/zmk-studio-ts-client'
-import { LockState } from '@zmkfirmware/zmk-studio-ts-client/core'
+import type { LockState } from '@firmware/types'
 
 // Define the store interface
 interface ConnectionState {
@@ -46,7 +46,7 @@ const useConnectionStore = create<ConnectionState>()(
             connection: null,
             communication: null,
             deviceName: null,
-            lockState: LockState.ZMK_STUDIO_CORE_LOCK_STATE_LOCKED,
+            lockState: 'locked' as LockState,
             connectionAbort: new AbortController(),
             setConnection: (connection, communication) =>
                 set({ connection, communication: communication ?? null }),
@@ -58,7 +58,7 @@ const useConnectionStore = create<ConnectionState>()(
                     connection: null,
                     communication: null,
                     deviceName: null,
-                    lockState: LockState.ZMK_STUDIO_CORE_LOCK_STATE_LOCKED,
+                    lockState: 'locked' as LockState,
                 }),
             showConnectionModal: false,
             setShowConnectionModal: (visible) =>

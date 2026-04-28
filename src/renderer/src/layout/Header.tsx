@@ -1,7 +1,6 @@
 /* eslint-disable react-hooks/preserve-manual-memoization */
 import { useCallback, useEffect } from 'react'
 import { useEmitter } from '@/hooks/use-pub-sub'
-import { LockState } from '@zmkfirmware/zmk-studio-ts-client/core'
 import { Redo2, Save, Trash2, Undo2 } from 'lucide-react'
 import { GitHubIcon } from '@/components/GitHubIcon'
 import { REPO_URL } from '@/lib/constants'
@@ -159,8 +158,7 @@ export function Header(): JSX.Element {
                                     disabled={
                                         !unsaved ||
                                         !connection ||
-                                        lockState !==
-                                            LockState.ZMK_STUDIO_CORE_LOCK_STATE_UNLOCKED
+                                        lockState !== 'unlocked'
                                     }
                                     onClick={save}
                                 >

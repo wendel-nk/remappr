@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { LockState } from '@zmkfirmware/zmk-studio-ts-client/core'
 import useConnectionStore from '@/stores/connectionStore'
 import { fetchAllBehaviors } from '@firmware/zmk/rpc/rpcBehaviorService'
 import type { BehaviorMap } from '@/lib/behaviors/types'
@@ -9,10 +8,7 @@ export function useBehaviors(): BehaviorMap {
     const [behaviors, setBehaviors] = useState<BehaviorMap>({})
 
     useEffect((): void | (() => void) => {
-        if (
-            !connection ||
-            lockState !== LockState.ZMK_STUDIO_CORE_LOCK_STATE_UNLOCKED
-        ) {
+        if (!connection || lockState !== 'unlocked') {
             // eslint-disable-next-line react-hooks/set-state-in-effect
             setBehaviors({})
             return

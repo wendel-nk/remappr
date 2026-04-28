@@ -1,5 +1,4 @@
 import { useCallback } from 'react'
-import { LockState } from '@zmkfirmware/zmk-studio-ts-client/core'
 import { RestoreStockModal } from './RestoreStockModal'
 import useConnectionStore from '@/stores/connectionStore'
 import undoRedoStore from '@/stores/undoRedoStore'
@@ -41,9 +40,7 @@ export const DeviceMenu = (): JSX.Element => {
         }, 0)
     }, [connection, reset, setConnection])
 
-    const isDisabled =
-        !deviceName ||
-        lockState !== LockState.ZMK_STUDIO_CORE_LOCK_STATE_UNLOCKED
+    const isDisabled = !deviceName || lockState !== 'unlocked'
 
     return (
         <SidebarMenu>

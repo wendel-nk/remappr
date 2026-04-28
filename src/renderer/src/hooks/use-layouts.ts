@@ -1,6 +1,5 @@
 import { PhysicalLayout } from '@zmkfirmware/zmk-studio-ts-client/keymap'
 import { Dispatch, SetStateAction, useEffect, useState } from 'react'
-import { LockState } from '@zmkfirmware/zmk-studio-ts-client/core'
 import useConnectionStore from '@/stores/connectionStore'
 import { callRpc } from '@firmware/zmk/rpc/rpcCall'
 
@@ -21,10 +20,7 @@ export function useLayout(): UseLayoutsReturn {
         useState<number>(0)
 
     useEffect((): void | (() => void) => {
-        if (
-            !connection ||
-            lockState !== LockState.ZMK_STUDIO_CORE_LOCK_STATE_UNLOCKED
-        ) {
+        if (!connection || lockState !== 'unlocked') {
             // eslint-disable-next-line react-hooks/set-state-in-effect
             setLayouts(undefined)
             return
