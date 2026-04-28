@@ -90,12 +90,6 @@ export class ZmkKeyboardService implements KeyboardService {
         return call_rpc(this.connection, request)
     }
 
-    async callRpc(
-        request: Omit<Request, 'requestId'>,
-    ): Promise<RequestResponse> {
-        return this.call(request)
-    }
-
     private async runNotificationLoop(): Promise<void> {
         const reader = this.connection.notification_readable.getReader()
         const onAbort = (): void => {
@@ -157,6 +151,9 @@ export class ZmkKeyboardService implements KeyboardService {
             const next = mapLockState(eventData as ZmkLockState)
             for (const cb of this.lockStateListeners) cb(next)
         }
+        if (subId === 'keymap' && eventName === 'unsavedChangesStatusChanged') {
+            this.markPending(!!eventData)
+        }
     }
 
     async getLockState(): Promise<LockState> {
@@ -192,6 +189,11 @@ export class ZmkKeyboardService implements KeyboardService {
     async listActionTypes(): Promise<ActionType[]> {
         if (Object.keys(this.behaviors).length === 0) await this.loadBehaviors()
         return behaviorsToActionTypes(this.behaviors)
+    }
+
+    async getBehaviors(): Promise<BehaviorMap> {
+        if (Object.keys(this.behaviors).length === 0) await this.loadBehaviors()
+        return this.behaviors
     }
 
     private async ensureLayouts(): Promise<ZmkPhysicalLayouts> {
@@ -382,8 +384,35 @@ export class ZmkKeyboardService implements KeyboardService {
         )
     }
 
+    async discardChanges(): Promise<void> {
+        const resp = await this.call({ keymap: { discardChanges: true } })
+        if (!resp.keymap?.discardChanges) {
+            throw new ProtocolError(
+                `discardChanges failed: ${resp.keymap?.discardChanges}`,
+            )
+        }
+        this.markPending(false)
+    }
+
+    async resetSettings(): Promise<void> {
+        const resp = await this.call({ core: { resetSettings: true } })
+        if (!resp.core?.resetSettings) {
+            throw new ProtocolError(
+                `resetSettings failed: ${resp.core?.resetSettings}`,
+            )
+        }
+        this.markPending(false)
+    }
+
     hasPendingChanges(): boolean {
         return this.pendingChanges
+    }
+
+    async refreshPendingChanges(): Promise<boolean> {
+        const resp = await this.call({ keymap: { checkUnsavedChanges: true } })
+        const pending = !!resp.keymap?.checkUnsavedChanges
+        this.markPending(pending)
+        return pending
     }
 
     onPendingChangesChanged(cb: PendingChangesHandler): () => void {

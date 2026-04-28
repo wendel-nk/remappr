@@ -12,7 +12,6 @@ import {
 } from '@/ui/dropdown-menu'
 import { SidebarMenu, SidebarMenuItem } from '@/ui/sidebar'
 import { toast } from 'sonner'
-import { callRpc } from '@firmware/zmk/rpc/rpcCall'
 
 export const DeviceMenu = (): JSX.Element => {
     const {
@@ -26,12 +25,11 @@ export const DeviceMenu = (): JSX.Element => {
     const { reset } = undoRedoStore()
 
     const resetSettings = useCallback(async (): Promise<void> => {
-        const resp = await callRpc({
-            core: { resetSettings: true },
-        })
-
-        if (!resp.core?.resetSettings) {
-            console.error('Failed to settings reset', resp)
+        if (!service) return
+        try {
+            await service.resetSettings()
+        } catch (e) {
+            console.error('Failed to settings reset', e)
             toast.error('Failed to settings reset')
             return
         }

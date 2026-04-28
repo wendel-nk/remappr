@@ -1,6 +1,6 @@
+// Pattern check: Observer (Tier 1) — extended — uses service.onPendingChangesChanged Observer instead of pub-sub bridge.
 /* eslint-disable react-hooks/preserve-manual-memoization */
-import { useCallback, useEffect } from 'react'
-import { useEmitter } from '@/hooks/use-pub-sub'
+import { useCallback, useEffect, useState } from 'react'
 import { Redo2, Save, Trash2, Undo2 } from 'lucide-react'
 import { GitHubIcon } from '@/components/GitHubIcon'
 import { REPO_URL } from '@/lib/constants'
@@ -11,33 +11,39 @@ import { Download as DownloadModal } from '../components/modals/Download.tsx'
 import { SidebarTrigger } from '@/ui/sidebar'
 import { Button } from '@/ui/button'
 import { Separator } from '@/ui/separator'
-import { useConnectedDeviceData } from '@/hooks/use-connected-device-data'
 import { toast } from 'sonner'
-import { callRpc } from '@firmware/zmk/rpc/rpcCall'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/ui/tooltip'
 
 export function Header(): JSX.Element {
     const { service, lockState, setService, communication } =
         useConnectionStore()
     const { undo, redo, canUndo, canRedo, reset } = undoRedoStore()
-    const { subscribe } = useEmitter()
 
-    const [unsaved, setUnsaved] = useConnectedDeviceData<boolean>(
-        { keymap: { checkUnsavedChanges: true } },
-        (request) => request.keymap?.checkUnsavedChanges,
-    )
+    const [unsaved, setUnsaved] = useState<boolean>(false)
 
     useEffect(() => {
-        console.log(unsaved)
-        return subscribe(
-            'rpc_notification.keymap.unsavedChangesStatusChanged',
-            (data: unknown): void => {
-                const ls = data as boolean
-                console.log(ls)
-                setUnsaved(ls)
-            },
-        )
-    }, [setUnsaved, subscribe, unsaved])
+        if (!service || lockState !== 'unlocked') {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setUnsaved(false)
+            return
+        }
+        let cancelled = false
+        ;(async () => {
+            try {
+                const pending = await service.refreshPendingChanges()
+                if (!cancelled) setUnsaved(pending)
+            } catch (e) {
+                console.error('Failed to refresh pending changes', e)
+            }
+        })()
+        const off = service.onPendingChangesChanged((pending) => {
+            setUnsaved(pending)
+        })
+        return (): void => {
+            cancelled = true
+            off()
+        }
+    }, [service, lockState])
 
     const save = useCallback(async (): Promise<void> => {
         if (!service) return
@@ -50,12 +56,11 @@ export function Header(): JSX.Element {
     }, [service])
 
     const discard = useCallback(async (): Promise<void> => {
-        const resp = await callRpc({
-            keymap: { discardChanges: true },
-        })
-
-        if (!resp.keymap?.discardChanges) {
-            console.error('Failed to discard changes', resp)
+        if (!service) return
+        try {
+            await service.discardChanges()
+        } catch (e) {
+            console.error('Failed to discard changes', e)
             toast.error(`Failed to discard changes`)
         }
 

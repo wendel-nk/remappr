@@ -47,7 +47,10 @@ export interface KeyboardService {
     setActivePhysicalLayout(layoutId: number): Promise<Keymap>
 
     commit(): Promise<void>
+    discardChanges(): Promise<void>
+    resetSettings(): Promise<void>
     hasPendingChanges(): boolean
+    refreshPendingChanges(): Promise<boolean>
     onPendingChangesChanged(cb: (pending: boolean) => void): () => void
 
     subscribe(cb: (notification: AdapterNotification) => void): () => void
