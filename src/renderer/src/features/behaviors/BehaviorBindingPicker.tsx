@@ -12,10 +12,7 @@ import {
 } from './BehaviorParametersPicker'
 import { BehaviorSelector } from './BehaviorSelector'
 import { SlotBar, type SlotDescriptor, type SlotKind } from './SlotBar'
-import { Button } from '@/ui/button'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/ui/tooltip'
 import { validateValue } from '@/lib/behaviors/parameters'
-import { maskMods } from '@/lib/keymap/keycodeGrid'
 
 export interface BehaviorBindingPickerProps {
     binding: BehaviorBinding
@@ -72,8 +69,6 @@ export const BehaviorBindingPicker = ({
     const [param1, setParam1] = useState<number | undefined>(binding?.param1)
     const [param2, setParam2] = useState<number | undefined>(binding?.param2)
     const [activeSlot, setActiveSlot] = useState<ActiveSlot>('param1')
-    const [multiKeyMode, setMultiKeyMode] = useState(false)
-    const [multiKeys, setMultiKeys] = useState<number[]>([])
 
     const metadata = useMemo(
         (): GetBehaviorDetailsResponse['metadata'] =>
@@ -163,8 +158,6 @@ export const BehaviorBindingPicker = ({
         setParam1(0)
         setParam2(0)
         setActiveSlot('param1')
-        setMultiKeyMode(false)
-        setMultiKeys([])
         dispatchIfValid({
             behaviorId: selectedBehaviorId,
             param1: 0,
@@ -172,22 +165,11 @@ export const BehaviorBindingPicker = ({
         })
     }
 
-    // pattern-check: skip revert experimental dispatch path; ZMK validates param1 against keyboardMax (231)
     const handleParam1Changed = (value?: number): void => {
         setParam1(value)
         dispatchIfValid({ behaviorId, param1: value, param2 })
         if (isHoldTap && value !== undefined && value !== 0) {
             setActiveSlot('param2')
-        }
-        if (!isHoldTap && multiKeyMode && value !== undefined && value !== 0) {
-            const base = maskMods(value)
-            if (base !== 0) {
-                setMultiKeys((prev) =>
-                    prev.includes(base)
-                        ? prev.filter((k) => k !== base)
-                        : [...prev, base],
-                )
-            }
         }
     }
 
@@ -198,15 +180,6 @@ export const BehaviorBindingPicker = ({
             setActiveSlot('param1')
         }
     }
-
-    const handleMultiKeyToggle = useCallback((on: boolean): void => {
-        setMultiKeyMode(on)
-        if (!on) setMultiKeys([])
-    }, [])
-
-    const handleClearMultiKeys = useCallback((): void => {
-        setMultiKeys([])
-    }, [])
 
     const layerNameFor = (value?: number): string | undefined => {
         if (value === undefined) return undefined
@@ -260,20 +233,6 @@ export const BehaviorBindingPicker = ({
         dispatchIfValid,
     ])
 
-    const multiKeySlots = useMemo<SlotDescriptor[]>(
-        () =>
-            multiKeys.map((k, idx) => ({
-                id: `mk-${k}-${idx}`,
-                label: `Key ${idx + 1}`,
-                value: k,
-                kind: 'hidUsage' as SlotKind,
-                inactiveBorderClass: 'border-secondary',
-                onRemove: () =>
-                    setMultiKeys((prev) => prev.filter((x) => x !== k)),
-            })),
-        [multiKeys],
-    )
-
     const highlightedKeys = useMemo<number[] | undefined>(() => {
         if (isHoldTap && isParam1HidUsage) {
             const out: number[] = []
@@ -290,8 +249,6 @@ export const BehaviorBindingPicker = ({
         return undefined
     }, [isHoldTap, isParam1HidUsage, param1, param2, param2Kind])
 
-    const showMultiKeyControls = !isHoldTap && isParam1HidUsage
-
     return (
         <div className="flex flex-col w-full gap-3">
             <div className="flex flex-row flex-wrap gap-3 items-center">
@@ -307,46 +264,6 @@ export const BehaviorBindingPicker = ({
                         activeSlotId={activeSlot}
                         onActivate={(id) => setActiveSlot(id as ActiveSlot)}
                     />
-                )}
-                {showMultiKeyControls && (
-                    <>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button
-                                    type="button"
-                                    variant={
-                                        multiKeyMode ? 'default' : 'outline'
-                                    }
-                                    size="sm"
-                                    onClick={() =>
-                                        handleMultiKeyToggle(!multiKeyMode)
-                                    }
-                                    aria-pressed={multiKeyMode}
-                                >
-                                    Multi-key: {multiKeyMode ? 'On' : 'Off'}
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                ZMK &kp accepts one base key per binding —
-                                multi-key requires a firmware-defined macro.
-                                Chips are visual only; firmware receives
-                                last-clicked.
-                            </TooltipContent>
-                        </Tooltip>
-                        {multiKeyMode && multiKeys.length > 0 && (
-                            <>
-                                <SlotBar slots={multiKeySlots} />
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={handleClearMultiKeys}
-                                >
-                                    Clear all
-                                </Button>
-                            </>
-                        )}
-                    </>
                 )}
             </div>
             {metadata && (
