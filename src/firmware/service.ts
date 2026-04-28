@@ -49,5 +49,7 @@ export interface KeyboardService {
     subscribe(cb: (notification: AdapterNotification) => void): () => void
     exportConfig(): Promise<ExportedFile[]>
 
+    onClosed(cb: (reason?: unknown) => void): () => void
+
     disconnect(): Promise<void>
 }

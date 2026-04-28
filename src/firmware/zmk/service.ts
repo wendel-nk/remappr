@@ -58,6 +58,7 @@ function mapLockState(state: ZmkLockState): LockState {
 type NotificationHandler = (notification: AdapterNotification) => void
 type LockStateHandler = (state: LockState) => void
 type PendingChangesHandler = (pending: boolean) => void
+type ClosedHandler = (reason?: unknown) => void
 
 export class ZmkKeyboardService implements KeyboardService {
     public readonly capabilities: Capabilities = ZMK_CAPABILITIES
@@ -70,6 +71,8 @@ export class ZmkKeyboardService implements KeyboardService {
     private readonly notificationListeners = new Set<NotificationHandler>()
     private readonly lockStateListeners = new Set<LockStateHandler>()
     private readonly pendingChangesListeners = new Set<PendingChangesHandler>()
+    private readonly closedListeners = new Set<ClosedHandler>()
+    private closed = false
     private pendingChanges = false
     private notificationLoop: Promise<void> | null = null
     private readonly notificationAbort = new AbortController()
@@ -95,6 +98,7 @@ export class ZmkKeyboardService implements KeyboardService {
         this.notificationAbort.signal.addEventListener('abort', onAbort, {
             once: true,
         })
+        let closeReason: unknown = undefined
         try {
             while (true) {
                 const { done, value } = await reader.read()
@@ -102,8 +106,8 @@ export class ZmkKeyboardService implements KeyboardService {
                 if (!value) continue
                 this.dispatchNotification(value)
             }
-        } catch {
-            // swallow — disconnect path
+        } catch (e) {
+            closeReason = e
         } finally {
             this.notificationAbort.signal.removeEventListener('abort', onAbort)
             try {
@@ -111,7 +115,23 @@ export class ZmkKeyboardService implements KeyboardService {
             } catch {
                 // ignore
             }
+            this.markClosed(closeReason)
         }
+    }
+
+    private markClosed(reason?: unknown): void {
+        if (this.closed) return
+        this.closed = true
+        for (const cb of this.closedListeners) cb(reason)
+    }
+
+    onClosed(cb: ClosedHandler): () => void {
+        if (this.closed) {
+            cb()
+            return () => undefined
+        }
+        this.closedListeners.add(cb)
+        return () => this.closedListeners.delete(cb)
     }
 
     private dispatchNotification(value: Notification): void {

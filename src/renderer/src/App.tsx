@@ -27,6 +27,7 @@ function App(): JSX.Element {
     const {
         connection,
         setConnection,
+        setService,
         setDeviceName,
         setLockState,
         connectionAbort,
@@ -68,6 +69,7 @@ function App(): JSX.Element {
         const connection = await connectDevice(
             t,
             setConnection,
+            setService,
             setDeviceName,
             connectionAbort.signal,
             communication,

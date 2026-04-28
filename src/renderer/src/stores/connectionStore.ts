@@ -1,11 +1,13 @@
+// pattern-check: skip add-field codemod — extends ConnectionState with neutral KeyboardService alongside RpcConnection
 import { create, StateCreator } from 'zustand'
 import { devtools } from 'zustand/middleware'
 import { RpcConnection } from '@zmkfirmware/zmk-studio-ts-client'
+import type { KeyboardService } from '@firmware/service'
 import type { LockState } from '@firmware/types'
 
-// Define the store interface
 interface ConnectionState {
     connection: RpcConnection | null
+    service: KeyboardService | null
     communication: 'serial' | 'ble' | null
     deviceName: string | null
     lockState: LockState
@@ -14,6 +16,7 @@ interface ConnectionState {
         connection: RpcConnection | null,
         communication?: 'serial' | 'ble',
     ) => void
+    setService: (service: KeyboardService | null) => void
     setDeviceName: (name: string | null) => void
     setLockState: (state: LockState) => void
     setConnectionAbort: (abort: AbortController) => void
@@ -23,7 +26,6 @@ interface ConnectionState {
     disconnect: () => Promise<void>
 }
 
-// Middleware to check if a connection exists and show the modal if not
 const connectionMiddleware =
     (config: StateCreator<ConnectionState>): StateCreator<ConnectionState> =>
     (set, get, api) =>
@@ -39,23 +41,25 @@ const connectionMiddleware =
             api,
         )
 
-// Create Zustand store with middleware and persistence
 const useConnectionStore = create<ConnectionState>()(
     devtools(
         connectionMiddleware((set, get) => ({
             connection: null,
+            service: null,
             communication: null,
             deviceName: null,
             lockState: 'locked' as LockState,
             connectionAbort: new AbortController(),
             setConnection: (connection, communication) =>
                 set({ connection, communication: communication ?? null }),
+            setService: (service) => set({ service }),
             setDeviceName: (name) => set({ deviceName: name }),
             setLockState: (state) => set({ lockState: state }),
             setConnectionAbort: (abort) => set({ connectionAbort: abort }),
             resetConnection: () =>
                 set({
                     connection: null,
+                    service: null,
                     communication: null,
                     deviceName: null,
                     lockState: 'locked' as LockState,
@@ -64,15 +68,34 @@ const useConnectionStore = create<ConnectionState>()(
             setShowConnectionModal: (visible) =>
                 set({ showConnectionModal: visible }),
             disconnect: async () => {
-                const { connection, connectionAbort, resetConnection } = get()
-                if (!connection) {
+                const {
+                    connection,
+                    service,
+                    connectionAbort,
+                    resetConnection,
+                } = get()
+                if (!connection && !service) {
                     return
                 }
 
-                try {
-                    await connection.request_writable.close()
-                } catch (error) {
-                    console.warn('Failed to close connection cleanly', error)
+                if (service) {
+                    try {
+                        await service.disconnect()
+                    } catch (error) {
+                        console.warn(
+                            'Failed to disconnect service cleanly',
+                            error,
+                        )
+                    }
+                } else if (connection) {
+                    try {
+                        await connection.request_writable.close()
+                    } catch (error) {
+                        console.warn(
+                            'Failed to close connection cleanly',
+                            error,
+                        )
+                    }
                 }
 
                 connectionAbort.abort('User disconnected')
