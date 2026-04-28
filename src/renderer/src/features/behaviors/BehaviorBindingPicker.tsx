@@ -172,21 +172,61 @@ export const BehaviorBindingPicker = ({
         })
     }
 
+    const dispatchRaw = useCallback(
+        (next: { param1: number; param2: number }): void => {
+            const nextBinding: BehaviorBinding = {
+                behaviorId,
+                param1: next.param1,
+                param2: next.param2,
+            }
+            console.log('[multi-key dispatch]', {
+                behaviorId,
+                param1Hex: '0x' + next.param1.toString(16).padStart(8, '0'),
+                param2Hex: '0x' + next.param2.toString(16).padStart(8, '0'),
+            })
+            onBindingChanged(nextBinding)
+        },
+        [behaviorId, onBindingChanged],
+    )
+
+    const buildMultiKeyDispatch = (
+        nextKeys: number[],
+        modFlags: number,
+    ): { param1: number; param2: number } => {
+        const idByte = (k?: number): number =>
+            k === undefined ? 0 : maskMods(k) & 0xff
+        const id0 = idByte(nextKeys[0])
+        const id1 = idByte(nextKeys[1])
+        const id2 = idByte(nextKeys[2])
+        const id3 = idByte(nextKeys[3])
+        const id4 = idByte(nextKeys[4])
+        const id5 = idByte(nextKeys[5])
+        return {
+            param1: (modFlags << 24) | (id0 << 16) | (id1 << 8) | id2,
+            param2: (id3 << 16) | (id4 << 8) | id5,
+        }
+    }
+
     const handleParam1Changed = (value?: number): void => {
+        if (!isHoldTap && multiKeyMode && value !== undefined && value !== 0) {
+            const base = maskMods(value)
+            const modFlags = (value >> 24) & 0xff
+            const nextKeys = base
+                ? multiKeys.includes(base)
+                    ? multiKeys.filter((k) => k !== base)
+                    : [...multiKeys, base]
+                : multiKeys
+            const next = buildMultiKeyDispatch(nextKeys, modFlags)
+            setMultiKeys(nextKeys)
+            setParam1(next.param1)
+            setParam2(next.param2)
+            dispatchRaw(next)
+            return
+        }
         setParam1(value)
         dispatchIfValid({ behaviorId, param1: value, param2 })
         if (isHoldTap && value !== undefined && value !== 0) {
             setActiveSlot('param2')
-        }
-        if (!isHoldTap && multiKeyMode && value !== undefined && value !== 0) {
-            const base = maskMods(value)
-            if (base !== 0) {
-                setMultiKeys((prev) =>
-                    prev.includes(base)
-                        ? prev.filter((k) => k !== base)
-                        : [...prev, base],
-                )
-            }
         }
     }
 
@@ -198,14 +238,47 @@ export const BehaviorBindingPicker = ({
         }
     }
 
-    const handleMultiKeyToggle = useCallback((on: boolean): void => {
-        setMultiKeyMode(on)
-        if (!on) setMultiKeys([])
-    }, [])
+    const currentModFlags = ((param1 ?? 0) >> 24) & 0xff
+
+    const dispatchMultiKeys = (nextKeys: number[]): void => {
+        const next = buildMultiKeyDispatch(nextKeys, currentModFlags)
+        setMultiKeys(nextKeys)
+        setParam1(next.param1)
+        setParam2(next.param2)
+        dispatchRaw(next)
+    }
+
+    const handleMultiKeyToggle = useCallback(
+        (on: boolean): void => {
+            setMultiKeyMode(on)
+            if (on) {
+                console.log(
+                    '[multi-key] available behaviors:',
+                    behaviors.map((b) => ({
+                        id: b.id,
+                        name: b.displayName,
+                        metadata: b.metadata.map((s) => ({
+                            param1: s.param1,
+                            param2: s.param2,
+                        })),
+                    })),
+                )
+            }
+            if (!on) {
+                setMultiKeys([])
+                const cleared = currentModFlags << 24
+                setParam1(cleared)
+                setParam2(0)
+                dispatchRaw({ param1: cleared, param2: 0 })
+            }
+        },
+        [currentModFlags, dispatchRaw, behaviors],
+    )
 
     const handleClearMultiKeys = useCallback((): void => {
-        setMultiKeys([])
-    }, [])
+        dispatchMultiKeys([])
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentModFlags, multiKeys, dispatchRaw])
 
     const layerNameFor = (value?: number): string | undefined => {
         if (value === undefined) return undefined
@@ -268,9 +341,10 @@ export const BehaviorBindingPicker = ({
                 kind: 'hidUsage' as SlotKind,
                 inactiveBorderClass: 'border-secondary',
                 onRemove: () =>
-                    setMultiKeys((prev) => prev.filter((x) => x !== k)),
+                    dispatchMultiKeys(multiKeys.filter((x) => x !== k)),
             })),
-        [multiKeys],
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [multiKeys, currentModFlags],
     )
 
     const highlightedKeys = useMemo<number[] | undefined>(() => {
@@ -326,9 +400,8 @@ export const BehaviorBindingPicker = ({
                                 </Button>
                             </TooltipTrigger>
                             <TooltipContent>
-                                ZMK &kp accepts one key per binding — multi-key
-                                requires a firmware-defined macro. Chips are
-                                visual only; firmware receives last-clicked.
+                                Sends OR-combined HID usages — experimental.
+                                Watch firmware output to see what ZMK does.
                             </TooltipContent>
                         </Tooltip>
                         {multiKeyMode && multiKeys.length > 0 && (
