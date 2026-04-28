@@ -23,7 +23,10 @@
     "baseUrl": ".",
     "paths": {
       "@/main/*": ["./src/main/*"],
-      "@/*": ["./src/renderer/src/*"]
+      "@/*": ["./src/renderer/src/*"],
+      "@firmware": ["./src/firmware"],
+      "@firmware/*": ["./src/firmware/*"],
+      "@shared/*": ["./src/shared/*"]
     }
   },
   "include": ["src"],

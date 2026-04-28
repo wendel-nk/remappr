@@ -15,6 +15,8 @@ export default defineConfig({
     resolve: {
         alias: {
             '@': path.resolve(__dirname, './src/renderer/src'),
+            '@firmware': path.resolve(__dirname, './src/firmware'),
+            '@shared': path.resolve(__dirname, './src/shared'),
         },
     },
     // prevent vite from obscuring rust errors
