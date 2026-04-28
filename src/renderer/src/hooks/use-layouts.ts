@@ -2,7 +2,7 @@ import { PhysicalLayout } from '@zmkfirmware/zmk-studio-ts-client/keymap'
 import { Dispatch, SetStateAction, useEffect, useState } from 'react'
 import { LockState } from '@zmkfirmware/zmk-studio-ts-client/core'
 import useConnectionStore from '@/stores/connectionStore'
-import { callRpc } from '@/services/rpcCall'
+import { callRpc } from '@firmware/zmk/rpc/rpcCall'
 
 interface UseLayoutsReturn {
     layouts: PhysicalLayout[] | undefined

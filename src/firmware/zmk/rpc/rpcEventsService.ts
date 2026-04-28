@@ -3,7 +3,7 @@ import {
     Keymap,
     PhysicalLayout,
 } from '@zmkfirmware/zmk-studio-ts-client/keymap'
-import { callRpc } from '@/services/rpcCall'
+import { callRpc } from '@firmware/zmk/rpc/rpcCall'
 
 export const getKeymapLayout = async (
     layoutIndex: number,

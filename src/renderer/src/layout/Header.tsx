@@ -14,7 +14,7 @@ import { Button } from '@/ui/button'
 import { Separator } from '@/ui/separator'
 import { useConnectedDeviceData } from '@/hooks/use-connected-device-data'
 import { toast } from 'sonner'
-import { callRpc } from '@/services/rpcCall'
+import { callRpc } from '@firmware/zmk/rpc/rpcCall'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/ui/tooltip'
 
 export function Header(): JSX.Element {

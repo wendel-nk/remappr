@@ -11,7 +11,7 @@ import { KeyboardZoomSlider } from '../editor/KeyboardZoomSlider'
 import useConnectionStore from '@/stores/connectionStore'
 import useLayerSelectionStore from '@/stores/layerSelectionStore'
 import { useBehaviors } from '@/hooks/use-behaviors'
-import { getKeymapLayout } from '@/services/rpcEventsService'
+import { getKeymapLayout } from '@firmware/zmk/rpc/rpcEventsService'
 import { useKeypressDetection } from '@/hooks/use-keypress-detection'
 import type { KeypressDetectionConfig } from '@/lib/keypress/keypressDetector'
 import {

@@ -13,7 +13,7 @@ import {
 } from '@/ui/dropdown-menu'
 import { SidebarMenu, SidebarMenuItem } from '@/ui/sidebar'
 import { toast } from 'sonner'
-import { callRpc } from '@/services/rpcCall'
+import { callRpc } from '@firmware/zmk/rpc/rpcCall'
 
 export const DeviceMenu = (): JSX.Element => {
     const { connection, setConnection, deviceName, lockState, disconnect } =

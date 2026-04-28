@@ -9,7 +9,7 @@ import {
     changeName,
     removeLayer,
     restore,
-} from '@/services/rpcLayerService'
+} from '@firmware/zmk/rpc/rpcLayerService'
 
 interface UseLayerActionsArgs {
     keymap?: Keymap

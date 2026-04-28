@@ -14,8 +14,8 @@ import {
     SidebarFooter,
 } from '@/ui/sidebar'
 import { DeviceMenu } from '@/features/connection/DeviceMenu'
-import { setKeymapRequest } from '@/services/rpcEventsService'
-import { callRpc } from '@/services/rpcCall'
+import { setKeymapRequest } from '@firmware/zmk/rpc/rpcEventsService'
+import { callRpc } from '@firmware/zmk/rpc/rpcCall'
 import { LockState } from '@zmkfirmware/zmk-studio-ts-client/core'
 import { Keymap } from '@zmkfirmware/zmk-studio-ts-client/keymap'
 import { produce } from 'immer'

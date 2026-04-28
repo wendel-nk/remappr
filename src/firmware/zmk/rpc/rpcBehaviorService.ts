@@ -1,5 +1,5 @@
 import type { GetBehaviorDetailsResponse } from '@zmkfirmware/zmk-studio-ts-client/behaviors'
-import { callRpc } from '@/services/rpcCall'
+import { callRpc } from '@firmware/zmk/rpc/rpcCall'
 import type { BehaviorMap } from '@/lib/behaviors/types'
 
 export async function fetchAllBehaviors(

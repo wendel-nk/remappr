@@ -13,7 +13,7 @@ import { produce } from 'immer'
 import { SetLayerBindingResponse } from '@zmkfirmware/zmk-studio-ts-client/keymap'
 import { Card, CardContent } from '@/ui/card'
 import { Button } from '@/ui/button'
-import { callRpc } from '@/services/rpcCall'
+import { callRpc } from '@firmware/zmk/rpc/rpcCall'
 import { toast } from 'sonner'
 
 interface BindingEditorProps {

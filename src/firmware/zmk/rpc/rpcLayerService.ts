@@ -5,7 +5,7 @@ import {
     SetLayerPropsResponse,
 } from '@zmkfirmware/zmk-studio-ts-client/keymap'
 import { produce } from 'immer'
-import { callRpc } from '@/services/rpcCall'
+import { callRpc } from '@firmware/zmk/rpc/rpcCall'
 
 export async function addLayer(
     keymap: Keymap | undefined,

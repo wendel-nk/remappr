@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { LockState } from '@zmkfirmware/zmk-studio-ts-client/core'
 import useConnectionStore from '@/stores/connectionStore'
-import { fetchAllBehaviors } from '@/services/rpcBehaviorService'
+import { fetchAllBehaviors } from '@firmware/zmk/rpc/rpcBehaviorService'
 import type { BehaviorMap } from '@/lib/behaviors/types'
 
 export function useBehaviors(): BehaviorMap {

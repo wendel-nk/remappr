@@ -3,7 +3,7 @@ import type { Keymap } from '@zmkfirmware/zmk-studio-ts-client/keymap'
 import undoRedoStore from '@/stores/undoRedoStore'
 import useConnectionStore from '@/stores/connectionStore'
 import useLayerSelectionStore from '@/stores/layerSelectionStore'
-import { moveLayer } from '@/services/rpcLayerService'
+import { moveLayer } from '@firmware/zmk/rpc/rpcLayerService'
 
 export interface DragHandlers {
     draggable: boolean

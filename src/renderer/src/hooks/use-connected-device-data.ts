@@ -2,7 +2,7 @@ import React, { SetStateAction, useEffect, useState } from 'react'
 import { Request, RequestResponse } from '@zmkfirmware/zmk-studio-ts-client'
 import { LockState } from '@zmkfirmware/zmk-studio-ts-client/core'
 import useConnectionStore from '@/stores/connectionStore'
-import { callRpc } from '@/services/rpcCall'
+import { callRpc } from '@firmware/zmk/rpc/rpcCall'
 
 export function useConnectedDeviceData<T>(
     req: Omit<Request, 'requestId'>,
