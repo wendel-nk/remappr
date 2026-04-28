@@ -1,11 +1,12 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { fn } from 'storybook/test'
-import { ParameterValuePicker } from './ParameterValuePicker'
+
+import { BehaviorParametersPicker } from './BehaviorParametersPicker'
 
 // More on how to set up stories at: https://storybook.js.org/docs/writing-stories#default-export
 const meta = {
-    title: 'Behaviors/ParameterValuePicker',
-    component: ParameterValuePicker,
+    title: 'Actions/BehaviorParametersPicker',
+    component: BehaviorParametersPicker,
     parameters: {
         // Optional parameter to center the component in the Canvas. More info: https://storybook.js.org/docs/configure/story-layout
         layout: 'centered',
@@ -22,36 +23,44 @@ const meta = {
             { name: 'Base', id: 0 },
             { id: 1, name: 'Num' },
         ],
-        onValueChanged: fn(),
+        activeSlot: 'param1',
+        onParam1Changed: fn(),
+        onParam2Changed: fn(),
     },
-} satisfies Meta<typeof ParameterValuePicker>
+} satisfies Meta<typeof BehaviorParametersPicker>
 
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const Const: Story = {
+export const Example: Story = {
     args: {
-        values: [
-            { name: 'Const #1', constant: 1 },
-            { name: 'Const #2', constant: 2 },
+        metadata: [
+            {
+                param1: [
+                    { name: 'Const #1', constant: 1 },
+                    { name: 'Const #2', constant: 2 },
+                ],
+                param2: [],
+            },
         ],
     },
 }
 
-export const Range: Story = {
+export const SecondParamBasedOnFirst: Story = {
     args: {
-        values: [{ name: 'Profile', range: { min: 0, max: 4 } }],
-    },
-}
-
-export const HID: Story = {
-    args: {
-        values: [{ name: 'Key', hidUsage: { consumerMax: 0, keyboardMax: 0 } }],
-    },
-}
-
-export const LayerId: Story = {
-    args: {
-        values: [{ name: 'Layer', layerId: {} }],
+        param1: 3,
+        metadata: [
+            {
+                param1: [
+                    { name: 'Const #1', constant: 1 },
+                    { name: 'Const #2', constant: 2 },
+                ],
+                param2: [],
+            },
+            {
+                param1: [{ name: 'Const #3', constant: 3 }],
+                param2: [{ name: 'Second Range', range: { min: 0, max: 4 } }],
+            },
+        ],
     },
 }

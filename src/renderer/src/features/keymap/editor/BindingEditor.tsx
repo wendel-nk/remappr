@@ -1,5 +1,5 @@
 import { X } from 'lucide-react'
-import { BehaviorBindingPicker } from '@/features/behaviors/BehaviorBindingPicker'
+import { BehaviorBindingPicker } from '@/features/actions/BehaviorBindingPicker'
 import { useBehaviors } from '@/hooks/use-behaviors'
 import {
     BehaviorBinding,

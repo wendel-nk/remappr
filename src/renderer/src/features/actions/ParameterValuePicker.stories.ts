@@ -1,12 +1,11 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { fn } from 'storybook/test'
-
-import { BehaviorParametersPicker } from './BehaviorParametersPicker'
+import { ParameterValuePicker } from './ParameterValuePicker'
 
 // More on how to set up stories at: https://storybook.js.org/docs/writing-stories#default-export
 const meta = {
-    title: 'Behaviors/BehaviorParametersPicker',
-    component: BehaviorParametersPicker,
+    title: 'Actions/ParameterValuePicker',
+    component: ParameterValuePicker,
     parameters: {
         // Optional parameter to center the component in the Canvas. More info: https://storybook.js.org/docs/configure/story-layout
         layout: 'centered',
@@ -23,44 +22,36 @@ const meta = {
             { name: 'Base', id: 0 },
             { id: 1, name: 'Num' },
         ],
-        activeSlot: 'param1',
-        onParam1Changed: fn(),
-        onParam2Changed: fn(),
+        onValueChanged: fn(),
     },
-} satisfies Meta<typeof BehaviorParametersPicker>
+} satisfies Meta<typeof ParameterValuePicker>
 
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const Example: Story = {
+export const Const: Story = {
     args: {
-        metadata: [
-            {
-                param1: [
-                    { name: 'Const #1', constant: 1 },
-                    { name: 'Const #2', constant: 2 },
-                ],
-                param2: [],
-            },
+        values: [
+            { name: 'Const #1', constant: 1 },
+            { name: 'Const #2', constant: 2 },
         ],
     },
 }
 
-export const SecondParamBasedOnFirst: Story = {
+export const Range: Story = {
     args: {
-        param1: 3,
-        metadata: [
-            {
-                param1: [
-                    { name: 'Const #1', constant: 1 },
-                    { name: 'Const #2', constant: 2 },
-                ],
-                param2: [],
-            },
-            {
-                param1: [{ name: 'Const #3', constant: 3 }],
-                param2: [{ name: 'Second Range', range: { min: 0, max: 4 } }],
-            },
-        ],
+        values: [{ name: 'Profile', range: { min: 0, max: 4 } }],
+    },
+}
+
+export const HID: Story = {
+    args: {
+        values: [{ name: 'Key', hidUsage: { consumerMax: 0, keyboardMax: 0 } }],
+    },
+}
+
+export const LayerId: Story = {
+    args: {
+        values: [{ name: 'Layer', layerId: {} }],
     },
 }

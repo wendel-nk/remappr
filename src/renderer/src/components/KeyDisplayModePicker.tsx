@@ -23,7 +23,7 @@ export function KeyDisplayModePicker(): JSX.Element {
                 <SelectValue />
             </SelectTrigger>
             <SelectContent>
-                <SelectItem value="displayName">Behavior name</SelectItem>
+                <SelectItem value="displayName">Action name</SelectItem>
                 <SelectItem value="binding">Binding code</SelectItem>
             </SelectContent>
         </Select>

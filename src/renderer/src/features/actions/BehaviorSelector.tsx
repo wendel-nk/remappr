@@ -25,7 +25,7 @@ export const BehaviorSelector = ({
     behaviors,
     selectedBehaviorId,
     onBehaviorSelected,
-    placeholder = 'Select behavior...',
+    placeholder = 'Select action...',
     className,
 }: BehaviorSelectorProps): JSX.Element => {
     const [open, setOpen] = useState(false)
