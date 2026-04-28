@@ -1,5 +1,7 @@
-import { Keymap } from '@zmkfirmware/zmk-studio-ts-client/keymap'
+// pattern-check: skip mechanical port — generator now consumes neutral Keymap, reads ZmkBindingParams from KeyAction.params
+import type { Keymap } from '@firmware/types'
 import type { BehaviorMap } from '@/lib/behaviors/types'
+import type { ZmkBindingParams } from './actions'
 import { displayNameToBinding } from '@/lib/keymap/displayNameToBinding'
 
 export interface ZMKConfigOptions {
@@ -17,7 +19,6 @@ export function generateZMKKeymapFile(
     let config = `// Generated ZMK keymap for ${options.keyboardName}\n`
     config += `// Keymap: ${options.keymapName}\n\n`
 
-    // Generate layer definitions
     if (keymap.layers && options.includeLayers) {
         config += `// Layer definitions\n`
         keymap.layers.forEach((layer, index) => {
@@ -26,7 +27,6 @@ export function generateZMKKeymapFile(
         config += `\n`
     }
 
-    // Generate keymap bindings
     config += `// Keymap bindings\n`
     config += `keymap {\n`
     config += `    compatible = "zmk,keymap";\n\n`
@@ -36,12 +36,13 @@ export function generateZMKKeymapFile(
         config += `        label = "Layer ${layerIndex}";\n`
         config += `        bindings = <\n`
 
-        layer.bindings.forEach((binding, keyIndex) => {
+        layer.keys.forEach((action, keyIndex) => {
+            const binding = action.params as ZmkBindingParams
             const behavior = behaviors[binding.behaviorId]
             if (behavior) {
                 const keyCode = generateKeyCode(binding, behavior)
                 config += `            ${keyCode}`
-                if (keyIndex < layer.bindings.length - 1) {
+                if (keyIndex < layer.keys.length - 1) {
                     config += `,`
                 }
                 config += `\n`

@@ -1,9 +1,6 @@
 import { useCallback } from 'react'
 import { Popover, PopoverTrigger, PopoverContent } from '@/ui/popover'
-import {
-    PhysicalLayoutCanvas,
-    type KeyPosition,
-} from '../keyboard/PhysicalLayoutCanvas'
+import { PhysicalLayoutCanvas } from '../keyboard/PhysicalLayoutCanvas'
 import {
     SidebarGroupContent,
     SidebarGroupLabel,
@@ -12,11 +9,9 @@ import {
 } from '@/ui/sidebar'
 import { Plus } from 'lucide-react'
 import { Button } from '@/ui/button'
+import type { PhysicalLayout, PhysicalLayoutKey } from '@firmware/types'
 
-export interface PhysicalLayoutItem {
-    name: string
-    keys: Array<KeyPosition>
-}
+export type PhysicalLayoutItem = Pick<PhysicalLayout, 'name' | 'keys'>
 
 export type PhysicalLayoutClickCallback = (index: number) => void
 
@@ -67,25 +62,17 @@ export const PhysicalLayoutPicker = ({
                                                 hoverZoom={false}
                                                 positions={layout.keys.map(
                                                     (
-                                                        {
-                                                            x,
-                                                            y,
-                                                            width,
-                                                            height,
-                                                            r,
-                                                            rx,
-                                                            ry,
-                                                        },
+                                                        k: PhysicalLayoutKey,
                                                         i,
                                                     ) => ({
                                                         id: `${layout.name}-${i}`,
-                                                        x: x / 100.0,
-                                                        y: y / 100.0,
-                                                        width: width / 100.0,
-                                                        height: height / 100.0,
-                                                        r: (r || 0) / 100.0,
-                                                        rx: (rx || 0) / 100.0,
-                                                        ry: (ry || 0) / 100.0,
+                                                        x: k.x / 100.0,
+                                                        y: k.y / 100.0,
+                                                        width: k.w / 100.0,
+                                                        height: k.h / 100.0,
+                                                        r: (k.r || 0) / 100.0,
+                                                        rx: (k.rx || 0) / 100.0,
+                                                        ry: (k.ry || 0) / 100.0,
                                                     }),
                                                 )}
                                             />

@@ -1,6 +1,6 @@
 import { Plus } from 'lucide-react'
 import { useEffect, useMemo, useRef } from 'react'
-import type { Keymap } from '@zmkfirmware/zmk-studio-ts-client/keymap'
+import type { Keymap } from '@firmware/types'
 
 import useLayerSelectionStore from '@/stores/layerSelectionStore'
 import {

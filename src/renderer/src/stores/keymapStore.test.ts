@@ -1,14 +1,15 @@
+// pattern-check: skip mechanical test fixture rewrite for neutral Keymap shape
 import { describe, it, expect, beforeEach } from 'vitest'
-import type { Keymap } from '@zmkfirmware/zmk-studio-ts-client/keymap'
+import type { Keymap } from '@firmware/types'
 import useKeymapStore from './keymapStore'
 
-const makeKeymap = (overrides: Partial<Keymap> = {}): Keymap =>
-    ({
-        layers: [],
-        availableLayers: 0,
-        maxLayerNameLength: 16,
-        ...overrides,
-    }) as Keymap
+const makeKeymap = (overrides: Partial<Keymap> = {}): Keymap => ({
+    layers: [],
+    availableLayers: 0,
+    activeLayoutId: 0,
+    layouts: [],
+    ...overrides,
+})
 
 describe('keymapStore', () => {
     beforeEach(() => {

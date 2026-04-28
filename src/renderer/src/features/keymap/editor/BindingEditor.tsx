@@ -1,19 +1,20 @@
+// pattern-check: skip mechanical port — bridges neutral KeyAction store with ZMK BehaviorBinding picker; calls service.setKey
 import { X } from 'lucide-react'
 import { BehaviorBindingPicker } from '@/features/actions/BehaviorBindingPicker'
 import { useBehaviors } from '@/hooks/use-behaviors'
-import {
-    BehaviorBinding,
-    Keymap,
-} from '@zmkfirmware/zmk-studio-ts-client/keymap'
+import type { BehaviorBinding } from '@zmkfirmware/zmk-studio-ts-client/keymap'
 import { useCallback, useMemo } from 'react'
 import undoRedoStore from '@/stores/undoRedoStore'
 import useConnectionStore from '@/stores/connectionStore'
 import useLayerSelectionStore from '@/stores/layerSelectionStore'
 import { produce } from 'immer'
-import { SetLayerBindingResponse } from '@zmkfirmware/zmk-studio-ts-client/keymap'
+import type { KeyAction, Keymap } from '@firmware/types'
+import {
+    bindingToKeyAction,
+    type ZmkBindingParams,
+} from '@firmware/zmk/actions'
 import { Card, CardContent } from '@/ui/card'
 import { Button } from '@/ui/button'
-import { callRpc } from '@firmware/zmk/rpc/rpcCall'
 import { toast } from 'sonner'
 
 interface BindingEditorProps {
@@ -28,6 +29,15 @@ interface BindingEditorProps {
     setSelectedKeyPosition: (position: number | undefined) => void
 }
 
+function actionToBinding(action: KeyAction): BehaviorBinding {
+    const p = action.params as ZmkBindingParams
+    return {
+        behaviorId: p.behaviorId,
+        param1: p.param1,
+        param2: p.param2,
+    } as BehaviorBinding
+}
+
 export function BindingEditor({
     keymap,
     setKeymap,
@@ -39,28 +49,17 @@ export function BindingEditor({
     const { selectedLayerIndex } = useLayerSelectionStore()
     const behaviors = useBehaviors()
 
-    // Compute effective layer index - clamp to valid bounds when out of range
     const effectiveLayerIndex = useMemo((): number => {
-        if (!keymap || keymap.layers.length === 0) {
-            return 0
-        }
+        if (!keymap || keymap.layers.length === 0) return 0
         return Math.min(
             Math.max(0, selectedLayerIndex),
             keymap.layers.length - 1,
         )
     }, [keymap, selectedLayerIndex])
 
-    // const sortedBehaviors = useMemo(
-    // 	() =>
-    // 		Object.values(behaviors).sort((a, b) =>
-    // 			a.displayName.localeCompare(b.displayName)
-    // 		),
-    // 	[behaviors]
-    // )
-
     const doUpdateBinding = useCallback(
         (binding: BehaviorBinding): void => {
-            if (!keymap || selectedKeyPosition === undefined) {
+            if (!service || !keymap || selectedKeyPosition === undefined) {
                 console.error(
                     "Can't update binding without a selected key position and loaded keymap",
                 )
@@ -70,77 +69,47 @@ export function BindingEditor({
             const layer = effectiveLayerIndex
             const layerId = keymap.layers[layer].id
             const keyPosition = selectedKeyPosition
-            const oldBinding = keymap.layers[layer].bindings[keyPosition]
+            const oldAction = keymap.layers[layer].keys[keyPosition]
+            const newAction = bindingToKeyAction(binding, behaviors, keymap)
 
             doIt?.(async (): Promise<() => Promise<void>> => {
-                const resp = await callRpc({
-                    keymap: {
-                        setLayerBinding: { layerId, keyPosition, binding },
-                    },
-                })
-
-                if (
-                    resp.keymap?.setLayerBinding ===
-                    SetLayerBindingResponse.SET_LAYER_BINDING_RESP_OK
-                ) {
+                try {
+                    await service.setKey(layerId, keyPosition, newAction)
                     setKeymap(
                         (prev: Keymap | undefined): Keymap | undefined => {
                             if (!prev) return prev
                             return produce(prev, (draft) => {
-                                draft.layers[layer].bindings[keyPosition] =
-                                    binding
+                                draft.layers[layer].keys[keyPosition] =
+                                    newAction
                             })
                         },
                     )
-                } else {
-                    toast.error(
-                        'Failed to set binding' + resp.keymap?.setLayerBinding,
-                    )
-                    // Log more details about the failed binding
+                } catch (e) {
+                    toast.error('Failed to set binding')
                     console.error('Failed binding details:', {
                         layerId,
                         keyPosition,
                         binding,
-                        setLayerBinding: resp.keymap?.setLayerBinding,
-                        response: resp,
-                        // Add more debugging info
-                        oldBinding,
-                        behaviorId: binding.behaviorId,
-                        param1: binding.param1,
-                        param2: binding.param2,
+                        error: e,
+                        oldAction,
                     })
                 }
 
                 return async (): Promise<void> => {
                     if (!service) return
-
-                    const resp = await callRpc({
-                        keymap: {
-                            setLayerBinding: {
-                                layerId,
-                                keyPosition,
-                                binding: oldBinding,
-                            },
-                        },
-                    })
-                    if (
-                        resp.keymap?.setLayerBinding ===
-                        SetLayerBindingResponse.SET_LAYER_BINDING_RESP_OK
-                    ) {
+                    try {
+                        await service.setKey(layerId, keyPosition, oldAction)
                         setKeymap(
                             (prev: Keymap | undefined): Keymap | undefined => {
                                 if (!prev) return prev
                                 return produce(prev, (draft) => {
-                                    draft.layers[layer].bindings[keyPosition] =
-                                        oldBinding
+                                    draft.layers[layer].keys[keyPosition] =
+                                        oldAction
                                 })
                             },
                         )
-                    } else {
-                        console.error(
-                            'Failed to set binding',
-                            resp.keymap?.setLayerBinding,
-                        )
+                    } catch (e) {
+                        console.error('Failed to undo set binding', e)
                     }
                 }
             })
@@ -152,6 +121,7 @@ export function BindingEditor({
             effectiveLayerIndex,
             selectedKeyPosition,
             setKeymap,
+            behaviors,
         ],
     )
 
@@ -161,11 +131,13 @@ export function BindingEditor({
             selectedKeyPosition == null ||
             !keymap.layers[effectiveLayerIndex] ||
             selectedKeyPosition >=
-                keymap.layers[effectiveLayerIndex].bindings.length
+                keymap.layers[effectiveLayerIndex].keys.length
         )
             return null
 
-        return keymap.layers[effectiveLayerIndex].bindings[selectedKeyPosition]
+        return actionToBinding(
+            keymap.layers[effectiveLayerIndex].keys[selectedKeyPosition],
+        )
     }, [keymap, effectiveLayerIndex, selectedKeyPosition])
 
     const behaviorList = useMemo(() => Object.values(behaviors), [behaviors])

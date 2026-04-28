@@ -1,8 +1,5 @@
 // Pattern check: Adapter (Tier 1) — extended — backs src/firmware/adapter.ts FirmwareAdapter; translates ZMK BehaviorBinding ↔ neutral KeyAction.
-import type {
-    BehaviorBinding,
-    Keymap as ZmkKeymap,
-} from '@zmkfirmware/zmk-studio-ts-client/keymap'
+import type { BehaviorBinding } from '@zmkfirmware/zmk-studio-ts-client/keymap'
 import type { GetBehaviorDetailsResponse } from '@zmkfirmware/zmk-studio-ts-client/behaviors'
 import type { KeyAction, KeyLabel } from '@firmware/types'
 import { HoldTapType, parseHoldTapBinding } from '@/lib/behaviors/holdTap'
@@ -35,7 +32,7 @@ function describeUsage(usage: number): string {
 function buildHoldTapLabel(
     binding: BehaviorBinding,
     behaviors: BehaviorMap,
-    keymap: Pick<ZmkKeymap, 'layers'>,
+    keymap: { layers: { name: string }[] },
 ): KeyLabel | undefined {
     const parsed = parseHoldTapBinding(binding, behaviors)
     if (!parsed || !parsed.hasTapAndHold || parsed.tapParam === undefined) {
@@ -66,7 +63,7 @@ function buildHoldTapLabel(
 export function buildKeyLabel(
     binding: BehaviorBinding,
     behaviors: BehaviorMap,
-    keymap: Pick<ZmkKeymap, 'layers'>,
+    keymap: { layers: { name: string }[] },
 ): KeyLabel {
     const holdTap = buildHoldTapLabel(binding, behaviors, keymap)
     if (holdTap) return holdTap
@@ -81,7 +78,7 @@ export function buildKeyLabel(
 export function bindingToKeyAction(
     binding: BehaviorBinding,
     behaviors: BehaviorMap,
-    keymap: Pick<ZmkKeymap, 'layers'>,
+    keymap: { layers: { name: string }[] },
 ): KeyAction {
     const behavior = behaviors[binding.behaviorId]
     const kind = behavior?.displayName || 'Unknown'

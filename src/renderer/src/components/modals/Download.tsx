@@ -1,4 +1,5 @@
-import { useState } from 'react'
+// pattern-check: skip mechanical port — uses neutral Keymap, fetches via service.getKeymap
+import { useEffect, useState } from 'react'
 import { Download as DownloadIcon, Copy, FileText } from 'lucide-react'
 import { Modal } from '@/ui/modal'
 import { Button } from '@/ui/button'
@@ -7,14 +8,13 @@ import { Label } from '@/ui/label'
 import { Separator } from '@/ui/separator'
 import { toast } from 'sonner'
 import useConnectionStore from '@/stores/connectionStore'
-import { useConnectedDeviceData } from '@/hooks/use-connected-device-data'
 import { useBehaviors } from '@/hooks/use-behaviors'
 import {
     generateZMKKeymapFile,
     generateZMKConfigFile,
     downloadConfigZip,
 } from '@firmware/zmk/export'
-import { Keymap } from '@zmkfirmware/zmk-studio-ts-client/keymap'
+import type { Keymap } from '@firmware/types'
 
 interface DownloadProps {
     opened?: boolean
@@ -23,14 +23,29 @@ interface DownloadProps {
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function Download(_props: DownloadProps): JSX.Element {
-    const { service, deviceName } = useConnectionStore()
+    const { service, deviceName, lockState } = useConnectionStore()
     const behaviors = useBehaviors()
 
-    const [keymap] = useConnectedDeviceData<Keymap>(
-        { keymap: { getKeymap: true } },
-        (keymap): Keymap | undefined => keymap?.keymap?.getKeymap,
-        true,
-    )
+    const [keymap, setKeymap] = useState<Keymap | undefined>(undefined)
+    useEffect(() => {
+        if (!service || lockState !== 'unlocked') {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setKeymap(undefined)
+            return
+        }
+        let cancelled = false
+        ;(async () => {
+            try {
+                const km = await service.getKeymap()
+                if (!cancelled) setKeymap(km)
+            } catch (e) {
+                console.error('Failed to fetch keymap for download', e)
+            }
+        })()
+        return (): void => {
+            cancelled = true
+        }
+    }, [service, lockState])
 
     const [keyboardName, setKeyboardName] = useState(
         deviceName || 'my-keyboard',

@@ -14,9 +14,7 @@ import {
     SidebarFooter,
 } from '@/ui/sidebar'
 import { DeviceMenu } from '@/features/connection/DeviceMenu'
-import { setKeymapRequest } from '@firmware/zmk/rpc/rpcEventsService'
-import { callRpc } from '@firmware/zmk/rpc/rpcCall'
-import { Keymap } from '@zmkfirmware/zmk-studio-ts-client/keymap'
+import type { Keymap } from '@firmware/types'
 import { produce } from 'immer'
 import { APP_VERSION } from '@/lib/constants'
 
@@ -51,13 +49,12 @@ export function Drawer(): JSX.Element {
 
         let ignore = false
         async function fetchKeymap(): Promise<void> {
-            const response = await callRpc({
-                keymap: { getKeymap: true },
-            })
-            const keymapData = response?.keymap?.getKeymap
-            console.log('Got the keymap!')
-            if (!ignore && keymapData) {
-                setKeymap(keymapData)
+            if (!service) return
+            try {
+                const km = await service.getKeymap()
+                if (!ignore) setKeymap(km)
+            } catch (e) {
+                console.error('Failed to fetch keymap', e)
             }
         }
 
@@ -90,12 +87,13 @@ export function Drawer(): JSX.Element {
         if (!service || !layouts) return
 
         void (async () => {
-            const result = await setKeymapRequest(
-                layouts,
-                selectedPhysicalLayoutIndex,
-            )
-            if (result) {
-                setKeymap(result)
+            try {
+                const km = await service.setActivePhysicalLayout(
+                    selectedPhysicalLayoutIndex,
+                )
+                setKeymap(km)
+            } catch (e) {
+                console.error('Failed to set active physical layout', e)
             }
         })()
     }, [service, layouts, selectedPhysicalLayoutIndex, setKeymap])

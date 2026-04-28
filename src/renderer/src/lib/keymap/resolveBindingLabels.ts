@@ -1,9 +1,8 @@
-// pattern-check: skip pure-extraction codemod from KeyboardLayout
-import type {
-    PhysicalLayout,
-    Keymap as KeymapMsg,
-} from '@zmkfirmware/zmk-studio-ts-client/keymap'
+// Pattern check: Adapter (Tier 1) — extended — backs src/firmware/adapter.ts FirmwareAdapter; resolves neutral KeyAction.params (ZmkBindingParams) into UI label descriptors using ZMK behavior metadata.
 import type { GetBehaviorDetailsResponse } from '@zmkfirmware/zmk-studio-ts-client/behaviors'
+
+import type { Keymap, PhysicalLayout } from '@firmware/types'
+import type { ZmkBindingParams } from '@firmware/zmk/actions'
 
 import { HoldTapType, parseHoldTapBinding } from '@/lib/behaviors/holdTap'
 import {
@@ -58,9 +57,9 @@ function describeUsage(usage: number): string {
 }
 
 function buildHoldTapDescriptor(
-    binding: { behaviorId: number; param1: number; param2: number },
+    binding: ZmkBindingParams,
     behaviors: BehaviorMap,
-    keymap: KeymapMsg,
+    keymap: Keymap,
 ): ResolvedHoldTapDescriptor | undefined {
     const parsed = parseHoldTapBinding(binding, behaviors)
     if (!parsed || !parsed.hasTapAndHold || parsed.tapParam === undefined) {
@@ -106,19 +105,19 @@ function buildHoldTapDescriptor(
 
 export function resolveBindingLabels(
     layout: PhysicalLayout,
-    keymap: KeymapMsg,
+    keymap: Keymap,
     behaviors: BehaviorMap,
     selectedLayerIndex: number,
 ): ResolvedBindingPosition[] {
     if (!keymap.layers[selectedLayerIndex]) return []
     return layout.keys.map((k, i) => {
-        const layerBindings = keymap.layers[selectedLayerIndex].bindings
-        const outOfRange = i >= layerBindings.length
-        const binding = outOfRange ? undefined : layerBindings[i]
-        const holdTap =
-            !outOfRange && binding
-                ? buildHoldTapDescriptor(binding, behaviors, keymap)
-                : undefined
+        const layerKeys = keymap.layers[selectedLayerIndex].keys
+        const outOfRange = i >= layerKeys.length
+        const action = outOfRange ? undefined : layerKeys[i]
+        const binding = action ? (action.params as ZmkBindingParams) : undefined
+        const holdTap = binding
+            ? buildHoldTapDescriptor(binding, behaviors, keymap)
+            : undefined
         const behaviorName = binding
             ? behaviors[binding.behaviorId]?.displayName || 'Unknown'
             : 'Unknown'
@@ -138,8 +137,8 @@ export function resolveBindingLabels(
             outOfRange,
             x: k.x / 100.0,
             y: k.y / 100.0,
-            width: k.width / 100,
-            height: k.height / 100.0,
+            width: k.w / 100,
+            height: k.h / 100.0,
             r: (k.r || 0) / 100.0,
             rx: (k.rx || 0) / 100.0,
             ry: (k.ry || 0) / 100.0,

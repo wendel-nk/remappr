@@ -203,6 +203,29 @@ export class ZmkKeyboardService implements KeyboardService {
         return got
     }
 
+    async getPhysicalLayouts(): Promise<{
+        layouts: import('@firmware/types').PhysicalLayout[]
+        activeLayoutId: number
+    }> {
+        const got = await this.ensureLayouts()
+        return {
+            layouts: got.layouts.map((l, i) => ({
+                id: i,
+                name: l.name,
+                keys: l.keys.map((k) => ({
+                    x: k.x,
+                    y: k.y,
+                    w: k.width,
+                    h: k.height,
+                    r: k.r,
+                    rx: k.rx,
+                    ry: k.ry,
+                })),
+            })),
+            activeLayoutId: got.activeLayoutIndex,
+        }
+    }
+
     async getKeymap(): Promise<Keymap> {
         if (Object.keys(this.behaviors).length === 0) await this.loadBehaviors()
         const layouts = await this.ensureLayouts()

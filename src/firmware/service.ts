@@ -30,6 +30,10 @@ export interface KeyboardService {
 
     listActionTypes(): Promise<ActionType[]>
     getKeymap(): Promise<Keymap>
+    getPhysicalLayouts(): Promise<{
+        layouts: import('./types').PhysicalLayout[]
+        activeLayoutId: number
+    }>
 
     setKey(layerId: number, position: number, action: KeyAction): Promise<void>
     setKeys(updates: KeyUpdate[]): Promise<void>

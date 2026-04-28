@@ -1,7 +1,7 @@
-import { PhysicalLayout } from '@zmkfirmware/zmk-studio-ts-client/keymap'
+// pattern-check: skip mechanical port — useLayout now reads from service.getPhysicalLayouts() and uses neutral PhysicalLayout
+import type { PhysicalLayout } from '@firmware/types'
 import { Dispatch, SetStateAction, useEffect, useState } from 'react'
 import useConnectionStore from '@/stores/connectionStore'
-import { callRpc } from '@firmware/zmk/rpc/rpcCall'
 
 interface UseLayoutsReturn {
     layouts: PhysicalLayout[] | undefined
@@ -32,18 +32,10 @@ export function useLayout(): UseLayoutsReturn {
             setLayouts(undefined)
 
             try {
-                const response = await callRpc({
-                    keymap: { getPhysicalLayouts: true },
-                })
-
+                const got = await service.getPhysicalLayouts()
                 if (!isCancelled) {
-                    const layoutsResponse =
-                        response?.keymap?.getPhysicalLayouts?.layouts
-                    const activeIndex =
-                        response?.keymap?.getPhysicalLayouts
-                            ?.activeLayoutIndex ?? 0
-                    setLayouts(layoutsResponse)
-                    setSelectedPhysicalLayoutIndex(activeIndex)
+                    setLayouts(got.layouts)
+                    setSelectedPhysicalLayoutIndex(got.activeLayoutId)
                 }
             } catch (error) {
                 if (!isCancelled) {

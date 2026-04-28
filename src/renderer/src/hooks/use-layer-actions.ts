@@ -1,15 +1,10 @@
+// pattern-check: skip mechanical port — uses service.{addLayer,removeLayer,renameLayer,restoreLayer} and mutates neutral Keymap draft
 import { useCallback } from 'react'
 import { toast } from 'sonner'
-import type { Keymap } from '@zmkfirmware/zmk-studio-ts-client/keymap'
+import type { Keymap, Layer } from '@firmware/types'
 import undoRedoStore from '@/stores/undoRedoStore'
 import useConnectionStore from '@/stores/connectionStore'
 import useLayerSelectionStore from '@/stores/layerSelectionStore'
-import {
-    addLayer,
-    changeName,
-    removeLayer,
-    restore,
-} from '@firmware/zmk/rpc/rpcLayerService'
 
 interface UseLayerActionsArgs {
     keymap?: Keymap
@@ -40,13 +35,34 @@ export function useLayerActions({
     const add = useCallback((): void => {
         if (!service || !setKeymap) return
         doIt?.(async () => {
-            const index = await addLayer(
-                keymap,
-                setKeymap,
-                setSelectedLayerIndex,
-            )
-            if (index < 0) return async () => {}
-            return async () => removeLayer(index, setKeymap)
+            try {
+                const newLayer = await service.addLayer()
+                const insertIndex = keymap?.layers.length ?? 0
+                setKeymap((draft) => {
+                    draft.layers.push(newLayer)
+                    draft.availableLayers--
+                })
+                setSelectedLayerIndex(insertIndex)
+                return async () => {
+                    try {
+                        await service.removeLayer(newLayer.id)
+                        setKeymap((draft) => {
+                            const i = draft.layers.findIndex(
+                                (l) => l.id === newLayer.id,
+                            )
+                            if (i >= 0) {
+                                draft.layers.splice(i, 1)
+                                draft.availableLayers++
+                            }
+                        })
+                    } catch (e) {
+                        console.error('Failed to undo addLayer', e)
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to add layer', e)
+                return async () => {}
+            }
         })
     }, [service, doIt, keymap, setKeymap, setSelectedLayerIndex])
 
@@ -57,19 +73,46 @@ export function useLayerActions({
                 toast.error('No keymap loaded')
                 return
             }
-            const index = layerIndex
-            const layerId = keymap.layers[index].id
+            const layerId = keymap.layers[layerIndex].id
             const currentLayersCount = keymap.layers.length
 
             doIt?.(async () => {
-                await removeLayer(index, setKeymap)
-                if (selectedLayerIndex >= currentLayersCount - 1) {
-                    setSelectedLayerIndex(Math.max(0, currentLayersCount - 2))
-                } else if (selectedLayerIndex > index) {
-                    setSelectedLayerIndex(selectedLayerIndex - 1)
+                try {
+                    await service.removeLayer(layerId)
+                    setKeymap((draft) => {
+                        const i = draft.layers.findIndex(
+                            (l) => l.id === layerId,
+                        )
+                        if (i >= 0) {
+                            draft.layers.splice(i, 1)
+                            draft.availableLayers++
+                        }
+                    })
+                    if (selectedLayerIndex >= currentLayersCount - 1) {
+                        setSelectedLayerIndex(
+                            Math.max(0, currentLayersCount - 2),
+                        )
+                    } else if (selectedLayerIndex > layerIndex) {
+                        setSelectedLayerIndex(selectedLayerIndex - 1)
+                    }
+                } catch (e) {
+                    console.error('Failed to remove layer', e)
                 }
-                return () =>
-                    restore(layerId, index, setKeymap, setSelectedLayerIndex)
+                return async () => {
+                    try {
+                        const restored: Layer = await service.restoreLayer(
+                            layerId,
+                            layerIndex,
+                        )
+                        setKeymap((draft) => {
+                            draft.layers.splice(layerIndex, 0, restored)
+                            draft.availableLayers--
+                        })
+                        setSelectedLayerIndex(layerIndex)
+                    } catch (e) {
+                        console.error('Failed to undo remove layer', e)
+                    }
+                }
             })
         },
         [
@@ -86,9 +129,25 @@ export function useLayerActions({
         (id: number, oldName: string, newName: string): void => {
             if (!service || !setKeymap) return
             doIt?.(async () => {
-                await changeName(id, newName, setKeymap)
+                try {
+                    await service.renameLayer(id, newName)
+                    setKeymap((draft) => {
+                        const layer = draft.layers.find((l) => l.id === id)
+                        if (layer) layer.name = newName
+                    })
+                } catch (e) {
+                    console.error('Failed to rename layer', e)
+                }
                 return async () => {
-                    await changeName(id, oldName, setKeymap)
+                    try {
+                        await service.renameLayer(id, oldName)
+                        setKeymap((draft) => {
+                            const layer = draft.layers.find((l) => l.id === id)
+                            if (layer) layer.name = oldName
+                        })
+                    } catch (e) {
+                        console.error('Failed to undo rename layer', e)
+                    }
                 }
             })
         },

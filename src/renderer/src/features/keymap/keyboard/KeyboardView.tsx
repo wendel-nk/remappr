@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Keymap } from '@zmkfirmware/zmk-studio-ts-client/keymap'
+import type { Keymap } from '@firmware/types'
 import { PhysicalLayoutCanvas, type KeyPosition } from './PhysicalLayoutCanvas'
 import { HidUsageLabel } from './HidUsageLabel'
 import type { HoldTapLabels } from './KeyButton'
@@ -11,7 +11,6 @@ import { KeyboardZoomSlider } from '../editor/KeyboardZoomSlider'
 import useConnectionStore from '@/stores/connectionStore'
 import useLayerSelectionStore from '@/stores/layerSelectionStore'
 import { useBehaviors } from '@/hooks/use-behaviors'
-import { getKeymapLayout } from '@firmware/zmk/rpc/rpcEventsService'
 import { useKeypressDetection } from '@/hooks/use-keypress-detection'
 import type { KeypressDetectionConfig } from '@/lib/keypress/keypressDetector'
 import {
@@ -110,13 +109,6 @@ export default function KeyboardView({
     useEffect(() => {
         setPressedKeys(new Set())
     }, [effectiveLayerIndex])
-
-    useEffect(() => {
-        if (!layouts) return
-        ;(async () => {
-            await getKeymapLayout(selectedPhysicalLayoutIndex, layouts)
-        })()
-    }, [selectedPhysicalLayoutIndex, service, layouts])
 
     const positions: KeyPosition[] = useMemo(() => {
         if (!layouts || !keymap || !behaviors) return []
