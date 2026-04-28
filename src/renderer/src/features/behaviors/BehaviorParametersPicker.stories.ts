@@ -23,6 +23,7 @@ const meta = {
             { name: 'Base', id: 0 },
             { id: 1, name: 'Num' },
         ],
+        activeSlot: 'param1',
         onParam1Changed: fn(),
         onParam2Changed: fn(),
     },

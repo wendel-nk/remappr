@@ -1,49 +1,32 @@
+// Pattern check: no GoF pattern (-) — rejected — pure picker dispatcher routes by activeSlot; no abstraction warranted.
 import { BehaviorBindingParametersSet } from '@zmkfirmware/zmk-studio-ts-client/behaviors'
 import { ParameterValuePicker } from './ParameterValuePicker'
 import { validateValue } from '@/lib/behaviors/parameters'
+
+export type ActiveSlot = 'param1' | 'param2'
 
 export interface BehaviorParametersPickerProps {
     param1?: number
     param2?: number
     metadata: BehaviorBindingParametersSet[]
     layers: { id: number; name: string }[]
+    activeSlot: ActiveSlot
     onParam1Changed: (value?: number) => void
     onParam2Changed: (value?: number) => void
-    onKeySelected?: (key: number | undefined) => void
-    onModifiersChanged?: (modifiers: number[]) => void
+    highlightedKeys?: number[]
+    holdInvalidHint?: string
 }
-
-interface SectionProps {
-    label: string
-    description: string
-    children: React.ReactNode
-}
-
-const Section = ({
-    label,
-    description,
-    children,
-}: SectionProps): JSX.Element => (
-    <div className="flex flex-col gap-2 rounded-md border border-border bg-card/50 p-3">
-        <div className="flex flex-col">
-            <h3 className="text-sm font-semibold text-foreground">{label}</h3>
-            <p className="text-xs text-muted-foreground">{description}</p>
-        </div>
-        <div className="flex flex-row flex-wrap items-center gap-2">
-            {children}
-        </div>
-    </div>
-)
 
 export const BehaviorParametersPicker = ({
     param1,
     param2,
     metadata,
     layers,
+    activeSlot,
     onParam1Changed,
     onParam2Changed,
-    onKeySelected,
-    onModifiersChanged,
+    highlightedKeys,
+    holdInvalidHint,
 }: BehaviorParametersPickerProps): JSX.Element => {
     const isHoldTap = (metadata[0]?.param2?.length ?? 0) > 0
 
@@ -58,62 +41,51 @@ export const BehaviorParametersPicker = ({
               )
             : undefined
 
-    const param1Picker = (
-        <ParameterValuePicker
-            values={metadata.flatMap((m) => m.param1)}
-            value={param1}
-            layers={layers}
-            onValueChanged={onParam1Changed}
-            onKeySelected={onKeySelected}
-            onModifiersChanged={onModifiersChanged}
-        />
-    )
-
-    const showParam2 = (matchedSet?.param2?.length || 0) > 0
-    const param2Picker = showParam2 ? (
-        <ParameterValuePicker
-            values={matchedSet!.param2}
-            value={param2}
-            layers={layers}
-            onValueChanged={onParam2Changed}
-            onKeySelected={onKeySelected}
-            onModifiersChanged={onModifiersChanged}
-        />
-    ) : null
+    const param1Values = metadata.flatMap((m) => m.param1 ?? [])
+    const param2Values = matchedSet?.param2 ?? []
 
     if (!isHoldTap) {
         return (
-            <div className="flex flex-col gap-3 mt-3">
-                <div className="flex flex-row flex-wrap items-center gap-2">
-                    {param1Picker}
-                </div>
-                {param2Picker && (
-                    <div className="flex flex-row flex-wrap items-center gap-2">
-                        {param2Picker}
-                    </div>
-                )}
+            <div className="flex flex-row flex-wrap items-center gap-2 mt-3">
+                <ParameterValuePicker
+                    values={param1Values}
+                    value={param1}
+                    layers={layers}
+                    highlightedKeys={highlightedKeys}
+                    onValueChanged={onParam1Changed}
+                />
             </div>
         )
     }
 
+    const activeIsParam1 = activeSlot === 'param1'
+    const activeValues = activeIsParam1 ? param1Values : param2Values
+    const activeValue = activeIsParam1 ? param1 : param2
+    const activeForward = activeIsParam1 ? onParam1Changed : onParam2Changed
+
     return (
-        <div className="flex flex-col gap-3 mt-3">
-            <Section
-                label="Hold Action"
-                description="Activated when the key is held"
-            >
-                {param1Picker}
-            </Section>
-            <Section
-                label="Tap Action"
-                description="Activated when the key is tapped"
-            >
-                {param2Picker ?? (
+        <div className="flex flex-col gap-2 mt-3">
+            {holdInvalidHint && activeSlot === 'param2' && (
+                <p className="text-xs text-amber-500 italic">
+                    {holdInvalidHint}
+                </p>
+            )}
+            <div className="flex flex-row flex-wrap items-center gap-2">
+                {activeValues.length === 0 ? (
                     <p className="text-xs text-muted-foreground italic">
-                        Select a Hold Action to configure the tap key
+                        Pick a Hold value to configure the Tap action.
                     </p>
+                ) : (
+                    <ParameterValuePicker
+                        key={activeSlot}
+                        values={activeValues}
+                        value={activeValue}
+                        layers={layers}
+                        highlightedKeys={highlightedKeys}
+                        onValueChanged={activeForward}
+                    />
                 )}
-            </Section>
+            </div>
         </div>
     )
 }

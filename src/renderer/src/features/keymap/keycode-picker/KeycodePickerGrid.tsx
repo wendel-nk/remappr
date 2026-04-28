@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { keyboards } from '@/data/keys'
 import KeycodeButton from './KeycodeButton.tsx'
 import { Key } from 'react-aria-components'
@@ -9,9 +9,6 @@ import {
     hidUsagePageAndIdFromUsage,
 } from '@/lib/behaviors/hidUsages'
 import {
-    Mods,
-    all_mods,
-    modsToFlags,
     maskMods,
     filterKeysBySearch,
     splitKeysByPosition,
@@ -19,21 +16,49 @@ import {
     maxBottomForPositioned,
 } from '@/lib/keymap/keycodeGrid'
 import { useKeycodeFilter } from '@/hooks/use-keycode-filter'
-import { ModifierChipRow } from './ModifierChipRow'
 
+// Pattern check: no GoF pattern (-) — rejected — added optional prop for multi-highlight, no abstraction warranted.
 interface KeycodePickerGridProps {
     value?: number
     label?: string
+    highlightedKeys?: number[]
     onValueChanged?: (value?: number) => void
-    onKeySelected?: (key: number | undefined) => void
-    onModifiersChanged?: (modifiers: Mods[]) => void
 }
 
 const CONTAINER_MAX_HEIGHT = 350
 
+const KEYBOARD_PAGE = 7
+const MOD_ID_LOW = 0xe0
+const MOD_ID_HIGH = 0xe7
+
+function isModifierKey(page: number, id: number): boolean {
+    return page === KEYBOARD_PAGE && id >= MOD_ID_LOW && id <= MOD_ID_HIGH
+}
+
+function idToModBit(id: number): number {
+    return 1 << (id - MOD_ID_LOW)
+}
+
+function emitFromState(
+    base: number | undefined,
+    flags: number,
+): number | undefined {
+    if (base !== undefined) return base | (flags << 24)
+    if (flags === 0) return undefined
+    for (let i = 0; i < 8; i++) {
+        const bit = 1 << i
+        if (flags & bit) {
+            const baseHid = (KEYBOARD_PAGE << 16) | (MOD_ID_LOW + i)
+            return baseHid | ((flags & ~bit) << 24)
+        }
+    }
+    return undefined
+}
+
 export function KeycodePickerGrid({
     value,
     onValueChanged,
+    highlightedKeys,
 }: KeycodePickerGridProps): JSX.Element {
     const {
         searchQuery,
@@ -43,44 +68,48 @@ export function KeycodePickerGrid({
         keyboardsWithMatches,
     } = useKeycodeFilter()
 
-    const [selectedKey, setSelectedKey] = useState<number | undefined>(
-        undefined,
-    )
-
-    const mods = useMemo((): string[] => {
-        const flags = value ? value >> 24 : 0
-        return all_mods
-            .filter((m: Mods): boolean => (m & flags) !== 0)
-            .map((m: Mods): string => m.toLocaleString())
-    }, [value])
+    const [modFlags, setModFlags] = useState<number>(0)
+    const [baseKey, setBaseKey] = useState<number | undefined>(undefined)
 
     const handleKeySelect = useCallback(
         (e: Key | null) => {
-            let v = typeof e == 'number' ? e : undefined
-            if (v !== undefined) {
-                const mod_flags = modsToFlags(mods.map((m) => parseInt(m)))
-                v = v | (mod_flags << 24)
+            if (typeof e !== 'number') {
+                setBaseKey(undefined)
+                setModFlags(0)
+                onValueChanged?.(undefined)
+                return
             }
-            setSelectedKey(v)
-            onValueChanged?.(v)
+            const [page, id] = hidUsagePageAndIdFromUsage(e)
+            if (isModifierKey(page, id)) {
+                const nextFlags = modFlags ^ idToModBit(id)
+                setModFlags(nextFlags)
+                onValueChanged?.(emitFromState(baseKey, nextFlags))
+                return
+            }
+            setBaseKey(e)
+            onValueChanged?.(emitFromState(e, modFlags))
         },
-        [onValueChanged, mods],
-    )
-
-    const handleModifiersChanged = useCallback(
-        (next: string[]): void => {
-            const mod_flags = modsToFlags(next.map((m) => parseInt(m)))
-            const base = value !== undefined ? maskMods(value) : 0
-            const v = base | (mod_flags << 24)
-            setSelectedKey(v)
-            onValueChanged?.(v)
-        },
-        [onValueChanged, value],
+        [baseKey, modFlags, onValueChanged],
     )
 
     useEffect(() => {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setSelectedKey(value)
+        /* eslint-disable react-hooks/set-state-in-effect */
+        if (value === undefined || value === 0) {
+            setBaseKey(undefined)
+            setModFlags(0)
+            return
+        }
+        const flags = (value >> 24) & 0xff
+        const base = maskMods(value)
+        const [page, id] = hidUsagePageAndIdFromUsage(base)
+        if (flags === 0 && isModifierKey(page, id)) {
+            setModFlags(idToModBit(id))
+            setBaseKey(undefined)
+        } else {
+            setModFlags(flags)
+            setBaseKey(base)
+        }
+        /* eslint-enable react-hooks/set-state-in-effect */
     }, [value])
 
     useEffect(() => {
@@ -118,7 +147,17 @@ export function KeycodePickerGrid({
     }, [value, setActiveTab])
 
     function isKeySelected(keyId: number): boolean {
-        return selectedKey === keyId
+        const [page, id] = hidUsagePageAndIdFromUsage(keyId)
+        if (isModifierKey(page, id)) {
+            return (modFlags & idToModBit(id)) !== 0
+        }
+        if (baseKey !== undefined && baseKey === keyId) {
+            return true
+        }
+        if (highlightedKeys?.some((k) => maskMods(k) === keyId)) {
+            return true
+        }
+        return false
     }
 
     return (
@@ -148,13 +187,6 @@ export function KeycodePickerGrid({
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-64 flex-shrink-0 flex"
-                />
-            </div>
-
-            <div className="mb-4">
-                <ModifierChipRow
-                    selected={mods}
-                    onChange={handleModifiersChanged}
                 />
             </div>
 

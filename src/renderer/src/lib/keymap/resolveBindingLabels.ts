@@ -14,11 +14,13 @@ import {
     hid_usage_get_labels,
     hidUsagePageAndIdFromUsage,
 } from '@/lib/behaviors/hidUsages'
+import { displayNameToBinding } from '@/lib/keymap/displayNameToBinding'
 
 type BehaviorMap = Record<number, GetBehaviorDetailsResponse>
 
 export interface ResolvedHoldTapDescriptor {
     behaviorName: string
+    behaviorBinding: string
     tapParam: number
     tapDesc: string
     holdNodeKind: 'layer' | 'usage'
@@ -33,6 +35,7 @@ export interface ResolvedHoldTapDescriptor {
 export interface ResolvedBindingPosition {
     id: string
     header: string
+    behaviorBinding?: string
     holdTap?: ResolvedHoldTapDescriptor
     bindingParam1?: number
     behaviorName?: string
@@ -65,6 +68,7 @@ function buildHoldTapDescriptor(
     }
 
     const behaviorName = behaviors[binding.behaviorId]?.displayName || ''
+    const behaviorBinding = displayNameToBinding(behaviorName)
     const tapDesc = describeUsage(parsed.tapParam)
 
     if (parsed.type === HoldTapType.LayerTap) {
@@ -75,6 +79,7 @@ function buildHoldTapDescriptor(
         const holdDesc = layerName ? `${mo} (${layerLabel})` : mo
         return {
             behaviorName,
+            behaviorBinding,
             tapParam: parsed.tapParam,
             tapDesc,
             holdNodeKind: 'layer',
@@ -89,6 +94,7 @@ function buildHoldTapDescriptor(
     const holdDesc = describeUsage(parsed.holdParam)
     return {
         behaviorName,
+        behaviorBinding,
         tapParam: parsed.tapParam,
         tapDesc,
         holdNodeKind: 'usage',
@@ -117,9 +123,13 @@ export function resolveBindingLabels(
             ? behaviors[binding.behaviorId]?.displayName || 'Unknown'
             : 'Unknown'
 
+        const behaviorBinding = binding
+            ? displayNameToBinding(behaviorName)
+            : undefined
         return {
             id: `${keymap.layers[selectedLayerIndex].id}-${i}`,
             header: behaviorName,
+            behaviorBinding,
             holdTap,
             bindingParam1: binding?.param1,
             behaviorName: binding

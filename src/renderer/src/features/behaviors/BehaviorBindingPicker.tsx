@@ -1,3 +1,4 @@
+// Pattern check: no GoF pattern (-) — rejected — inlines slot bar with selector, auto-advance, multi-key cluster; no GoF abstraction warranted.
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import {
@@ -5,35 +6,13 @@ import {
     BehaviorBindingParametersSet,
 } from '@zmkfirmware/zmk-studio-ts-client/behaviors'
 import { BehaviorBinding } from '@zmkfirmware/zmk-studio-ts-client/keymap'
-import { BehaviorParametersPicker } from './BehaviorParametersPicker'
+import {
+    BehaviorParametersPicker,
+    type ActiveSlot,
+} from './BehaviorParametersPicker'
 import { BehaviorSelector } from './BehaviorSelector'
+import { SlotBar, type SlotDescriptor, type SlotKind } from './SlotBar'
 import { validateValue } from '@/lib/behaviors/parameters'
-import { SelectedKeycodeCard } from '@/features/keymap/keycode-picker/SelectedKeycodeCard'
-import { KeyHoverPreview } from '@/features/keymap/keyboard/KeyHoverPreview'
-
-// Modifier key definitions (same as HidUsagePicker)
-enum Mods {
-    LeftControl = 0x01,
-    LeftShift = 0x02,
-    LeftAlt = 0x04,
-    LeftGUI = 0x08,
-    RightControl = 0x10,
-    RightShift = 0x20,
-    RightAlt = 0x40,
-    RightGUI = 0x80,
-}
-
-// Map keyboard IDs to modifier flags
-const KEY_ID_TO_MOD: Record<number, Mods> = {
-    224: Mods.LeftControl, // Keyboard LeftControl
-    225: Mods.LeftShift, // Keyboard LeftShift
-    226: Mods.LeftAlt, // Keyboard LeftAlt
-    227: Mods.LeftGUI, // Keyboard Left GUI
-    228: Mods.RightControl, // Keyboard RightControl
-    229: Mods.RightShift, // Keyboard RightShift
-    230: Mods.RightAlt, // Keyboard RightAlt
-    231: Mods.RightGUI, // Keyboard Right GUI
-}
 
 export interface BehaviorBindingPickerProps {
     binding: BehaviorBinding
@@ -66,6 +45,20 @@ function validateBinding(
     return validateValue(layerIds, param2, matchingSet.param2)
 }
 
+function descriptorKind(
+    value:
+        | {
+              hidUsage?: unknown
+              layerId?: unknown
+          }
+        | undefined,
+): SlotKind {
+    if (!value) return 'plain'
+    if (value.hidUsage) return 'hidUsage'
+    if (value.layerId) return 'layer'
+    return 'plain'
+}
+
 export const BehaviorBindingPicker = ({
     binding,
     layers,
@@ -75,11 +68,7 @@ export const BehaviorBindingPicker = ({
     const [behaviorId, setBehaviorId] = useState(binding?.behaviorId ?? 0)
     const [param1, setParam1] = useState<number | undefined>(binding?.param1)
     const [param2, setParam2] = useState<number | undefined>(binding?.param2)
-
-    const [selectedKey, setSelectedKey] = useState<number | undefined>(
-        undefined,
-    )
-    const [selectedModifiers, setSelectedModifiers] = useState<Mods[]>([])
+    const [activeSlot, setActiveSlot] = useState<ActiveSlot>('param1')
 
     const metadata = useMemo(
         (): GetBehaviorDetailsResponse['metadata'] =>
@@ -87,16 +76,32 @@ export const BehaviorBindingPicker = ({
         [behaviorId, behaviors],
     )
 
-    const isKeysLayoutActive = useMemo((): boolean => {
-        if (!metadata.length) return false
-        const allValues = metadata.flatMap((m) => [
-            ...(m.param1 ?? []),
-            ...(m.param2 ?? []),
-        ])
-        return allValues.some((v) => v.hidUsage !== undefined)
-    }, [metadata])
+    const matchedSet = useMemo(
+        () =>
+            param1 !== undefined
+                ? metadata.find((s) =>
+                      validateValue(
+                          layers.map((l) => l.id),
+                          param1,
+                          s.param1,
+                      ),
+                  )
+                : undefined,
+        [metadata, layers, param1],
+    )
 
-    // Sync local edit state when binding prop changes from outside (e.g. undo/redo).
+    const isHoldTap = (metadata[0]?.param2?.length ?? 0) > 0
+    const param1Descriptor = metadata[0]?.param1?.[0]
+    const param2Descriptor = matchedSet?.param2?.[0]
+    const param1Kind = descriptorKind(param1Descriptor)
+    const param2Kind = descriptorKind(param2Descriptor)
+    const isParam1HidUsage = param1Kind === 'hidUsage'
+
+    const holdInvalidHint =
+        isHoldTap && param2 !== undefined && param2 !== 0 && !matchedSet
+            ? 'Pick a Hold value — the Tap binding will be sent once Hold is valid.'
+            : undefined
+
     useEffect((): void => {
         if (!binding) {
             return
@@ -152,6 +157,7 @@ export const BehaviorBindingPicker = ({
         setBehaviorId(selectedBehaviorId)
         setParam1(0)
         setParam2(0)
+        setActiveSlot('param1')
         dispatchIfValid({
             behaviorId: selectedBehaviorId,
             param1: 0,
@@ -162,91 +168,119 @@ export const BehaviorBindingPicker = ({
     const handleParam1Changed = (value?: number): void => {
         setParam1(value)
         dispatchIfValid({ behaviorId, param1: value, param2 })
+        if (isHoldTap && value !== undefined && value !== 0) {
+            setActiveSlot('param2')
+        }
     }
 
     const handleParam2Changed = (value?: number): void => {
         setParam2(value)
         dispatchIfValid({ behaviorId, param1, param2: value })
-    }
-
-    const handleClearAll = (): void => {
-        setSelectedKey(undefined)
-        setSelectedModifiers([])
-    }
-
-    const handleRemoveKey = (): void => {
-        setSelectedKey(undefined)
-    }
-
-    const handleRemoveModifier = (keyId: number): void => {
-        const modifier = KEY_ID_TO_MOD[keyId]
-        if (modifier) {
-            setSelectedModifiers((prev: Mods[]): Mods[] =>
-                prev.filter((m: Mods): boolean => m !== modifier),
-            )
+        if (isHoldTap && value !== undefined && value !== 0) {
+            setActiveSlot('param1')
         }
     }
 
-    const handleKeySelected = (key: number | undefined): void => {
-        setSelectedKey(key)
+    const layerNameFor = (value?: number): string | undefined => {
+        if (value === undefined) return undefined
+        return layers.find((l) => l.id === value)?.name
     }
 
-    const handleModifiersChanged = (modifiers: number[]): void => {
-        setSelectedModifiers(modifiers)
-    }
+    const holdTapSlots = useMemo<SlotDescriptor[]>(() => {
+        if (!isHoldTap) return []
+        return [
+            {
+                id: 'param1',
+                label: param1Descriptor?.name?.toString() ?? 'Hold',
+                value: param1,
+                kind: param1Kind,
+                layerName: layerNameFor(param1),
+                inactiveBorderClass: 'border-secondary',
+                onRemove: () => {
+                    setParam1(0)
+                    setParam2(0)
+                    setActiveSlot('param1')
+                    dispatchIfValid({ behaviorId, param1: 0, param2: 0 })
+                },
+            },
+            {
+                id: 'param2',
+                label: param2Descriptor?.name?.toString() ?? 'Tap',
+                value: param2,
+                kind: param2Kind,
+                layerName: layerNameFor(param2),
+                inactiveBorderClass: 'border-accent',
+                disabled: !matchedSet,
+                disabledHint: 'Pick a Hold value first',
+                onRemove: () => {
+                    setParam2(0)
+                    dispatchIfValid({ behaviorId, param1, param2: 0 })
+                },
+            },
+        ]
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [
+        isHoldTap,
+        param1,
+        param2,
+        param1Descriptor,
+        param2Descriptor,
+        param1Kind,
+        param2Kind,
+        matchedSet,
+        layers,
+        behaviorId,
+        dispatchIfValid,
+    ])
 
-    const liveBinding: BehaviorBinding = useMemo(
-        () => ({
-            behaviorId,
-            param1: param1 ?? 0,
-            param2: param2 ?? 0,
-        }),
-        [behaviorId, param1, param2],
-    )
+    const highlightedKeys = useMemo<number[] | undefined>(() => {
+        if (isHoldTap && isParam1HidUsage) {
+            const out: number[] = []
+            if (param1 !== undefined && param1 !== 0) out.push(param1)
+            if (
+                param2 !== undefined &&
+                param2 !== 0 &&
+                param2Kind === 'hidUsage'
+            ) {
+                out.push(param2)
+            }
+            return out
+        }
+        return undefined
+    }, [isHoldTap, isParam1HidUsage, param1, param2, param2Kind])
 
     return (
-        <div className="flex flex-row w-full gap-4">
-            <div className="flex-shrink-0">
-                <KeyHoverPreview
-                    binding={liveBinding}
+        <div className="flex flex-col w-full gap-3">
+            <div className="flex flex-row flex-wrap gap-3 items-center">
+                <BehaviorSelector
                     behaviors={behaviors}
-                    layers={layers}
+                    selectedBehaviorId={behaviorId}
+                    onBehaviorSelected={handleBehaviorSelected}
+                    placeholder="Select behavior..."
                 />
-            </div>
-
-            <div className="flex flex-col flex-1">
-                <div className="flex flex-row flex-1 gap-3 items-start">
-                    <BehaviorSelector
-                        behaviors={behaviors}
-                        selectedBehaviorId={behaviorId}
-                        onBehaviorSelected={handleBehaviorSelected}
-                        placeholder="Select behavior..."
+                {isHoldTap && (
+                    <SlotBar
+                        slots={holdTapSlots}
+                        activeSlotId={activeSlot}
+                        onActivate={(id) => setActiveSlot(id as ActiveSlot)}
                     />
-                    {isKeysLayoutActive && (
-                        <SelectedKeycodeCard
-                            selectedKey={selectedKey}
-                            selectedModifiers={selectedModifiers}
-                            onClearAll={handleClearAll}
-                            onRemoveKey={handleRemoveKey}
-                            onRemoveModifier={handleRemoveModifier}
-                        />
-                    )}
-                </div>
-                {metadata && (
-                    <div className="flex-1">
-                        <BehaviorParametersPicker
-                            metadata={metadata}
-                            param1={param1}
-                            param2={param2}
-                            layers={layers}
-                            onParam1Changed={handleParam1Changed}
-                            onParam2Changed={handleParam2Changed}
-                            onKeySelected={handleKeySelected}
-                            onModifiersChanged={handleModifiersChanged}
-                        />
-                    </div>
                 )}
             </div>
+            {metadata && (
+                <div className="flex-1">
+                    <BehaviorParametersPicker
+                        metadata={metadata}
+                        param1={param1}
+                        param2={param2}
+                        layers={layers}
+                        activeSlot={activeSlot}
+                        onParam1Changed={handleParam1Changed}
+                        onParam2Changed={handleParam2Changed}
+                        highlightedKeys={highlightedKeys}
+                        holdInvalidHint={holdInvalidHint}
+                    />
+                </div>
+            )}
         </div>
     )
 }

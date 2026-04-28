@@ -130,6 +130,7 @@ export default function KeyboardView({
         ).map((p) => ({
             id: p.id,
             header: p.header,
+            behaviorBinding: p.behaviorBinding,
             holdTap: p.holdTap ? holdTapToLabels(p.holdTap) : undefined,
             x: p.x,
             y: p.y,
