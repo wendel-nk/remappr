@@ -35,7 +35,7 @@ export function BindingEditor({
     setSelectedKeyPosition,
 }: BindingEditorProps): JSX.Element {
     const doIt = undoRedoStore((s) => s.doIt)
-    const { connection } = useConnectionStore()
+    const { service } = useConnectionStore()
     const { selectedLayerIndex } = useLayerSelectionStore()
     const behaviors = useBehaviors()
 
@@ -112,7 +112,7 @@ export function BindingEditor({
                 }
 
                 return async (): Promise<void> => {
-                    if (!connection) return
+                    if (!service) return
 
                     const resp = await callRpc({
                         keymap: {
@@ -146,7 +146,7 @@ export function BindingEditor({
             })
         },
         [
-            connection,
+            service,
             keymap,
             doIt,
             effectiveLayerIndex,

@@ -5,10 +5,10 @@ import useConnectionStore from '@/stores/connectionStore'
 import { Modal } from '@/ui/modal'
 
 export const UnlockModal = (): JSX.Element => {
-    const { connection, lockState } = useConnectionStore()
+    const { service, lockState } = useConnectionStore()
     const open = useMemo(
-        (): boolean => !!connection && lockState != 'unlocked',
-        [connection, lockState],
+        (): boolean => !!service && lockState != 'unlocked',
+        [service, lockState],
     )
 
     return (

@@ -1,4 +1,5 @@
 // Pattern check: Adapter (Tier 1) — extended — backs src/firmware/adapter.ts FirmwareAdapter; bridges UI connect flow into ZmkAdapter.connect + ZmkKeyboardService.
+// pattern-check: skip — drops setConnection parameter, consolidates onto setService; signature simplification only
 import {
     call_rpc,
     create_rpc_connection as createRpcConnection,
@@ -15,6 +16,11 @@ import { publish } from '@/hooks/use-pub-sub'
 import { rememberConnectedDeviceName } from '@/transport/web-serial'
 
 import { ZmkKeyboardService } from '../service'
+
+type SetService = (
+    service: KeyboardService | null,
+    communication?: 'serial' | 'ble',
+) => void
 
 interface DeviceInfoDetails {
     name: string
@@ -49,11 +55,7 @@ async function probeDeviceInfo(
 
 export async function connectDevice(
     transport: RpcTransport,
-    setConnection: (
-        conn: RpcConnection | null,
-        communication?: 'serial' | 'ble',
-    ) => void,
-    setService: (service: KeyboardService | null) => void,
+    setService: SetService,
     setConnectedDeviceName: (name: string | null) => void,
     signal: AbortSignal,
     communication: 'serial' | 'ble',
@@ -77,7 +79,6 @@ export async function connectDevice(
     })
     service.onClosed(() => {
         setConnectedDeviceName(null)
-        setConnection(null)
         setService(null)
     })
 
@@ -85,6 +86,5 @@ export async function connectDevice(
     if (communication === 'serial') {
         rememberConnectedDeviceName(details.name)
     }
-    setService(service)
-    setConnection(conn, communication)
+    setService(service, communication)
 }

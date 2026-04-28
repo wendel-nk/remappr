@@ -21,7 +21,7 @@ import { produce } from 'immer'
 import { APP_VERSION } from '@/lib/constants'
 
 export function Drawer(): JSX.Element {
-    const { connection, lockState } = useConnectionStore()
+    const { service, lockState } = useConnectionStore()
     const { setSelectedLayerIndex } = useLayerSelectionStore()
     const { keymap, setKeymap, resetKeymap } = useKeymapStore()
     const {
@@ -42,9 +42,9 @@ export function Drawer(): JSX.Element {
         [setKeymap],
     )
 
-    // Fetch keymap when connection changes or becomes unlocked
+    // Fetch keymap when service changes or becomes unlocked
     useEffect(() => {
-        if (!connection || lockState !== 'unlocked') {
+        if (!service || lockState !== 'unlocked') {
             resetKeymap()
             return
         }
@@ -65,12 +65,12 @@ export function Drawer(): JSX.Element {
         return (): void => {
             ignore = true
         }
-    }, [connection, lockState, setKeymap, resetKeymap])
+    }, [service, lockState, setKeymap, resetKeymap])
 
-    // Reset the layer selection whenever the connection is swapped or locked state changes
+    // Reset the layer selection whenever the service is swapped or locked state changes
     useEffect(() => {
         setSelectedLayerIndex(0)
-    }, [connection, lockState, setSelectedLayerIndex])
+    }, [service, lockState, setSelectedLayerIndex])
 
     const doSelectPhysicalLayout = useCallback(
         (i: number): void => {
@@ -87,7 +87,7 @@ export function Drawer(): JSX.Element {
     )
 
     useEffect(() => {
-        if (!connection || !layouts) return
+        if (!service || !layouts) return
 
         void (async () => {
             const result = await setKeymapRequest(
@@ -98,7 +98,7 @@ export function Drawer(): JSX.Element {
                 setKeymap(result)
             }
         })()
-    }, [connection, layouts, selectedPhysicalLayoutIndex, setKeymap])
+    }, [service, layouts, selectedPhysicalLayoutIndex, setKeymap])
 
     return (
         <Sidebar collapsible="icon" variant="inset">

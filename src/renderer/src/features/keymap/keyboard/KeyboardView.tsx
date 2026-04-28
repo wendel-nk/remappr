@@ -47,7 +47,7 @@ export default function KeyboardView({
     const { selectedLayerIndex, setSelectedLayerIndex } =
         useLayerSelectionStore()
     const behaviors = useBehaviors()
-    const { connection } = useConnectionStore()
+    const { service } = useConnectionStore()
 
     const effectiveLayerIndex = useMemo(() => {
         if (!keymap || keymap.layers.length === 0) return 0
@@ -60,7 +60,7 @@ export default function KeyboardView({
     useEffect(() => {
         setSelectedLayerIndex(0)
         setSelectedKeyPosition(undefined)
-    }, [connection, setSelectedLayerIndex, setSelectedKeyPosition])
+    }, [service, setSelectedLayerIndex, setSelectedKeyPosition])
 
     const [keymapScale, setKeymapScale] = useLocalStorageState<LayoutZoom>(
         'keymapScale',
@@ -116,7 +116,7 @@ export default function KeyboardView({
         ;(async () => {
             await getKeymapLayout(selectedPhysicalLayoutIndex, layouts)
         })()
-    }, [selectedPhysicalLayoutIndex, connection, layouts])
+    }, [selectedPhysicalLayoutIndex, service, layouts])
 
     const positions: KeyPosition[] = useMemo(() => {
         if (!layouts || !keymap || !behaviors) return []

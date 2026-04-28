@@ -29,7 +29,7 @@ export function useLayerDragReorder({
     setKeymap,
 }: UseLayerDragReorderArgs): UseLayerDragReorderResult {
     const { doIt } = undoRedoStore()
-    const { connection } = useConnectionStore()
+    const { service } = useConnectionStore()
     const { setSelectedLayerIndex } = useLayerSelectionStore()
 
     const sourceRef = useRef<number | null>(null)
@@ -38,7 +38,7 @@ export function useLayerDragReorder({
 
     const performMove = useCallback(
         (start: number, dest: number): void => {
-            if (!connection || !setKeymap) return
+            if (!service || !setKeymap) return
             if (start === dest) return
             doIt?.(async () => {
                 await moveLayer(start, dest, setKeymap, setSelectedLayerIndex)
@@ -46,7 +46,7 @@ export function useLayerDragReorder({
                     moveLayer(dest, start, setKeymap, setSelectedLayerIndex)
             })
         },
-        [connection, doIt, setKeymap, setSelectedLayerIndex],
+        [service, doIt, setKeymap, setSelectedLayerIndex],
     )
 
     const handlersFor = useCallback(

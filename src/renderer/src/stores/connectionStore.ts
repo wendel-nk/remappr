@@ -1,22 +1,19 @@
-// pattern-check: skip add-field codemod — extends ConnectionState with neutral KeyboardService alongside RpcConnection
+// pattern-check: skip mechanical drop-field codemod — removes RpcConnection from store; service is the sole connection handle
 import { create, StateCreator } from 'zustand'
 import { devtools } from 'zustand/middleware'
-import { RpcConnection } from '@zmkfirmware/zmk-studio-ts-client'
 import type { KeyboardService } from '@firmware/service'
 import type { LockState } from '@firmware/types'
 
 interface ConnectionState {
-    connection: RpcConnection | null
     service: KeyboardService | null
     communication: 'serial' | 'ble' | null
     deviceName: string | null
     lockState: LockState
     connectionAbort: AbortController
-    setConnection: (
-        connection: RpcConnection | null,
+    setService: (
+        service: KeyboardService | null,
         communication?: 'serial' | 'ble',
     ) => void
-    setService: (service: KeyboardService | null) => void
     setDeviceName: (name: string | null) => void
     setLockState: (state: LockState) => void
     setConnectionAbort: (abort: AbortController) => void
@@ -32,8 +29,8 @@ const connectionMiddleware =
         config(
             (args, replace) => {
                 const next = args as Partial<ConnectionState>
-                if ('connection' in next) {
-                    set({ showConnectionModal: next.connection === null })
+                if ('service' in next) {
+                    set({ showConnectionModal: next.service === null })
                 }
                 set(args, replace as false | undefined)
             },
@@ -44,21 +41,18 @@ const connectionMiddleware =
 const useConnectionStore = create<ConnectionState>()(
     devtools(
         connectionMiddleware((set, get) => ({
-            connection: null,
             service: null,
             communication: null,
             deviceName: null,
             lockState: 'locked' as LockState,
             connectionAbort: new AbortController(),
-            setConnection: (connection, communication) =>
-                set({ connection, communication: communication ?? null }),
-            setService: (service) => set({ service }),
+            setService: (service, communication) =>
+                set({ service, communication: communication ?? null }),
             setDeviceName: (name) => set({ deviceName: name }),
             setLockState: (state) => set({ lockState: state }),
             setConnectionAbort: (abort) => set({ connectionAbort: abort }),
             resetConnection: () =>
                 set({
-                    connection: null,
                     service: null,
                     communication: null,
                     deviceName: null,
@@ -68,34 +62,15 @@ const useConnectionStore = create<ConnectionState>()(
             setShowConnectionModal: (visible) =>
                 set({ showConnectionModal: visible }),
             disconnect: async () => {
-                const {
-                    connection,
-                    service,
-                    connectionAbort,
-                    resetConnection,
-                } = get()
-                if (!connection && !service) {
+                const { service, connectionAbort, resetConnection } = get()
+                if (!service) {
                     return
                 }
 
-                if (service) {
-                    try {
-                        await service.disconnect()
-                    } catch (error) {
-                        console.warn(
-                            'Failed to disconnect service cleanly',
-                            error,
-                        )
-                    }
-                } else if (connection) {
-                    try {
-                        await connection.request_writable.close()
-                    } catch (error) {
-                        console.warn(
-                            'Failed to close connection cleanly',
-                            error,
-                        )
-                    }
+                try {
+                    await service.disconnect()
+                } catch (error) {
+                    console.warn('Failed to disconnect service cleanly', error)
                 }
 
                 connectionAbort.abort('User disconnected')

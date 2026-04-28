@@ -17,7 +17,8 @@ import { callRpc } from '@firmware/zmk/rpc/rpcCall'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/ui/tooltip'
 
 export function Header(): JSX.Element {
-    const { connection, lockState, setConnection } = useConnectionStore()
+    const { service, lockState, setService, communication } =
+        useConnectionStore()
     const { undo, redo, canUndo, canRedo, reset } = undoRedoStore()
     const { subscribe } = useEmitter()
 
@@ -60,8 +61,8 @@ export function Header(): JSX.Element {
         }
 
         reset()
-        setConnection(connection)
-    }, [connection, reset, setConnection])
+        setService(service, communication ?? undefined)
+    }, [service, communication, reset, setService])
 
     return (
         <header className="flex h-(--header-height) shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)">
@@ -157,7 +158,7 @@ export function Header(): JSX.Element {
                                     size="icon"
                                     disabled={
                                         !unsaved ||
-                                        !connection ||
+                                        !service ||
                                         lockState !== 'unlocked'
                                     }
                                     onClick={save}

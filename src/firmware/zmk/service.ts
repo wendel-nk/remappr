@@ -90,6 +90,12 @@ export class ZmkKeyboardService implements KeyboardService {
         return call_rpc(this.connection, request)
     }
 
+    async callRpc(
+        request: Omit<Request, 'requestId'>,
+    ): Promise<RequestResponse> {
+        return this.call(request)
+    }
+
     private async runNotificationLoop(): Promise<void> {
         const reader = this.connection.notification_readable.getReader()
         const onAbort = (): void => {

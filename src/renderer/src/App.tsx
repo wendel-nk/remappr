@@ -18,15 +18,14 @@ import { Header } from '@/layout/Header'
 // import { Footer } from '@/layout/Footer'
 import { ErrorBoundary } from '@/ui/ErrorBoundary'
 import { toast } from 'sonner'
-import { callRpc } from '@firmware/zmk/rpc/rpcCall'
 import { StartPage } from '@/features/connection/start-page/StartPage'
 import { UpdateNotification } from '@/components/UpdateNotification'
 import { TitleBar } from '@/layout/TitleBar'
 
 function App(): JSX.Element {
+    // pattern-check: skip — UI sweep, replace store-connection with store-service
     const {
-        connection,
-        setConnection,
+        service,
         setService,
         setDeviceName,
         setLockState,
@@ -45,38 +44,34 @@ function App(): JSX.Element {
     }, [subscribe, setLockState])
 
     const updateLockState = useCallback(async (): Promise<void> => {
-        if (!connection) return
-
-        const locked_resp = await callRpc({
-            core: { getLockState: true },
-        })
-        setLockState(mapZmkLockState(locked_resp.core?.getLockState))
-    }, [connection, setLockState])
+        if (!service) return
+        const next = await service.getLockState()
+        setLockState(next)
+    }, [service, setLockState])
 
     useEffect(() => {
-        if (!connection) {
+        if (!service) {
             reset()
             setLockState('locked')
         }
 
         updateLockState()
-    }, [connection, setLockState, reset, updateLockState])
+    }, [service, setLockState, reset, updateLockState])
 
     const onConnect = async (
         t: RpcTransport,
         communication: 'serial' | 'ble',
     ): Promise<void> => {
-        const connection = await connectDevice(
+        const connectResult = await connectDevice(
             t,
-            setConnection,
             setService,
             setDeviceName,
             connectionAbort.signal,
             communication,
         )
-        if (typeof connection === 'string') {
+        if (typeof connectResult === 'string') {
             toast.error('Failed to connect to the selected device.', {
-                description: connection,
+                description: connectResult,
             })
         }
     }
@@ -96,7 +91,7 @@ function App(): JSX.Element {
             <div className="flex h-screen flex-col overflow-hidden">
                 <TitleBar />
                 <div className="flex-1 min-h-0 overflow-hidden">
-                    {connection ? (
+                    {service ? (
                         <ErrorBoundary>
                             <UnlockModal />
                             <SidebarProvider

@@ -4,11 +4,11 @@ import { fetchAllBehaviors } from '@firmware/zmk/rpc/rpcBehaviorService'
 import type { BehaviorMap } from '@/lib/behaviors/types'
 
 export function useBehaviors(): BehaviorMap {
-    const { connection, lockState } = useConnectionStore()
+    const { service, lockState } = useConnectionStore()
     const [behaviors, setBehaviors] = useState<BehaviorMap>({})
 
     useEffect((): void | (() => void) => {
-        if (!connection || lockState !== 'unlocked') {
+        if (!service || lockState !== 'unlocked') {
             // eslint-disable-next-line react-hooks/set-state-in-effect
             setBehaviors({})
             return
@@ -31,7 +31,7 @@ export function useBehaviors(): BehaviorMap {
         return (): void => {
             cancelled = true
         }
-    }, [connection, lockState])
+    }, [service, lockState])
 
     return behaviors
 }

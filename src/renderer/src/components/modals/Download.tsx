@@ -23,7 +23,7 @@ interface DownloadProps {
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function Download(_props: DownloadProps): JSX.Element {
-    const { connection, deviceName } = useConnectionStore()
+    const { service, deviceName } = useConnectionStore()
     const behaviors = useBehaviors()
 
     const [keymap] = useConnectedDeviceData<Keymap>(
@@ -90,8 +90,7 @@ export function Download(_props: DownloadProps): JSX.Element {
         }
     }
 
-    const isConnected =
-        connection && keymap && Object.keys(behaviors).length > 0
+    const isConnected = service && keymap && Object.keys(behaviors).length > 0
 
     return (
         <Modal

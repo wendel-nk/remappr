@@ -33,12 +33,12 @@ export function useLayerActions({
     setKeymap,
 }: UseLayerActionsArgs): UseLayerActionsResult {
     const { doIt } = undoRedoStore()
-    const { connection } = useConnectionStore()
+    const { service } = useConnectionStore()
     const { selectedLayerIndex, setSelectedLayerIndex } =
         useLayerSelectionStore()
 
     const add = useCallback((): void => {
-        if (!connection || !setKeymap) return
+        if (!service || !setKeymap) return
         doIt?.(async () => {
             const index = await addLayer(
                 keymap,
@@ -48,11 +48,11 @@ export function useLayerActions({
             if (index < 0) return async () => {}
             return async () => removeLayer(index, setKeymap)
         })
-    }, [connection, doIt, keymap, setKeymap, setSelectedLayerIndex])
+    }, [service, doIt, keymap, setKeymap, setSelectedLayerIndex])
 
     const remove = useCallback(
         (layerIndex: number): void => {
-            if (!connection || !setKeymap) return
+            if (!service || !setKeymap) return
             if (!keymap) {
                 toast.error('No keymap loaded')
                 return
@@ -73,7 +73,7 @@ export function useLayerActions({
             })
         },
         [
-            connection,
+            service,
             doIt,
             keymap,
             selectedLayerIndex,
@@ -84,7 +84,7 @@ export function useLayerActions({
 
     const changeLayerName = useCallback(
         (id: number, oldName: string, newName: string): void => {
-            if (!connection || !setKeymap) return
+            if (!service || !setKeymap) return
             doIt?.(async () => {
                 await changeName(id, newName, setKeymap)
                 return async () => {
@@ -92,7 +92,7 @@ export function useLayerActions({
                 }
             })
         },
-        [connection, doIt, setKeymap],
+        [service, doIt, setKeymap],
     )
 
     const handleSaveNewLabel = useCallback(

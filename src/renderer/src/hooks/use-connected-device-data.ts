@@ -8,12 +8,12 @@ export function useConnectedDeviceData<T>(
     response_mapper: (resp: RequestResponse) => T | undefined,
     requireUnlock?: boolean,
 ): [T | undefined, React.Dispatch<SetStateAction<T | undefined>>] {
-    const { connection, lockState } = useConnectionStore()
+    const { service, lockState } = useConnectionStore()
     const [data, setData] = useState<T | undefined>(undefined)
 
     useEffect(
         () => {
-            if (!connection || (requireUnlock && lockState != 'unlocked')) {
+            if (!service || (requireUnlock && lockState != 'unlocked')) {
                 // eslint-disable-next-line react-hooks/set-state-in-effect
                 setData(undefined)
                 return
@@ -22,7 +22,7 @@ export function useConnectedDeviceData<T>(
             let ignore = false
 
             async function startRequest(): Promise<void> {
-                if (!connection) return
+                if (!service) return
                 setData(undefined)
                 const response = response_mapper(await callRpc(req))
                 if (!ignore) {
@@ -38,8 +38,8 @@ export function useConnectedDeviceData<T>(
         },
         // eslint-disable-next-line react-hooks/exhaustive-deps
         requireUnlock
-            ? [connection, requireUnlock, lockState]
-            : [connection, requireUnlock],
+            ? [service, requireUnlock, lockState]
+            : [service, requireUnlock],
     )
 
     return [data, setData]

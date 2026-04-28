@@ -15,8 +15,14 @@ import { toast } from 'sonner'
 import { callRpc } from '@firmware/zmk/rpc/rpcCall'
 
 export const DeviceMenu = (): JSX.Element => {
-    const { connection, setConnection, deviceName, lockState, disconnect } =
-        useConnectionStore()
+    const {
+        service,
+        setService,
+        communication,
+        deviceName,
+        lockState,
+        disconnect,
+    } = useConnectionStore()
     const { reset } = undoRedoStore()
 
     const resetSettings = useCallback(async (): Promise<void> => {
@@ -32,13 +38,14 @@ export const DeviceMenu = (): JSX.Element => {
 
         reset()
 
-        const currentConnection = connection
-        setConnection(null)
+        const currentService = service
+        const currentCommunication = communication
+        setService(null)
 
         setTimeout(() => {
-            setConnection(currentConnection)
+            setService(currentService, currentCommunication ?? undefined)
         }, 0)
-    }, [connection, reset, setConnection])
+    }, [service, communication, reset, setService])
 
     const isDisabled = !deviceName || lockState !== 'unlocked'
 

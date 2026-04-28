@@ -11,7 +11,7 @@ interface UseLayoutsReturn {
 }
 
 export function useLayout(): UseLayoutsReturn {
-    const { connection, lockState } = useConnectionStore()
+    const { service, lockState } = useConnectionStore()
 
     const [layouts, setLayouts] = useState<PhysicalLayout[] | undefined>(
         undefined,
@@ -20,7 +20,7 @@ export function useLayout(): UseLayoutsReturn {
         useState<number>(0)
 
     useEffect((): void | (() => void) => {
-        if (!connection || lockState !== 'unlocked') {
+        if (!service || lockState !== 'unlocked') {
             // eslint-disable-next-line react-hooks/set-state-in-effect
             setLayouts(undefined)
             return
@@ -58,7 +58,7 @@ export function useLayout(): UseLayoutsReturn {
         return (): void => {
             isCancelled = true
         }
-    }, [connection, lockState])
+    }, [service, lockState])
 
     return {
         layouts,
