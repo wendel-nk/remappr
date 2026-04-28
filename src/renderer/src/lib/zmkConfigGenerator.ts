@@ -1,5 +1,6 @@
 import { Keymap } from '@zmkfirmware/zmk-studio-ts-client/keymap'
 import type { BehaviorMap } from '@/lib/behaviors/types'
+import { displayNameToBinding } from '@/lib/keymap/displayNameToBinding'
 
 export interface ZMKConfigOptions {
     keyboardName: string
@@ -88,20 +89,18 @@ function generateKeyCode(
     binding: { param1: number; param2?: number },
     behavior: { displayName: string },
 ): string {
-    // Map behavior types to ZMK key codes
+    const prefix = displayNameToBinding(behavior.displayName)
     switch (behavior.displayName) {
-        case 'Key Press':
-            return `&kp ${getHIDUsageName(binding.param1)}`
         case 'Modifier':
-            return `&kp ${getModifierName(binding.param1)}`
+            return `${prefix} ${getModifierName(binding.param1)}`
         case 'Layer':
-            return `&mo ${binding.param1}`
+            return `${prefix} ${binding.param1}`
         case 'Transparent':
-            return `&trans`
         case 'None':
-            return `&none`
+            return prefix
+        case 'Key Press':
         default:
-            return `&kp ${getHIDUsageName(binding.param1)}`
+            return `${prefix} ${getHIDUsageName(binding.param1)}`
     }
 }
 

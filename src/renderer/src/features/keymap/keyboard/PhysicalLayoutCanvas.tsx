@@ -6,6 +6,7 @@ import { LayoutZoom } from '@/lib/helpers'
 export type KeyPosition = PropsWithChildren<{
     id?: string
     header?: string
+    behaviorBinding?: string
     holdTap?: HoldTapLabels
     width: number
     height: number
@@ -61,10 +62,8 @@ export const PhysicalLayoutCanvas = ({
             }
         }
 
-        // Perform initial scale calculation
         calculateScale()
 
-        // Create a ResizeObserver that recalculates the scale when dimensions change
         const resizeObserver = new ResizeObserver(calculateScale)
         resizeObserver.observe(element)
         resizeObserver.observe(parent)
@@ -89,7 +88,6 @@ export const PhysicalLayoutCanvas = ({
         { rightMost: 0, bottomMost: 0 },
     )
 
-    // console.log(positions)
     const keysPositions = positions.map((p, idx) => {
         const posStyle = scalePosition(p, oneU)
         return (
@@ -126,8 +124,10 @@ export const PhysicalLayoutCanvas = ({
                     {
                         height: bottomMost * oneU + 'px',
                         width: rightMost * oneU + 'px',
-                        transform: `scale(${scale})`,
+                        transform: `scale(${scale}) translateZ(0)`,
                         transformOrigin: 'center',
+                        backfaceVisibility: 'hidden',
+                        willChange: 'transform',
                     } as React.CSSProperties
                 }
                 ref={ref}

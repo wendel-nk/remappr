@@ -1,6 +1,7 @@
 import { Children, CSSProperties, PropsWithChildren } from 'react'
 import { KeyLabel } from './KeyLabel'
 import { HoldTapKeyLabel, type HoldTapLabels } from './HoldTapKeyLabel'
+import useUserSettingsStore from '@/stores/userSettingsStore'
 
 export type { HoldTapLabels }
 
@@ -12,6 +13,7 @@ interface KeyButtonProps {
     oneU: number
     hoverZoom?: boolean
     header?: string
+    behaviorBinding?: string
     holdTap?: HoldTapLabels
     onClick?: () => void
 }
@@ -40,6 +42,7 @@ export const KeyButton = ({
     selected = false,
     pressed = false,
     header,
+    behaviorBinding,
     oneU,
     hoverZoom = true,
     holdTap,
@@ -48,7 +51,20 @@ export const KeyButton = ({
     const size = makeSize(props, oneU)
     const maxChildFontSize = Math.max(10, oneU / 2.5)
     const maxHoldFontSize = Math.max(8, oneU / 4)
-    const maxHeaderFontSize = Math.max(6, oneU / 6)
+    const keyDisplayMode = useUserSettingsStore((s) => s.keyDisplayMode)
+
+    const effectiveHeader =
+        keyDisplayMode === 'binding' && behaviorBinding
+            ? behaviorBinding
+            : header
+    const isBindingMode = keyDisplayMode === 'binding' && !!behaviorBinding
+    const headerFontPx = Math.max(6, Math.round(oneU / 8))
+    const tooltipParts = [
+        header,
+        behaviorBinding ? `(${behaviorBinding})` : '',
+        holdTap?.tooltip,
+    ].filter(Boolean)
+    const tooltip = tooltipParts.join(' — ')
 
     const children = Children.map(
         props.children,
@@ -66,7 +82,7 @@ export const KeyButton = ({
 
     return (
         <div
-            className="group inline-flex box-border b-0 flex-col justify-items-center justify-content-center items-center transition-all duration-0 hover:scale-150 border border-transparent hover:border-border rounded-md"
+            className="group inline-flex box-border b-0 flex-col justify-items-center justify-content-center items-center transition-all duration-0 hover:scale-150 border border-transparent hover:border-border rounded-none"
             data-zoomer={hoverZoom}
             style={size as React.CSSProperties}
             {...props}
@@ -75,37 +91,31 @@ export const KeyButton = ({
                 type="button"
                 aria-pressed={selected}
                 data-zoomer={hoverZoom}
-                title={holdTap?.tooltip}
-                className={`rounded${
-                    oneU > 20 ? '-md' : ''
-                } transition-all duration-100 box-border bg-secondary text-secondary-foreground border border-border aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:border-primary grow
-                 flex-col flex items-center ${holdTap ? 'justify-stretch' : 'justify-evenly'} w-full h-full overflow-hidden ${
+                title={tooltip || undefined}
+                className={`relative rounded-none transition-all duration-100 box-border bg-secondary text-secondary-foreground border border-border aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:border-primary grow
+                 flex-col flex items-center ${holdTap ? 'justify-stretch' : 'justify-center'} w-full h-full overflow-hidden ${
                      pressed ? 'bg-green-600 text-white shadow-lg scale-95' : ''
                  }`}
             >
+                {effectiveHeader && (
+                    <span
+                        className={`absolute top-1 left-1 leading-none opacity-70 pointer-events-none whitespace-nowrap ${
+                            isBindingMode ? 'font-mono' : ''
+                        }`}
+                        style={{ fontSize: `${headerFontPx}px` }}
+                    >
+                        {effectiveHeader}
+                    </span>
+                )}
                 {holdTap ? (
                     <HoldTapKeyLabel
                         holdTap={holdTap}
-                        header={header}
                         maxChildFontSize={maxChildFontSize}
                         maxHoldFontSize={maxHoldFontSize}
-                        maxHeaderFontSize={maxHeaderFontSize}
                         hoverZoom={hoverZoom}
                     />
                 ) : (
-                    <>
-                        {header && (
-                            <KeyLabel
-                                maxFontSize={maxHeaderFontSize}
-                                minFontSize={4}
-                                hoverZoom={hoverZoom}
-                                className={'flex-none'}
-                            >
-                                {header}
-                            </KeyLabel>
-                        )}
-                        {children}
-                    </>
+                    children
                 )}
             </button>
         </div>

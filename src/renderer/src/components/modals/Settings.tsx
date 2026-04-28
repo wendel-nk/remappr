@@ -4,6 +4,7 @@ import { Settings as SettingsIcon, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { DarkModeToggle } from '@/components/DarkModeToggle'
 import { ThemePicker } from '@/components/ThemePicker'
+import { KeyDisplayModePicker } from '@/components/KeyDisplayModePicker'
 import { DownloadLatestButton } from '@/components/DownloadLatestButton'
 import { Modal } from '@/ui/modal'
 import { Button } from '@/ui/button'
@@ -83,6 +84,21 @@ export function Settings(_props: SettingsProps): JSX.Element {
                             </p>
                         </div>
                         <DarkModeToggle />
+                    </div>
+                </div>
+
+                {/* Keymap Display */}
+                <div className="space-y-4">
+                    <h3 className="text-lg font-semibold">Keymap Display</h3>
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <Label>Key Header</Label>
+                            <p className="text-sm text-muted-foreground">
+                                Show behavior name (Key Press) or binding code
+                                (&amp;kp)
+                            </p>
+                        </div>
+                        <KeyDisplayModePicker />
                     </div>
                 </div>
 
