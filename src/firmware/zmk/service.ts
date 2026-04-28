@@ -1,0 +1,373 @@
+// Pattern check: Adapter (Tier 1) — extended — backs src/firmware/adapter.ts FirmwareAdapter; ZMK-protocol KeyboardService implementation wrapping call_rpc.
+import {
+    call_rpc,
+    Request,
+    RequestResponse,
+    RpcConnection,
+} from '@zmkfirmware/zmk-studio-ts-client'
+import type { GetBehaviorDetailsResponse } from '@zmkfirmware/zmk-studio-ts-client/behaviors'
+import type {
+    BehaviorBinding,
+    Keymap as ZmkKeymap,
+    PhysicalLayouts as ZmkPhysicalLayouts,
+} from '@zmkfirmware/zmk-studio-ts-client/keymap'
+import { LockState as ZmkLockState } from '@zmkfirmware/zmk-studio-ts-client/core'
+import type { Notification } from '@zmkfirmware/zmk-studio-ts-client/studio'
+
+import type { Capabilities, KeyboardService } from '@firmware/service'
+import type {
+    ActionType,
+    AdapterNotification,
+    DeviceInfo,
+    ExportedFile,
+    KeyAction,
+    KeyUpdate,
+    Keymap,
+    Layer,
+    LockState,
+} from '@firmware/types'
+import { ProtocolError, UnsupportedError } from '@firmware/errors'
+
+import {
+    bindingToKeyAction,
+    keyActionToBinding,
+    type BehaviorMap,
+} from './actions'
+import { behaviorsToActionTypes } from './actionTypes'
+import { zmkKeymapToNeutral } from './keymap'
+
+const ZMK_CAPABILITIES: Capabilities = {
+    lock: true,
+    rename: true,
+    notifications: true,
+    reorderLayers: true,
+    variableLayerCount: true,
+    exportFormats: ['devicetree'],
+}
+
+function mapLockState(state: ZmkLockState): LockState {
+    switch (state) {
+        case ZmkLockState.ZMK_STUDIO_CORE_LOCK_STATE_UNLOCKED:
+            return 'unlocked'
+        case ZmkLockState.ZMK_STUDIO_CORE_LOCK_STATE_LOCKED:
+        default:
+            return 'locked'
+    }
+}
+
+type NotificationHandler = (notification: AdapterNotification) => void
+type LockStateHandler = (state: LockState) => void
+type PendingChangesHandler = (pending: boolean) => void
+
+export class ZmkKeyboardService implements KeyboardService {
+    public readonly capabilities: Capabilities = ZMK_CAPABILITIES
+
+    private readonly connection: RpcConnection
+    private readonly behaviors: BehaviorMap = {}
+    private layouts: ZmkPhysicalLayouts | null = null
+    private cachedKeymap: ZmkKeymap | null = null
+
+    private readonly notificationListeners = new Set<NotificationHandler>()
+    private readonly lockStateListeners = new Set<LockStateHandler>()
+    private readonly pendingChangesListeners = new Set<PendingChangesHandler>()
+    private pendingChanges = false
+    private notificationLoop: Promise<void> | null = null
+    private readonly notificationAbort = new AbortController()
+    public readonly deviceInfo: DeviceInfo
+
+    constructor(connection: RpcConnection, deviceInfo: DeviceInfo) {
+        this.connection = connection
+        this.deviceInfo = deviceInfo
+        this.notificationLoop = this.runNotificationLoop()
+    }
+
+    private async call(
+        request: Omit<Request, 'requestId'>,
+    ): Promise<RequestResponse> {
+        return call_rpc(this.connection, request)
+    }
+
+    private async runNotificationLoop(): Promise<void> {
+        const reader = this.connection.notification_readable.getReader()
+        const onAbort = (): void => {
+            reader.cancel().catch(() => undefined)
+        }
+        this.notificationAbort.signal.addEventListener('abort', onAbort, {
+            once: true,
+        })
+        try {
+            while (true) {
+                const { done, value } = await reader.read()
+                if (done) break
+                if (!value) continue
+                this.dispatchNotification(value)
+            }
+        } catch {
+            // swallow — disconnect path
+        } finally {
+            this.notificationAbort.signal.removeEventListener('abort', onAbort)
+            try {
+                reader.releaseLock()
+            } catch {
+                // ignore
+            }
+        }
+    }
+
+    private dispatchNotification(value: Notification): void {
+        const subsystem = Object.entries(value).find(([, v]) => v !== undefined)
+        if (!subsystem) return
+        const [subId, subData] = subsystem
+        const event = Object.entries(subData as object).find(
+            ([, v]) => v !== undefined,
+        )
+        if (!event) return
+        const [eventName, eventData] = event
+        const topic = `${subId}.${eventName}`
+        for (const cb of this.notificationListeners) {
+            cb({ topic, payload: eventData })
+        }
+        if (subId === 'core' && eventName === 'lockStateChanged') {
+            const next = mapLockState(eventData as ZmkLockState)
+            for (const cb of this.lockStateListeners) cb(next)
+        }
+    }
+
+    async getLockState(): Promise<LockState> {
+        const resp = await this.call({ core: { getLockState: true } })
+        const state = resp.core?.getLockState
+        return mapLockState(
+            state ?? ZmkLockState.ZMK_STUDIO_CORE_LOCK_STATE_LOCKED,
+        )
+    }
+
+    async unlock(): Promise<void> {
+        // ZMK unlock requires physical interaction; state arrives via notification.
+    }
+
+    onLockStateChanged(cb: LockStateHandler): () => void {
+        this.lockStateListeners.add(cb)
+        return () => this.lockStateListeners.delete(cb)
+    }
+
+    private async loadBehaviors(): Promise<void> {
+        const list = await this.call({ behaviors: { listAllBehaviors: true } })
+        const ids = list.behaviors?.listAllBehaviors?.behaviors ?? []
+        for (const behaviorId of ids) {
+            const detailsResp = await this.call({
+                behaviors: { getBehaviorDetails: { behaviorId } },
+            })
+            const details: GetBehaviorDetailsResponse | undefined =
+                detailsResp.behaviors?.getBehaviorDetails
+            if (details) this.behaviors[details.id] = details
+        }
+    }
+
+    async listActionTypes(): Promise<ActionType[]> {
+        if (Object.keys(this.behaviors).length === 0) await this.loadBehaviors()
+        return behaviorsToActionTypes(this.behaviors)
+    }
+
+    private async ensureLayouts(): Promise<ZmkPhysicalLayouts> {
+        if (this.layouts) return this.layouts
+        const resp = await this.call({ keymap: { getPhysicalLayouts: true } })
+        const got = resp.keymap?.getPhysicalLayouts
+        if (!got) throw new ProtocolError('getPhysicalLayouts returned empty')
+        this.layouts = got
+        return got
+    }
+
+    async getKeymap(): Promise<Keymap> {
+        if (Object.keys(this.behaviors).length === 0) await this.loadBehaviors()
+        const layouts = await this.ensureLayouts()
+        const resp = await this.call({ keymap: { getKeymap: true } })
+        const km = resp.keymap?.getKeymap
+        if (!km) throw new ProtocolError('getKeymap returned empty')
+        this.cachedKeymap = km
+        return zmkKeymapToNeutral(km, layouts, this.behaviors)
+    }
+
+    private actionToBinding(action: KeyAction): BehaviorBinding {
+        return keyActionToBinding(action)
+    }
+
+    async setKey(
+        layerId: number,
+        position: number,
+        action: KeyAction,
+    ): Promise<void> {
+        const binding = this.actionToBinding(action)
+        const resp = await this.call({
+            keymap: {
+                setLayerBinding: {
+                    layerId,
+                    keyPosition: position,
+                    binding,
+                },
+            },
+        })
+        if (resp.keymap?.setLayerBinding !== 0) {
+            throw new ProtocolError(
+                `setLayerBinding failed: ${resp.keymap?.setLayerBinding}`,
+            )
+        }
+        this.markPending(true)
+    }
+
+    async setKeys(updates: KeyUpdate[]): Promise<void> {
+        for (const u of updates) {
+            await this.setKey(u.layerId, u.position, u.action)
+        }
+    }
+
+    async addLayer(): Promise<Layer> {
+        const resp = await this.call({ keymap: { addLayer: {} } })
+        const ok = resp.keymap?.addLayer?.ok
+        if (!ok || !ok.layer) {
+            throw new ProtocolError(
+                `addLayer failed: ${resp.keymap?.addLayer?.err}`,
+            )
+        }
+        this.markPending(true)
+        const zmkLayer = ok.layer
+        return {
+            id: zmkLayer.id,
+            name: zmkLayer.name,
+            keys: zmkLayer.bindings.map((b) =>
+                bindingToKeyAction(b, this.behaviors, { layers: [zmkLayer] }),
+            ),
+        }
+    }
+
+    async removeLayer(layerId: number): Promise<void> {
+        if (!this.cachedKeymap) await this.getKeymap()
+        const layerIndex =
+            this.cachedKeymap?.layers.findIndex((l) => l.id === layerId) ?? -1
+        if (layerIndex < 0) {
+            throw new ProtocolError(`Unknown layer id: ${layerId}`)
+        }
+        const resp = await this.call({
+            keymap: { removeLayer: { layerIndex } },
+        })
+        if (!resp.keymap?.removeLayer?.ok) {
+            throw new ProtocolError(
+                `removeLayer failed: ${resp.keymap?.removeLayer?.err}`,
+            )
+        }
+        this.markPending(true)
+    }
+
+    async renameLayer(layerId: number, name: string): Promise<void> {
+        const resp = await this.call({
+            keymap: { setLayerProps: { layerId, name } },
+        })
+        if (resp.keymap?.setLayerProps !== 0) {
+            throw new ProtocolError(
+                `setLayerProps failed: ${resp.keymap?.setLayerProps}`,
+            )
+        }
+        this.markPending(true)
+    }
+
+    async moveLayer(startIndex: number, destIndex: number): Promise<void> {
+        const resp = await this.call({
+            keymap: { moveLayer: { startIndex, destIndex } },
+        })
+        if (!resp.keymap?.moveLayer?.ok) {
+            throw new ProtocolError(
+                `moveLayer failed: ${resp.keymap?.moveLayer?.err}`,
+            )
+        }
+        this.markPending(true)
+    }
+
+    async restoreLayer(layerId: number, atIndex: number): Promise<Layer> {
+        const resp = await this.call({
+            keymap: { restoreLayer: { layerId, atIndex } },
+        })
+        const ok = resp.keymap?.restoreLayer?.ok
+        if (!ok) {
+            throw new ProtocolError(
+                `restoreLayer failed: ${resp.keymap?.restoreLayer?.err}`,
+            )
+        }
+        this.markPending(true)
+        return {
+            id: ok.id,
+            name: ok.name,
+            keys: ok.bindings.map((b) =>
+                bindingToKeyAction(b, this.behaviors, { layers: [ok] }),
+            ),
+        }
+    }
+
+    async setActivePhysicalLayout(layoutId: number): Promise<Keymap> {
+        const resp = await this.call({
+            keymap: { setActivePhysicalLayout: layoutId },
+        })
+        const newKeymap = resp.keymap?.setActivePhysicalLayout?.ok
+        if (!newKeymap) {
+            throw new ProtocolError(
+                `setActivePhysicalLayout failed: ${resp.keymap?.setActivePhysicalLayout?.err}`,
+            )
+        }
+        this.cachedKeymap = newKeymap
+        if (this.layouts) {
+            this.layouts = {
+                ...this.layouts,
+                activeLayoutIndex: layoutId,
+            }
+        }
+        const layouts = await this.ensureLayouts()
+        return zmkKeymapToNeutral(newKeymap, layouts, this.behaviors)
+    }
+
+    async commit(): Promise<void> {
+        const resp = await this.call({ keymap: { saveChanges: true } })
+        if (resp.keymap?.saveChanges?.ok !== undefined) {
+            this.markPending(false)
+            return
+        }
+        throw new ProtocolError(
+            `saveChanges failed: ${resp.keymap?.saveChanges?.err}`,
+        )
+    }
+
+    hasPendingChanges(): boolean {
+        return this.pendingChanges
+    }
+
+    onPendingChangesChanged(cb: PendingChangesHandler): () => void {
+        this.pendingChangesListeners.add(cb)
+        return () => this.pendingChangesListeners.delete(cb)
+    }
+
+    private markPending(pending: boolean): void {
+        if (this.pendingChanges === pending) return
+        this.pendingChanges = pending
+        for (const cb of this.pendingChangesListeners) cb(pending)
+    }
+
+    subscribe(cb: NotificationHandler): () => void {
+        this.notificationListeners.add(cb)
+        return () => this.notificationListeners.delete(cb)
+    }
+
+    async exportConfig(): Promise<ExportedFile[]> {
+        throw new UnsupportedError(
+            'exportConfig: use generateZMKKeymapFile/generateZMKConfigFile from @firmware/zmk/export',
+        )
+    }
+
+    async disconnect(): Promise<void> {
+        this.notificationAbort.abort()
+        try {
+            this.connection.notification_readable
+                .cancel()
+                .catch(() => undefined)
+        } catch {
+            // ignore
+        }
+        await this.notificationLoop?.catch(() => undefined)
+    }
+}
