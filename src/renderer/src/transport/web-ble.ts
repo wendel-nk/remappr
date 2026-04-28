@@ -2,8 +2,7 @@ import type { RpcTransport } from '@zmkfirmware/zmk-studio-ts-client/transport/i
 import { UserCancelledError } from '@zmkfirmware/zmk-studio-ts-client/transport/errors'
 import type { AvailableDevice } from '@/transport/types'
 
-const SERVICE_UUID = '00000000-0196-6107-c967-c5cfb1c2482a'
-const RPC_CHRC_UUID = '00000001-0196-6107-c967-c5cfb1c2482a'
+import { STUDIO_SERVICE_UUID, STUDIO_CHAR_UUID } from '@shared/ble-defaults'
 
 const deviceRegistry = new Map<string, BluetoothDevice>()
 
@@ -28,21 +27,21 @@ async function openTransport(dev: BluetoothDevice): Promise<RpcTransport> {
 
     let svc: BluetoothRemoteGATTService
     try {
-        svc = await dev.gatt.getPrimaryService(SERVICE_UUID)
+        svc = await dev.gatt.getPrimaryService(STUDIO_SERVICE_UUID)
     } catch (e) {
         console.error(
-            '[web-ble] device does not expose ZMK Studio service',
-            SERVICE_UUID,
+            '[web-ble] device does not expose firmware studio service',
+            STUDIO_SERVICE_UUID,
             e,
         )
         dev.gatt.disconnect()
         throw new Error(
-            'Selected device does not expose the ZMK Studio service. ' +
-                'Make sure firmware is built with CONFIG_ZMK_STUDIO=y and the device is unlocked.',
+            'Selected device does not expose the firmware studio service. ' +
+                'Make sure the firmware is built with the studio service enabled and the device is unlocked.',
         )
     }
 
-    const char = await svc.getCharacteristic(RPC_CHRC_UUID)
+    const char = await svc.getCharacteristic(STUDIO_CHAR_UUID)
 
     const readable = new ReadableStream<Uint8Array>({
         async start(controller) {
@@ -136,7 +135,7 @@ export async function requestAndConnect(): Promise<RpcTransport> {
     const dev = await navigator.bluetooth
         .requestDevice({
             acceptAllDevices: true,
-            optionalServices: [SERVICE_UUID],
+            optionalServices: [STUDIO_SERVICE_UUID],
         })
         .catch((e: unknown) => {
             if (e instanceof DOMException && e.name === 'NotFoundError') {

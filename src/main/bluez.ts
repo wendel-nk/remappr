@@ -4,15 +4,15 @@
  *
  * Web Bluetooth in Chromium can't see devices already paired+connected to
  * the OS BlueZ daemon (they stop advertising). This module talks to BlueZ
- * directly via its D-Bus interface (`org.bluez`), so paired/connected ZMK
+ * directly via its D-Bus interface (`org.bluez`), so paired/connected studio
  * keyboards show up without user gesture and without disconnecting them
  * from the OS first.
  *
  * Listing: enumerate org.bluez.Device1 objects via ObjectManager,
- * filter by ZMK Studio service UUID in their UUIDs property.
+ * filter by firmware studio service UUID in their UUIDs property.
  *
  * Connection: call Device1.Connect(), walk GattService1/GattCharacteristic1
- * children to find the ZMK characteristic, StartNotify(), wire
+ * children to find the studio characteristic, StartNotify(), wire
  * PropertiesChanged → onData callback. Writes go through
  * GattCharacteristic1.WriteValue.
  */
@@ -20,8 +20,7 @@
 import dbus from 'dbus-next'
 import type { AvailableDevice } from '../shared/ipc-types'
 
-const ZMK_SERVICE_UUID = '00000000-0196-6107-c967-c5cfb1c2482a'
-const ZMK_CHAR_UUID = '00000001-0196-6107-c967-c5cfb1c2482a'
+import { STUDIO_SERVICE_UUID, STUDIO_CHAR_UUID } from '../shared/ble-defaults'
 
 const BLUEZ_BUS = 'org.bluez'
 const IFACE_OBJECT_MANAGER = 'org.freedesktop.DBus.ObjectManager'
@@ -62,7 +61,7 @@ function variantValue<T = unknown>(v: dbus.Variant | undefined): T | undefined {
 }
 
 /**
- * Enumerate paired+known devices that advertise the ZMK Studio service.
+ * Enumerate paired+known devices that advertise the firmware studio service.
  * Returns AvailableDevice list keyed by D-Bus object path.
  */
 export async function listZmkDevices(): Promise<AvailableDevice[]> {
@@ -84,7 +83,7 @@ export async function listZmkDevices(): Promise<AvailableDevice[]> {
 
             const uuids = variantValue<string[]>(dev['UUIDs']) ?? []
             const hasZmk = uuids.some(
-                (u) => u.toLowerCase() === ZMK_SERVICE_UUID.toLowerCase(),
+                (u) => u.toLowerCase() === STUDIO_SERVICE_UUID.toLowerCase(),
             )
             if (!hasZmk) continue
 
@@ -110,7 +109,7 @@ export async function listZmkDevices(): Promise<AvailableDevice[]> {
 }
 
 /**
- * Walk the BlueZ object tree under `devicePath` to find the ZMK Studio
+ * Walk the BlueZ object tree under `devicePath` to find the firmware Studio
  * characteristic D-Bus path. Returns null if service/characteristic are
  * not yet resolved (caller can retry after Device1.Connect()).
  */
@@ -125,14 +124,14 @@ async function findZmkCharPath(
         Record<string, Record<string, dbus.Variant>>
     >
 
-    // Find ZMK GATT service under this device
+    // Find studio GATT service under this device
     let zmkServicePath: string | null = null
     for (const [path, ifaces] of Object.entries(managed)) {
         if (!path.startsWith(devicePath + '/')) continue
         const svc = ifaces[IFACE_GATT_SERVICE]
         if (!svc) continue
         const uuid = variantValue<string>(svc['UUID']) ?? ''
-        if (uuid.toLowerCase() === ZMK_SERVICE_UUID.toLowerCase()) {
+        if (uuid.toLowerCase() === STUDIO_SERVICE_UUID.toLowerCase()) {
             zmkServicePath = path
             break
         }
@@ -145,7 +144,7 @@ async function findZmkCharPath(
         const ch = ifaces[IFACE_GATT_CHAR]
         if (!ch) continue
         const uuid = variantValue<string>(ch['UUID']) ?? ''
-        if (uuid.toLowerCase() === ZMK_CHAR_UUID.toLowerCase()) {
+        if (uuid.toLowerCase() === STUDIO_CHAR_UUID.toLowerCase()) {
             return path
         }
     }
@@ -169,8 +168,8 @@ async function waitForCharResolution(
 }
 
 /**
- * Connect to a ZMK device by its BlueZ D-Bus path. Establishes GATT,
- * starts notifications on the ZMK characteristic, wires PropertiesChanged
+ * Connect to a firmware device by its BlueZ D-Bus path. Establishes GATT,
+ * starts notifications on the studio characteristic, wires PropertiesChanged
  * → callbacks.onData. Returns label string on success.
  */
 export async function connectZmkDevice(
@@ -219,7 +218,7 @@ export async function connectZmkDevice(
     const charPath = await waitForCharResolution(bus, devicePath, 8000)
     if (!charPath) {
         throw new Error(
-            `[bluez] ZMK characteristic ${ZMK_CHAR_UUID} not found under ${devicePath}`,
+            `[bluez] studio characteristic ${STUDIO_CHAR_UUID} not found under ${devicePath}`,
         )
     }
     console.log(`[bluez] resolved char path=${charPath}`)
@@ -348,7 +347,7 @@ export async function connectZmkDevice(
     }
 
     // Force CCCD transition 0→2: stop any stale subscription first.
-    // ZMK firmware may register on indicate-enabled callback only when
+    // firmware firmware may register on indicate-enabled callback only when
     // value transitions, not on bonded reconnect with cached CCCD=2.
     try {
         await char.StopNotify()
@@ -390,7 +389,7 @@ export async function connectZmkDevice(
             const cccd = cccdObj.getInterface('org.bluez.GattDescriptor1')
             const val = (await cccd.ReadValue({})) as Buffer
             console.log('[bluez] CCCD value =', Array.from(new Uint8Array(val)))
-            // ZMK indicate-only char needs CCCD=0x0002. If BlueZ wrote
+            // firmware indicate-only char needs CCCD=0x0002. If BlueZ wrote
             // 0x0001 (notify), device ignores — manually write 0x0002.
             if (val.length >= 1 && val[0] !== 0x02) {
                 console.log('[bluez] forcing CCCD = 0x0002 (indicate)')

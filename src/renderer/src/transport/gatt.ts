@@ -1,4 +1,5 @@
 import { TransportEventEmitter, AvailableDevice } from './types'
+import { STUDIO_SERVICE_UUID, STUDIO_CHAR_UUID } from '@shared/ble-defaults'
 
 export class GattTransport {
     private device?: BluetoothDevice
@@ -27,7 +28,7 @@ export class GattTransport {
             this.device = await navigator.bluetooth.requestDevice({
                 filters: [
                     {
-                        services: ['00000000-0196-6107-c967-c5cfb1c2482a'],
+                        services: [STUDIO_SERVICE_UUID],
                     },
                 ],
             })
@@ -39,9 +40,8 @@ export class GattTransport {
             }
 
             // Get the service
-            this.service = await this.server.getPrimaryService(
-                '00000000-0196-6107-c967-c5cfb1c2482a',
-            )
+            this.service =
+                await this.server.getPrimaryService(STUDIO_SERVICE_UUID)
             if (!this.service) {
                 throw new Error(
                     'Failed to connect: Unable to locate the required studio GATT service',
@@ -49,9 +49,8 @@ export class GattTransport {
             }
 
             // Get the characteristic
-            this.characteristic = await this.service.getCharacteristic(
-                '00000001-0196-6107-c967-c5cfb1c2482a',
-            )
+            this.characteristic =
+                await this.service.getCharacteristic(STUDIO_CHAR_UUID)
             if (!this.characteristic) {
                 throw new Error(
                     'Failed to connect: Unable to locate the required studio GATT characteristic',

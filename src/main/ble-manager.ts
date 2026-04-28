@@ -22,9 +22,6 @@ import {
     type AvailableDevice,
 } from '../shared/ipc-types'
 
-// ZMK Studio BLE service UUID
-export const ZMK_STUDIO_SERVICE_UUID = '00000000-0196-6107-c967-c5cfb1c2482a'
-
 /** Pending device selection callback from Electron's select-bluetooth-device event */
 let pendingDeviceCallback: ((deviceId: string) => void) | null = null
 

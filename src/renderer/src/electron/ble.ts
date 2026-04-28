@@ -3,7 +3,7 @@
  * Electron BLE transport adapter.
  *
  * Linux: talks to BlueZ via main-process D-Bus client. Lists paired devices
- * advertising the ZMK Studio service without user gesture or chooser dialog.
+ * advertising the firmware studio service without user gesture or chooser dialog.
  * Connects via BlueZ GATT, so devices already paired+connected to the OS
  * are reachable (Web Bluetooth on Linux can't see them).
  *
@@ -15,9 +15,7 @@ import { IpcChannels, IpcEvents } from '../../../shared/ipc-types'
 import type { RpcTransport } from '@zmkfirmware/zmk-studio-ts-client/transport/index'
 import type { AvailableDevice } from '@/transport'
 
-// ZMK Studio BLE service/characteristic UUIDs (Web Bluetooth path)
-const ZMK_SERVICE_UUID = '00000000-0196-6107-c967-c5cfb1c2482a'
-const ZMK_CHARACTERISTIC_UUID = '00000001-0196-6107-c967-c5cfb1c2482a'
+import { STUDIO_SERVICE_UUID, STUDIO_CHAR_UUID } from '@shared/ble-defaults'
 
 /** Holds the pending requestDevice() promise between list_devices() and connect() */
 let pendingDevicePromise: Promise<BluetoothDevice> | null = null
@@ -38,7 +36,7 @@ async function getPlatform(): Promise<string> {
 /**
  * Scan for available BLE devices.
  *
- * Linux: queries BlueZ for paired devices advertising the ZMK service.
+ * Linux: queries BlueZ for paired devices advertising the firmware service.
  * No user gesture required, no chooser dialog. Returns immediately.
  *
  * Other platforms: Web Bluetooth requestDevice() chooser flow.
@@ -86,7 +84,7 @@ export async function list_devices(): Promise<AvailableDevice[]> {
     try {
         pendingDevicePromise = navigator.bluetooth.requestDevice({
             acceptAllDevices: true,
-            optionalServices: [ZMK_SERVICE_UUID],
+            optionalServices: [STUDIO_SERVICE_UUID],
         })
     } catch (e) {
         console.error('[electron/ble] requestDevice threw:', e)
@@ -230,10 +228,8 @@ async function connectViaWebBluetooth(
     }
 
     const server = await device.gatt.connect()
-    const service = await server.getPrimaryService(ZMK_SERVICE_UUID)
-    const characteristic = await service.getCharacteristic(
-        ZMK_CHARACTERISTIC_UUID,
-    )
+    const service = await server.getPrimaryService(STUDIO_SERVICE_UUID)
+    const characteristic = await service.getCharacteristic(STUDIO_CHAR_UUID)
     await characteristic.startNotifications()
 
     const abortController = new AbortController()

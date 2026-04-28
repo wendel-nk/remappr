@@ -32,11 +32,12 @@ function getNoble(): NobleModule {
     return nobleMod
 }
 
-const ZMK_SERVICE_UUID = '00000000019661 07c967c5cfb1c2482a'.replace(/\s/g, '')
-const ZMK_CHAR_UUID = '00000001019661 07c967c5cfb1c2482a'.replace(/\s/g, '')
-// noble strips dashes and lowercases service/char UUIDs.
-const ZMK_SERVICE_UUID_NOBLE = ZMK_SERVICE_UUID.toLowerCase()
-const ZMK_CHAR_UUID_NOBLE = ZMK_CHAR_UUID.toLowerCase()
+// noble strips dashes and lowercases service/char UUIDs; the shared
+// constants module pre-computes that form for us.
+import {
+    STUDIO_SERVICE_UUID_NOBLE,
+    STUDIO_CHAR_UUID_NOBLE,
+} from '../shared/ble-defaults'
 
 export interface NobleEventCallbacks {
     onData: (data: number[]) => void
@@ -107,7 +108,7 @@ export async function listNobleDevices(): Promise<AvailableDevice[]> {
         const name = peripheral.advertisement.localName || ''
         const services = peripheral.advertisement.serviceUuids || []
         const hasZmk = services.some(
-            (u) => u.toLowerCase() === ZMK_SERVICE_UUID_NOBLE,
+            (u) => u.toLowerCase() === STUDIO_SERVICE_UUID_NOBLE,
         )
         if (!hasZmk && !name) return
         if (!hasZmk) return
@@ -120,7 +121,7 @@ export async function listNobleDevices(): Promise<AvailableDevice[]> {
     getNoble().on('discover', onDiscover)
 
     try {
-        await getNoble().startScanningAsync([ZMK_SERVICE_UUID_NOBLE], false)
+        await getNoble().startScanningAsync([STUDIO_SERVICE_UUID_NOBLE], false)
     } catch (e) {
         getNoble().removeListener('discover', onDiscover)
         console.error('[noble] startScanning failed:', e)
@@ -169,13 +170,13 @@ export async function connectNobleDevice(
 
     const { characteristics } =
         await peripheral.discoverSomeServicesAndCharacteristicsAsync(
-            [ZMK_SERVICE_UUID_NOBLE],
-            [ZMK_CHAR_UUID_NOBLE],
+            [STUDIO_SERVICE_UUID_NOBLE],
+            [STUDIO_CHAR_UUID_NOBLE],
         )
 
     if (characteristics.length === 0) {
         await peripheral.disconnectAsync().catch(() => {})
-        throw new Error('[noble] ZMK characteristic not found')
+        throw new Error('[noble] studio characteristic not found')
     }
 
     const characteristic = characteristics[0]
