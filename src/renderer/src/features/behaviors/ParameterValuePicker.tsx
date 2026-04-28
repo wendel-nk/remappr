@@ -1,3 +1,4 @@
+// Pattern check: no GoF pattern (-) — rejected — added optional highlightedKeys prop pass-through, no abstraction warranted.
 import { BehaviorParameterValueDescription } from '@zmkfirmware/zmk-studio-ts-client/behaviors'
 import { KeycodePickerGrid } from '@/features/keymap/keycode-picker/KeycodePickerGrid'
 import {
@@ -14,9 +15,8 @@ export interface ParameterValuePickerProps {
     value?: number
     values: BehaviorParameterValueDescription[]
     layers: { id: number; name: string }[]
+    highlightedKeys?: number[]
     onValueChanged: (value?: number) => void
-    onKeySelected?: (key: number | undefined) => void
-    onModifiersChanged?: (modifiers: number[]) => void
 }
 
 const ConstantValuePicker = ({
@@ -100,9 +100,8 @@ export const ParameterValuePicker = ({
     value,
     values,
     layers,
+    highlightedKeys,
     onValueChanged,
-    onKeySelected,
-    onModifiersChanged,
 }: ParameterValuePickerProps): JSX.Element | null => {
     if (values.length === 0) {
         return null
@@ -137,8 +136,7 @@ export const ParameterValuePicker = ({
                     onValueChanged={onValueChanged}
                     label={values[0].name}
                     value={value}
-                    onKeySelected={onKeySelected}
-                    onModifiersChanged={onModifiersChanged}
+                    highlightedKeys={highlightedKeys}
                 />
             )
         }

@@ -21,12 +21,12 @@ import {
 import { useKeycodeFilter } from '@/hooks/use-keycode-filter'
 import { ModifierChipRow } from './ModifierChipRow'
 
+// Pattern check: no GoF pattern (-) — rejected — added optional prop for multi-highlight, no abstraction warranted.
 interface KeycodePickerGridProps {
     value?: number
     label?: string
+    highlightedKeys?: number[]
     onValueChanged?: (value?: number) => void
-    onKeySelected?: (key: number | undefined) => void
-    onModifiersChanged?: (modifiers: Mods[]) => void
 }
 
 const CONTAINER_MAX_HEIGHT = 350
@@ -34,6 +34,7 @@ const CONTAINER_MAX_HEIGHT = 350
 export function KeycodePickerGrid({
     value,
     onValueChanged,
+    highlightedKeys,
 }: KeycodePickerGridProps): JSX.Element {
     const {
         searchQuery,
@@ -118,7 +119,13 @@ export function KeycodePickerGrid({
     }, [value, setActiveTab])
 
     function isKeySelected(keyId: number): boolean {
-        return selectedKey === keyId
+        if (selectedKey !== undefined && maskMods(selectedKey) === keyId) {
+            return true
+        }
+        if (highlightedKeys?.some((k) => maskMods(k) === keyId)) {
+            return true
+        }
+        return false
     }
 
     return (
