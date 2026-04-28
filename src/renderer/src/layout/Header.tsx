@@ -40,15 +40,14 @@ export function Header(): JSX.Element {
     }, [setUnsaved, subscribe, unsaved])
 
     const save = useCallback(async (): Promise<void> => {
-        const resp = await callRpc({
-            keymap: { saveChanges: true },
-        })
-
-        if (!resp.keymap?.saveChanges || resp.keymap?.saveChanges.err) {
-            console.error('Failed to save changes', resp.keymap?.saveChanges)
+        if (!service) return
+        try {
+            await service.commit()
+        } catch (e) {
+            console.error('Failed to save changes', e)
             toast.error(`Failed to save changes`)
         }
-    }, [])
+    }, [service])
 
     const discard = useCallback(async (): Promise<void> => {
         const resp = await callRpc({
