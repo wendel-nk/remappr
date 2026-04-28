@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 
-import type { RpcTransport } from '@zmkfirmware/zmk-studio-ts-client/transport/index'
+import type { RpcTransport } from '@firmware/zmk'
 import type { TransportFactory } from '@/transport/types'
 import { ExternalLink } from '@/components/ExternalLink'
 import { DeviceList } from './DeviceList.tsx'

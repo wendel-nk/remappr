@@ -1,3 +1,3 @@
-import type { GetBehaviorDetailsResponse } from '@zmkfirmware/zmk-studio-ts-client/behaviors'
+import type { GetBehaviorDetailsResponse } from '@firmware/zmk'
 
 export type BehaviorMap = Record<number, GetBehaviorDetailsResponse>

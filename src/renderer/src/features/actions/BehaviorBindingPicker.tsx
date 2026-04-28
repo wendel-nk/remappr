@@ -4,8 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
     GetBehaviorDetailsResponse,
     BehaviorBindingParametersSet,
-} from '@zmkfirmware/zmk-studio-ts-client/behaviors'
-import { BehaviorBinding } from '@zmkfirmware/zmk-studio-ts-client/keymap'
+} from '@firmware/zmk'
+import { BehaviorBinding } from '@firmware/zmk'
 import {
     BehaviorParametersPicker,
     type ActiveSlot,

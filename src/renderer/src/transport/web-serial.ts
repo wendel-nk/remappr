@@ -1,5 +1,5 @@
 // pattern-check: skip — bug fix in single transport module; cache + perm helpers are utilities
-import type { RpcTransport } from '@zmkfirmware/zmk-studio-ts-client/transport/index'
+import type { RpcTransport } from '@firmware/zmk'
 import type { AvailableDevice } from '@/transport/types'
 
 const BAUD_RATE = 12500

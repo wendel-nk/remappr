@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Keyboard } from 'lucide-react'
 import { toast } from 'sonner'
-import type { RpcTransport } from '@zmkfirmware/zmk-studio-ts-client/transport/index'
+import type { RpcTransport } from '@firmware/zmk'
 
 import { Button } from '@/ui/button'
 import { Card, CardContent } from '@/ui/card'

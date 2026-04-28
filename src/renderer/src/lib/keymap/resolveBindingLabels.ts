@@ -1,5 +1,5 @@
 // Pattern check: Adapter (Tier 1) — extended — backs src/firmware/adapter.ts FirmwareAdapter; resolves neutral KeyAction.params (ZmkBindingParams) into UI label descriptors using ZMK behavior metadata.
-import type { GetBehaviorDetailsResponse } from '@zmkfirmware/zmk-studio-ts-client/behaviors'
+import type { GetBehaviorDetailsResponse } from '@firmware/zmk'
 
 import type { Keymap, PhysicalLayout } from '@firmware/types'
 import type { ZmkBindingParams } from '@firmware/zmk/actions'

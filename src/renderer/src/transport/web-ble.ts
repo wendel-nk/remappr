@@ -1,5 +1,5 @@
-import type { RpcTransport } from '@zmkfirmware/zmk-studio-ts-client/transport/index'
-import { UserCancelledError } from '@zmkfirmware/zmk-studio-ts-client/transport/errors'
+import type { RpcTransport } from '@firmware/zmk'
+import { UserCancelledError } from '@firmware/zmk'
 import type { AvailableDevice } from '@/transport/types'
 
 import { STUDIO_SERVICE_UUID, STUDIO_CHAR_UUID } from '@shared/ble-defaults'

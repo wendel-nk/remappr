@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Check, ChevronsUpDown } from 'lucide-react'
-import { GetBehaviorDetailsResponse } from '@zmkfirmware/zmk-studio-ts-client/behaviors'
+import { GetBehaviorDetailsResponse } from '@firmware/zmk'
 import { Button } from '@/ui/button'
 import {
     Command,

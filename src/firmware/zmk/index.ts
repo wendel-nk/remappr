@@ -24,6 +24,18 @@ export {
     validateSlotValue,
 } from './actionTypes'
 export { zmkKeymapToNeutral } from './keymap'
+
+// Re-exported upstream ZMK protocol types so renderer code never needs
+// to import @zmkfirmware/zmk-studio-ts-client directly. The firmware
+// adapter mediates the protocol surface.
+export type {
+    BehaviorBinding,
+    BehaviorBindingParametersSet,
+    BehaviorParameterValueDescription,
+    GetBehaviorDetailsResponse,
+} from './protocol'
+export type { RpcTransport } from './protocol'
+export { UserCancelledError } from './protocol'
 export {
     downloadConfigFile,
     downloadConfigZip,

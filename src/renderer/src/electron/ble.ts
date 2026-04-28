@@ -12,7 +12,7 @@
  */
 
 import { IpcChannels, IpcEvents } from '../../../shared/ipc-types'
-import type { RpcTransport } from '@zmkfirmware/zmk-studio-ts-client/transport/index'
+import type { RpcTransport } from '@firmware/zmk'
 import type { AvailableDevice } from '@/transport'
 
 import { STUDIO_SERVICE_UUID, STUDIO_CHAR_UUID } from '@shared/ble-defaults'

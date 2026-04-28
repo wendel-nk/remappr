@@ -4,8 +4,8 @@ import type { AvailableDevice } from '@/transport/types'
 import { Key, ListBox, ListBoxItem, Selection } from 'react-aria-components'
 import { Bluetooth, RefreshCw } from 'lucide-react'
 import type { TransportFactory } from '@/transport/types'
-import { RpcTransport } from '@zmkfirmware/zmk-studio-ts-client/transport/index'
-import { UserCancelledError } from '@zmkfirmware/zmk-studio-ts-client/transport/errors'
+import { RpcTransport } from '@firmware/zmk'
+import { UserCancelledError } from '@firmware/zmk'
 import { ErrorDialog } from '@/components/modals/ErrorDialog'
 
 interface DeviceListProps {

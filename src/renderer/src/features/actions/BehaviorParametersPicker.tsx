@@ -1,5 +1,5 @@
 // Pattern check: no GoF pattern (-) — rejected — pure picker dispatcher routes by activeSlot; no abstraction warranted.
-import { BehaviorBindingParametersSet } from '@zmkfirmware/zmk-studio-ts-client/behaviors'
+import { BehaviorBindingParametersSet } from '@firmware/zmk'
 import { ParameterValuePicker } from './ParameterValuePicker'
 import { validateValue } from '@/lib/behaviors/parameters'
 

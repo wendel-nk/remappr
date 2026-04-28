@@ -1,5 +1,5 @@
 import React, { JSX, useCallback, useEffect } from 'react'
-import type { RpcTransport } from '@zmkfirmware/zmk-studio-ts-client/transport/index'
+import type { RpcTransport } from '@firmware/zmk'
 import { useEmitter } from '@/hooks/use-pub-sub'
 import type { LockState } from '@firmware/types'
 

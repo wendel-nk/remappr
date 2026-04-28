@@ -1,6 +1,6 @@
 // pattern-check: skip — merge conflict resolution, no new logic
 import { IpcChannels, IpcEvents } from '../../../shared/ipc-types'
-import type { RpcTransport } from '@zmkfirmware/zmk-studio-ts-client/transport/index'
+import type { RpcTransport } from '@firmware/zmk'
 import type { AvailableDevice } from '../transport/types'
 
 export async function list_devices(): Promise<Array<AvailableDevice>> {

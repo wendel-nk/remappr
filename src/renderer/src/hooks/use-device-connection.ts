@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react'
-import type { RpcTransport } from '@zmkfirmware/zmk-studio-ts-client/transport/index'
-import { UserCancelledError } from '@zmkfirmware/zmk-studio-ts-client/transport/errors'
+import type { RpcTransport } from '@firmware/zmk'
+import { UserCancelledError } from '@firmware/zmk'
 import { toast } from 'sonner'
 import type { TransportFactory } from '@/transport/types'
 import type { DeviceStatus } from '@/features/connection/DeviceCard'

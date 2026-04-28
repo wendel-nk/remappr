@@ -2,7 +2,7 @@
 import { X } from 'lucide-react'
 import { BehaviorBindingPicker } from '@/features/actions/BehaviorBindingPicker'
 import { useBehaviors } from '@/hooks/use-behaviors'
-import type { BehaviorBinding } from '@zmkfirmware/zmk-studio-ts-client/keymap'
+import type { BehaviorBinding } from '@firmware/zmk'
 import { useCallback, useMemo } from 'react'
 import undoRedoStore from '@/stores/undoRedoStore'
 import useConnectionStore from '@/stores/connectionStore'

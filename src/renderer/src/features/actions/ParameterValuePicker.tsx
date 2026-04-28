@@ -1,5 +1,5 @@
 // Pattern check: no GoF pattern (-) — rejected — added optional highlightedKeys prop pass-through, no abstraction warranted.
-import { BehaviorParameterValueDescription } from '@zmkfirmware/zmk-studio-ts-client/behaviors'
+import { BehaviorParameterValueDescription } from '@firmware/zmk'
 import { KeycodePickerGrid } from '@/features/keymap/keycode-picker/KeycodePickerGrid'
 import {
     Select,

@@ -1,4 +1,4 @@
-import { BehaviorParameterValueDescription } from '@zmkfirmware/zmk-studio-ts-client/behaviors'
+import { BehaviorParameterValueDescription } from '@firmware/zmk'
 import { hidUsagePageAndIdFromUsage } from '@/lib/behaviors/hidUsages'
 
 export function validateValue(

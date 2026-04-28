@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { AvailableDevice } from '@/transport/types'
-import { UserCancelledError } from '@zmkfirmware/zmk-studio-ts-client/transport/errors'
+import { UserCancelledError } from '@firmware/zmk'
 import type { TransportFactory } from '@/transport/types'
-import { RpcTransport } from '@zmkfirmware/zmk-studio-ts-client/transport/index'
+import { RpcTransport } from '@firmware/zmk'
 import { Button } from '@/ui/button'
 import { toast } from 'sonner'
 

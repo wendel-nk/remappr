@@ -1,5 +1,5 @@
 // pattern-check: skip — extracting existing TransportFactory type from ConnectModal into transport layer, no new logic
-import type { RpcTransport } from '@zmkfirmware/zmk-studio-ts-client/transport/index'
+import type { RpcTransport } from '@firmware/zmk'
 
 export interface AvailableDevice {
     label: string
