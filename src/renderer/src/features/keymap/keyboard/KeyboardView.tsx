@@ -10,7 +10,6 @@ import { useLayout } from '@/hooks/use-layouts'
 import { KeyboardZoomSlider } from '../editor/KeyboardZoomSlider'
 import useConnectionStore from '@/stores/connectionStore'
 import useLayerSelectionStore from '@/stores/layerSelectionStore'
-import { useBehaviors } from '@/hooks/use-behaviors'
 import { useKeypressDetection } from '@/hooks/use-keypress-detection'
 import type { KeypressDetectionConfig } from '@/lib/keypress/keypressDetector'
 import {
@@ -45,7 +44,6 @@ export default function KeyboardView({
     const { layouts, selectedPhysicalLayoutIndex } = useLayout()
     const { selectedLayerIndex, setSelectedLayerIndex } =
         useLayerSelectionStore()
-    const behaviors = useBehaviors()
     const { service } = useConnectionStore()
 
     const effectiveLayerIndex = useMemo(() => {
@@ -77,16 +75,9 @@ export default function KeyboardView({
                       keymap,
                       selectedLayerIndex: effectiveLayerIndex,
                       selectedPhysicalLayoutIndex,
-                      behaviors,
                   }
                 : null,
-        [
-            layouts,
-            keymap,
-            effectiveLayerIndex,
-            selectedPhysicalLayoutIndex,
-            behaviors,
-        ],
+        [layouts, keymap, effectiveLayerIndex, selectedPhysicalLayoutIndex],
     )
 
     const handleKeyPressed = useCallback((keyPosition: number) => {
@@ -111,46 +102,37 @@ export default function KeyboardView({
     }, [effectiveLayerIndex])
 
     const positions: KeyPosition[] = useMemo(() => {
-        if (!layouts || !keymap || !behaviors) return []
+        if (!layouts || !keymap) return []
         const layout = layouts[selectedPhysicalLayoutIndex]
         if (!layout) return []
-        return resolveBindingLabels(
-            layout,
-            keymap,
-            behaviors,
-            effectiveLayerIndex,
-        ).map((p) => ({
-            id: p.id,
-            header: p.header,
-            behaviorBinding: p.behaviorBinding,
-            holdTap: p.holdTap ? holdTapToLabels(p.holdTap) : undefined,
-            x: p.x,
-            y: p.y,
-            width: p.width,
-            height: p.height,
-            r: p.r,
-            rx: p.rx,
-            ry: p.ry,
-            children: p.outOfRange ? (
-                <span></span>
-            ) : (
-                <HidUsageLabel
-                    hid_usage={p.bindingParam1!}
-                    header={p.behaviorName || 'Unknown'}
-                />
-            ),
-        }))
-    }, [
-        layouts,
-        keymap,
-        behaviors,
-        selectedPhysicalLayoutIndex,
-        effectiveLayerIndex,
-    ])
+        return resolveBindingLabels(layout, keymap, effectiveLayerIndex).map(
+            (p) => ({
+                id: p.id,
+                header: p.header,
+                behaviorBinding: p.behaviorBinding,
+                holdTap: p.holdTap ? holdTapToLabels(p.holdTap) : undefined,
+                x: p.x,
+                y: p.y,
+                width: p.width,
+                height: p.height,
+                r: p.r,
+                rx: p.rx,
+                ry: p.ry,
+                children: p.outOfRange ? (
+                    <span></span>
+                ) : (
+                    <HidUsageLabel
+                        hid_usage={p.bindingParam1!}
+                        header={p.behaviorName || 'Unknown'}
+                    />
+                ),
+            }),
+        )
+    }, [layouts, keymap, selectedPhysicalLayoutIndex, effectiveLayerIndex])
 
     return (
         <>
-            {layouts && keymap && behaviors && (
+            {layouts && keymap && (
                 <div className="p-2 col-start-2 row-start-1 items-center justify-center relative min-w-0 flex h-full bg-accent">
                     <PhysicalLayoutCanvas
                         positions={positions}

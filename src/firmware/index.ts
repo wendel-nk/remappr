@@ -6,6 +6,7 @@ export type {
     DeviceInfo,
     ExportedFile,
     KeyAction,
+    HoldTapLabelData,
     KeyLabel,
     KeyUpdate,
     Keymap,

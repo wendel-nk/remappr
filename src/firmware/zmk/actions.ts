@@ -1,7 +1,12 @@
-// Pattern check: Adapter (Tier 1) — extended — backs src/firmware/adapter.ts FirmwareAdapter; translates ZMK BehaviorBinding ↔ neutral KeyAction with slot-driven labels.
+// Pattern check: Adapter (Tier 1) — extended — backs src/firmware/adapter.ts FirmwareAdapter; translates ZMK BehaviorBinding ↔ neutral KeyAction with slot-driven labels baked in.
 import type { BehaviorBinding } from '@zmkfirmware/zmk-studio-ts-client/keymap'
 import type { GetBehaviorDetailsResponse } from '@zmkfirmware/zmk-studio-ts-client/behaviors'
-import type { ActionSlot, KeyAction, KeyLabel } from '@firmware/types'
+import type {
+    ActionSlot,
+    HoldTapLabelData,
+    KeyAction,
+    KeyLabel,
+} from '@firmware/types'
 import {
     hid_usage_get_labels,
     hidUsagePageAndIdFromUsage,
@@ -38,42 +43,48 @@ function describeUsage(usage: number): string {
     return long ? long.replace(/^Keyboard /, '') : `0x${usage.toString(16)}`
 }
 
-function describeLayer(
-    layerIndex: number,
-    keymap: { layers: { name: string }[] },
-): string {
-    const layerName = keymap.layers[layerIndex]?.name
-    const layerLabel = abbreviateLayerName(layerName, layerIndex)
-    const mo = formatMomentaryLayer(layerIndex)
-    return layerName ? `${mo} (${layerLabel})` : mo
-}
-
-function describeSlotValue(
-    slot: ActionSlot,
-    value: number,
-    keymap: { layers: { name: string }[] },
-): string {
-    if (slot.kind === 'hid') return describeUsage(value)
-    if (slot.kind === 'layer') return describeLayer(value, keymap)
-    if ((slot.kind === 'enum' || slot.kind === 'modifier') && slot.values) {
-        return slot.values.find((v) => v.value === value)?.label ?? `${value}`
-    }
-    return `${value}`
-}
-
-function buildHoldTapLabel(
+function buildHoldTapLabelData(
     binding: BehaviorBinding,
     behavior: GetBehaviorDetailsResponse,
     slots: ActionSlot[],
     keymap: { layers: { name: string }[] },
-): KeyLabel | undefined {
+): HoldTapLabelData | undefined {
     if (slots.length !== 2) return undefined
-    const tapDesc = describeSlotValue(slots[1], binding.param2, keymap)
-    const holdDesc = describeSlotValue(slots[0], binding.param1, keymap)
+    const behaviorName = behavior.displayName
+    const behaviorBinding = displayNameToBinding(behaviorName)
+    const tapParam = binding.param2
+    const holdParam = binding.param1
+    const tapDesc = describeUsage(tapParam)
+
+    if (slots[0].kind === 'layer') {
+        const layerName = keymap.layers[holdParam]?.name
+        const layerLabel = abbreviateLayerName(layerName, holdParam)
+        const mo = formatMomentaryLayer(holdParam)
+        const holdDesc = layerName ? `${mo} (${layerLabel})` : mo
+        return {
+            behaviorName,
+            behaviorBinding,
+            tapParam,
+            tapDesc,
+            holdNodeKind: 'layer',
+            holdParam,
+            holdLayerLabel: layerLabel,
+            holdLayerMomentary: mo,
+            holdLayerName: layerName,
+            tooltip: `${behaviorName}\nTap: ${tapDesc}\nHold: ${holdDesc}`,
+        }
+    }
+
+    const holdDesc = describeUsage(holdParam)
     return {
-        primary: tapDesc,
-        secondary: holdDesc,
-        description: `${behavior.displayName}\nTap: ${tapDesc}\nHold: ${holdDesc}`,
+        behaviorName,
+        behaviorBinding,
+        tapParam,
+        tapDesc,
+        holdNodeKind: 'usage',
+        holdParam,
+        holdUsageDesc: holdDesc,
+        tooltip: `${behaviorName}\nTap: ${tapDesc}\nHold: ${holdDesc}`,
     }
 }
 
@@ -87,11 +98,28 @@ export function buildKeyLabel(
         return { primary: 'Unknown', description: 'Unknown' }
     }
     const slots = behaviorToActionType(behavior).slots
-    const ht = buildHoldTapLabel(binding, behavior, slots, keymap)
-    if (ht) return ht
+    const bindingPrefix = displayNameToBinding(behavior.displayName)
+    const holdTap = buildHoldTapLabelData(binding, behavior, slots, keymap)
+    if (holdTap) {
+        return {
+            primary: holdTap.tapDesc,
+            secondary:
+                holdTap.holdNodeKind === 'layer'
+                    ? holdTap.holdLayerName
+                        ? `${holdTap.holdLayerMomentary} (${holdTap.holdLayerLabel})`
+                        : holdTap.holdLayerMomentary
+                    : holdTap.holdUsageDesc,
+            description: holdTap.tooltip,
+            bindingPrefix,
+            holdTap,
+        }
+    }
+    const primaryUsage = slots[0]?.kind === 'hid' ? binding.param1 : undefined
     return {
         primary: behavior.displayName,
+        primaryUsage,
         description: behavior.displayName,
+        bindingPrefix,
     }
 }
 

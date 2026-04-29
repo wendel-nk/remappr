@@ -26,7 +26,7 @@ import type {
     Layer,
     LockState,
 } from '@firmware/types'
-import { ProtocolError, UnsupportedError } from '@firmware/errors'
+import { ProtocolError } from '@firmware/errors'
 
 import {
     bindingToKeyAction,
@@ -35,6 +35,7 @@ import {
 } from './actions'
 import { behaviorsToActionTypes } from './actionTypes'
 import { zmkKeymapToNeutral } from './keymap'
+import { generateZMKConfigFile, generateZMKKeymapFile } from './export'
 
 const ZMK_CAPABILITIES: Capabilities = {
     lock: true,
@@ -189,11 +190,6 @@ export class ZmkKeyboardService implements KeyboardService {
     async listActionTypes(): Promise<ActionType[]> {
         if (Object.keys(this.behaviors).length === 0) await this.loadBehaviors()
         return behaviorsToActionTypes(this.behaviors)
-    }
-
-    async getBehaviors(): Promise<BehaviorMap> {
-        if (Object.keys(this.behaviors).length === 0) await this.loadBehaviors()
-        return this.behaviors
     }
 
     private async ensureLayouts(): Promise<ZmkPhysicalLayouts> {
@@ -485,9 +481,28 @@ export class ZmkKeyboardService implements KeyboardService {
     }
 
     async exportConfig(): Promise<ExportedFile[]> {
-        throw new UnsupportedError(
-            'exportConfig: use generateZMKKeymapFile/generateZMKConfigFile from @firmware/zmk/export',
-        )
+        if (Object.keys(this.behaviors).length === 0) await this.loadBehaviors()
+        const km = await this.getKeymap()
+        const keyboardName = this.deviceInfo.name || 'keyboard'
+        const keymapName = 'default'
+        const keymap = generateZMKKeymapFile(km, this.behaviors, {
+            keyboardName,
+            keymapName,
+            includeLayers: true,
+        })
+        const conf = generateZMKConfigFile({ keyboardName, keymapName })
+        return [
+            {
+                filename: `${keyboardName}.keymap`,
+                mime: 'text/plain',
+                content: keymap,
+            },
+            {
+                filename: `${keyboardName}.conf`,
+                mime: 'text/plain',
+                content: conf,
+            },
+        ]
     }
 
     async disconnect(): Promise<void> {

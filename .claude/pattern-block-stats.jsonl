@@ -65,3 +65,4 @@
 {"ts":"2026-04-28T22:26:37.613Z","rule":"preamble-missing","file":"/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/renderer/src/layout/Header.tsx","decision":null,"reasonExcerpt":""}
 {"ts":"2026-04-28T22:43:04.185Z","rule":"preamble-missing","file":"/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/firmware/zmk/service.ts","decision":null,"reasonExcerpt":""}
 {"ts":"2026-04-29T06:16:03.233Z","rule":"preamble-missing","file":"/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/firmware/types.ts","decision":null,"reasonExcerpt":""}
+{"ts":"2026-04-29T07:45:32.938Z","rule":"preamble-missing","file":"/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/firmware/types.ts","decision":null,"reasonExcerpt":""}

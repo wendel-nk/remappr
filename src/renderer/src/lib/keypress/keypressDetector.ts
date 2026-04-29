@@ -1,7 +1,5 @@
-// pattern-check: skip mechanical port — neutral Keymap shape, reads ZMK binding via zmkBindingFromAction helper
+// pattern-check: skip refactor — drop ZMK BehaviorMap dependency, match keys via neutral KeyAction.label
 import type { Keymap, PhysicalLayout } from '@firmware/types'
-import { zmkBindingFromAction } from '@firmware/zmk'
-import type { BehaviorMap } from '@firmware/zmk'
 import { DOM_KEY_TO_HID, DOM_KEY_TO_DISPLAY_NAME } from './domKeyToHidMap'
 
 export interface KeypressDetectionConfig {
@@ -9,7 +7,6 @@ export interface KeypressDetectionConfig {
     keymap: Keymap
     selectedLayerIndex: number
     selectedPhysicalLayoutIndex: number
-    behaviors: BehaviorMap
 }
 
 export function findKeyPositionForDomKey(
@@ -26,18 +23,16 @@ export function findKeyPositionForDomKey(
     const max = Math.min(layer.keys.length, layout.keys.length)
 
     for (let i = 0; i < max; i++) {
-        const binding = zmkBindingFromAction(layer.keys[i])
-        const hidUsageIdFromBinding = binding.param1 & 0xffff
-        if (hidUsageIdFromBinding === hidUsageCode) return i
+        const action = layer.keys[i]
+        const usage = action.label.primaryUsage
+        if (usage !== undefined && (usage & 0xffff) === hidUsageCode) return i
     }
 
     const expectedName = DOM_KEY_TO_DISPLAY_NAME[domKeyCode]
     if (!expectedName) return null
 
     for (let i = 0; i < max; i++) {
-        const binding = zmkBindingFromAction(layer.keys[i])
-        const behavior = config.behaviors[binding.behaviorId]
-        if (behavior?.displayName === expectedName) return i
+        if (layer.keys[i].label.primary === expectedName) return i
     }
 
     return null

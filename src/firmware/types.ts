@@ -4,11 +4,28 @@ export interface KeyAction {
     label: KeyLabel
 }
 
+export interface HoldTapLabelData {
+    behaviorName: string
+    behaviorBinding: string
+    tapParam: number
+    tapDesc: string
+    holdNodeKind: 'layer' | 'usage'
+    holdParam: number
+    holdLayerLabel?: string
+    holdLayerMomentary?: string
+    holdLayerName?: string
+    holdUsageDesc?: string
+    tooltip: string
+}
+
 export interface KeyLabel {
     primary: string
+    primaryUsage?: number
     secondary?: string
     modifiers?: string
     description?: string
+    bindingPrefix?: string
+    holdTap?: HoldTapLabelData
 }
 
 export interface Layer {
