@@ -1,12 +1,13 @@
 import React, { JSX, useCallback, useEffect } from 'react'
-import type { RpcTransport } from '@firmware/zmk'
-import { useEmitter } from '@/hooks/use-pub-sub'
+import { pickAdapter } from '@firmware'
+import type { Transport } from '@firmware'
+import { publish, useEmitter } from '@/hooks/use-pub-sub'
+import { rememberConnectedDeviceName } from '@/transport/web-serial'
 import type { LockState } from '@firmware/types'
 
 const mapZmkLockState = (raw: unknown): LockState =>
     raw === 1 || raw === 'unlocked' ? 'unlocked' : 'locked'
 import { UnlockModal } from '@/features/connection/UnlockModal'
-import { connectDevice } from '@firmware/zmk/rpc/rpcConnect'
 import useConnectionStore from '@/stores/connectionStore'
 import undoRedoStore from '@/stores/undoRedoStore'
 import { KeymapEditor } from '@/features/keymap/editor/KeymapEditor'
@@ -59,19 +60,33 @@ function App(): JSX.Element {
     }, [service, setLockState, reset, updateLockState])
 
     const onConnect = async (
-        t: RpcTransport,
+        t: Transport,
         communication: 'serial' | 'ble',
     ): Promise<void> => {
-        const connectResult = await connectDevice(
-            t,
-            setService,
-            setDeviceName,
-            connectionAbort.signal,
-            communication,
-        )
-        if (typeof connectResult === 'string') {
+        const adapter = await pickAdapter(t, { transportKind: communication })
+        if (!adapter) {
             toast.error('Failed to connect to the selected device.', {
-                description: connectResult,
+                description: 'No firmware adapter handled the device.',
+            })
+            return
+        }
+        try {
+            const next = await adapter.connect(t, connectionAbort.signal)
+            next.subscribe(({ topic, payload }): void => {
+                publish(`rpc_notification.${topic}`, payload)
+            })
+            next.onClosed((): void => {
+                setDeviceName(null)
+                setService(null)
+            })
+            setDeviceName(next.deviceInfo.name)
+            if (communication === 'serial') {
+                rememberConnectedDeviceName(next.deviceInfo.name)
+            }
+            setService(next, communication)
+        } catch (err) {
+            toast.error('Failed to connect to the selected device.', {
+                description: err instanceof Error ? err.message : String(err),
             })
         }
     }

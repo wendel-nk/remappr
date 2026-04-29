@@ -1,6 +1,6 @@
 // pattern-check: skip — merge conflict resolution, no new logic
 import { IpcChannels, IpcEvents } from '../../../shared/ipc-types'
-import type { RpcTransport } from '@firmware/zmk'
+import type { Transport } from '@firmware'
 import type { AvailableDevice } from '../transport/types'
 
 export async function list_devices(): Promise<Array<AvailableDevice>> {
@@ -13,7 +13,7 @@ export function onDevicesChanged(cb: () => void): () => void {
     return window.api.on(IpcEvents.SERIAL_DEVICES_CHANGED, cb)
 }
 
-export async function connect(dev: AvailableDevice): Promise<RpcTransport> {
+export async function connect(dev: AvailableDevice): Promise<Transport> {
     if (!(await window.api.invoke(IpcChannels.SERIAL_CONNECT, dev))) {
         throw new Error('Failed to connect')
     }

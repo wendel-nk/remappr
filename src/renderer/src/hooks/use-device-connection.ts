@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import type { RpcTransport } from '@firmware/zmk'
+import type { Transport } from '@firmware'
 import { UserCancelledError } from '@firmware/zmk'
 import { toast } from 'sonner'
 import type { TransportFactory } from '@/transport/types'
@@ -14,10 +14,7 @@ interface UseDeviceConnectionResult {
 }
 
 export function useDeviceConnection(
-    onTransportCreated: (
-        t: RpcTransport,
-        communication: 'serial' | 'ble',
-    ) => void,
+    onTransportCreated: (t: Transport, communication: 'serial' | 'ble') => void,
     setDevices: React.Dispatch<React.SetStateAction<DeviceWithTransport[]>>,
 ): UseDeviceConnectionResult {
     const [connectingDeviceId, setConnectingDeviceId] = useState<string | null>(

@@ -9,7 +9,7 @@
  */
 
 import { IpcChannels, IpcEvents } from '../../../shared/ipc-types'
-import type { RpcTransport } from '@firmware/zmk'
+import type { Transport } from '@firmware'
 import type { AvailableDevice } from '../transport/types'
 
 export async function list_devices(): Promise<AvailableDevice[]> {
@@ -26,7 +26,7 @@ export async function list_devices(): Promise<AvailableDevice[]> {
     }
 }
 
-export async function connect(dev: AvailableDevice): Promise<RpcTransport> {
+export async function connect(dev: AvailableDevice): Promise<Transport> {
     const result = (await window.api.invoke(
         IpcChannels.NOBLE_CONNECT,
         dev.id,

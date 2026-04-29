@@ -1,14 +1,14 @@
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 
-import type { RpcTransport } from '@firmware/zmk'
+import type { Transport } from '@firmware'
 import type { AvailableDevice } from '../transport/types'
 
 export async function list_devices(): Promise<Array<AvailableDevice>> {
     return await invoke('serial_list_devices')
 }
 
-export async function connect(dev: AvailableDevice): Promise<RpcTransport> {
+export async function connect(dev: AvailableDevice): Promise<Transport> {
     if (!(await invoke('serial_connect', { ...dev }))) {
         throw new Error('Failed to connect')
     }

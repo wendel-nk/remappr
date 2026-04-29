@@ -1,5 +1,5 @@
 // pattern-check: skip — extracting existing TransportFactory type from ConnectModal into transport layer, no new logic
-import type { RpcTransport } from '@firmware/zmk'
+import type { Transport } from '@firmware'
 
 export interface AvailableDevice {
     label: string
@@ -30,10 +30,10 @@ export type TransportFactory = {
     label: string
     communication: 'serial' | 'ble'
     isWireless?: boolean
-    connect?: () => Promise<RpcTransport>
+    connect?: () => Promise<Transport>
     pick_and_connect?: {
         list: () => Promise<Array<AvailableDevice>>
-        connect: (dev: AvailableDevice) => Promise<RpcTransport>
+        connect: (dev: AvailableDevice) => Promise<Transport>
     }
     /**
      * Optional: trigger the browser/OS chooser to grant access to a new
@@ -41,5 +41,5 @@ export type TransportFactory = {
      * granted-device list (pick_and_connect.list) is empty until the user
      * has gone through the native chooser at least once.
      */
-    request_new?: () => Promise<RpcTransport>
+    request_new?: () => Promise<Transport>
 }

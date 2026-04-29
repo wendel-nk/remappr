@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 
-import type { RpcTransport } from '@firmware/zmk'
+import type { Transport } from '@firmware'
 import type { TransportFactory } from '@/transport/types'
 import { ExternalLink } from '@/components/ExternalLink'
 import { DeviceList } from './DeviceList.tsx'
@@ -11,10 +11,7 @@ import { Modal } from '@/ui/modal'
 
 export interface ConnectModalProps {
     open?: boolean
-    onTransportCreated: (
-        t: RpcTransport,
-        communication: 'serial' | 'ble',
-    ) => void
+    onTransportCreated: (t: Transport, communication: 'serial' | 'ble') => void
 }
 
 export const ConnectModal = ({
@@ -27,7 +24,7 @@ export const ConnectModal = ({
     function connectOptions(
         transports: TransportFactory[],
         onTransportCreated: (
-            t: RpcTransport,
+            t: Transport,
             communication: 'serial' | 'ble',
         ) => void,
         open?: boolean,

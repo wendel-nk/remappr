@@ -1,5 +1,5 @@
 // pattern-check: skip — bug fix in single transport module; cache + perm helpers are utilities
-import type { RpcTransport } from '@firmware/zmk'
+import type { Transport } from '@firmware'
 import type { AvailableDevice } from '@/transport/types'
 
 const BAUD_RATE = 12500
@@ -175,7 +175,7 @@ export async function listGrantedPorts(): Promise<AvailableDevice[]> {
     })
 }
 
-async function openTransport(port: SerialPort): Promise<RpcTransport> {
+async function openTransport(port: SerialPort): Promise<Transport> {
     if (!port.readable || !port.writable) {
         await port.open({ baudRate: BAUD_RATE }).catch((e: unknown) => {
             if (e instanceof DOMException && e.name === 'NetworkError') {
@@ -213,7 +213,7 @@ async function openTransport(port: SerialPort): Promise<RpcTransport> {
 
 export async function connectToGrantedPort(
     device: AvailableDevice,
-): Promise<RpcTransport> {
+): Promise<Transport> {
     const port = portRegistry.get(device.id)
     if (!port) {
         throw new Error(
@@ -227,7 +227,7 @@ export async function connectToGrantedPort(
 // RPC handshake reports the firmware's keyboard name.
 let lastOpenedPortInfo: SerialPortInfo | null = null
 
-export async function requestAndConnect(): Promise<RpcTransport> {
+export async function requestAndConnect(): Promise<Transport> {
     if (!navigator.serial) throw new Error('Web Serial not supported')
     const filters = KNOWN_VENDOR_IDS.map((usbVendorId) => ({ usbVendorId }))
     const port = await navigator.serial.requestPort({ filters })

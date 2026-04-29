@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Keyboard } from 'lucide-react'
 import { toast } from 'sonner'
-import type { RpcTransport } from '@firmware/zmk'
+import type { Transport } from '@firmware'
 
 import { Button } from '@/ui/button'
 import { Card, CardContent } from '@/ui/card'
@@ -20,10 +20,7 @@ import { ConnectionStatusBanner } from './ConnectionStatusBanner'
 import { TransportSection } from './TransportSection'
 
 interface StartPageProps {
-    onTransportCreated: (
-        t: RpcTransport,
-        communication: 'serial' | 'ble',
-    ) => void
+    onTransportCreated: (t: Transport, communication: 'serial' | 'ble') => void
 }
 
 export function StartPage({ onTransportCreated }: StartPageProps): JSX.Element {

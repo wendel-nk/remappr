@@ -12,7 +12,7 @@
  */
 
 import { IpcChannels, IpcEvents } from '../../../shared/ipc-types'
-import type { RpcTransport } from '@firmware/zmk'
+import type { Transport } from '@firmware'
 import type { AvailableDevice } from '@/transport'
 
 import { STUDIO_SERVICE_UUID, STUDIO_CHAR_UUID } from '@shared/ble-defaults'
@@ -123,7 +123,7 @@ export async function list_devices(): Promise<AvailableDevice[]> {
 }
 
 /**
- * Connect to a specific BLE device and return an RpcTransport.
+ * Connect to a specific BLE device and return an Transport.
  *
  * Linux: routes through main-process BlueZ client. dev.id is a D-Bus path
  * like /org/bluez/hci0/dev_CD_8F_C5_C5_8B_A4. Reads/writes flow over IPC
@@ -131,7 +131,7 @@ export async function list_devices(): Promise<AvailableDevice[]> {
  *
  * Other platforms: GATT in renderer via Web Bluetooth.
  */
-export async function connect(dev: AvailableDevice): Promise<RpcTransport> {
+export async function connect(dev: AvailableDevice): Promise<Transport> {
     const platform = await getPlatform()
     if (platform === 'linux') {
         return connectViaBluez(dev)
@@ -139,7 +139,7 @@ export async function connect(dev: AvailableDevice): Promise<RpcTransport> {
     return connectViaWebBluetooth(dev)
 }
 
-async function connectViaBluez(dev: AvailableDevice): Promise<RpcTransport> {
+async function connectViaBluez(dev: AvailableDevice): Promise<Transport> {
     const result = (await window.api.invoke(
         IpcChannels.BLUEZ_CONNECT,
         dev.id,
@@ -201,7 +201,7 @@ async function connectViaBluez(dev: AvailableDevice): Promise<RpcTransport> {
 
 async function connectViaWebBluetooth(
     dev: AvailableDevice,
-): Promise<RpcTransport> {
+): Promise<Transport> {
     if (!navigator.bluetooth) {
         throw new Error(
             'Web Bluetooth API not available in this Electron build',

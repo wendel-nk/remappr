@@ -2,16 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { AvailableDevice } from '@/transport/types'
 import { UserCancelledError } from '@firmware/zmk'
 import type { TransportFactory } from '@/transport/types'
-import { RpcTransport } from '@firmware/zmk'
+import type { Transport } from '@firmware'
 import { Button } from '@/ui/button'
 import { toast } from 'sonner'
 
 interface DevicePickerProps {
     transports: TransportFactory[]
-    onTransportCreated: (
-        t: RpcTransport,
-        communication: 'serial' | 'ble',
-    ) => void
+    onTransportCreated: (t: Transport, communication: 'serial' | 'ble') => void
 }
 
 export function DevicePicker({

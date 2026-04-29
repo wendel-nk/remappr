@@ -1,7 +1,7 @@
 // pattern-check: skip mechanical port — fetches BehaviorMap via ZmkKeyboardService.getBehaviors instead of callRpc helper
 import { useEffect, useState } from 'react'
 import useConnectionStore from '@/stores/connectionStore'
-import { ZmkKeyboardService } from '@firmware/zmk/service'
+import { ZmkKeyboardService } from '@firmware/zmk'
 import type { BehaviorMap } from '@firmware/zmk'
 
 export function useBehaviors(): BehaviorMap {

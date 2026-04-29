@@ -1,4 +1,4 @@
-import type { RpcTransport } from '@firmware/zmk'
+import type { Transport } from '@firmware'
 import { UserCancelledError } from '@firmware/zmk'
 import type { AvailableDevice } from '@/transport/types'
 
@@ -14,7 +14,7 @@ function makeLabel(dev: BluetoothDevice): string {
     return dev.name || 'Unknown BLE Device'
 }
 
-async function openTransport(dev: BluetoothDevice): Promise<RpcTransport> {
+async function openTransport(dev: BluetoothDevice): Promise<Transport> {
     if (!dev.gatt) throw new Error('No GATT server on selected device')
 
     const abortController = new AbortController()
@@ -116,7 +116,7 @@ export async function listGrantedDevices(): Promise<AvailableDevice[]> {
 
 export async function connectToGrantedDevice(
     device: AvailableDevice,
-): Promise<RpcTransport> {
+): Promise<Transport> {
     const dev = deviceRegistry.get(device.id)
     if (!dev) {
         throw new Error(
@@ -131,7 +131,7 @@ export async function connectToGrantedDevice(
  * ZMK firmware builds expose the Studio GATT service without including
  * it in the advertising payload — strict service filter shows empty.
  */
-export async function requestAndConnect(): Promise<RpcTransport> {
+export async function requestAndConnect(): Promise<Transport> {
     const dev = await navigator.bluetooth
         .requestDevice({
             acceptAllDevices: true,

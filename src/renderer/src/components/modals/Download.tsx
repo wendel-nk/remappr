@@ -13,7 +13,7 @@ import {
     generateZMKKeymapFile,
     generateZMKConfigFile,
     downloadConfigZip,
-} from '@firmware/zmk/export'
+} from '@firmware/zmk'
 import type { Keymap } from '@firmware/types'
 
 interface DownloadProps {

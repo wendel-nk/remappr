@@ -4,17 +4,14 @@ import type { AvailableDevice } from '@/transport/types'
 import { Key, ListBox, ListBoxItem, Selection } from 'react-aria-components'
 import { Bluetooth, RefreshCw } from 'lucide-react'
 import type { TransportFactory } from '@/transport/types'
-import { RpcTransport } from '@firmware/zmk'
+import type { Transport } from '@firmware'
 import { UserCancelledError } from '@firmware/zmk'
 import { ErrorDialog } from '@/components/modals/ErrorDialog'
 
 interface DeviceListProps {
     open?: boolean
     transports: TransportFactory[]
-    onTransportCreated: (
-        t: RpcTransport,
-        communication: 'serial' | 'ble',
-    ) => void
+    onTransportCreated: (t: Transport, communication: 'serial' | 'ble') => void
 }
 
 export function DeviceList({
