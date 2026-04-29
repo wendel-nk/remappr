@@ -5,7 +5,6 @@ import type { Transport } from '@firmware'
 
 import { Button } from '@/ui/button'
 import { Card, CardContent } from '@/ui/card'
-import { ExternalLink } from '@/components/ExternalLink'
 import { GitHubIcon } from '@/components/GitHubIcon'
 import { DownloadLatestButton } from '@/components/DownloadLatestButton'
 import { APP_VERSION, REPO_URL } from '@/lib/constants'
@@ -83,8 +82,8 @@ export function StartPage({
                             Configure Your Keyboard
                         </h1>
                         <p className="text-lg text-muted-foreground">
-                            Connect your ZMK-powered keyboard to customize
-                            keymaps and settings.
+                            Connect your keyboard to customize keymaps and
+                            settings.
                         </p>
                     </div>
 
@@ -156,11 +155,6 @@ export function StartPage({
                             &copy; {new Date().getFullYear()} - Remappr
                             Contributors
                         </span>
-                        {' - '}
-                        Powered by{' '}
-                        <ExternalLink href="https://zmk.dev">
-                            ZMK Firmware
-                        </ExternalLink>
                         {' - '}
                         <LicenseNoticeModal></LicenseNoticeModal>
                     </p>

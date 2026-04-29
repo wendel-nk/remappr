@@ -14,14 +14,14 @@ function makeId(info: SerialPortInfo, fallbackIndex: number): string {
 
 // Fallback labels when WebUSB cannot supply a productName.
 const KNOWN_VENDOR_LABELS: Record<number, string> = {
-    0x1d50: 'ZMK Keyboard',
+    0x1d50: 'OpenMoko Keyboard',
     0x239a: 'Adafruit Keyboard',
     0x303a: 'ESP32 Keyboard',
     0x2e8a: 'Raspberry Pi Pico Keyboard',
     0x16c0: 'V-USB / Teensy Keyboard',
     0x1915: 'Nordic Keyboard',
     0x05ac: 'Apple Keyboard',
-    0x1209: 'Generic ZMK Keyboard',
+    0x1209: 'Generic Keyboard',
 }
 
 const KNOWN_VENDOR_IDS: number[] = Object.keys(KNOWN_VENDOR_LABELS).map((k) =>

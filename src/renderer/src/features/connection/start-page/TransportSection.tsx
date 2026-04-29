@@ -125,7 +125,7 @@ export function TransportSection({
                         <p className="mb-4 max-w-sm text-sm text-muted-foreground">
                             {pairableTransports.length > 0
                                 ? 'Browsers only show keyboards you have paired with this site. Click below to pick yours from the system chooser — it stays remembered for next time.'
-                                : 'Make sure your keyboard is connected and ZMK Studio is enabled in your firmware.'}
+                                : 'Make sure your keyboard is connected.'}
                         </p>
                         <div className="flex flex-wrap justify-center gap-2">
                             {pairableTransports.map((t) => (
