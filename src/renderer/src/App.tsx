@@ -1,8 +1,8 @@
 import React, { JSX, useCallback, useEffect } from 'react'
-import { connectMock, pickAdapter } from '@firmware'
+import { connectMock, isUnlocked, pickAdapter } from '@firmware'
 import type { Transport } from '@firmware'
 import { rememberConnectedDeviceName } from '@/transport/web-serial'
-import { UnlockModal } from '@/features/connection/UnlockModal'
+import { LockedOverlay } from '@/features/connection/LockedOverlay'
 import useConnectionStore from '@/stores/connectionStore'
 import undoRedoStore from '@/stores/undoRedoStore'
 import { KeymapEditor } from '@/features/keymap/editor/KeymapEditor'
@@ -26,6 +26,7 @@ function App(): JSX.Element {
         setDeviceName,
         setLockState,
         connectionAbort,
+        lockState,
     } = useConnectionStore()
     const { reset } = undoRedoStore()
 
@@ -106,31 +107,36 @@ function App(): JSX.Element {
                 <TitleBar />
                 <div className="flex-1 min-h-0 overflow-hidden">
                     {service ? (
-                        <ErrorBoundary>
-                            <UnlockModal />
-                            <SidebarProvider
-                                className="!min-h-0 h-full"
-                                style={
-                                    {
-                                        '--sidebar-width':
-                                            'calc(var(--spacing) * 72)',
-                                        '--header-height':
-                                            'calc(var(--spacing) * 12)',
-                                        '--footer-height':
-                                            'calc(var(--spacing) * 8)',
-                                    } as React.CSSProperties
-                                }
-                            >
-                                <Drawer />
-                                <SidebarInset>
-                                    <Header />
-                                    <ErrorBoundary>
-                                        <KeymapEditor />
-                                    </ErrorBoundary>
-                                    {/*<Footer />*/}
-                                </SidebarInset>
-                            </SidebarProvider>
-                        </ErrorBoundary>
+                        service.capabilities.lock && !isUnlocked(lockState) ? (
+                            <ErrorBoundary>
+                                <LockedOverlay />
+                            </ErrorBoundary>
+                        ) : (
+                            <ErrorBoundary>
+                                <SidebarProvider
+                                    className="!min-h-0 h-full"
+                                    style={
+                                        {
+                                            '--sidebar-width':
+                                                'calc(var(--spacing) * 72)',
+                                            '--header-height':
+                                                'calc(var(--spacing) * 12)',
+                                            '--footer-height':
+                                                'calc(var(--spacing) * 8)',
+                                        } as React.CSSProperties
+                                    }
+                                >
+                                    <Drawer />
+                                    <SidebarInset>
+                                        <Header />
+                                        <ErrorBoundary>
+                                            <KeymapEditor />
+                                        </ErrorBoundary>
+                                        {/*<Footer />*/}
+                                    </SidebarInset>
+                                </SidebarProvider>
+                            </ErrorBoundary>
+                        )
                     ) : (
                         <ErrorBoundary>
                             <StartPage

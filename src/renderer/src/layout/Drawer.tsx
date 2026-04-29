@@ -14,13 +14,14 @@ import {
     SidebarFooter,
 } from '@/ui/sidebar'
 import { DeviceMenu } from '@/features/connection/DeviceMenu'
+// pattern-check: skip — drop dead lock guards now that App-shell render-gates locked state
 import type { Keymap } from '@firmware/types'
-import { isUnlocked } from '@firmware'
 import { produce } from 'immer'
 import { APP_VERSION } from '@/lib/constants'
 
+// pattern-check: skip — mechanical lock-guard removal
 export function Drawer(): JSX.Element {
-    const { service, lockState } = useConnectionStore()
+    const { service } = useConnectionStore()
     const { setSelectedLayerIndex } = useLayerSelectionStore()
     const { keymap, setKeymap, resetKeymap } = useKeymapStore()
     const {
@@ -41,9 +42,9 @@ export function Drawer(): JSX.Element {
         [setKeymap],
     )
 
-    // Fetch keymap when service changes or becomes unlocked
+    // Fetch keymap when service changes
     useEffect(() => {
-        if (!service || !isUnlocked(lockState)) {
+        if (!service) {
             resetKeymap()
             return
         }
@@ -63,12 +64,12 @@ export function Drawer(): JSX.Element {
         return (): void => {
             ignore = true
         }
-    }, [service, lockState, setKeymap, resetKeymap])
+    }, [service, setKeymap, resetKeymap])
 
-    // Reset the layer selection whenever the service is swapped or locked state changes
+    // Reset the layer selection whenever the service is swapped
     useEffect(() => {
         setSelectedLayerIndex(0)
-    }, [service, lockState, setSelectedLayerIndex])
+    }, [service, setSelectedLayerIndex])
 
     const doSelectPhysicalLayout = useCallback(
         (i: number): void => {

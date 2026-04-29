@@ -11,18 +11,12 @@ import {
     DropdownMenuTrigger,
 } from '@/ui/dropdown-menu'
 import { SidebarMenu, SidebarMenuItem } from '@/ui/sidebar'
+// pattern-check: skip — drop dead lock guards now that App-shell render-gates locked state
 import { toast } from 'sonner'
-import { isUnlocked } from '@firmware'
 
 export const DeviceMenu = (): JSX.Element => {
-    const {
-        service,
-        setService,
-        communication,
-        deviceName,
-        lockState,
-        disconnect,
-    } = useConnectionStore()
+    const { service, setService, communication, deviceName, disconnect } =
+        useConnectionStore()
     const { reset } = undoRedoStore()
 
     const resetSettings = useCallback(async (): Promise<void> => {
@@ -46,7 +40,7 @@ export const DeviceMenu = (): JSX.Element => {
         }, 0)
     }, [service, communication, reset, setService])
 
-    const isDisabled = !deviceName || !isUnlocked(lockState)
+    const isDisabled = !deviceName
 
     return (
         <SidebarMenu>

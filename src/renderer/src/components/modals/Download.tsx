@@ -6,8 +6,8 @@ import { Button } from '@/ui/button'
 import { Separator } from '@/ui/separator'
 import { toast } from 'sonner'
 import useConnectionStore from '@/stores/connectionStore'
+// pattern-check: skip — drop dead lock guards now that App-shell render-gates locked state
 import type { ExportedFile, Keymap } from '@firmware/types'
-import { isUnlocked } from '@firmware'
 
 interface DownloadProps {
     opened?: boolean
@@ -46,11 +46,11 @@ function downloadExports(files: ExportedFile[]): void {
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function Download(_props: DownloadProps): JSX.Element {
-    const { service, lockState } = useConnectionStore()
+    const { service } = useConnectionStore()
 
     const [keymap, setKeymap] = useState<Keymap | undefined>(undefined)
     useEffect(() => {
-        if (!service || !isUnlocked(lockState)) {
+        if (!service) {
             // eslint-disable-next-line react-hooks/set-state-in-effect
             setKeymap(undefined)
             return
@@ -67,7 +67,7 @@ export function Download(_props: DownloadProps): JSX.Element {
         return (): void => {
             cancelled = true
         }
-    }, [service, lockState])
+    }, [service])
 
     const handleGenerateConfig = async (): Promise<void> => {
         if (!service) {

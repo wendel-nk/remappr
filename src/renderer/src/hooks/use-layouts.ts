@@ -1,6 +1,5 @@
 // pattern-check: skip mechanical port — useLayout now reads from service.getPhysicalLayouts() and uses neutral PhysicalLayout
 import type { PhysicalLayout } from '@firmware/types'
-import { isUnlocked } from '@firmware'
 import { Dispatch, SetStateAction, useEffect, useState } from 'react'
 import useConnectionStore from '@/stores/connectionStore'
 
@@ -12,7 +11,7 @@ interface UseLayoutsReturn {
 }
 
 export function useLayout(): UseLayoutsReturn {
-    const { service, lockState } = useConnectionStore()
+    const { service } = useConnectionStore()
 
     const [layouts, setLayouts] = useState<PhysicalLayout[] | undefined>(
         undefined,
@@ -21,7 +20,7 @@ export function useLayout(): UseLayoutsReturn {
         useState<number>(0)
 
     useEffect((): void | (() => void) => {
-        if (!service || !isUnlocked(lockState)) {
+        if (!service) {
             // eslint-disable-next-line react-hooks/set-state-in-effect
             setLayouts(undefined)
             return
@@ -51,7 +50,7 @@ export function useLayout(): UseLayoutsReturn {
         return (): void => {
             isCancelled = true
         }
-    }, [service, lockState])
+    }, [service])
 
     return {
         layouts,

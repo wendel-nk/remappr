@@ -1,4 +1,5 @@
 // Pattern check: Observer (Tier 1) — extended — uses service.onPendingChangesChanged Observer instead of pub-sub bridge.
+// pattern-check: skip — drop dead lock guards now that App-shell render-gates locked state
 /* eslint-disable react-hooks/preserve-manual-memoization */
 import { useCallback, useEffect, useState } from 'react'
 import { Redo2, Save, Sliders, Sparkles, Trash2, Undo2 } from 'lucide-react'
@@ -15,11 +16,8 @@ import { Button } from '@/ui/button'
 import { Separator } from '@/ui/separator'
 import { toast } from 'sonner'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/ui/tooltip'
-import { isUnlocked } from '@firmware'
-
 export function Header(): JSX.Element {
-    const { service, lockState, setService, communication } =
-        useConnectionStore()
+    const { service, setService, communication } = useConnectionStore()
     const { undo, redo, canUndo, canRedo, reset } = undoRedoStore()
 
     const [unsaved, setUnsaved] = useState<boolean>(false)
@@ -32,7 +30,7 @@ export function Header(): JSX.Element {
         !!service?.capabilities.macros && service.capabilities.macros.count > 0
 
     useEffect(() => {
-        if (!service || !isUnlocked(lockState)) {
+        if (!service) {
             // eslint-disable-next-line react-hooks/set-state-in-effect
             setUnsaved(false)
             return
@@ -53,7 +51,7 @@ export function Header(): JSX.Element {
             cancelled = true
             off()
         }
-    }, [service, lockState])
+    }, [service])
 
     const save = useCallback(async (): Promise<void> => {
         if (!service) return
@@ -119,9 +117,7 @@ export function Header(): JSX.Element {
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    disabled={
-                                        !service || !isUnlocked(lockState)
-                                    }
+                                    disabled={!service}
                                     onClick={(): void => setDynOpen(true)}
                                 >
                                     <Sliders aria-label="Dynamic entries" />
@@ -143,9 +139,7 @@ export function Header(): JSX.Element {
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    disabled={
-                                        !service || !isUnlocked(lockState)
-                                    }
+                                    disabled={!service}
                                     onClick={(): void => setMacroOpen(true)}
                                 >
                                     <Sparkles aria-label="Macros" />
@@ -218,11 +212,7 @@ export function Header(): JSX.Element {
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    disabled={
-                                        !unsaved ||
-                                        !service ||
-                                        !isUnlocked(lockState)
-                                    }
+                                    disabled={!unsaved || !service}
                                     onClick={save}
                                 >
                                     <Save aria-label="Save" />
