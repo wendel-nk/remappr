@@ -21,9 +21,13 @@ import { TransportSection } from './TransportSection'
 
 interface StartPageProps {
     onTransportCreated: (t: Transport, communication: 'serial' | 'ble') => void
+    onDemoConnect?: () => void | Promise<void>
 }
 
-export function StartPage({ onTransportCreated }: StartPageProps): JSX.Element {
+export function StartPage({
+    onTransportCreated,
+    onDemoConnect,
+}: StartPageProps): JSX.Element {
     const [devices, setDevices] = useState<DeviceWithTransport[]>([])
 
     const {
@@ -109,6 +113,10 @@ export function StartPage({ onTransportCreated }: StartPageProps): JSX.Element {
                                 <Button
                                     variant="secondary"
                                     onClick={() => {
+                                        if (onDemoConnect) {
+                                            void onDemoConnect()
+                                            return
+                                        }
                                         toast.info('Demo mode coming soon!', {
                                             description:
                                                 'This feature is currently under development.',

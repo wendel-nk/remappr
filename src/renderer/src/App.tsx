@@ -1,5 +1,5 @@
 import React, { JSX, useCallback, useEffect } from 'react'
-import { pickAdapter } from '@firmware'
+import { connectMock, pickAdapter } from '@firmware'
 import type { Transport } from '@firmware'
 import { rememberConnectedDeviceName } from '@/transport/web-serial'
 import { UnlockModal } from '@/features/connection/UnlockModal'
@@ -74,6 +74,22 @@ function App(): JSX.Element {
         }
     }
 
+    const onDemoConnect = async (): Promise<void> => {
+        try {
+            const next = await connectMock()
+            next.onClosed((): void => {
+                setDeviceName(null)
+                setService(null)
+            })
+            setDeviceName(next.deviceInfo.name)
+            setService(next)
+        } catch (err) {
+            toast.error('Failed to start demo mode.', {
+                description: err instanceof Error ? err.message : String(err),
+            })
+        }
+    }
+
     const isElectron =
         typeof window !== 'undefined' &&
         Boolean((window as unknown as { api?: unknown }).api)
@@ -117,7 +133,10 @@ function App(): JSX.Element {
                         </ErrorBoundary>
                     ) : (
                         <ErrorBoundary>
-                            <StartPage onTransportCreated={onConnect} />
+                            <StartPage
+                                onTransportCreated={onConnect}
+                                onDemoConnect={onDemoConnect}
+                            />
                         </ErrorBoundary>
                     )}
                 </div>

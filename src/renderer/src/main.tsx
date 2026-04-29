@@ -4,6 +4,7 @@ import App from './App.tsx'
 import { silenceConsoleInProduction } from '@shared/logger.ts'
 import '@firmware/qmk'
 import '@firmware/zmk'
+import '@firmware/mock'
 import './index.css'
 
 silenceConsoleInProduction()
