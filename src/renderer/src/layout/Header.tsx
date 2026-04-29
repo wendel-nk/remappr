@@ -1,7 +1,8 @@
 // Pattern check: Observer (Tier 1) — extended — uses service.onPendingChangesChanged Observer instead of pub-sub bridge.
 /* eslint-disable react-hooks/preserve-manual-memoization */
 import { useCallback, useEffect, useState } from 'react'
-import { Redo2, Save, Trash2, Undo2 } from 'lucide-react'
+import { Redo2, Save, Sliders, Trash2, Undo2 } from 'lucide-react'
+import { DynamicEntriesModal } from '@/features/dynamic/DynamicEntriesModal'
 import { GitHubIcon } from '@/components/GitHubIcon'
 import { REPO_URL } from '@/lib/constants'
 import useConnectionStore from '@/stores/connectionStore'
@@ -21,6 +22,10 @@ export function Header(): JSX.Element {
     const { undo, redo, canUndo, canRedo, reset } = undoRedoStore()
 
     const [unsaved, setUnsaved] = useState<boolean>(false)
+    const [dynOpen, setDynOpen] = useState(false)
+    const dyn = service?.capabilities.dynamicEntries
+    const showDyn =
+        !!dyn && (dyn.tapDance > 0 || dyn.combo > 0 || dyn.keyOverride > 0)
 
     useEffect(() => {
         if (!service || !isUnlocked(lockState)) {
@@ -104,6 +109,30 @@ export function Header(): JSX.Element {
                             <p>Settings</p>
                         </TooltipContent>
                     </Tooltip>
+                    {showDyn && (
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    disabled={
+                                        !service || !isUnlocked(lockState)
+                                    }
+                                    onClick={(): void => setDynOpen(true)}
+                                >
+                                    <Sliders aria-label="Dynamic entries" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Dynamic Entries</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    )}
+                    <DynamicEntriesModal
+                        service={service}
+                        opened={dynOpen}
+                        onClose={(): void => setDynOpen(false)}
+                    />
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <Button variant="ghost" size="icon" asChild>

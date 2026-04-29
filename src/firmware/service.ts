@@ -1,13 +1,18 @@
 import type {
     ActionType,
     AdapterNotification,
+    AltRepeatKeyEntry,
+    ComboEntry,
     DeviceInfo,
+    DynamicEntryCounts,
     ExportedFile,
     KeyAction,
+    KeyOverrideEntry,
     KeyUpdate,
     Keymap,
     Layer,
     LockState,
+    TapDanceEntry,
 } from './types'
 
 export interface Capabilities {
@@ -48,6 +53,17 @@ export interface KeyboardService {
         direction: 0 | 1,
         action: KeyAction,
     ): Promise<void>
+
+    // Optional dynamic entries (Vial). Adapters without dynamic entries omit these.
+    getDynamicEntryCounts?(): DynamicEntryCounts
+    getTapDance?(idx: number): Promise<TapDanceEntry>
+    setTapDance?(idx: number, entry: TapDanceEntry): Promise<void>
+    getCombo?(idx: number): Promise<ComboEntry>
+    setCombo?(idx: number, entry: ComboEntry): Promise<void>
+    getKeyOverride?(idx: number): Promise<KeyOverrideEntry>
+    setKeyOverride?(idx: number, entry: KeyOverrideEntry): Promise<void>
+    getAltRepeatKey?(idx: number): Promise<AltRepeatKeyEntry>
+    setAltRepeatKey?(idx: number, entry: AltRepeatKeyEntry): Promise<void>
 
     addLayer(): Promise<Layer>
     removeLayer(layerId: number): Promise<void>

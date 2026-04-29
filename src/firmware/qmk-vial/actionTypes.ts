@@ -44,7 +44,7 @@ export function buildVialActionTypes(
                     kind: 'enum',
                     values: customKeycodes.map((k, i) => ({
                         value: i,
-                        label: k.shortName || k.name,
+                        label: k.title || k.shortName || k.name,
                     })),
                 },
             ],

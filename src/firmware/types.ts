@@ -124,3 +124,57 @@ export interface ExportedFile {
 }
 
 export type TransportKind = 'serial' | 'ble' | 'hid'
+
+// pattern-check: skip plain data shapes for Vial dynamic entries; no abstraction
+export interface TapDanceEntry {
+    onTap: number
+    onHold: number
+    onDoubleTap: number
+    onTapHold: number
+    tappingTerm: number
+}
+
+export interface ComboEntry {
+    keys: [number, number, number, number]
+    output: number
+}
+
+export interface KeyOverrideOptions {
+    activationTriggerDown: boolean
+    activationRequiredModDown: boolean
+    activationNegativeModUp: boolean
+    oneMod: boolean
+    noReregisterTrigger: boolean
+    noUnregisterOnOtherKeyDown: boolean
+    enabled: boolean
+}
+
+export interface KeyOverrideEntry {
+    trigger: number
+    replacement: number
+    layers: number
+    triggerMods: number
+    negativeModMask: number
+    suppressedMods: number
+    options: KeyOverrideOptions
+}
+
+export interface AltRepeatKeyOptions {
+    defaultToThisAltKey: boolean
+    bidirectional: boolean
+    ignoreModHandedness: boolean
+    enabled: boolean
+}
+
+export interface AltRepeatKeyEntry {
+    keycode: number
+    altKeycode: number
+    allowedMods: number
+    options: AltRepeatKeyOptions
+}
+
+export interface DynamicEntryCounts {
+    tapDance: number
+    combo: number
+    keyOverride: number
+}

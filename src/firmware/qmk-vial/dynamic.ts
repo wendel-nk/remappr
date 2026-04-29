@@ -4,6 +4,14 @@
 // unlike the layer-keymap path which is big-endian over VIA cmd 0x05.
 
 import type { HidClient } from '@firmware/qmk/hidClient'
+import type {
+    AltRepeatKeyEntry,
+    AltRepeatKeyOptions,
+    ComboEntry,
+    KeyOverrideEntry,
+    KeyOverrideOptions,
+    TapDanceEntry,
+} from '@firmware/types'
 
 import {
     DYNAMIC_OP,
@@ -14,6 +22,15 @@ import {
     type DynamicEntryCount,
 } from './protocol'
 
+export type {
+    AltRepeatKeyEntry,
+    AltRepeatKeyOptions,
+    ComboEntry,
+    KeyOverrideEntry,
+    KeyOverrideOptions,
+    TapDanceEntry,
+}
+
 function readU16LE(buf: Uint8Array, off: number): number {
     return ((buf[off] | (buf[off + 1] << 8)) & 0xffff) >>> 0
 }
@@ -23,53 +40,7 @@ function writeU16LE(buf: Uint8Array, off: number, v: number): void {
     buf[off + 1] = (v >> 8) & 0xff
 }
 
-export interface TapDanceEntry {
-    onTap: number
-    onHold: number
-    onDoubleTap: number
-    onTapHold: number
-    tappingTerm: number
-}
-
-export interface ComboEntry {
-    keys: [number, number, number, number]
-    output: number
-}
-
-export interface KeyOverrideOptions {
-    activationTriggerDown: boolean
-    activationRequiredModDown: boolean
-    activationNegativeModUp: boolean
-    oneMod: boolean
-    noReregisterTrigger: boolean
-    noUnregisterOnOtherKeyDown: boolean
-    enabled: boolean
-}
-
-export interface KeyOverrideEntry {
-    trigger: number
-    replacement: number
-    layers: number
-    triggerMods: number
-    negativeModMask: number
-    suppressedMods: number
-    options: KeyOverrideOptions
-}
-
-export interface AltRepeatKeyOptions {
-    defaultToThisAltKey: boolean
-    bidirectional: boolean
-    ignoreModHandedness: boolean
-    enabled: boolean
-}
-
-export interface AltRepeatKeyEntry {
-    keycode: number
-    altKeycode: number
-    allowedMods: number
-    options: AltRepeatKeyOptions
-}
-
+// pattern-check: skip — duplicated entry interfaces moved to @firmware/types
 export async function getDynamicCounts(
     client: HidClient,
 ): Promise<DynamicEntryCount> {
