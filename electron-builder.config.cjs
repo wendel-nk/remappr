@@ -67,7 +67,7 @@ module.exports = {
         entitlementsInherit: 'build/entitlements.mac.plist',
         extendInfo: {
             NSBluetoothAlwaysUsageDescription:
-                'Remappr uses Bluetooth to connect to ZMK keyboards over BLE.',
+                'Remappr uses Bluetooth to connect to keyboards over BLE.',
         },
         notarize: false,
     },

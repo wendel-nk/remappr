@@ -15,8 +15,6 @@ import { IpcChannels, IpcEvents } from '../../../shared/ipc-types'
 import type { Transport } from '@firmware'
 import type { AvailableDevice } from '@/transport'
 
-import { STUDIO_SERVICE_UUID, STUDIO_CHAR_UUID } from '@shared/ble-defaults'
-
 /** Holds the pending requestDevice() promise between list_devices() and connect() */
 let pendingDevicePromise: Promise<BluetoothDevice> | null = null
 
@@ -41,7 +39,10 @@ async function getPlatform(): Promise<string> {
  *
  * Other platforms: Web Bluetooth requestDevice() chooser flow.
  */
-export async function list_devices(): Promise<AvailableDevice[]> {
+export async function list_devices(
+    serviceUuid: string,
+    charUuid: string,
+): Promise<AvailableDevice[]> {
     console.log('[electron/ble] list_devices() called')
 
     const platform = await getPlatform()
@@ -49,6 +50,7 @@ export async function list_devices(): Promise<AvailableDevice[]> {
         try {
             const devices = (await window.api.invoke(
                 IpcChannels.BLUEZ_LIST_DEVICES,
+                { serviceUuid, charUuid },
             )) as AvailableDevice[]
             console.log(
                 '[electron/ble] BlueZ returned',
@@ -84,7 +86,7 @@ export async function list_devices(): Promise<AvailableDevice[]> {
     try {
         pendingDevicePromise = navigator.bluetooth.requestDevice({
             acceptAllDevices: true,
-            optionalServices: [STUDIO_SERVICE_UUID],
+            optionalServices: [serviceUuid],
         })
     } catch (e) {
         console.error('[electron/ble] requestDevice threw:', e)
@@ -131,19 +133,28 @@ export async function list_devices(): Promise<AvailableDevice[]> {
  *
  * Other platforms: GATT in renderer via Web Bluetooth.
  */
-export async function connect(dev: AvailableDevice): Promise<Transport> {
+export async function connect(
+    dev: AvailableDevice,
+    serviceUuid: string,
+    charUuid: string,
+): Promise<Transport> {
     const platform = await getPlatform()
     if (platform === 'linux') {
-        return connectViaBluez(dev)
+        return connectViaBluez(dev, serviceUuid, charUuid)
     }
-    return connectViaWebBluetooth(dev)
+    return connectViaWebBluetooth(dev, serviceUuid, charUuid)
 }
 
-async function connectViaBluez(dev: AvailableDevice): Promise<Transport> {
-    const result = (await window.api.invoke(
-        IpcChannels.BLUEZ_CONNECT,
-        dev.id,
-    )) as { ok: boolean; label?: string; error?: string }
+async function connectViaBluez(
+    dev: AvailableDevice,
+    serviceUuid: string,
+    charUuid: string,
+): Promise<Transport> {
+    const result = (await window.api.invoke(IpcChannels.BLUEZ_CONNECT, {
+        devicePath: dev.id,
+        serviceUuid,
+        charUuid,
+    })) as { ok: boolean; label?: string; error?: string }
 
     if (!result.ok) {
         throw new Error(result.error ?? 'Failed to connect via BlueZ')
@@ -201,6 +212,8 @@ async function connectViaBluez(dev: AvailableDevice): Promise<Transport> {
 
 async function connectViaWebBluetooth(
     dev: AvailableDevice,
+    serviceUuid: string,
+    charUuid: string,
 ): Promise<Transport> {
     if (!navigator.bluetooth) {
         throw new Error(
@@ -228,8 +241,8 @@ async function connectViaWebBluetooth(
     }
 
     const server = await device.gatt.connect()
-    const service = await server.getPrimaryService(STUDIO_SERVICE_UUID)
-    const characteristic = await service.getCharacteristic(STUDIO_CHAR_UUID)
+    const service = await server.getPrimaryService(serviceUuid)
+    const characteristic = await service.getCharacteristic(charUuid)
     await characteristic.startNotifications()
 
     const abortController = new AbortController()

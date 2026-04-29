@@ -12,11 +12,15 @@ import { IpcChannels, IpcEvents } from '../../../shared/ipc-types'
 import type { Transport } from '@firmware'
 import type { AvailableDevice } from '../transport/types'
 
-export async function list_devices(): Promise<AvailableDevice[]> {
+export async function list_devices(
+    serviceUuid: string,
+    charUuid: string,
+): Promise<AvailableDevice[]> {
     console.log('[electron/noble-ble] list_devices() called')
     try {
         const devices = (await window.api.invoke(
             IpcChannels.NOBLE_LIST_DEVICES,
+            { serviceUuid, charUuid },
         )) as AvailableDevice[]
         console.log('[electron/noble-ble] returned', devices.length, 'devices')
         return devices
@@ -26,11 +30,16 @@ export async function list_devices(): Promise<AvailableDevice[]> {
     }
 }
 
-export async function connect(dev: AvailableDevice): Promise<Transport> {
-    const result = (await window.api.invoke(
-        IpcChannels.NOBLE_CONNECT,
-        dev.id,
-    )) as { ok: boolean; label?: string; error?: string }
+export async function connect(
+    dev: AvailableDevice,
+    serviceUuid: string,
+    charUuid: string,
+): Promise<Transport> {
+    const result = (await window.api.invoke(IpcChannels.NOBLE_CONNECT, {
+        deviceId: dev.id,
+        serviceUuid,
+        charUuid,
+    })) as { ok: boolean; label?: string; error?: string }
 
     if (!result.ok) {
         throw new Error(result.error ?? 'Failed to connect via noble')

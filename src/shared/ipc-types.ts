@@ -9,6 +9,16 @@ export interface AvailableDevice {
     id: string
 }
 
+/**
+ * BLE discovery descriptor supplied by the renderer (adapter-owned).
+ * Shell layers MUST treat the UUIDs as opaque identifiers — they exist
+ * to keep the shell firmware-neutral.
+ */
+export interface BleDiscoveryPayload {
+    serviceUuid: string
+    charUuid: string
+}
+
 // --- IPC Channel Names ---
 
 /** Request/response channels (renderer invokes, main handles) */
@@ -94,11 +104,11 @@ export interface IpcInvokeMap {
         result: void
     }
     [IpcChannels.BLE_LIST_DEVICES]: {
-        params: void
+        params: BleDiscoveryPayload
         result: AvailableDevice[]
     }
     [IpcChannels.BLE_CONNECT]: {
-        params: AvailableDevice
+        params: { device: AvailableDevice } & BleDiscoveryPayload
         result: boolean
     }
     [IpcChannels.BLE_START_SCAN]: {
@@ -114,19 +124,19 @@ export interface IpcInvokeMap {
         result: boolean
     }
     [IpcChannels.BLUEZ_LIST_DEVICES]: {
-        params: void
+        params: BleDiscoveryPayload
         result: AvailableDevice[]
     }
     [IpcChannels.BLUEZ_CONNECT]: {
-        params: string
+        params: { devicePath: string } & BleDiscoveryPayload
         result: { ok: boolean; label?: string; error?: string }
     }
     [IpcChannels.NOBLE_LIST_DEVICES]: {
-        params: void
+        params: BleDiscoveryPayload
         result: AvailableDevice[]
     }
     [IpcChannels.NOBLE_CONNECT]: {
-        params: string
+        params: { deviceId: string } & BleDiscoveryPayload
         result: { ok: boolean; label?: string; error?: string }
     }
     [IpcChannels.GET_PLATFORM]: {

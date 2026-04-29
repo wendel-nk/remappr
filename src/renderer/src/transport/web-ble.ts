@@ -2,8 +2,6 @@ import type { Transport } from '@firmware'
 import { UserCancelledError } from '@firmware'
 import type { AvailableDevice } from '@/transport/types'
 
-import { STUDIO_SERVICE_UUID, STUDIO_CHAR_UUID } from '@shared/ble-defaults'
-
 const deviceRegistry = new Map<string, BluetoothDevice>()
 
 function makeId(dev: BluetoothDevice): string {
@@ -14,7 +12,11 @@ function makeLabel(dev: BluetoothDevice): string {
     return dev.name || 'Unknown BLE Device'
 }
 
-async function openTransport(dev: BluetoothDevice): Promise<Transport> {
+async function openTransport(
+    dev: BluetoothDevice,
+    serviceUuid: string,
+    charUuid: string,
+): Promise<Transport> {
     if (!dev.gatt) throw new Error('No GATT server on selected device')
 
     const abortController = new AbortController()
@@ -27,11 +29,11 @@ async function openTransport(dev: BluetoothDevice): Promise<Transport> {
 
     let svc: BluetoothRemoteGATTService
     try {
-        svc = await dev.gatt.getPrimaryService(STUDIO_SERVICE_UUID)
+        svc = await dev.gatt.getPrimaryService(serviceUuid)
     } catch (e) {
         console.error(
             '[web-ble] device does not expose firmware studio service',
-            STUDIO_SERVICE_UUID,
+            serviceUuid,
             e,
         )
         dev.gatt.disconnect()
@@ -41,7 +43,7 @@ async function openTransport(dev: BluetoothDevice): Promise<Transport> {
         )
     }
 
-    const char = await svc.getCharacteristic(STUDIO_CHAR_UUID)
+    const char = await svc.getCharacteristic(charUuid)
 
     const readable = new ReadableStream<Uint8Array>({
         async start(controller) {
@@ -116,6 +118,8 @@ export async function listGrantedDevices(): Promise<AvailableDevice[]> {
 
 export async function connectToGrantedDevice(
     device: AvailableDevice,
+    serviceUuid: string,
+    charUuid: string,
 ): Promise<Transport> {
     const dev = deviceRegistry.get(device.id)
     if (!dev) {
@@ -123,7 +127,7 @@ export async function connectToGrantedDevice(
             'Selected BLE device is no longer available. Refresh the list.',
         )
     }
-    return openTransport(dev)
+    return openTransport(dev, serviceUuid, charUuid)
 }
 
 /**
@@ -131,11 +135,14 @@ export async function connectToGrantedDevice(
  * ZMK firmware builds expose the Studio GATT service without including
  * it in the advertising payload — strict service filter shows empty.
  */
-export async function requestAndConnect(): Promise<Transport> {
+export async function requestAndConnect(
+    serviceUuid: string,
+    charUuid: string,
+): Promise<Transport> {
     const dev = await navigator.bluetooth
         .requestDevice({
             acceptAllDevices: true,
-            optionalServices: [STUDIO_SERVICE_UUID],
+            optionalServices: [serviceUuid],
         })
         .catch((e: unknown) => {
             if (e instanceof DOMException && e.name === 'NotFoundError') {
@@ -154,7 +161,7 @@ export async function requestAndConnect(): Promise<Transport> {
     })
 
     deviceRegistry.set(makeId(dev), dev)
-    return openTransport(dev)
+    return openTransport(dev, serviceUuid, charUuid)
 }
 
 // Back-compat alias for the original single-call connect().

@@ -17,10 +17,10 @@ import {
     writeSerial,
 } from './serial'
 import {
-    listZmkDevices,
-    connectZmkDevice,
-    writeZmk,
-    disconnectZmkDevice,
+    listGattDevices,
+    connectGattDevice,
+    writeGatt,
+    disconnectGattDevice,
     hasActiveBluezConnection,
 } from './bluez'
 import {
@@ -30,6 +30,23 @@ import {
     disconnectNobleDevice,
     hasActiveNobleConnection,
 } from './noble-ble'
+
+// pattern-check: skip — local IPC payload validator, no abstraction.
+interface DiscoveryPayload {
+    serviceUuid?: unknown
+    charUuid?: unknown
+}
+
+// pattern-check: skip — local IPC payload validator, no abstraction.
+function parseDiscovery(
+    arg: unknown,
+): { serviceUuid: string; charUuid: string } | null {
+    if (!arg || typeof arg !== 'object') return null
+    const a = arg as DiscoveryPayload
+    if (typeof a.serviceUuid !== 'string' || !a.serviceUuid) return null
+    if (typeof a.charUuid !== 'string' || !a.charUuid) return null
+    return { serviceUuid: a.serviceUuid, charUuid: a.charUuid }
+}
 
 // Tracks which transport currently owns send/close. Set when a transport
 // connects, cleared on disconnect/error. Lets TRANSPORT_SEND_DATA and
@@ -99,55 +116,79 @@ export function registerIpcHandlers(getWindows: () => BrowserWindow[]): void {
 
     // --- BlueZ direct handlers (Linux) ---
 
-    ipcMain.handle(IpcChannels.BLUEZ_LIST_DEVICES, async () => {
-        return await listZmkDevices()
+    ipcMain.handle(IpcChannels.BLUEZ_LIST_DEVICES, async (_, arg: unknown) => {
+        const d = parseDiscovery(arg)
+        if (!d) return []
+        return await listGattDevices(d.serviceUuid)
     })
 
-    ipcMain.handle(
-        IpcChannels.BLUEZ_CONNECT,
-        async (_, devicePath: unknown) => {
-            if (typeof devicePath !== 'string' || !devicePath) {
-                return { ok: false, error: 'Invalid device path' }
-            }
-            try {
-                const label = await connectZmkDevice(devicePath, {
+    ipcMain.handle(IpcChannels.BLUEZ_CONNECT, async (_, arg: unknown) => {
+        const a = arg as { devicePath?: unknown } & DiscoveryPayload
+        const devicePath = a?.devicePath
+        if (typeof devicePath !== 'string' || !devicePath) {
+            return { ok: false, error: 'Invalid device path' }
+        }
+        const d = parseDiscovery(arg)
+        if (!d) {
+            return { ok: false, error: 'Invalid discovery payload' }
+        }
+        try {
+            const label = await connectGattDevice(
+                devicePath,
+                d.serviceUuid,
+                d.charUuid,
+                {
                     onData: (data) =>
                         ipcHandlerContext.emitConnectionData(data),
                     onDisconnected: () => {
                         activeKind = null
                         ipcHandlerContext.emitConnectionDisconnected()
                     },
-                })
-                activeKind = 'bluez'
-                return { ok: true, label }
-            } catch (e) {
-                const msg = e instanceof Error ? e.message : String(e)
-                console.error('[ipc] BLUEZ_CONNECT failed:', msg)
-                return { ok: false, error: msg }
-            }
-        },
-    )
+                },
+            )
+            activeKind = 'bluez'
+            return { ok: true, label }
+        } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e)
+            console.error('[ipc] BLUEZ_CONNECT failed:', msg)
+            return { ok: false, error: msg }
+        }
+    })
 
     ipcMain.handle(IpcChannels.GET_PLATFORM, async () => process.platform)
 
     // --- Noble direct handlers (Linux, raw HCI) ---
 
-    ipcMain.handle(IpcChannels.NOBLE_LIST_DEVICES, async () => {
-        return await listNobleDevices()
+    ipcMain.handle(IpcChannels.NOBLE_LIST_DEVICES, async (_, arg: unknown) => {
+        const d = parseDiscovery(arg)
+        if (!d) return []
+        return await listNobleDevices(d.serviceUuid)
     })
 
-    ipcMain.handle(IpcChannels.NOBLE_CONNECT, async (_, deviceId: unknown) => {
+    ipcMain.handle(IpcChannels.NOBLE_CONNECT, async (_, arg: unknown) => {
+        const a = arg as { deviceId?: unknown } & DiscoveryPayload
+        const deviceId = a?.deviceId
         if (typeof deviceId !== 'string' || !deviceId) {
             return { ok: false, error: 'Invalid device id' }
         }
+        const d = parseDiscovery(arg)
+        if (!d) {
+            return { ok: false, error: 'Invalid discovery payload' }
+        }
         try {
-            const label = await connectNobleDevice(deviceId, {
-                onData: (data) => ipcHandlerContext.emitConnectionData(data),
-                onDisconnected: () => {
-                    activeKind = null
-                    ipcHandlerContext.emitConnectionDisconnected()
+            const label = await connectNobleDevice(
+                deviceId,
+                d.serviceUuid,
+                d.charUuid,
+                {
+                    onData: (data) =>
+                        ipcHandlerContext.emitConnectionData(data),
+                    onDisconnected: () => {
+                        activeKind = null
+                        ipcHandlerContext.emitConnectionDisconnected()
+                    },
                 },
-            })
+            )
             activeKind = 'noble'
             return { ok: true, label }
         } catch (e) {
@@ -164,7 +205,7 @@ export function registerIpcHandlers(getWindows: () => BrowserWindow[]): void {
         async (_, data: unknown) => {
             const validData = validateUint8Array(data)
             if (activeKind === 'bluez') {
-                await writeZmk(validData)
+                await writeGatt(validData)
             } else if (activeKind === 'noble') {
                 await writeNoble(validData)
             } else {
@@ -175,7 +216,7 @@ export function registerIpcHandlers(getWindows: () => BrowserWindow[]): void {
 
     ipcMain.handle(IpcChannels.TRANSPORT_CLOSE, async () => {
         if (activeKind === 'bluez' || hasActiveBluezConnection()) {
-            await disconnectZmkDevice()
+            await disconnectGattDevice()
         } else if (activeKind === 'noble' || hasActiveNobleConnection()) {
             await disconnectNobleDevice()
         } else {

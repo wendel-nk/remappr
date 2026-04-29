@@ -20,8 +20,6 @@
 import dbus from 'dbus-next'
 import type { AvailableDevice } from '../shared/ipc-types'
 
-import { STUDIO_SERVICE_UUID, STUDIO_CHAR_UUID } from '../shared/ble-defaults'
-
 const BLUEZ_BUS = 'org.bluez'
 const IFACE_OBJECT_MANAGER = 'org.freedesktop.DBus.ObjectManager'
 const IFACE_PROPERTIES = 'org.freedesktop.DBus.Properties'
@@ -64,7 +62,9 @@ function variantValue<T = unknown>(v: dbus.Variant | undefined): T | undefined {
  * Enumerate paired+known devices that advertise the firmware studio service.
  * Returns AvailableDevice list keyed by D-Bus object path.
  */
-export async function listZmkDevices(): Promise<AvailableDevice[]> {
+export async function listGattDevices(
+    serviceUuid: string,
+): Promise<AvailableDevice[]> {
     if (process.platform !== 'linux') return []
 
     try {
@@ -82,10 +82,10 @@ export async function listZmkDevices(): Promise<AvailableDevice[]> {
             if (!dev) continue
 
             const uuids = variantValue<string[]>(dev['UUIDs']) ?? []
-            const hasZmk = uuids.some(
-                (u) => u.toLowerCase() === STUDIO_SERVICE_UUID.toLowerCase(),
+            const matches = uuids.some(
+                (u) => u.toLowerCase() === serviceUuid.toLowerCase(),
             )
-            if (!hasZmk) continue
+            if (!matches) continue
 
             // Skip paired-but-offline devices. BlueZ caches Device1 + UUIDs
             // even when keyboard powered off, so without this filter the
@@ -103,7 +103,7 @@ export async function listZmkDevices(): Promise<AvailableDevice[]> {
         }
         return out
     } catch (e) {
-        console.error('[bluez] listZmkDevices failed:', e)
+        console.error('[bluez] listGattDevices failed:', e)
         return []
     }
 }
@@ -113,9 +113,11 @@ export async function listZmkDevices(): Promise<AvailableDevice[]> {
  * characteristic D-Bus path. Returns null if service/characteristic are
  * not yet resolved (caller can retry after Device1.Connect()).
  */
-async function findZmkCharPath(
+async function findCharPath(
     bus: dbus.MessageBus,
     devicePath: string,
+    serviceUuid: string,
+    charUuid: string,
 ): Promise<string | null> {
     const root = await bus.getProxyObject(BLUEZ_BUS, '/')
     const om = root.getInterface(IFACE_OBJECT_MANAGER)
@@ -125,26 +127,26 @@ async function findZmkCharPath(
     >
 
     // Find studio GATT service under this device
-    let zmkServicePath: string | null = null
+    let gattServicePath: string | null = null
     for (const [path, ifaces] of Object.entries(managed)) {
         if (!path.startsWith(devicePath + '/')) continue
         const svc = ifaces[IFACE_GATT_SERVICE]
         if (!svc) continue
         const uuid = variantValue<string>(svc['UUID']) ?? ''
-        if (uuid.toLowerCase() === STUDIO_SERVICE_UUID.toLowerCase()) {
-            zmkServicePath = path
+        if (uuid.toLowerCase() === serviceUuid.toLowerCase()) {
+            gattServicePath = path
             break
         }
     }
-    if (!zmkServicePath) return null
+    if (!gattServicePath) return null
 
     // Find characteristic under the service
     for (const [path, ifaces] of Object.entries(managed)) {
-        if (!path.startsWith(zmkServicePath + '/')) continue
+        if (!path.startsWith(gattServicePath + '/')) continue
         const ch = ifaces[IFACE_GATT_CHAR]
         if (!ch) continue
         const uuid = variantValue<string>(ch['UUID']) ?? ''
-        if (uuid.toLowerCase() === STUDIO_CHAR_UUID.toLowerCase()) {
+        if (uuid.toLowerCase() === charUuid.toLowerCase()) {
             return path
         }
     }
@@ -154,12 +156,14 @@ async function findZmkCharPath(
 async function waitForCharResolution(
     bus: dbus.MessageBus,
     devicePath: string,
+    serviceUuid: string,
+    charUuid: string,
     timeoutMs: number,
 ): Promise<string | null> {
     const deadline = Date.now() + timeoutMs
     let delay = 100
     while (Date.now() < deadline) {
-        const p = await findZmkCharPath(bus, devicePath)
+        const p = await findCharPath(bus, devicePath, serviceUuid, charUuid)
         if (p) return p
         await new Promise((r) => setTimeout(r, delay))
         delay = Math.min(delay * 2, 500)
@@ -172,12 +176,14 @@ async function waitForCharResolution(
  * starts notifications on the studio characteristic, wires PropertiesChanged
  * → callbacks.onData. Returns label string on success.
  */
-export async function connectZmkDevice(
+export async function connectGattDevice(
     devicePath: string,
+    serviceUuid: string,
+    charUuid: string,
     callbacks: BluezEventCallbacks,
 ): Promise<string> {
     if (active) {
-        await disconnectZmkDevice()
+        await disconnectGattDevice()
     }
 
     const bus = getBus()
@@ -193,7 +199,7 @@ export async function connectZmkDevice(
     const alreadyConnected = (connectedV.value as boolean) === true
 
     console.log(
-        `[bluez] connectZmkDevice path=${devicePath} alreadyConnected=${alreadyConnected}`,
+        `[bluez] connectGattDevice path=${devicePath} alreadyConnected=${alreadyConnected}`,
     )
     if (!alreadyConnected) {
         await device.Connect()
@@ -215,10 +221,16 @@ export async function connectZmkDevice(
 
     // Find characteristic. Even if already connected, BlueZ may need a
     // moment to expose GATT child objects.
-    const charPath = await waitForCharResolution(bus, devicePath, 8000)
+    const charPath = await waitForCharResolution(
+        bus,
+        devicePath,
+        serviceUuid,
+        charUuid,
+        8000,
+    )
     if (!charPath) {
         throw new Error(
-            `[bluez] studio characteristic ${STUDIO_CHAR_UUID} not found under ${devicePath}`,
+            `[bluez] characteristic ${charUuid} not found under ${devicePath}`,
         )
     }
     console.log(`[bluez] resolved char path=${charPath}`)
@@ -437,7 +449,7 @@ export async function connectZmkDevice(
     return label
 }
 
-export async function writeZmk(data: Uint8Array): Promise<void> {
+export async function writeGatt(data: Uint8Array): Promise<void> {
     if (!active) throw new Error('[bluez] no active connection')
     const char = active.char.getInterface(IFACE_GATT_CHAR)
     console.log(
@@ -454,7 +466,7 @@ export async function writeZmk(data: Uint8Array): Promise<void> {
     }
 }
 
-export async function disconnectZmkDevice(): Promise<void> {
+export async function disconnectGattDevice(): Promise<void> {
     if (!active) return
     const a = active
     active = null

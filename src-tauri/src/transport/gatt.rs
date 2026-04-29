@@ -10,15 +10,20 @@ use bluest::{Adapter, ConnectionEvent, Device, DeviceId};
 
 use tauri::{command, AppHandle, State};
 
-const SVC_UUID: Uuid = Uuid::from_u128(0x00000000_0196_6107_c967_c5cfb1c2482a);
-const RPC_CHRC_UUID: Uuid = Uuid::from_u128(0x00000001_0196_6107_c967_c5cfb1c2482a);
+fn parse_uuid(input: &str, label: &str) -> Result<Uuid, String> {
+    Uuid::parse_str(input).map_err(|e| format!("Invalid {} UUID '{}': {}", label, input, e))
+}
 
 #[command]
 pub async fn gatt_connect(
     id: String,
+    service_uuid: String,
+    char_uuid: String,
     app_handle: AppHandle,
     state: State<'_, super::commands::ActiveConnection<'_>>,
 ) -> Result<bool, String> {
+    let svc_uuid = parse_uuid(&service_uuid, "service")?;
+    let chrc_uuid = parse_uuid(&char_uuid, "characteristic")?;
     let adapter = Adapter::default().await.ok_or("Failed to access the BT adapter".to_string())?;
 
     adapter.wait_available().await.map_err(|e| format!("Failed to wait for the BT adapter access: {}", e.message()))?;
@@ -31,7 +36,7 @@ pub async fn gatt_connect(
     }
 
     let service = d
-        .discover_services_with_uuid(SVC_UUID)
+        .discover_services_with_uuid(svc_uuid)
         .await
         .map_err(|e| format!("Failed to find the device services: {}", e.message()))?
         .get(0)
@@ -39,7 +44,7 @@ pub async fn gatt_connect(
 
     if let Some(s) = service {
         let char = s
-            .discover_characteristics_with_uuid(RPC_CHRC_UUID)
+            .discover_characteristics_with_uuid(chrc_uuid)
             .await
             .map_err(|e| format!("Failed to find the studio service characteristics: {}", e.message()))?
             .get(0)
@@ -119,7 +124,10 @@ async fn check_connected(_: &Adapter, device: &Device) -> bool {
 const ADAPTER_TIMEOUT: Duration = Duration::from_secs(2);
 
 #[command]
-pub async fn gatt_list_devices() -> Result<Vec<super::commands::AvailableDevice>, ()> {
+pub async fn gatt_list_devices(
+    service_uuid: String,
+) -> Result<Vec<super::commands::AvailableDevice>, ()> {
+    let svc_uuid = Uuid::parse_str(&service_uuid).map_err(|_| ())?;
     let adapter = Adapter::default()
         .map(|a| a.ok_or(()))
         .and_then(|a| async {
@@ -133,8 +141,9 @@ pub async fn gatt_list_devices() -> Result<Vec<super::commands::AvailableDevice>
     let mut ret = vec![];
 
     if let Ok(a) = adapter {
+        let svc_uuids = [svc_uuid];
         let devices = a
-            .discover_devices(&[SVC_UUID])
+            .discover_devices(&svc_uuids)
             .await
             .expect("GET DEVICES!")
             .take_until(async_std::task::sleep(Duration::from_secs(2)))

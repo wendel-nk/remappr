@@ -1,4 +1,5 @@
-// pattern-check: skip — merge conflict resolution, no new logic
+// pattern-check: skip — transport factory wires registered adapter discovery descriptors into platform transport implementations
+import { getAdapters } from '@firmware'
 import { TransportFactory } from '../transport/types'
 import {
     listGrantedDevices as web_ble_list,
@@ -31,6 +32,14 @@ import {
     list_devices as electron_serial_list_devices,
 } from '../electron/serial.ts'
 
+function bleDiscovery(): { serviceUuid: string; charUuid: string } | null {
+    for (const adapter of getAdapters()) {
+        const ble = adapter.discovery.ble
+        if (ble) return { serviceUuid: ble.serviceUuid, charUuid: ble.charUuid }
+    }
+    return null
+}
+
 declare global {
     interface Window {
         __TAURI_INTERNALS__?: object
@@ -61,17 +70,21 @@ export function getTransports(): TransportFactory[] {
     })
 
     const transports: TransportFactory[] = []
+    const ble = bleDiscovery()
 
     if (isTauri()) {
-        transports.push({
-            label: 'BLE',
-            communication: 'ble',
-            isWireless: true,
-            pick_and_connect: {
-                connect: tauri_ble_connect,
-                list: ble_list_devices,
-            },
-        })
+        if (ble) {
+            transports.push({
+                label: 'BLE',
+                communication: 'ble',
+                isWireless: true,
+                pick_and_connect: {
+                    connect: (dev) =>
+                        tauri_ble_connect(dev, ble.serviceUuid, ble.charUuid),
+                    list: () => ble_list_devices(ble.serviceUuid, ble.charUuid),
+                },
+            })
+        }
         transports.push({
             label: 'USB',
             communication: 'serial',
@@ -81,19 +94,24 @@ export function getTransports(): TransportFactory[] {
             },
         })
     } else if (isElectron()) {
-        // BLE on Linux currently broken (BlueZ writes accepted but firmware
-        // silent; noble setup blocked by nosuid mounts / adapter perms).
-        // Disable BLE transports on Linux entirely until a working backend
-        // exists. USB works.
         const isLinux = navigator.userAgent.indexOf('Linux') >= 0
-        if (!isLinux) {
+        if (!isLinux && ble) {
             transports.push({
                 label: 'BLE',
                 communication: 'ble',
                 isWireless: true,
                 pick_and_connect: {
-                    connect: electron_ble_connect,
-                    list: electron_ble_list_devices,
+                    connect: (dev) =>
+                        electron_ble_connect(
+                            dev,
+                            ble.serviceUuid,
+                            ble.charUuid,
+                        ),
+                    list: () =>
+                        electron_ble_list_devices(
+                            ble.serviceUuid,
+                            ble.charUuid,
+                        ),
                 },
             })
             transports.push({
@@ -101,8 +119,17 @@ export function getTransports(): TransportFactory[] {
                 communication: 'ble',
                 isWireless: true,
                 pick_and_connect: {
-                    connect: electron_noble_connect,
-                    list: electron_noble_list_devices,
+                    connect: (dev) =>
+                        electron_noble_connect(
+                            dev,
+                            ble.serviceUuid,
+                            ble.charUuid,
+                        ),
+                    list: () =>
+                        electron_noble_list_devices(
+                            ble.serviceUuid,
+                            ble.charUuid,
+                        ),
                 },
             })
         }
@@ -127,30 +154,8 @@ export function getTransports(): TransportFactory[] {
             })
         }
 
-        // Web Bluetooth disabled in browser builds: on Windows, ZMK
-        // keyboards bonded as HID are invisible to the Web BT chooser
-        // (OS hides connected HID devices), and ZMK Studio adv mode
-        // requires &studio_unlock + a fresh pair. Net result: chooser
-        // is empty for users. Use the Electron build (pnpm edev) for
-        // BLE — it talks to the native BT stack and reaches bonded
-        // devices. Re-enable the block below once a workable Web BT
-        // path exists. Shape mirrors the Web Serial branch above:
-        // pick_and_connect lists previously-granted devices via
-        // navigator.bluetooth.getDevices(), request_new opens the
-        // chooser for first-time pairing.
-        //
-        // if (navigator.bluetooth) {
-        //     transports.push({
-        //         label: 'BLE',
-        //         communication: 'ble',
-        //         isWireless: true,
-        //         pick_and_connect: {
-        //             list: web_ble_list,
-        //             connect: web_ble_connect_granted,
-        //         },
-        //         request_new: web_ble_request_new,
-        //     })
-        // }
+        // Web Bluetooth disabled in browser builds — keep references
+        // alive for future re-enable.
         void web_ble_list
         void web_ble_connect_granted
         void web_ble_request_new

@@ -66,3 +66,13 @@
 {"ts":"2026-04-28T22:43:04.185Z","rule":"preamble-missing","file":"/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/firmware/zmk/service.ts","decision":null,"reasonExcerpt":""}
 {"ts":"2026-04-29T06:16:03.233Z","rule":"preamble-missing","file":"/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/firmware/types.ts","decision":null,"reasonExcerpt":""}
 {"ts":"2026-04-29T07:45:32.938Z","rule":"preamble-missing","file":"/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/firmware/types.ts","decision":null,"reasonExcerpt":""}
+{"ts":"2026-04-29T08:04:30.148Z","rule":"preamble-missing","file":"/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/main/noble-ble.ts","decision":null,"reasonExcerpt":""}
+{"ts":"2026-04-29T08:04:36.320Z","rule":"preamble-missing","file":"/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/main/noble-ble.ts","decision":null,"reasonExcerpt":""}
+{"ts":"2026-04-29T08:06:05.276Z","rule":"preamble-missing","file":"/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/main/ipc-handlers.ts","decision":null,"reasonExcerpt":""}
+{"ts":"2026-04-29T08:06:17.541Z","rule":"preamble-missing","file":"/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/main/ipc-handlers.ts","decision":null,"reasonExcerpt":""}
+{"ts":"2026-04-29T08:07:59.403Z","rule":"preamble-missing","file":"/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/renderer/src/electron/noble-ble.ts","decision":null,"reasonExcerpt":""}
+{"ts":"2026-04-29T08:08:08.755Z","rule":"preamble-missing","file":"/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/renderer/src/electron/noble-ble.ts","decision":null,"reasonExcerpt":""}
+{"ts":"2026-04-29T08:08:57.144Z","rule":"preamble-missing","file":"/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/renderer/src/transport/web-ble.ts","decision":null,"reasonExcerpt":""}
+{"ts":"2026-04-29T08:09:04.669Z","rule":"preamble-missing","file":"/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/renderer/src/transport/web-ble.ts","decision":null,"reasonExcerpt":""}
+{"ts":"2026-04-29T08:11:00.949Z","rule":"preamble-missing","file":"/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/renderer/src/lib/transports.ts","decision":null,"reasonExcerpt":""}
+{"ts":"2026-04-29T08:11:21.617Z","rule":"preamble-missing","file":"/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/renderer/src/lib/transports.ts","decision":null,"reasonExcerpt":""}

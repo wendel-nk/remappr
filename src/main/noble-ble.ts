@@ -32,12 +32,11 @@ function getNoble(): NobleModule {
     return nobleMod
 }
 
-// noble strips dashes and lowercases service/char UUIDs; the shared
-// constants module pre-computes that form for us.
-import {
-    STUDIO_SERVICE_UUID_NOBLE,
-    STUDIO_CHAR_UUID_NOBLE,
-} from '../shared/ble-defaults'
+// noble strips dashes and lowercases service/char UUIDs; the helper
+// below converts an adapter-supplied dashed UUID into noble form.
+function toNobleUuid(uuid: string): string {
+    return uuid.replace(/-/g, '').toLowerCase()
+}
 
 export interface NobleEventCallbacks {
     onData: (data: number[]) => void
@@ -86,7 +85,10 @@ async function ensureNobleReady(): Promise<void> {
     })
 }
 
-export async function listNobleDevices(): Promise<AvailableDevice[]> {
+export async function listNobleDevices(
+    serviceUuid: string,
+): Promise<AvailableDevice[]> {
+    const serviceUuidNoble = toNobleUuid(serviceUuid)
     // noble supports Linux (BlueZ HCI) and macOS (CoreBluetooth) out of the
     // box. Windows is intentionally not enabled here — the native Web
     // Bluetooth bridge (ble-manager.ts) covers it.
@@ -107,11 +109,11 @@ export async function listNobleDevices(): Promise<AvailableDevice[]> {
     ): void => {
         const name = peripheral.advertisement.localName || ''
         const services = peripheral.advertisement.serviceUuids || []
-        const hasZmk = services.some(
-            (u) => u.toLowerCase() === STUDIO_SERVICE_UUID_NOBLE,
+        const matches = services.some(
+            (u) => u.toLowerCase() === serviceUuidNoble,
         )
-        if (!hasZmk && !name) return
-        if (!hasZmk) return
+        if (!matches && !name) return
+        if (!matches) return
         discovered.set(peripheral.id, {
             id: peripheral.id,
             name: name || peripheral.address || 'BLE Device',
@@ -121,7 +123,7 @@ export async function listNobleDevices(): Promise<AvailableDevice[]> {
     getNoble().on('discover', onDiscover)
 
     try {
-        await getNoble().startScanningAsync([STUDIO_SERVICE_UUID_NOBLE], false)
+        await getNoble().startScanningAsync([serviceUuidNoble], false)
     } catch (e) {
         getNoble().removeListener('discover', onDiscover)
         console.error('[noble] startScanning failed:', e)
@@ -147,11 +149,15 @@ export async function listNobleDevices(): Promise<AvailableDevice[]> {
 
 export async function connectNobleDevice(
     deviceId: string,
+    serviceUuid: string,
+    charUuid: string,
     callbacks: NobleEventCallbacks,
 ): Promise<string> {
     if (active) {
         await disconnectNobleDevice()
     }
+    const serviceUuidNoble = toNobleUuid(serviceUuid)
+    const charUuidNoble = toNobleUuid(charUuid)
 
     const entry = discovered.get(deviceId)
     if (!entry) {
@@ -170,8 +176,8 @@ export async function connectNobleDevice(
 
     const { characteristics } =
         await peripheral.discoverSomeServicesAndCharacteristicsAsync(
-            [STUDIO_SERVICE_UUID_NOBLE],
-            [STUDIO_CHAR_UUID_NOBLE],
+            [serviceUuidNoble],
+            [charUuidNoble],
         )
 
     if (characteristics.length === 0) {
