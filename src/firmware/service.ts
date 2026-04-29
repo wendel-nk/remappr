@@ -12,6 +12,7 @@ import type {
     Keymap,
     Layer,
     LockState,
+    MacroAction,
     TapDanceEntry,
 } from './types'
 
@@ -64,6 +65,11 @@ export interface KeyboardService {
     setKeyOverride?(idx: number, entry: KeyOverrideEntry): Promise<void>
     getAltRepeatKey?(idx: number): Promise<AltRepeatKeyEntry>
     setAltRepeatKey?(idx: number, entry: AltRepeatKeyEntry): Promise<void>
+
+    // Optional macros (Vial). Adapter omits these when capabilities.macros is absent.
+    getMacroCount?(): number
+    getMacro?(idx: number): Promise<MacroAction[]>
+    setMacro?(idx: number, actions: MacroAction[]): Promise<void>
 
     addLayer(): Promise<Layer>
     removeLayer(layerId: number): Promise<void>

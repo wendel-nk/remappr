@@ -178,3 +178,11 @@ export interface DynamicEntryCounts {
     combo: number
     keyOverride: number
 }
+
+// pattern-check: skip discriminated-union data shape for macro actions
+export type MacroAction =
+    | { kind: 'tap'; keycode: number }
+    | { kind: 'down'; keycode: number }
+    | { kind: 'up'; keycode: number }
+    | { kind: 'delay'; ms: number }
+    | { kind: 'text'; text: string }

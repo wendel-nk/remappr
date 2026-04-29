@@ -20,6 +20,7 @@ export type {
     Keymap,
     Layer,
     LockState,
+    MacroAction,
     PhysicalLayout,
     PhysicalLayoutKey,
     TapDanceEntry,

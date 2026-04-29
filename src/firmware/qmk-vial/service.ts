@@ -26,8 +26,11 @@ import type {
     Keymap,
     Layer,
     LockState,
+    MacroAction,
     PhysicalLayout,
 } from '@firmware/types'
+
+import { decodeMacro, encodeMacro } from './macroCodec'
 
 import {
     decodeVialAsKeyAction,
@@ -648,11 +651,22 @@ export class VialKeyboardService implements KeyboardService {
         return this.profile.macroBufferSize
     }
 
-    async getMacro(idx: number): Promise<Uint8Array> {
+    async getMacroBytes(idx: number): Promise<Uint8Array> {
         return readMacro(this.client, idx)
     }
 
-    async setMacro(idx: number, bytes: Uint8Array): Promise<void> {
+    async setMacroBytes(idx: number, bytes: Uint8Array): Promise<void> {
+        await writeMacro(this.client, idx, bytes)
+        this.setPending(true)
+    }
+
+    async getMacro(idx: number): Promise<MacroAction[]> {
+        const bytes = await readMacro(this.client, idx)
+        return decodeMacro(bytes)
+    }
+
+    async setMacro(idx: number, actions: MacroAction[]): Promise<void> {
+        const bytes = encodeMacro(actions)
         await writeMacro(this.client, idx, bytes)
         this.setPending(true)
     }
