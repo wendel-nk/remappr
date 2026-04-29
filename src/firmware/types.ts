@@ -28,10 +28,17 @@ export interface KeyLabel {
     holdTap?: HoldTapLabelData
 }
 
+// Pattern check: no GoF pattern (-) — rejected — additive optional fields on plain data interfaces; no abstraction.
+export interface EncoderAction {
+    cw: KeyAction
+    ccw: KeyAction
+}
+
 export interface Layer {
     id: number
     name: string
     keys: KeyAction[]
+    encoders?: EncoderAction[]
 }
 
 export interface PhysicalLayoutKey {
@@ -44,10 +51,16 @@ export interface PhysicalLayoutKey {
     ry?: number
 }
 
+export interface EncoderSlot {
+    x: number
+    y: number
+}
+
 export interface PhysicalLayout {
     id: number
     name: string
     keys: PhysicalLayoutKey[]
+    encoders?: EncoderSlot[]
 }
 
 export interface Keymap {

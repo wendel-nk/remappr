@@ -4,6 +4,8 @@ export type {
     ActionType,
     AdapterNotification,
     DeviceInfo,
+    EncoderAction,
+    EncoderSlot,
     ExportedFile,
     KeyAction,
     HoldTapLabelData,
