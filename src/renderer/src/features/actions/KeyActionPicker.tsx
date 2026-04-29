@@ -1,6 +1,8 @@
 // Pattern check: no GoF pattern (-) — rejected — picker state container over neutral KeyAction/ActionType, dispatches on slot.kind, no abstraction needed.
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { toast } from 'sonner'
 import type { ActionSlot, ActionType, KeyAction } from '@firmware/types'
+import { hidUsagePageAndIdFromUsage } from '@/lib/behaviors/hidUsages'
 import { ActionTypeSelector } from './ActionTypeSelector'
 import { ActionSlotsPicker } from './ActionSlotsPicker'
 import { SlotBar, type SlotDescriptor, type SlotKind } from './SlotBar'
@@ -32,6 +34,31 @@ function paramsForSlots(source: number[], slots: ActionSlot[]): number[] {
     return next
 }
 
+function isSlotValid(
+    slot: ActionSlot,
+    value: number | undefined,
+    layerIds: number[],
+): boolean {
+    if (value === undefined) return false
+    if (slot.kind === 'hid') {
+        const [page, id] = hidUsagePageAndIdFromUsage(value)
+        return page !== 0 && id !== 0
+    }
+    if (slot.kind === 'layer') return layerIds.includes(value)
+    if (slot.kind === 'number' && slot.range) {
+        return value >= slot.range.min && value <= slot.range.max
+    }
+    if (
+        (slot.kind === 'enum' || slot.kind === 'modifier') &&
+        slot.values &&
+        slot.values.length > 0
+    ) {
+        return slot.values.some((v) => v.value === value)
+    }
+    if (slot.kind === 'action') return true
+    return false
+}
+
 export const KeyActionPicker = ({
     action,
     actionTypes,
@@ -59,6 +86,8 @@ export const KeyActionPicker = ({
         /* eslint-enable react-hooks/set-state-in-effect */
     }, [action])
 
+    const layerIds = useMemo(() => layers.map((l) => l.id), [layers])
+
     const dispatch = useCallback(
         (nextKind: string, nextParams: number[]): void => {
             if (
@@ -68,10 +97,15 @@ export const KeyActionPicker = ({
             ) {
                 return
             }
+            const target = actionTypes.find((t) => t.id === nextKind)
+            const targetSlots = target?.slots ?? []
+            const allValid = targetSlots.every((slot, i) =>
+                isSlotValid(slot, nextParams[i], layerIds),
+            )
+            if (!allValid) return
             onChange({ kind: nextKind, params: nextParams })
         },
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-        [action, actionTypes, onChange],
+        [action, actionTypes, layerIds, onChange],
     )
 
     const handleTypeSelected = (selectedId: string): void => {
@@ -88,8 +122,30 @@ export const KeyActionPicker = ({
         nextParams[slotIndex] = value ?? 0
         setParams(nextParams)
         dispatch(kind, nextParams)
-        if (isHoldTap && value !== undefined && value !== 0) {
-            setActiveSlotIndex(slotIndex === 0 ? 1 : 0)
+        if (!isHoldTap || value === undefined || value === 0) return
+
+        const isLast = slotIndex === slots.length - 1
+        if (!isLast) {
+            if (slots[slotIndex].kind !== 'modifier') {
+                setActiveSlotIndex(slotIndex + 1)
+            }
+            return
+        }
+
+        const allValid = slots.every((s, i) =>
+            isSlotValid(s, nextParams[i], layerIds),
+        )
+        if (allValid) {
+            setActiveSlotIndex((slotIndex + 1) % slots.length)
+            return
+        }
+        const missingIdx = slots.findIndex(
+            (s, i) => !isSlotValid(s, nextParams[i], layerIds),
+        )
+        if (missingIdx >= 0 && missingIdx !== slotIndex) {
+            toast.info(
+                `Select ${slots[missingIdx].label.toLowerCase()} to complete the binding`,
+            )
         }
     }
 

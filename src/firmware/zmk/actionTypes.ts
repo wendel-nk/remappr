@@ -33,7 +33,11 @@ function buildSlot(
     if (onlyNil) return undefined
 
     const kind = describeSlotKind(behaviorDisplayName, descriptions)
-    const slot: ActionSlot = { label, kind }
+    const namedLabel = descriptions[0]?.name?.toString().trim()
+    const slot: ActionSlot = {
+        label: namedLabel && namedLabel.length > 0 ? namedLabel : label,
+        kind,
+    }
 
     const range = descriptions.find((d) => d.range)?.range
     if (range) slot.range = { min: range.min, max: range.max }
@@ -56,6 +60,10 @@ export function behaviorToActionType(
         if (p1) slots.push(p1)
         const p2 = buildSlot('param2', behavior.displayName, meta.param2)
         if (p2) slots.push(p2)
+    }
+    if (slots.length === 2) {
+        slots[0] = { ...slots[0], label: 'Hold' }
+        slots[1] = { ...slots[1], label: 'Tap' }
     }
     return {
         id: String(behavior.id),
