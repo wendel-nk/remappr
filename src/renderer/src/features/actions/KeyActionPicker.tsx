@@ -70,7 +70,8 @@ export const KeyActionPicker = ({
             }
             onChange({ kind: nextKind, params: nextParams })
         },
-        [action, onChange],
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [action, actionTypes, onChange],
     )
 
     const handleTypeSelected = (selectedId: string): void => {
