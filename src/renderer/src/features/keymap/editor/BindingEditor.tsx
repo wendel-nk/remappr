@@ -79,13 +79,15 @@ export function BindingEditor({
             const newAction = service.buildKeyAction(draft.kind, draft.params)
 
             // Encoder edit branch.
-            if (selectedEncoder && service.setEncoder) {
+            if (selectedEncoder && service.encoders) {
                 const { slot, dir } = selectedEncoder
                 const enc = keymap.layers[layer].encoders?.[slot]
                 if (!enc) return
                 const oldAction = dir === 'cw' ? enc.cw : enc.ccw
                 const direction: 0 | 1 = dir === 'cw' ? 0 : 1
-                const setEncoder = service.setEncoder.bind(service)
+                const setEncoder = service.encoders.setEncoder.bind(
+                    service.encoders,
+                )
                 doIt?.(async (): Promise<() => Promise<void>> => {
                     try {
                         await setEncoder(layerId, slot, direction, newAction)

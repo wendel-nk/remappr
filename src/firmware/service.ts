@@ -29,6 +29,34 @@ export interface Capabilities {
     macros?: { count: number; bufferSize: number }
 }
 
+// Pattern check: Facade (Tier 1) — applied — group related optional methods into 3 cohesive feature facades for renderer single-guard reads
+export interface EncoderApi {
+    setEncoder(
+        layerId: number,
+        encoderIdx: number,
+        direction: 0 | 1,
+        action: KeyAction,
+    ): Promise<void>
+}
+
+export interface DynamicEntriesApi {
+    getCounts(): DynamicEntryCounts
+    getTapDance(idx: number): Promise<TapDanceEntry>
+    setTapDance(idx: number, entry: TapDanceEntry): Promise<void>
+    getCombo(idx: number): Promise<ComboEntry>
+    setCombo(idx: number, entry: ComboEntry): Promise<void>
+    getKeyOverride(idx: number): Promise<KeyOverrideEntry>
+    setKeyOverride(idx: number, entry: KeyOverrideEntry): Promise<void>
+    getAltRepeatKey?(idx: number): Promise<AltRepeatKeyEntry>
+    setAltRepeatKey?(idx: number, entry: AltRepeatKeyEntry): Promise<void>
+}
+
+export interface MacroApi {
+    getCount(): number
+    getMacro(idx: number): Promise<MacroAction[]>
+    setMacro(idx: number, actions: MacroAction[]): Promise<void>
+}
+
 export interface KeyboardService {
     readonly deviceInfo: DeviceInfo
     readonly capabilities: Capabilities
@@ -47,29 +75,10 @@ export interface KeyboardService {
 
     setKey(layerId: number, position: number, action: KeyAction): Promise<void>
     setKeys(updates: KeyUpdate[]): Promise<void>
-    // Optional — present only on firmware that exposes encoders (capabilities.encoders > 0).
-    setEncoder?(
-        layerId: number,
-        encoderIdx: number,
-        direction: 0 | 1,
-        action: KeyAction,
-    ): Promise<void>
 
-    // Optional dynamic entries (Vial). Adapters without dynamic entries omit these.
-    getDynamicEntryCounts?(): DynamicEntryCounts
-    getTapDance?(idx: number): Promise<TapDanceEntry>
-    setTapDance?(idx: number, entry: TapDanceEntry): Promise<void>
-    getCombo?(idx: number): Promise<ComboEntry>
-    setCombo?(idx: number, entry: ComboEntry): Promise<void>
-    getKeyOverride?(idx: number): Promise<KeyOverrideEntry>
-    setKeyOverride?(idx: number, entry: KeyOverrideEntry): Promise<void>
-    getAltRepeatKey?(idx: number): Promise<AltRepeatKeyEntry>
-    setAltRepeatKey?(idx: number, entry: AltRepeatKeyEntry): Promise<void>
-
-    // Optional macros (Vial). Adapter omits these when capabilities.macros is absent.
-    getMacroCount?(): number
-    getMacro?(idx: number): Promise<MacroAction[]>
-    setMacro?(idx: number, actions: MacroAction[]): Promise<void>
+    encoders?: EncoderApi
+    dynamic?: DynamicEntriesApi
+    macros?: MacroApi
 
     addLayer(): Promise<Layer>
     removeLayer(layerId: number): Promise<void>

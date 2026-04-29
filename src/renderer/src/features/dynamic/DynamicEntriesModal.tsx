@@ -81,7 +81,7 @@ function TapDanceTab({
     const [entry, setEntry] = useState<TapDanceEntry | null>(null)
     useEffect(() => {
         let cancelled = false
-        service.getTapDance?.(idx).then((e) => {
+        service.dynamic?.getTapDance(idx).then((e) => {
             if (!cancelled) setEntry(e)
         })
         return () => {
@@ -90,9 +90,9 @@ function TapDanceTab({
     }, [service, idx])
 
     const save = async (): Promise<void> => {
-        if (!entry || !service.setTapDance) return
+        if (!entry || !service.dynamic) return
         try {
-            await service.setTapDance(idx, entry)
+            await service.dynamic.setTapDance(idx, entry)
             toast.success(`Tap-dance #${idx} saved`)
         } catch (e) {
             toast.error('Failed to save tap-dance')
@@ -173,7 +173,7 @@ function ComboTab({
     const [entry, setEntry] = useState<ComboEntry | null>(null)
     useEffect(() => {
         let cancelled = false
-        service.getCombo?.(idx).then((e) => {
+        service.dynamic?.getCombo(idx).then((e) => {
             if (!cancelled) setEntry(e)
         })
         return () => {
@@ -189,9 +189,9 @@ function ComboTab({
     }
 
     const save = async (): Promise<void> => {
-        if (!entry || !service.setCombo) return
+        if (!entry || !service.dynamic) return
         try {
-            await service.setCombo(idx, entry)
+            await service.dynamic.setCombo(idx, entry)
             toast.success(`Combo #${idx} saved`)
         } catch (e) {
             toast.error('Failed to save combo')
@@ -260,7 +260,7 @@ function KeyOverrideTab({
     const [entry, setEntry] = useState<KeyOverrideEntry | null>(null)
     useEffect(() => {
         let cancelled = false
-        service.getKeyOverride?.(idx).then((e) => {
+        service.dynamic?.getKeyOverride(idx).then((e) => {
             if (!cancelled) setEntry(e)
         })
         return () => {
@@ -274,9 +274,9 @@ function KeyOverrideTab({
     }
 
     const save = async (): Promise<void> => {
-        if (!entry || !service.setKeyOverride) return
+        if (!entry || !service.dynamic) return
         try {
-            await service.setKeyOverride(idx, entry)
+            await service.dynamic.setKeyOverride(idx, entry)
             toast.success(`Key-override #${idx} saved`)
         } catch (e) {
             toast.error('Failed to save key-override')
@@ -411,7 +411,7 @@ function AltRepeatKeyTab({
     const max = 31
     useEffect(() => {
         let cancelled = false
-        service.getAltRepeatKey?.(idx).then((e) => {
+        service.dynamic?.getAltRepeatKey?.(idx).then((e) => {
             if (!cancelled) setEntry(e)
         })
         return () => {
@@ -428,9 +428,9 @@ function AltRepeatKeyTab({
     }
 
     const save = async (): Promise<void> => {
-        if (!entry || !service.setAltRepeatKey) return
+        if (!entry || !service.dynamic?.setAltRepeatKey) return
         try {
-            await service.setAltRepeatKey(idx, entry)
+            await service.dynamic.setAltRepeatKey(idx, entry)
             toast.success(`Alt-repeat-key #${idx} saved`)
         } catch (e) {
             toast.error('Failed to save alt-repeat-key')
@@ -514,8 +514,8 @@ export function DynamicEntriesModal({
     onClose,
 }: Props): JSX.Element | null {
     if (!service) return null
-    const counts = service.getDynamicEntryCounts?.()
-    const hasARK = !!service.getAltRepeatKey
+    const counts = service.dynamic?.getCounts()
+    const hasARK = !!service.dynamic?.getAltRepeatKey
     if (!counts) return null
 
     return (

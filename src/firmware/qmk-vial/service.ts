@@ -14,7 +14,13 @@ import {
 } from '@firmware/qmk/protocol'
 
 const BUFFER_FETCH_CHUNK = VIA_PAYLOAD_SIZE - 4
-import type { Capabilities, KeyboardService } from '@firmware/service'
+import type {
+    Capabilities,
+    DynamicEntriesApi,
+    EncoderApi,
+    KeyboardService,
+    MacroApi,
+} from '@firmware/service'
 import type {
     ActionType,
     AdapterNotification,
@@ -190,9 +196,13 @@ async function loadDeviceProfile(
     return { dynamicCounts, macroCount, macroBufferSize }
 }
 
+// pattern-check: skip — wires sub-bundles required by service.ts Facade refactor
 export class VialKeyboardService implements KeyboardService {
     public readonly capabilities: Capabilities
     public readonly deviceInfo: DeviceInfo
+    public readonly encoders?: EncoderApi
+    public readonly dynamic?: DynamicEntriesApi
+    public readonly macros?: MacroApi
 
     private readonly client: HidClient
     private readonly def: ParsedKeyboardDef
@@ -259,6 +269,32 @@ export class VialKeyboardService implements KeyboardService {
                     : undefined,
         }
         this.lockState = lock
+        if (this.capabilities.encoders) {
+            this.encoders = {
+                setEncoder: (layerId, encoderIdx, direction, action) =>
+                    this.setEncoder(layerId, encoderIdx, direction, action),
+            }
+        }
+        if (this.capabilities.dynamicEntries) {
+            this.dynamic = {
+                getCounts: () => this.getDynamicEntryCounts(),
+                getTapDance: (idx) => this.getTapDance(idx),
+                setTapDance: (idx, e) => this.setTapDance(idx, e),
+                getCombo: (idx) => this.getCombo(idx),
+                setCombo: (idx, e) => this.setCombo(idx, e),
+                getKeyOverride: (idx) => this.getKeyOverride(idx),
+                setKeyOverride: (idx, e) => this.setKeyOverride(idx, e),
+                getAltRepeatKey: (idx) => this.getAltRepeatKey(idx),
+                setAltRepeatKey: (idx, e) => this.setAltRepeatKey(idx, e),
+            }
+        }
+        if (this.capabilities.macros) {
+            this.macros = {
+                getCount: () => this.getMacroCount(),
+                getMacro: (idx) => this.getMacro(idx),
+                setMacro: (idx, actions) => this.setMacro(idx, actions),
+            }
+        }
         cfg.client.onClosed((reason) => this.handleClientClosed(reason))
     }
 

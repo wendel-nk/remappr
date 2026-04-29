@@ -130,17 +130,17 @@ export function MacroEditorModal({
     opened,
     onClose,
 }: Props): JSX.Element | null {
-    const count = service?.getMacroCount?.() ?? 0
+    const count = service?.macros?.getCount() ?? 0
     const [idx, setIdx] = useState(0)
     const [actions, setActions] = useState<MacroAction[] | null>(null)
     const [loading, setLoading] = useState(false)
 
     /* eslint-disable react-hooks/set-state-in-effect */
     useEffect(() => {
-        if (!service || !opened || !service.getMacro) return
+        if (!service || !opened || !service.macros) return
         let cancelled = false
         setLoading(true)
-        service
+        service.macros
             .getMacro(idx)
             .then((a) => {
                 if (!cancelled) setActions(a)
@@ -188,9 +188,9 @@ export function MacroEditorModal({
     }
 
     const save = async (): Promise<void> => {
-        if (!actions || !service.setMacro) return
+        if (!actions || !service.macros) return
         try {
-            await service.setMacro(idx, actions)
+            await service.macros.setMacro(idx, actions)
             toast.success(`Macro #${idx} saved`)
         } catch (e) {
             toast.error(
