@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import type { ActionSlot, ActionType, KeyAction } from '@firmware/types'
-import { hidUsagePageAndIdFromUsage } from '@/lib/behaviors/hidUsages'
+import { hidUsagePageAndIdFromUsage } from '@/lib/actions/hidUsages'
 import { ActionTypeSelector } from './ActionTypeSelector'
 import { ActionSlotsPicker } from './ActionSlotsPicker'
 import { SlotBar, type SlotDescriptor, type SlotKind } from './SlotBar'

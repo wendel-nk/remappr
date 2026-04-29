@@ -6,7 +6,7 @@ import { LayoutZoom } from '@/lib/helpers'
 export type KeyPosition = PropsWithChildren<{
     id?: string
     header?: string
-    behaviorBinding?: string
+    actionLabel?: string
     holdTap?: HoldTapLabels
     width: number
     height: number

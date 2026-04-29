@@ -29,7 +29,7 @@ interface KeyboardViewProps {
 
 function holdTapToLabels(desc: ResolvedHoldTapDescriptor): HoldTapLabels {
     const tap = (
-        <HidUsageLabel hid_usage={desc.tapParam} header={desc.behaviorName} />
+        <HidUsageLabel hid_usage={desc.tapParam} header={desc.actionTypeName} />
     )
     const hold =
         desc.holdNodeKind === 'layer' ? (
@@ -118,7 +118,7 @@ export default function KeyboardView({
         ).map((p) => ({
             id: p.id,
             header: p.header,
-            behaviorBinding: p.behaviorBinding,
+            actionLabel: p.actionLabel,
             holdTap: p.holdTap ? holdTapToLabels(p.holdTap) : undefined,
             x: p.x,
             y: p.y,
@@ -132,7 +132,7 @@ export default function KeyboardView({
             ) : (
                 <HidUsageLabel
                     hid_usage={p.bindingParam1!}
-                    header={p.behaviorName || 'Unknown'}
+                    header={p.actionTypeName || 'Unknown'}
                 />
             ),
         }))
@@ -149,7 +149,7 @@ export default function KeyboardView({
             encoderPositions.push({
                 id: `enc-${i}-ccw`,
                 header: 'CCW',
-                behaviorBinding: action.ccw.label.primary,
+                actionLabel: action.ccw.label.primary,
                 x: slot.x,
                 y: slot.y,
                 width: 0.5,
@@ -160,7 +160,7 @@ export default function KeyboardView({
             encoderPositions.push({
                 id: `enc-${i}-cw`,
                 header: 'CW',
-                behaviorBinding: action.cw.label.primary,
+                actionLabel: action.cw.label.primary,
                 x: slot.x + 0.5,
                 y: slot.y,
                 width: 0.5,

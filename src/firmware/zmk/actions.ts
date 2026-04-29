@@ -10,7 +10,7 @@ import type {
 import {
     hid_usage_get_labels,
     hidUsagePageAndIdFromUsage,
-} from '@/lib/behaviors/hidUsages'
+} from '@/lib/actions/hidUsages'
 import {
     abbreviateLayerName,
     formatMomentaryLayer,
@@ -50,8 +50,8 @@ function buildHoldTapLabelData(
     keymap: { layers: { name: string }[] },
 ): HoldTapLabelData | undefined {
     if (slots.length !== 2) return undefined
-    const behaviorName = behavior.displayName
-    const behaviorBinding = displayNameToBinding(behaviorName)
+    const actionTypeName = behavior.displayName
+    const actionLabel = displayNameToBinding(actionTypeName)
     const tapParam = binding.param2
     const holdParam = binding.param1
     const tapDesc = describeUsage(tapParam)
@@ -62,8 +62,8 @@ function buildHoldTapLabelData(
         const mo = formatMomentaryLayer(holdParam)
         const holdDesc = layerName ? `${mo} (${layerLabel})` : mo
         return {
-            behaviorName,
-            behaviorBinding,
+            actionTypeName,
+            actionLabel,
             tapParam,
             tapDesc,
             holdNodeKind: 'layer',
@@ -71,20 +71,20 @@ function buildHoldTapLabelData(
             holdLayerLabel: layerLabel,
             holdLayerMomentary: mo,
             holdLayerName: layerName,
-            tooltip: `${behaviorName}\nTap: ${tapDesc}\nHold: ${holdDesc}`,
+            tooltip: `${actionTypeName}\nTap: ${tapDesc}\nHold: ${holdDesc}`,
         }
     }
 
     const holdDesc = describeUsage(holdParam)
     return {
-        behaviorName,
-        behaviorBinding,
+        actionTypeName,
+        actionLabel,
         tapParam,
         tapDesc,
         holdNodeKind: 'usage',
         holdParam,
         holdUsageDesc: holdDesc,
-        tooltip: `${behaviorName}\nTap: ${tapDesc}\nHold: ${holdDesc}`,
+        tooltip: `${actionTypeName}\nTap: ${tapDesc}\nHold: ${holdDesc}`,
     }
 }
 

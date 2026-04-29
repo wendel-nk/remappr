@@ -94,7 +94,7 @@ export function Settings(_props: SettingsProps): JSX.Element {
                         <div>
                             <Label>Key Header</Label>
                             <p className="text-sm text-muted-foreground">
-                                Show behavior name (Key Press) or binding code
+                                Show action name (Key Press) or binding code
                                 (&amp;kp)
                             </p>
                         </div>

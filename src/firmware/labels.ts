@@ -6,10 +6,10 @@ export type ResolvedHoldTapDescriptor = HoldTapLabelData
 export interface ResolvedBindingPosition {
     id: string
     header: string
-    behaviorBinding?: string
+    actionLabel?: string
     holdTap?: HoldTapLabelData
     bindingParam1?: number
-    behaviorName?: string
+    actionTypeName?: string
     outOfRange: boolean
     x: number
     y: number
@@ -34,10 +34,10 @@ export function resolveBindingLabels(
         return {
             id: `${keymap.layers[selectedLayerIndex].id}-${i}`,
             header: label?.primary ?? 'Unknown',
-            behaviorBinding: label?.bindingPrefix,
+            actionLabel: label?.bindingPrefix,
             holdTap: label?.holdTap,
             bindingParam1: label?.primaryUsage,
-            behaviorName: label?.primary,
+            actionTypeName: label?.primary,
             outOfRange,
             x: k.x / 100.0,
             y: k.y / 100.0,

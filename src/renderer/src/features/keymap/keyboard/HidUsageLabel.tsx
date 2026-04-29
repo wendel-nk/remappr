@@ -1,7 +1,7 @@
 import {
     hid_usage_get_labels,
     hidUsagePageAndIdFromUsage,
-} from '@/lib/behaviors/hidUsages'
+} from '@/lib/actions/hidUsages'
 import { abbreviateKeyName } from '@/lib/keyAbbreviations'
 
 export interface HidUsageLabelProps {

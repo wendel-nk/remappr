@@ -13,7 +13,7 @@ interface KeyButtonProps {
     oneU: number
     hoverZoom?: boolean
     header?: string
-    behaviorBinding?: string
+    actionLabel?: string
     holdTap?: HoldTapLabels
     onClick?: () => void
 }
@@ -42,7 +42,7 @@ export const KeyButton = ({
     selected = false,
     pressed = false,
     header,
-    behaviorBinding,
+    actionLabel,
     oneU,
     hoverZoom = true,
     holdTap,
@@ -54,14 +54,12 @@ export const KeyButton = ({
     const keyDisplayMode = useUserSettingsStore((s) => s.keyDisplayMode)
 
     const effectiveHeader =
-        keyDisplayMode === 'binding' && behaviorBinding
-            ? behaviorBinding
-            : header
-    const isBindingMode = keyDisplayMode === 'binding' && !!behaviorBinding
+        keyDisplayMode === 'binding' && actionLabel ? actionLabel : header
+    const isBindingMode = keyDisplayMode === 'binding' && !!actionLabel
     const headerFontPx = Math.max(6, Math.round(oneU / 8))
     const tooltipParts = [
         header,
-        behaviorBinding ? `(${behaviorBinding})` : '',
+        actionLabel ? `(${actionLabel})` : '',
         holdTap?.tooltip,
     ].filter(Boolean)
     const tooltip = tooltipParts.join(' — ')

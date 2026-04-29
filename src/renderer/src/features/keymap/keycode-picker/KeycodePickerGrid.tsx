@@ -7,7 +7,7 @@ import { Input } from '@/ui/input'
 import {
     hidUsageFromPageAndId,
     hidUsagePageAndIdFromUsage,
-} from '@/lib/behaviors/hidUsages'
+} from '@/lib/actions/hidUsages'
 import {
     maskMods,
     filterKeysBySearch,

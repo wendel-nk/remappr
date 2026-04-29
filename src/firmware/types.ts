@@ -5,8 +5,8 @@ export interface KeyAction {
 }
 
 export interface HoldTapLabelData {
-    behaviorName: string
-    behaviorBinding: string
+    actionTypeName: string
+    actionLabel: string
     tapParam: number
     tapDesc: string
     holdNodeKind: 'layer' | 'usage'
