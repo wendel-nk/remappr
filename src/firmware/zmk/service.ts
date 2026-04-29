@@ -242,6 +242,20 @@ export class ZmkKeyboardService implements KeyboardService {
         return keyActionToBinding(action)
     }
 
+    buildKeyAction(kind: string, params: number[]): KeyAction {
+        const behaviorId = Number.parseInt(kind, 10)
+        const binding = {
+            behaviorId: Number.isNaN(behaviorId) ? 0 : behaviorId,
+            param1: params[0] ?? 0,
+            param2: params[1] ?? 0,
+        } as BehaviorBinding
+        const layerNames =
+            this.cachedKeymap?.layers.map((l) => ({ name: l.name })) ?? []
+        return bindingToKeyAction(binding, this.behaviors, {
+            layers: layerNames,
+        })
+    }
+
     async setKey(
         layerId: number,
         position: number,

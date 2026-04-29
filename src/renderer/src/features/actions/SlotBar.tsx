@@ -4,7 +4,7 @@ import { Button } from '@/ui/button'
 import { HidUsageLabel } from '@/features/keymap/keyboard/HidUsageLabel'
 import { X } from 'lucide-react'
 
-export type SlotKind = 'hidUsage' | 'layer' | 'plain'
+export type SlotKind = 'hid' | 'layer' | 'plain'
 
 export interface SlotDescriptor {
     id: string
@@ -35,7 +35,7 @@ function SlotValue({ slot }: { slot: SlotDescriptor }): JSX.Element {
             </span>
         )
     }
-    if (slot.kind === 'hidUsage') {
+    if (slot.kind === 'hid') {
         return (
             <span className="text-sm">
                 <HidUsageLabel hid_usage={slot.value} />

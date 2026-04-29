@@ -29,6 +29,7 @@ export interface KeyboardService {
     onLockStateChanged(cb: (state: LockState) => void): () => void
 
     listActionTypes(): Promise<ActionType[]>
+    buildKeyAction(kind: string, params: number[]): KeyAction
     getKeymap(): Promise<Keymap>
     getPhysicalLayouts(): Promise<{
         layouts: import('./types').PhysicalLayout[]

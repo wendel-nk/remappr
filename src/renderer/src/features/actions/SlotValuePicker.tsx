@@ -1,0 +1,115 @@
+// Pattern check: no GoF pattern (-) — rejected — dispatches by slot.kind to existing renderers (HID/layer/enum/number); no abstraction needed.
+import type { ActionSlot } from '@firmware/types'
+import { KeycodePickerGrid } from '@/features/keymap/keycode-picker/KeycodePickerGrid'
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/ui/select'
+import { Label } from '@/ui/label'
+import { Input } from '@/ui/input'
+
+export interface SlotValuePickerProps {
+    slot: ActionSlot
+    value?: number
+    layers: { id: number; name: string }[]
+    highlightedKeys?: number[]
+    onChange: (value?: number) => void
+}
+
+export const SlotValuePicker = ({
+    slot,
+    value,
+    layers,
+    highlightedKeys,
+    onChange,
+}: SlotValuePickerProps): JSX.Element | null => {
+    if (slot.kind === 'hid') {
+        return (
+            <KeycodePickerGrid
+                onValueChanged={onChange}
+                label={slot.label}
+                value={value}
+                highlightedKeys={highlightedKeys}
+            />
+        )
+    }
+
+    if (slot.kind === 'layer') {
+        return (
+            <>
+                <Label htmlFor="slotValuePickerLayer">{slot.label}:</Label>
+                <Select
+                    onValueChange={(e) => onChange(parseInt(e))}
+                    value={value?.toString()}
+                >
+                    <SelectTrigger
+                        id="slotValuePickerLayer"
+                        className="w-[180px]"
+                    >
+                        <SelectValue placeholder="Layer" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {layers.map(({ id, name }) => (
+                            <SelectItem key={id} value={id.toString()}>
+                                {name}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </>
+        )
+    }
+
+    if (slot.kind === 'number' && slot.range) {
+        return (
+            <>
+                <Label htmlFor="slotValuePickerRange">{slot.label}: </Label>
+                <Input
+                    id="slotValuePickerRange"
+                    type="number"
+                    min={slot.range.min}
+                    max={slot.range.max}
+                    value={value ?? ''}
+                    onChange={(e) => onChange(parseInt(e.target.value))}
+                />
+            </>
+        )
+    }
+
+    if (
+        (slot.kind === 'enum' || slot.kind === 'modifier') &&
+        slot.values &&
+        slot.values.length > 0
+    ) {
+        return (
+            <Select
+                onValueChange={(e) => onChange(parseInt(e))}
+                value={value?.toString()}
+            >
+                <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder={slot.label} />
+                </SelectTrigger>
+                <SelectContent>
+                    {slot.values.map((v) => (
+                        <SelectItem key={v.value} value={v.value.toString()}>
+                            {v.label}
+                        </SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+        )
+    }
+
+    if (slot.kind === 'action') {
+        return (
+            <p className="text-xs text-muted-foreground italic">
+                Nested action picker not yet implemented.
+            </p>
+        )
+    }
+
+    return <p>Unsupported slot configuration.</p>
+}
