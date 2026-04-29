@@ -1,5 +1,5 @@
-// Pattern check: Adapter (Tier 1) — extended — backs src/firmware/adapter.ts FirmwareAdapter; renderer-friendly per-position descriptor reads neutral KeyAction.label only.
-import type { HoldTapLabelData, Keymap, PhysicalLayout } from '@firmware/types'
+// Pattern check: no GoF pattern (-) — rejected — pure mapper from neutral KeyAction.label + PhysicalLayout geometry to renderer-shaped per-position descriptor.
+import type { HoldTapLabelData, Keymap, PhysicalLayout } from './types'
 
 export type ResolvedHoldTapDescriptor = HoldTapLabelData
 

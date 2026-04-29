@@ -12,10 +12,7 @@ import useConnectionStore from '@/stores/connectionStore'
 import useLayerSelectionStore from '@/stores/layerSelectionStore'
 import { useKeypressDetection } from '@/hooks/use-keypress-detection'
 import type { KeypressDetectionConfig } from '@/lib/keypress/keypressDetector'
-import {
-    resolveBindingLabels,
-    type ResolvedHoldTapDescriptor,
-} from '@firmware/zmk'
+import { resolveBindingLabels, type ResolvedHoldTapDescriptor } from '@firmware'
 
 interface KeyboardViewProps {
     keymap: Keymap | undefined

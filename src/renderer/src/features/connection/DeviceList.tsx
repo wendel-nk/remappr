@@ -5,7 +5,7 @@ import { Key, ListBox, ListBoxItem, Selection } from 'react-aria-components'
 import { Bluetooth, RefreshCw } from 'lucide-react'
 import type { TransportFactory } from '@/transport/types'
 import type { Transport } from '@firmware'
-import { UserCancelledError } from '@firmware/zmk'
+import { UserCancelledError } from '@firmware'
 import { ErrorDialog } from '@/components/modals/ErrorDialog'
 
 interface DeviceListProps {

@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react'
 import type { Transport } from '@firmware'
-import { UserCancelledError } from '@firmware/zmk'
+import { UserCancelledError } from '@firmware'
 import { toast } from 'sonner'
 import type { TransportFactory } from '@/transport/types'
 import type { DeviceStatus } from '@/features/connection/DeviceCard'

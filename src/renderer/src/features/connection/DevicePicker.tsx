@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { AvailableDevice } from '@/transport/types'
-import { UserCancelledError } from '@firmware/zmk'
+import { UserCancelledError } from '@firmware'
 import type { TransportFactory } from '@/transport/types'
 import type { Transport } from '@firmware'
 import { Button } from '@/ui/button'

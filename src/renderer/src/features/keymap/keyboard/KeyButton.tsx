@@ -31,9 +31,9 @@ function makeSize(
     height *= oneU
 
     return {
-        '--zmk-key-center-width': 'calc(' + width + 'px - 2px)',
+        '--key-center-width': 'calc(' + width + 'px - 2px)',
         width: 'calc(' + width + 'px - 2px)',
-        '--zmk-key-center-height': 'calc(' + height + 'px - 2px)',
+        '--key-center-height': 'calc(' + height + 'px - 2px)',
         height: 'calc(' + height + 'px - 2px)',
     }
 }

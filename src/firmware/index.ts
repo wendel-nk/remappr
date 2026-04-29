@@ -38,4 +38,16 @@ export {
     UnsupportedError,
 } from './errors'
 
+// Re-exported transport error: thrown by every transport factory when
+// the user cancels a system picker (web-serial / web-bluetooth / native
+// equivalents). Surfaced from @firmware so the renderer never needs to
+// import @firmware/zmk for it.
+export { UserCancelledError } from '@zmkfirmware/zmk-studio-ts-client/transport/errors'
+
+export {
+    resolveBindingLabels,
+    type ResolvedBindingPosition,
+    type ResolvedHoldTapDescriptor,
+} from './labels'
+
 export { getAdapters, pickAdapter, registerAdapter } from './registry'

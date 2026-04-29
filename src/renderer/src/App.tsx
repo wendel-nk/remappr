@@ -1,12 +1,7 @@
 import React, { JSX, useCallback, useEffect } from 'react'
 import { pickAdapter } from '@firmware'
 import type { Transport } from '@firmware'
-import { publish, useEmitter } from '@/hooks/use-pub-sub'
 import { rememberConnectedDeviceName } from '@/transport/web-serial'
-import type { LockState } from '@firmware/types'
-
-const mapZmkLockState = (raw: unknown): LockState =>
-    raw === 1 || raw === 'unlocked' ? 'unlocked' : 'locked'
 import { UnlockModal } from '@/features/connection/UnlockModal'
 import useConnectionStore from '@/stores/connectionStore'
 import undoRedoStore from '@/stores/undoRedoStore'
@@ -33,16 +28,6 @@ function App(): JSX.Element {
         connectionAbort,
     } = useConnectionStore()
     const { reset } = undoRedoStore()
-    const { subscribe } = useEmitter()
-
-    useEffect(() => {
-        return subscribe(
-            'rpc_notification.core.lockStateChanged',
-            (data: unknown): void => {
-                setLockState(mapZmkLockState(data))
-            },
-        )
-    }, [subscribe, setLockState])
 
     const updateLockState = useCallback(async (): Promise<void> => {
         if (!service) return
@@ -54,9 +39,10 @@ function App(): JSX.Element {
         if (!service) {
             reset()
             setLockState('locked')
+            return
         }
-
         updateLockState()
+        return service.onLockStateChanged(setLockState)
     }, [service, setLockState, reset, updateLockState])
 
     const onConnect = async (
@@ -72,9 +58,6 @@ function App(): JSX.Element {
         }
         try {
             const next = await adapter.connect(t, connectionAbort.signal)
-            next.subscribe(({ topic, payload }): void => {
-                publish(`rpc_notification.${topic}`, payload)
-            })
             next.onClosed((): void => {
                 setDeviceName(null)
                 setService(null)

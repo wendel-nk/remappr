@@ -1,5 +1,5 @@
 import type { Transport } from '@firmware'
-import { UserCancelledError } from '@firmware/zmk'
+import { UserCancelledError } from '@firmware'
 import type { AvailableDevice } from '@/transport/types'
 
 import { STUDIO_SERVICE_UUID, STUDIO_CHAR_UUID } from '@shared/ble-defaults'
