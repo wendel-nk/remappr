@@ -1,4 +1,4 @@
-import type { RpcTransport } from '@zmkfirmware/zmk-studio-ts-client/transport/index'
+import type { Transport } from './transport'
 import type { FirmwareAdapter, ProbeHint } from './adapter'
 
 const adapters: FirmwareAdapter[] = []
@@ -13,7 +13,7 @@ export function getAdapters(): readonly FirmwareAdapter[] {
 }
 
 export async function pickAdapter(
-    transport: RpcTransport,
+    transport: Transport,
     hint?: ProbeHint,
 ): Promise<FirmwareAdapter | null> {
     for (const adapter of adapters) {

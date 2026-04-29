@@ -27,6 +27,8 @@ export type {
     ProbeHint,
 } from './adapter'
 
+export type { Transport } from './transport'
+
 export {
     FirmwareError,
     LockedError,

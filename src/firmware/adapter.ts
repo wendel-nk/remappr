@@ -1,4 +1,4 @@
-import type { RpcTransport } from '@zmkfirmware/zmk-studio-ts-client/transport/index'
+import type { Transport } from './transport'
 import type { KeyboardService } from './service'
 import type { DeviceInfo, TransportKind } from './types'
 
@@ -31,9 +31,6 @@ export interface FirmwareAdapter {
     readonly id: string
     readonly displayName: string
     readonly discovery: Discovery
-    canHandle(transport: RpcTransport, hint?: ProbeHint): Promise<Probe>
-    connect(
-        transport: RpcTransport,
-        signal: AbortSignal,
-    ): Promise<KeyboardService>
+    canHandle(transport: Transport, hint?: ProbeHint): Promise<Probe>
+    connect(transport: Transport, signal: AbortSignal): Promise<KeyboardService>
 }

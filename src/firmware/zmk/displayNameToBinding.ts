@@ -1,4 +1,4 @@
-// Pattern check: no GoF pattern (-) — rejected — simple lookup table for ZMK binding prefix mapping, no abstraction warranted.
+// Pattern check: no GoF pattern (-) — rejected — ZMK behavior displayName -> devicetree binding prefix lookup, adapter-internal helper.
 const BINDING_MAP: Record<string, string> = {
     'Key Press': '&kp',
     Modifier: '&kp',

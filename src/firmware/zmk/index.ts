@@ -24,6 +24,12 @@ export {
     behaviorsToActionTypes,
     validateSlotValue,
 } from './actionTypes'
+export { displayNameToBinding } from './displayNameToBinding'
+export {
+    resolveBindingLabels,
+    type ResolvedBindingPosition,
+    type ResolvedHoldTapDescriptor,
+} from './labels'
 export { zmkKeymapToNeutral } from './keymap'
 
 // Re-exported upstream ZMK protocol types so renderer code never needs

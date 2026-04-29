@@ -16,7 +16,7 @@ import type { KeypressDetectionConfig } from '@/lib/keypress/keypressDetector'
 import {
     resolveBindingLabels,
     type ResolvedHoldTapDescriptor,
-} from '@/lib/keymap/resolveBindingLabels'
+} from '@firmware/zmk'
 
 interface KeyboardViewProps {
     keymap: Keymap | undefined

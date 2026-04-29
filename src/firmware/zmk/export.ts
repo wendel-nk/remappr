@@ -1,8 +1,8 @@
 // pattern-check: skip mechanical port — generator now consumes neutral Keymap, reads ZMK binding via zmkBindingFromAction helper
 import type { Keymap } from '@firmware/types'
-import type { BehaviorMap } from '@/lib/behaviors/types'
+import type { BehaviorMap } from './actions'
 import { zmkBindingFromAction } from './actions'
-import { displayNameToBinding } from '@/lib/keymap/displayNameToBinding'
+import { displayNameToBinding } from './displayNameToBinding'
 
 export interface ZMKConfigOptions {
     keyboardName: string

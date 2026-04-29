@@ -4,7 +4,7 @@ import {
     create_rpc_connection,
     RpcConnection,
 } from '@zmkfirmware/zmk-studio-ts-client'
-import type { RpcTransport } from '@zmkfirmware/zmk-studio-ts-client/transport/index'
+import type { Transport } from '@firmware/transport'
 
 import type { Discovery, FirmwareAdapter, Probe } from '@firmware/adapter'
 import type { KeyboardService } from '@firmware/service'
@@ -57,7 +57,7 @@ export const zmkAdapter: FirmwareAdapter = {
     displayName: 'ZMK',
     discovery: ZMK_DISCOVERY,
 
-    async canHandle(transport: RpcTransport): Promise<Probe> {
+    async canHandle(transport: Transport): Promise<Probe> {
         const probeAbort = new AbortController()
         const connection = create_rpc_connection(transport, {
             signal: probeAbort.signal,
@@ -84,7 +84,7 @@ export const zmkAdapter: FirmwareAdapter = {
     },
 
     async connect(
-        transport: RpcTransport,
+        transport: Transport,
         signal: AbortSignal,
     ): Promise<KeyboardService> {
         const connection = create_rpc_connection(transport, { signal })

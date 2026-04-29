@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import useConnectionStore from '@/stores/connectionStore'
 import { ZmkKeyboardService } from '@firmware/zmk/service'
-import type { BehaviorMap } from '@/lib/behaviors/types'
+import type { BehaviorMap } from '@firmware/zmk'
 
 export function useBehaviors(): BehaviorMap {
     const { service, lockState } = useConnectionStore()

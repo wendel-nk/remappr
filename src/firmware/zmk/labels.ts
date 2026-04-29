@@ -15,7 +15,7 @@ import {
     hid_usage_get_labels,
     hidUsagePageAndIdFromUsage,
 } from '@/lib/behaviors/hidUsages'
-import { displayNameToBinding } from '@/lib/keymap/displayNameToBinding'
+import { displayNameToBinding } from '@firmware/zmk/displayNameToBinding'
 
 type BehaviorMap = Record<number, GetBehaviorDetailsResponse>
 

@@ -10,7 +10,7 @@ import {
     abbreviateLayerName,
     formatMomentaryLayer,
 } from '@/lib/keyAbbreviations'
-import { displayNameToBinding } from '@/lib/keymap/displayNameToBinding'
+import { displayNameToBinding } from './displayNameToBinding'
 import { behaviorToActionType } from './actionTypes'
 
 export type BehaviorMap = Record<number, GetBehaviorDetailsResponse>

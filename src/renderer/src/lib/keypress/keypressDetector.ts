@@ -1,7 +1,7 @@
 // pattern-check: skip mechanical port — neutral Keymap shape, reads ZMK binding via zmkBindingFromAction helper
 import type { Keymap, PhysicalLayout } from '@firmware/types'
 import { zmkBindingFromAction } from '@firmware/zmk/actions'
-import type { BehaviorMap } from '@/lib/behaviors/types'
+import type { BehaviorMap } from '@firmware/zmk'
 import { DOM_KEY_TO_HID, DOM_KEY_TO_DISPLAY_NAME } from './domKeyToHidMap'
 
 export interface KeypressDetectionConfig {
