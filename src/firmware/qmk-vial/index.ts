@@ -4,7 +4,17 @@ import { vialAdapter } from './adapter'
 
 export { vialAdapter, createVialAdapter } from './adapter'
 export { VialKeyboardService } from './service'
-export { VIAL_ACTION_TYPES } from './actionTypes'
+export { VIAL_ACTION_TYPES, buildVialActionTypes } from './actionTypes'
+export {
+    getMacroCount,
+    getMacroBufferSize,
+    readMacroBuffer,
+    writeMacroBuffer,
+    splitMacros,
+    joinMacros,
+    readMacro,
+    writeMacro,
+} from './macros'
 export {
     decodeVialAsKeyAction,
     decodeVialKeycode,

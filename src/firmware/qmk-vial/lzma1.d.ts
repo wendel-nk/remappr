@@ -1,4 +1,4 @@
-declare module 'lzma1/lib/index.js' {
+declare module 'lzma1' {
     export function decompress(
         data: Uint8Array | number[],
     ): Uint8Array | number[]

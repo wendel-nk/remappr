@@ -35,9 +35,34 @@ import {
     ensureEncodable,
     relabelVialLayer,
 } from './actions'
-import { VIAL_ACTION_TYPES } from './actionTypes'
+import { buildVialActionTypes } from './actionTypes'
+import { type DynamicEntryCount } from './protocol'
+import {
+    type AltRepeatKeyEntry,
+    type ComboEntry,
+    type KeyOverrideEntry,
+    type TapDanceEntry,
+    getAltRepeatKey,
+    getCombo,
+    getDynamicCounts,
+    getKeyOverride,
+    getTapDance,
+    setAltRepeatKey,
+    setCombo,
+    setKeyOverride,
+    setTapDance,
+} from './dynamic'
 import { readEncoder, writeEncoder } from './encoder'
-import { type ParsedKeyboardDef } from './keyboardDef'
+import { type ParsedKeyboardDef, type VialCustomKeycode } from './keyboardDef'
+import {
+    getMacroBufferSize,
+    getMacroCount,
+    readMacro,
+    readMacroBuffer,
+    splitMacros,
+    writeMacro,
+    writeMacroBuffer,
+} from './macros'
 import { lockDevice, readUnlockStatus, runUnlockFlow } from './unlock'
 
 const VIAL_CAPABILITIES_BASE: Omit<Capabilities, 'maxLayers'> = {
@@ -102,6 +127,7 @@ async function loadLayers(
     def: ParsedKeyboardDef,
     layerCount: number,
     layerNames: string[],
+    customNames: string[],
 ): Promise<Layer[]> {
     const buffer = await fetchKeymapBuffer(
         client,
@@ -114,7 +140,7 @@ async function loadLayers(
         const keys: KeyAction[] = def.rowColMap.map(({ row, col }) => {
             const off = bufferOffsetFor(l, row, col, def.rows, def.cols)
             const kc = readU16BEAt(buffer, off)
-            return decodeVialAsKeyAction(kc, layerNames)
+            return decodeVialAsKeyAction(kc, layerNames, customNames)
         })
         const encoders: EncoderAction[] = []
         for (const idx of def.encoderIndices) {
@@ -129,6 +155,36 @@ async function loadLayers(
         })
     }
     return layers
+}
+
+interface VialDeviceProfile {
+    dynamicCounts: DynamicEntryCount
+    macroCount: number
+    macroBufferSize: number
+}
+
+async function loadDeviceProfile(
+    client: HidClient,
+): Promise<VialDeviceProfile> {
+    let dynamicCounts: DynamicEntryCount = {
+        tapDance: 0,
+        combo: 0,
+        keyOverride: 0,
+    }
+    try {
+        dynamicCounts = await getDynamicCounts(client)
+    } catch {
+        // Older Vial protocols (< 4) lack DYNAMIC_ENTRY_OP — leave zeroed.
+    }
+    let macroCount = 0
+    let macroBufferSize = 0
+    try {
+        macroCount = await getMacroCount(client)
+        macroBufferSize = await getMacroBufferSize(client)
+    } catch {
+        // Tolerate boards without macro support.
+    }
+    return { dynamicCounts, macroCount, macroBufferSize }
 }
 
 export class VialKeyboardService implements KeyboardService {
@@ -151,10 +207,15 @@ export class VialKeyboardService implements KeyboardService {
     private readonly lockListeners = new Set<LockStateHandler>()
     private readonly closedListeners = new Set<ClosedHandler>()
 
+    // Pattern check: Adapter (Tier 1) — extended — same VialKeyboardService class; expanded ctor wires DeviceProfile + customNames into capabilities and labels.
+    private readonly customNames: string[]
+    private readonly profile: VialDeviceProfile
+
     private constructor(
         cfg: VialServiceConfig,
         layers: Layer[],
         lock: LockState,
+        profile: VialDeviceProfile,
     ) {
         this.deviceInfo = cfg.deviceInfo
         this.client = cfg.client
@@ -163,6 +224,10 @@ export class VialKeyboardService implements KeyboardService {
         this.keyboardId = cfg.keyboardId
         this.layers = layers
         this.layerNames = cfg.layerNames ?? layers.map((l) => l.name)
+        this.customNames = cfg.def.customKeycodes.map(
+            (k) => k.shortName || k.name,
+        )
+        this.profile = profile
         this.physicalLayout = {
             id: 0,
             name: cfg.def.name || 'Default',
@@ -174,6 +239,21 @@ export class VialKeyboardService implements KeyboardService {
         this.capabilities = {
             ...VIAL_CAPABILITIES_BASE,
             maxLayers: cfg.layerCount,
+            encoders: cfg.def.encoderIndices.length || undefined,
+            dynamicEntries:
+                profile.dynamicCounts.tapDance +
+                    profile.dynamicCounts.combo +
+                    profile.dynamicCounts.keyOverride >
+                0
+                    ? profile.dynamicCounts
+                    : undefined,
+            macros:
+                profile.macroCount > 0
+                    ? {
+                          count: profile.macroCount,
+                          bufferSize: profile.macroBufferSize,
+                      }
+                    : undefined,
         }
         this.lockState = lock
         cfg.client.onClosed((reason) => this.handleClientClosed(reason))
@@ -183,15 +263,20 @@ export class VialKeyboardService implements KeyboardService {
         const layerNames =
             cfg.layerNames ??
             Array.from({ length: cfg.layerCount }, (_, i) => `Layer ${i}`)
+        const customNames = cfg.def.customKeycodes.map(
+            (k) => k.shortName || k.name,
+        )
         const layers = await loadLayers(
             cfg.client,
             cfg.def,
             cfg.layerCount,
             layerNames,
+            customNames,
         )
+        const profile = await loadDeviceProfile(cfg.client)
         const initialLock = await readUnlockStatus(cfg.client)
         const lockState: LockState = initialLock.locked ? 'locked' : 'unlocked'
-        return new VialKeyboardService(cfg, layers, lockState)
+        return new VialKeyboardService(cfg, layers, lockState, profile)
     }
 
     private handleClientClosed(reason?: unknown): void {
@@ -265,13 +350,14 @@ export class VialKeyboardService implements KeyboardService {
     }
 
     async listActionTypes(): Promise<ActionType[]> {
-        return VIAL_ACTION_TYPES
+        return buildVialActionTypes(this.def.customKeycodes)
     }
 
     buildKeyAction(kind: string, params: number[]): KeyAction {
         return decodeVialAsKeyAction(
             encodeVialKeycode({ kind, params, label: { primary: '' } }),
             this.layerNames,
+            this.customNames,
         )
     }
 
@@ -280,7 +366,11 @@ export class VialKeyboardService implements KeyboardService {
             layers: this.layers.map((l) => ({
                 id: l.id,
                 name: l.name,
-                keys: relabelVialLayer(l.keys, this.layerNames),
+                keys: relabelVialLayer(
+                    l.keys,
+                    this.layerNames,
+                    this.customNames,
+                ),
                 encoders: l.encoders,
             })),
             availableLayers: 0,
@@ -323,7 +413,11 @@ export class VialKeyboardService implements KeyboardService {
             )
         }
         const next = this.layers[idx].keys.slice()
-        next[position] = decodeVialAsKeyAction(kc, this.layerNames)
+        next[position] = decodeVialAsKeyAction(
+            kc,
+            this.layerNames,
+            this.customNames,
+        )
         this.layers[idx] = { ...this.layers[idx], keys: next }
         this.setPending(true)
     }
@@ -416,6 +510,7 @@ export class VialKeyboardService implements KeyboardService {
             this.def,
             this.capabilities.maxLayers ?? this.layers.length,
             this.layerNames,
+            this.customNames,
         )
         this.setPending(false)
     }
@@ -498,6 +593,79 @@ export class VialKeyboardService implements KeyboardService {
             encoder_layout: encoderLayout,
             layout_options: -1,
         }
+    }
+
+    // --- Vial-specific facade: custom keycodes + dynamic entries + macros ----
+
+    getCustomKeycodes(): VialCustomKeycode[] {
+        return this.def.customKeycodes
+    }
+
+    getDynamicEntryCounts(): DynamicEntryCount {
+        return this.profile.dynamicCounts
+    }
+
+    async getTapDance(idx: number): Promise<TapDanceEntry> {
+        return getTapDance(this.client, idx)
+    }
+    async setTapDance(idx: number, entry: TapDanceEntry): Promise<void> {
+        await setTapDance(this.client, idx, entry)
+        this.setPending(true)
+    }
+
+    async getCombo(idx: number): Promise<ComboEntry> {
+        return getCombo(this.client, idx)
+    }
+    async setCombo(idx: number, entry: ComboEntry): Promise<void> {
+        await setCombo(this.client, idx, entry)
+        this.setPending(true)
+    }
+
+    async getKeyOverride(idx: number): Promise<KeyOverrideEntry> {
+        return getKeyOverride(this.client, idx)
+    }
+    async setKeyOverride(idx: number, entry: KeyOverrideEntry): Promise<void> {
+        await setKeyOverride(this.client, idx, entry)
+        this.setPending(true)
+    }
+
+    async getAltRepeatKey(idx: number): Promise<AltRepeatKeyEntry> {
+        return getAltRepeatKey(this.client, idx)
+    }
+    async setAltRepeatKey(
+        idx: number,
+        entry: AltRepeatKeyEntry,
+    ): Promise<void> {
+        await setAltRepeatKey(this.client, idx, entry)
+        this.setPending(true)
+    }
+
+    getMacroCount(): number {
+        return this.profile.macroCount
+    }
+
+    getMacroBufferSize(): number {
+        return this.profile.macroBufferSize
+    }
+
+    async getMacro(idx: number): Promise<Uint8Array> {
+        return readMacro(this.client, idx)
+    }
+
+    async setMacro(idx: number, bytes: Uint8Array): Promise<void> {
+        await writeMacro(this.client, idx, bytes)
+        this.setPending(true)
+    }
+
+    async getAllMacros(): Promise<Uint8Array[]> {
+        if (this.profile.macroCount === 0) return []
+        const buffer = await readMacroBuffer(this.client)
+        return splitMacros(buffer, this.profile.macroCount)
+    }
+
+    async setMacroBuffer(buffer: Uint8Array): Promise<void> {
+        await writeMacroBuffer(this.client, buffer)
+        this.setPending(true)
     }
 
     onClosed(cb: ClosedHandler): () => void {

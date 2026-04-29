@@ -15,7 +15,8 @@
       ],
       "@firmware": ["./src/firmware"],
       "@firmware/*": ["./src/firmware/*"],
-      "@shared/*": ["./src/shared/*"]
+      "@shared/*": ["./src/shared/*"],
+      "lzma1": ["./src/firmware/qmk-vial/lzma1.d.ts"]
     }
   },
   "include": [

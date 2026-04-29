@@ -18,6 +18,9 @@ export interface Capabilities {
     variableLayerCount: boolean
     exportFormats: string[]
     maxLayers?: number
+    encoders?: number
+    dynamicEntries?: { tapDance: number; combo: number; keyOverride: number }
+    macros?: { count: number; bufferSize: number }
 }
 
 export interface KeyboardService {

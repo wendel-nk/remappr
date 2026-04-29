@@ -2,7 +2,7 @@
 // Vial firmware ships a per-board JSON definition compressed with raw LZMA1.
 // Wire flow: GET_SIZE → GET_DEFINITION (block index) → concat → lzma1.decompress → JSON.
 
-import { decompress as lzmaDecompress } from 'lzma1/lib/index.js'
+import { decompress as lzmaDecompress } from 'lzma1'
 
 import { ProtocolError } from '@firmware/errors'
 import type { HidClient } from '@firmware/qmk/hidClient'
