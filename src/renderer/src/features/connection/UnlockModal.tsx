@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 
+import { isUnlocked } from '@firmware'
 import { ExternalLink } from '@/components/ExternalLink'
 import useConnectionStore from '@/stores/connectionStore'
 import { Modal } from '@/ui/modal'
@@ -7,7 +8,8 @@ import { Modal } from '@/ui/modal'
 export const UnlockModal = (): JSX.Element => {
     const { service, lockState } = useConnectionStore()
     const open = useMemo(
-        (): boolean => !!service && lockState != 'unlocked',
+        (): boolean =>
+            !!service && service.capabilities.lock && !isUnlocked(lockState),
         [service, lockState],
     )
 

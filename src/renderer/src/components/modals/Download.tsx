@@ -7,6 +7,7 @@ import { Separator } from '@/ui/separator'
 import { toast } from 'sonner'
 import useConnectionStore from '@/stores/connectionStore'
 import type { ExportedFile, Keymap } from '@firmware/types'
+import { isUnlocked } from '@firmware'
 
 interface DownloadProps {
     opened?: boolean
@@ -49,7 +50,7 @@ export function Download(_props: DownloadProps): JSX.Element {
 
     const [keymap, setKeymap] = useState<Keymap | undefined>(undefined)
     useEffect(() => {
-        if (!service || lockState !== 'unlocked') {
+        if (!service || !isUnlocked(lockState)) {
             // eslint-disable-next-line react-hooks/set-state-in-effect
             setKeymap(undefined)
             return

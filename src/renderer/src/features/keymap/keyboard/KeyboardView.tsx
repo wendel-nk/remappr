@@ -14,10 +14,17 @@ import { useKeypressDetection } from '@/hooks/use-keypress-detection'
 import type { KeypressDetectionConfig } from '@/lib/keypress/keypressDetector'
 import { resolveBindingLabels, type ResolvedHoldTapDescriptor } from '@firmware'
 
+interface EncoderSelection {
+    slot: number
+    dir: 'cw' | 'ccw'
+}
+
 interface KeyboardViewProps {
     keymap: Keymap | undefined
     selectedKeyPosition: number | undefined
     setSelectedKeyPosition: (position: number | undefined) => void
+    selectedEncoder?: EncoderSelection | undefined
+    setSelectedEncoder?: (sel: EncoderSelection | undefined) => void
 }
 
 function holdTapToLabels(desc: ResolvedHoldTapDescriptor): HoldTapLabels {
@@ -37,6 +44,8 @@ export default function KeyboardView({
     keymap,
     selectedKeyPosition,
     setSelectedKeyPosition,
+    selectedEncoder,
+    setSelectedEncoder,
 }: KeyboardViewProps): JSX.Element {
     const { layouts, selectedPhysicalLayoutIndex } = useLayout()
     const { selectedLayerIndex, setSelectedLayerIndex } =
@@ -102,29 +111,65 @@ export default function KeyboardView({
         if (!layouts || !keymap) return []
         const layout = layouts[selectedPhysicalLayoutIndex]
         if (!layout) return []
-        return resolveBindingLabels(layout, keymap, effectiveLayerIndex).map(
-            (p) => ({
-                id: p.id,
-                header: p.header,
-                behaviorBinding: p.behaviorBinding,
-                holdTap: p.holdTap ? holdTapToLabels(p.holdTap) : undefined,
-                x: p.x,
-                y: p.y,
-                width: p.width,
-                height: p.height,
-                r: p.r,
-                rx: p.rx,
-                ry: p.ry,
-                children: p.outOfRange ? (
-                    <span></span>
-                ) : (
-                    <HidUsageLabel
-                        hid_usage={p.bindingParam1!}
-                        header={p.behaviorName || 'Unknown'}
-                    />
-                ),
-            }),
-        )
+        const keyPositions: KeyPosition[] = resolveBindingLabels(
+            layout,
+            keymap,
+            effectiveLayerIndex,
+        ).map((p) => ({
+            id: p.id,
+            header: p.header,
+            behaviorBinding: p.behaviorBinding,
+            holdTap: p.holdTap ? holdTapToLabels(p.holdTap) : undefined,
+            x: p.x,
+            y: p.y,
+            width: p.width,
+            height: p.height,
+            r: p.r,
+            rx: p.rx,
+            ry: p.ry,
+            children: p.outOfRange ? (
+                <span></span>
+            ) : (
+                <HidUsageLabel
+                    hid_usage={p.bindingParam1!}
+                    header={p.behaviorName || 'Unknown'}
+                />
+            ),
+        }))
+
+        const encoderActions = keymap.layers[effectiveLayerIndex]?.encoders
+        const encoderSlots = layout.encoders ?? []
+        if (!encoderActions || encoderSlots.length === 0) return keyPositions
+
+        const encoderPositions: KeyPosition[] = []
+        encoderSlots.forEach((slot, i) => {
+            const action = encoderActions[i]
+            if (!action) return
+            // Two half-unit buttons side by side: ccw left, cw right.
+            encoderPositions.push({
+                id: `enc-${i}-ccw`,
+                header: 'CCW',
+                behaviorBinding: action.ccw.label.primary,
+                x: slot.x,
+                y: slot.y,
+                width: 0.5,
+                height: 1,
+                encoder: { slot: i, dir: 'ccw' },
+                children: <span>{action.ccw.label.primary}</span>,
+            })
+            encoderPositions.push({
+                id: `enc-${i}-cw`,
+                header: 'CW',
+                behaviorBinding: action.cw.label.primary,
+                x: slot.x + 0.5,
+                y: slot.y,
+                width: 0.5,
+                height: 1,
+                encoder: { slot: i, dir: 'cw' },
+                children: <span>{action.cw.label.primary}</span>,
+            })
+        })
+        return [...keyPositions, ...encoderPositions]
     }, [layouts, keymap, selectedPhysicalLayoutIndex, effectiveLayerIndex])
 
     return (
@@ -138,6 +183,10 @@ export default function KeyboardView({
                         zoom={keymapScale}
                         selectedPosition={selectedKeyPosition}
                         onPositionClicked={setSelectedKeyPosition}
+                        selectedEncoder={selectedEncoder}
+                        onEncoderClicked={(slot, dir): void =>
+                            setSelectedEncoder?.({ slot, dir })
+                        }
                         pressedKeys={pressedKeys}
                     />
                     <KeyboardZoomSlider

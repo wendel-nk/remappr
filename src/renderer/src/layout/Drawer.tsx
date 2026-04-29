@@ -15,6 +15,7 @@ import {
 } from '@/ui/sidebar'
 import { DeviceMenu } from '@/features/connection/DeviceMenu'
 import type { Keymap } from '@firmware/types'
+import { isUnlocked } from '@firmware'
 import { produce } from 'immer'
 import { APP_VERSION } from '@/lib/constants'
 
@@ -42,7 +43,7 @@ export function Drawer(): JSX.Element {
 
     // Fetch keymap when service changes or becomes unlocked
     useEffect(() => {
-        if (!service || lockState !== 'unlocked') {
+        if (!service || !isUnlocked(lockState)) {
             resetKeymap()
             return
         }

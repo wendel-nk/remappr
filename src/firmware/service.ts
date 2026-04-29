@@ -41,6 +41,13 @@ export interface KeyboardService {
 
     setKey(layerId: number, position: number, action: KeyAction): Promise<void>
     setKeys(updates: KeyUpdate[]): Promise<void>
+    // Optional — present only on firmware that exposes encoders (capabilities.encoders > 0).
+    setEncoder?(
+        layerId: number,
+        encoderIdx: number,
+        direction: 0 | 1,
+        action: KeyAction,
+    ): Promise<void>
 
     addLayer(): Promise<Layer>
     removeLayer(layerId: number): Promise<void>

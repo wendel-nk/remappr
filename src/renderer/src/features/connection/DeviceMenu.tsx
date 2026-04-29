@@ -12,6 +12,7 @@ import {
 } from '@/ui/dropdown-menu'
 import { SidebarMenu, SidebarMenuItem } from '@/ui/sidebar'
 import { toast } from 'sonner'
+import { isUnlocked } from '@firmware'
 
 export const DeviceMenu = (): JSX.Element => {
     const {
@@ -45,7 +46,7 @@ export const DeviceMenu = (): JSX.Element => {
         }, 0)
     }, [service, communication, reset, setService])
 
-    const isDisabled = !deviceName || lockState !== 'unlocked'
+    const isDisabled = !deviceName || !isUnlocked(lockState)
 
     return (
         <SidebarMenu>

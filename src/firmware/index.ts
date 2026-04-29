@@ -19,6 +19,8 @@ export type {
     TransportKind,
 } from './types'
 
+export { isUnlocked } from './types'
+
 export type { Capabilities, KeyboardService } from './service'
 
 export type {

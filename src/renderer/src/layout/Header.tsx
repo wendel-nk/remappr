@@ -13,6 +13,7 @@ import { Button } from '@/ui/button'
 import { Separator } from '@/ui/separator'
 import { toast } from 'sonner'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/ui/tooltip'
+import { isUnlocked } from '@firmware'
 
 export function Header(): JSX.Element {
     const { service, lockState, setService, communication } =
@@ -22,7 +23,7 @@ export function Header(): JSX.Element {
     const [unsaved, setUnsaved] = useState<boolean>(false)
 
     useEffect(() => {
-        if (!service || lockState !== 'unlocked') {
+        if (!service || !isUnlocked(lockState)) {
             // eslint-disable-next-line react-hooks/set-state-in-effect
             setUnsaved(false)
             return
@@ -163,7 +164,7 @@ export function Header(): JSX.Element {
                                     disabled={
                                         !unsaved ||
                                         !service ||
-                                        lockState !== 'unlocked'
+                                        !isUnlocked(lockState)
                                     }
                                     onClick={save}
                                 >
