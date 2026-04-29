@@ -1,16 +1,15 @@
-// Pattern check: Adapter (Tier 1) — extended — backs src/firmware/adapter.ts FirmwareAdapter; resolves neutral KeyAction params via zmkBindingFromAction helper into UI label descriptors using ZMK behavior metadata.
+// Pattern check: Adapter (Tier 1) — extended — backs src/firmware/adapter.ts FirmwareAdapter; resolves neutral KeyAction labels via behaviorToActionType slot kinds.
 import type { GetBehaviorDetailsResponse } from '@firmware/zmk'
-
-import type { Keymap, PhysicalLayout } from '@firmware/types'
+import { behaviorToActionType } from '@firmware/zmk'
+import type { ActionSlot, Keymap, PhysicalLayout } from '@firmware/types'
 import {
     zmkBindingFromAction,
     type ZmkBindingView,
 } from '@firmware/zmk/actions'
 
-import { HoldTapType, parseHoldTapBinding } from '@/lib/behaviors/holdTap'
 import {
-    formatMomentaryLayer,
     abbreviateLayerName,
+    formatMomentaryLayer,
 } from '@/lib/keyAbbreviations'
 import {
     hid_usage_get_labels,
@@ -61,31 +60,30 @@ function describeUsage(usage: number): string {
 
 function buildHoldTapDescriptor(
     binding: ZmkBindingView,
-    behaviors: BehaviorMap,
+    behavior: GetBehaviorDetailsResponse,
+    slots: ActionSlot[],
     keymap: Keymap,
 ): ResolvedHoldTapDescriptor | undefined {
-    const parsed = parseHoldTapBinding(binding, behaviors)
-    if (!parsed || !parsed.hasTapAndHold || parsed.tapParam === undefined) {
-        return undefined
-    }
+    if (slots.length !== 2) return undefined
 
-    const behaviorName = behaviors[binding.behaviorId]?.displayName || ''
+    const behaviorName = behavior.displayName
     const behaviorBinding = displayNameToBinding(behaviorName)
-    const tapDesc = describeUsage(parsed.tapParam)
+    const tapParam = binding.param2
+    const holdParam = binding.param1
+    const tapDesc = describeUsage(tapParam)
 
-    if (parsed.type === HoldTapType.LayerTap) {
-        const layerIndex = parsed.holdParam
-        const layerName = keymap.layers[layerIndex]?.name
-        const layerLabel = abbreviateLayerName(layerName, layerIndex)
-        const mo = formatMomentaryLayer(layerIndex)
+    if (slots[0].kind === 'layer') {
+        const layerName = keymap.layers[holdParam]?.name
+        const layerLabel = abbreviateLayerName(layerName, holdParam)
+        const mo = formatMomentaryLayer(holdParam)
         const holdDesc = layerName ? `${mo} (${layerLabel})` : mo
         return {
             behaviorName,
             behaviorBinding,
-            tapParam: parsed.tapParam,
+            tapParam,
             tapDesc,
             holdNodeKind: 'layer',
-            holdParam: parsed.holdParam,
+            holdParam,
             holdLayerLabel: layerLabel,
             holdLayerMomentary: mo,
             holdLayerName: layerName,
@@ -93,14 +91,14 @@ function buildHoldTapDescriptor(
         }
     }
 
-    const holdDesc = describeUsage(parsed.holdParam)
+    const holdDesc = describeUsage(holdParam)
     return {
         behaviorName,
         behaviorBinding,
-        tapParam: parsed.tapParam,
+        tapParam,
         tapDesc,
         holdNodeKind: 'usage',
-        holdParam: parsed.holdParam,
+        holdParam,
         holdUsageDesc: holdDesc,
         tooltip: `${behaviorName}\nTap: ${tapDesc}\nHold: ${holdDesc}`,
     }
@@ -118,13 +116,13 @@ export function resolveBindingLabels(
         const outOfRange = i >= layerKeys.length
         const action = outOfRange ? undefined : layerKeys[i]
         const binding = action ? zmkBindingFromAction(action) : undefined
-        const holdTap = binding
-            ? buildHoldTapDescriptor(binding, behaviors, keymap)
-            : undefined
-        const behaviorName = binding
-            ? behaviors[binding.behaviorId]?.displayName || 'Unknown'
-            : 'Unknown'
-
+        const behavior = binding ? behaviors[binding.behaviorId] : undefined
+        const slots = behavior ? behaviorToActionType(behavior).slots : []
+        const holdTap =
+            binding && behavior
+                ? buildHoldTapDescriptor(binding, behavior, slots, keymap)
+                : undefined
+        const behaviorName = behavior?.displayName || 'Unknown'
         const behaviorBinding = binding
             ? displayNameToBinding(behaviorName)
             : undefined
@@ -134,9 +132,7 @@ export function resolveBindingLabels(
             behaviorBinding,
             holdTap,
             bindingParam1: binding?.param1,
-            behaviorName: binding
-                ? behaviors[binding.behaviorId]?.displayName
-                : undefined,
+            behaviorName: behavior?.displayName,
             outOfRange,
             x: k.x / 100.0,
             y: k.y / 100.0,
