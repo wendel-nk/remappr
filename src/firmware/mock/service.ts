@@ -1,16 +1,30 @@
 // Pattern check: Adapter (Tier 1) — extended — backs src/firmware/service.ts KeyboardService Facade; in-memory keyboard implementation for dev/storybook/tests, mirrors ZmkKeyboardService surface.
-import type { Capabilities, KeyboardService } from '@firmware/service'
+// pattern-check: skip — wire encoders/dynamic/macros sub-bundles defined in service.ts
+import type {
+    Capabilities,
+    DynamicEntriesApi,
+    EncoderApi,
+    KeyboardService,
+    MacroApi,
+} from '@firmware/service'
 import type {
     ActionType,
     AdapterNotification,
+    AltRepeatKeyEntry,
+    ComboEntry,
     DeviceInfo,
+    DynamicEntryCounts,
+    EncoderAction,
     ExportedFile,
     KeyAction,
+    KeyOverrideEntry,
     KeyUpdate,
     Keymap,
     Layer,
     LockState,
+    MacroAction,
     PhysicalLayout,
+    TapDanceEntry,
 } from '@firmware/types'
 import { LockedError, ProtocolError } from '@firmware/errors'
 
@@ -24,6 +38,16 @@ import {
 } from './actions'
 import { MOCK_LAYOUTS, MOCK_KEY_COUNT, MOCK_CORNE_LAYOUT } from './layout'
 
+const MOCK_DYNAMIC_COUNTS: DynamicEntryCounts = {
+    tapDance: 4,
+    combo: 4,
+    keyOverride: 4,
+}
+
+const MOCK_MACRO_COUNT = 3
+const MOCK_MACRO_BUFFER = 256
+const MOCK_ENCODER_COUNT = 2
+
 const MOCK_CAPABILITIES: Capabilities = {
     lock: true,
     rename: true,
@@ -32,6 +56,49 @@ const MOCK_CAPABILITIES: Capabilities = {
     variableLayerCount: true,
     exportFormats: ['mock-json'],
     maxLayers: 8,
+    encoders: MOCK_ENCODER_COUNT,
+    dynamicEntries: MOCK_DYNAMIC_COUNTS,
+    macros: { count: MOCK_MACRO_COUNT, bufferSize: MOCK_MACRO_BUFFER },
+}
+
+const ZERO_TAP_DANCE: TapDanceEntry = {
+    onTap: 0,
+    onHold: 0,
+    onDoubleTap: 0,
+    onTapHold: 0,
+    tappingTerm: 200,
+}
+
+const ZERO_COMBO: ComboEntry = { keys: [0, 0, 0, 0], output: 0 }
+
+const ZERO_KEY_OVERRIDE: KeyOverrideEntry = {
+    trigger: 0,
+    replacement: 0,
+    layers: 0xffff,
+    triggerMods: 0,
+    negativeModMask: 0,
+    suppressedMods: 0,
+    options: {
+        activationTriggerDown: false,
+        activationRequiredModDown: false,
+        activationNegativeModUp: false,
+        oneMod: false,
+        noReregisterTrigger: false,
+        noUnregisterOnOtherKeyDown: false,
+        enabled: false,
+    },
+}
+
+const ZERO_ARK: AltRepeatKeyEntry = {
+    keycode: 0,
+    altKeycode: 0,
+    allowedMods: 0,
+    options: {
+        defaultToThisAltKey: false,
+        bidirectional: false,
+        ignoreModHandedness: false,
+        enabled: false,
+    },
 }
 
 type NotificationHandler = (notification: AdapterNotification) => void
@@ -47,6 +114,33 @@ interface MockServiceOptions {
 export class MockKeyboardService implements KeyboardService {
     public readonly capabilities: Capabilities = MOCK_CAPABILITIES
     public readonly deviceInfo: DeviceInfo
+    public readonly encoders: EncoderApi
+    public readonly dynamic: DynamicEntriesApi
+    public readonly macros: MacroApi
+
+    private tapDances: TapDanceEntry[] = Array.from(
+        { length: MOCK_DYNAMIC_COUNTS.tapDance },
+        () => ({ ...ZERO_TAP_DANCE }),
+    )
+    private combos: ComboEntry[] = Array.from(
+        { length: MOCK_DYNAMIC_COUNTS.combo },
+        () => ({ ...ZERO_COMBO, keys: [0, 0, 0, 0] as ComboEntry['keys'] }),
+    )
+    private keyOverrides: KeyOverrideEntry[] = Array.from(
+        { length: MOCK_DYNAMIC_COUNTS.keyOverride },
+        () => ({
+            ...ZERO_KEY_OVERRIDE,
+            options: { ...ZERO_KEY_OVERRIDE.options },
+        }),
+    )
+    private altRepeatKeys: AltRepeatKeyEntry[] = Array.from(
+        { length: 4 },
+        () => ({ ...ZERO_ARK, options: { ...ZERO_ARK.options } }),
+    )
+    private macroBuffers: MacroAction[][] = Array.from(
+        { length: MOCK_MACRO_COUNT },
+        () => [] as MacroAction[],
+    )
 
     private layers: Layer[] = []
     private layouts: PhysicalLayout[] = MOCK_LAYOUTS.map((l) => ({ ...l }))
@@ -71,6 +165,137 @@ export class MockKeyboardService implements KeyboardService {
         }
         this.lockState = opts.initiallyLocked ? 'locked' : 'unlocked'
         this.seedDefaultLayers()
+        // pattern-check: skip — inline closures over private state for sub-bundle stubs
+        this.encoders = {
+            setEncoder: async (layerId, encoderIdx, direction, action) => {
+                this.requireUnlocked()
+                const li = this.layerIndexById(layerId)
+                if (li < 0)
+                    throw new ProtocolError(`Unknown layer id: ${layerId}`)
+                if (encoderIdx < 0 || encoderIdx >= MOCK_ENCODER_COUNT) {
+                    throw new ProtocolError(
+                        `Encoder index out of range: ${encoderIdx}`,
+                    )
+                }
+                const layer = this.layers[li]
+                const encs = (layer.encoders ?? this.defaultEncoders()).slice()
+                const cur = encs[encoderIdx]
+                encs[encoderIdx] =
+                    direction === 0
+                        ? { cw: action, ccw: cur.ccw }
+                        : { cw: cur.cw, ccw: action }
+                this.layers[li] = { ...layer, encoders: encs }
+                this.markPending(true)
+            },
+        }
+        this.dynamic = {
+            getCounts: () => ({ ...MOCK_DYNAMIC_COUNTS }),
+            getTapDance: async (idx) => ({ ...this.requireTapDance(idx) }),
+            setTapDance: async (idx, entry) => {
+                this.requireUnlocked()
+                this.requireTapDance(idx)
+                this.tapDances[idx] = { ...entry }
+                this.markPending(true)
+            },
+            getCombo: async (idx) => {
+                const c = this.requireCombo(idx)
+                return { ...c, keys: [...c.keys] as ComboEntry['keys'] }
+            },
+            setCombo: async (idx, entry) => {
+                this.requireUnlocked()
+                this.requireCombo(idx)
+                this.combos[idx] = {
+                    ...entry,
+                    keys: [...entry.keys] as ComboEntry['keys'],
+                }
+                this.markPending(true)
+            },
+            getKeyOverride: async (idx) => {
+                const k = this.requireKeyOverride(idx)
+                return { ...k, options: { ...k.options } }
+            },
+            setKeyOverride: async (idx, entry) => {
+                this.requireUnlocked()
+                this.requireKeyOverride(idx)
+                this.keyOverrides[idx] = {
+                    ...entry,
+                    options: { ...entry.options },
+                }
+                this.markPending(true)
+            },
+            getAltRepeatKey: async (idx) => {
+                const a = this.requireAltRepeatKey(idx)
+                return { ...a, options: { ...a.options } }
+            },
+            setAltRepeatKey: async (idx, entry) => {
+                this.requireUnlocked()
+                this.requireAltRepeatKey(idx)
+                this.altRepeatKeys[idx] = {
+                    ...entry,
+                    options: { ...entry.options },
+                }
+                this.markPending(true)
+            },
+        }
+        this.macros = {
+            getCount: () => MOCK_MACRO_COUNT,
+            getMacro: async (idx) => {
+                this.requireMacro(idx)
+                return this.macroBuffers[idx].map((a) => ({ ...a }))
+            },
+            setMacro: async (idx, actions) => {
+                this.requireUnlocked()
+                this.requireMacro(idx)
+                this.macroBuffers[idx] = actions.map((a) => ({ ...a }))
+                this.markPending(true)
+            },
+        }
+    }
+
+    private defaultEncoders(): EncoderAction[] {
+        const xparent: KeyAction = buildMockKeyAction(
+            MOCK_KIND_TRANSPARENT,
+            [],
+            this.layerNames(),
+        )
+        return Array.from({ length: MOCK_ENCODER_COUNT }, () => ({
+            cw: xparent,
+            ccw: xparent,
+        }))
+    }
+
+    private requireTapDance(idx: number): TapDanceEntry {
+        if (idx < 0 || idx >= this.tapDances.length) {
+            throw new ProtocolError(`Tap-dance index out of range: ${idx}`)
+        }
+        return this.tapDances[idx]
+    }
+
+    private requireCombo(idx: number): ComboEntry {
+        if (idx < 0 || idx >= this.combos.length) {
+            throw new ProtocolError(`Combo index out of range: ${idx}`)
+        }
+        return this.combos[idx]
+    }
+
+    private requireKeyOverride(idx: number): KeyOverrideEntry {
+        if (idx < 0 || idx >= this.keyOverrides.length) {
+            throw new ProtocolError(`Key-override index out of range: ${idx}`)
+        }
+        return this.keyOverrides[idx]
+    }
+
+    private requireAltRepeatKey(idx: number): AltRepeatKeyEntry {
+        if (idx < 0 || idx >= this.altRepeatKeys.length) {
+            throw new ProtocolError(`Alt-repeat-key index out of range: ${idx}`)
+        }
+        return this.altRepeatKeys[idx]
+    }
+
+    private requireMacro(idx: number): void {
+        if (idx < 0 || idx >= this.macroBuffers.length) {
+            throw new ProtocolError(`Macro index out of range: ${idx}`)
+        }
     }
 
     private seedDefaultLayers(): void {
