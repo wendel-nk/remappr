@@ -506,14 +506,25 @@ export class ZmkKeyboardService implements KeyboardService {
     }
 
     async disconnect(): Promise<void> {
+        // Trigger reader.cancel() inside the notification loop, then wait for
+        // it to release the lock on notification_readable. Cancelling the
+        // stream itself while the reader still owns the lock throws
+        // "Cannot cancel a locked stream".
         this.notificationAbort.abort()
-        try {
-            this.connection.notification_readable
-                .cancel()
-                .catch(() => undefined)
-        } catch {
-            // ignore
-        }
         await this.notificationLoop?.catch(() => undefined)
+
+        // The transport's ReadableStream is locked by the lib's pipeThrough
+        // chain (decoder → tee → notification_readable + request_response_readable).
+        // Cancelling only one tee branch leaves the other branch keeping the
+        // upstream locked. Cancel both so the cancel propagates through the
+        // tee + decoder all the way to transport.readable.
+        // Likewise, transport.writable is locked by pipeTo from the encoder
+        // pipeline; aborting request_writable errors the source TransformStream,
+        // which causes pipeTo to abort and release the transport.writable lock.
+        await Promise.allSettled([
+            this.connection.notification_readable.cancel(),
+            this.connection.request_response_readable.cancel(),
+            this.connection.request_writable.abort(),
+        ])
     }
 }

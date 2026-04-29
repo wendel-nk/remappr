@@ -28,11 +28,30 @@ interface ZmkDeviceInfoPayload {
     serialNumber?: Uint8Array
 }
 
+interface ProbedSession {
+    connection: RpcConnection
+    deviceInfo: DeviceInfo
+}
+
+// Transport ReadableStream/WritableStream are locked by create_rpc_connection's
+// pipeThrough/pipeTo. They cannot be re-piped. So when canHandle succeeds we
+// must keep the same RpcConnection alive and hand it to connect — otherwise the
+// second create_rpc_connection throws "Cannot pipe a locked stream".
+const probedSessions = new WeakMap<Transport, ProbedSession>()
+
 function decodeSerial(serial?: Uint8Array): string | undefined {
     if (!serial || serial.length === 0) return undefined
     return Array.from(serial)
         .map((b) => b.toString(16).padStart(2, '0'))
         .join('')
+}
+
+function buildDeviceInfo(payload: ZmkDeviceInfoPayload): DeviceInfo {
+    return {
+        name: payload.name,
+        firmware: 'zmk',
+        serialNumber: decodeSerial(payload.serialNumber),
+    }
 }
 
 async function probeDeviceInfo(
@@ -58,45 +77,44 @@ export const zmkAdapter: FirmwareAdapter = {
     discovery: ZMK_DISCOVERY,
 
     async canHandle(transport: Transport): Promise<Probe> {
-        const probeAbort = new AbortController()
-        const connection = create_rpc_connection(transport, {
-            signal: probeAbort.signal,
-        })
-        try {
-            const payload = await probeDeviceInfo(connection, PROBE_DEADLINE_MS)
-            if (!payload) {
-                return { ok: false, reason: 'no response within deadline' }
-            }
-            const deviceInfo: DeviceInfo = {
-                name: payload.name,
-                firmware: 'zmk',
-                serialNumber: decodeSerial(payload.serialNumber),
-            }
-            return { ok: true, deviceInfo }
-        } finally {
-            probeAbort.abort()
-            try {
-                connection.notification_readable.cancel().catch(() => undefined)
-            } catch {
-                // ignore
-            }
+        const cached = probedSessions.get(transport)
+        if (cached) return { ok: true, deviceInfo: cached.deviceInfo }
+
+        const connection = create_rpc_connection(transport)
+        const payload = await probeDeviceInfo(connection, PROBE_DEADLINE_MS)
+        if (!payload) {
+            transport.abortController.abort()
+            return { ok: false, reason: 'no response within deadline' }
         }
+        const deviceInfo = buildDeviceInfo(payload)
+        probedSessions.set(transport, { connection, deviceInfo })
+        return { ok: true, deviceInfo }
     },
 
     async connect(
         transport: Transport,
         signal: AbortSignal,
     ): Promise<KeyboardService> {
+        const cached = probedSessions.get(transport)
+        if (cached) {
+            probedSessions.delete(transport)
+            if (signal.aborted) {
+                transport.abortController.abort(signal.reason)
+                throw signal.reason ?? new Error('aborted')
+            }
+            signal.addEventListener(
+                'abort',
+                () => transport.abortController.abort(signal.reason),
+                { once: true },
+            )
+            return new ZmkKeyboardService(cached.connection, cached.deviceInfo)
+        }
+
         const connection = create_rpc_connection(transport, { signal })
         const payload = await probeDeviceInfo(connection, PROBE_DEADLINE_MS)
         if (!payload) {
             throw new Error('Failed to fetch device info from ZMK device')
         }
-        const deviceInfo: DeviceInfo = {
-            name: payload.name,
-            firmware: 'zmk',
-            serialNumber: decodeSerial(payload.serialNumber),
-        }
-        return new ZmkKeyboardService(connection, deviceInfo)
+        return new ZmkKeyboardService(connection, buildDeviceInfo(payload))
     },
 }
