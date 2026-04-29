@@ -16,6 +16,8 @@ import { Button } from '@/ui/button'
 import { Separator } from '@/ui/separator'
 import { toast } from 'sonner'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/ui/tooltip'
+import { FeatureGate } from '@/features/firmware/FeatureGate'
+// pattern-check: skip — wrap toolbar buttons in capability gate, no abstraction
 export function Header(): JSX.Element {
     const { service, setService, communication } = useConnectionStore()
     const { undo, redo, canUndo, canRedo, reset } = undoRedoStore()
@@ -23,11 +25,6 @@ export function Header(): JSX.Element {
     const [unsaved, setUnsaved] = useState<boolean>(false)
     const [dynOpen, setDynOpen] = useState(false)
     const [macroOpen, setMacroOpen] = useState(false)
-    const dyn = service?.capabilities.dynamicEntries
-    const showDyn =
-        !!dyn && (dyn.tapDance > 0 || dyn.combo > 0 || dyn.keyOverride > 0)
-    const showMacro =
-        !!service?.capabilities.macros && service.capabilities.macros.count > 0
 
     useEffect(() => {
         if (!service) {
@@ -111,7 +108,7 @@ export function Header(): JSX.Element {
                             <p>Settings</p>
                         </TooltipContent>
                     </Tooltip>
-                    {showDyn && (
+                    <FeatureGate feature="dynamic">
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <Button
@@ -127,13 +124,13 @@ export function Header(): JSX.Element {
                                 <p>Dynamic Entries</p>
                             </TooltipContent>
                         </Tooltip>
-                    )}
+                    </FeatureGate>
                     <DynamicEntriesModal
                         service={service}
                         opened={dynOpen}
                         onClose={(): void => setDynOpen(false)}
                     />
-                    {showMacro && (
+                    <FeatureGate feature="macros">
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <Button
@@ -149,7 +146,7 @@ export function Header(): JSX.Element {
                                 <p>Macros</p>
                             </TooltipContent>
                         </Tooltip>
-                    )}
+                    </FeatureGate>
                     <MacroEditorModal
                         service={service}
                         opened={macroOpen}
