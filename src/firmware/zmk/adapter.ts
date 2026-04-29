@@ -6,7 +6,12 @@ import {
 } from '@zmkfirmware/zmk-studio-ts-client'
 import type { Transport } from '@firmware/transport'
 
-import type { Discovery, FirmwareAdapter, Probe } from '@firmware/adapter'
+import type {
+    Discovery,
+    FirmwareAdapter,
+    Probe,
+    ProbeHint,
+} from '@firmware/adapter'
 import type { KeyboardService } from '@firmware/service'
 import type { DeviceInfo } from '@firmware/types'
 
@@ -76,7 +81,12 @@ export const zmkAdapter: FirmwareAdapter = {
     displayName: 'ZMK',
     discovery: ZMK_DISCOVERY,
 
-    async canHandle(transport: Transport): Promise<Probe> {
+    async canHandle(transport: Transport, hint?: ProbeHint): Promise<Probe> {
+        // ZMK speaks proto-RPC over serial/BLE byte streams. Skip HID so we
+        // do not lock another adapter's HID streams with create_rpc_connection.
+        if (hint && hint.transportKind === 'hid') {
+            return { ok: false, reason: 'zmk does not use HID transport' }
+        }
         const cached = probedSessions.get(transport)
         if (cached) return { ok: true, deviceInfo: cached.deviceInfo }
 

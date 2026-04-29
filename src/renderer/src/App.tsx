@@ -47,7 +47,7 @@ function App(): JSX.Element {
 
     const onConnect = async (
         t: Transport,
-        communication: 'serial' | 'ble',
+        communication: 'serial' | 'ble' | 'hid',
     ): Promise<void> => {
         const adapter = await pickAdapter(t, { transportKind: communication })
         if (!adapter) {

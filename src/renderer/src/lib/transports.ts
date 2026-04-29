@@ -24,18 +24,36 @@ import {
     list_devices as electron_ble_list_devices,
 } from '../electron/ble.ts'
 import {
-    connect as electron_noble_connect,
-    list_devices as electron_noble_list_devices,
-} from '../electron/noble-ble.ts'
-import {
     connect as electron_serial_connect,
     list_devices as electron_serial_list_devices,
 } from '../electron/serial.ts'
+import {
+    connect as electron_hid_connect,
+    list_devices as electron_hid_list_devices,
+} from '../electron/hid.ts'
 
 function bleDiscovery(): { serviceUuid: string; charUuid: string } | null {
     for (const adapter of getAdapters()) {
         const ble = adapter.discovery.ble
         if (ble) return { serviceUuid: ble.serviceUuid, charUuid: ble.charUuid }
+    }
+    return null
+}
+
+function hidDiscovery(): {
+    vendorIds?: number[]
+    usagePage?: number
+    usage?: number
+} | null {
+    for (const adapter of getAdapters()) {
+        const hid = adapter.discovery.hid
+        if (hid) {
+            return {
+                vendorIds: hid.vendorIds,
+                usagePage: hid.usagePage,
+                usage: hid.usage,
+            }
+        }
     }
     return null
 }
@@ -94,8 +112,9 @@ export function getTransports(): TransportFactory[] {
             },
         })
     } else if (isElectron()) {
-        const isLinux = navigator.userAgent.indexOf('Linux') >= 0
-        if (!isLinux && ble) {
+        // pattern-check: skip — drop Noble fallback; BLE button uses native BlueZ on Linux via electron/ble.ts
+        if (ble) {
+            // electron/ble.ts routes Linux → BlueZ, others → Web Bluetooth.
             transports.push({
                 label: 'BLE',
                 communication: 'ble',
@@ -114,24 +133,6 @@ export function getTransports(): TransportFactory[] {
                         ),
                 },
             })
-            transports.push({
-                label: 'BLE (Noble)',
-                communication: 'ble',
-                isWireless: true,
-                pick_and_connect: {
-                    connect: (dev) =>
-                        electron_noble_connect(
-                            dev,
-                            ble.serviceUuid,
-                            ble.charUuid,
-                        ),
-                    list: () =>
-                        electron_noble_list_devices(
-                            ble.serviceUuid,
-                            ble.charUuid,
-                        ),
-                },
-            })
         }
         transports.push({
             label: 'USB',
@@ -141,6 +142,17 @@ export function getTransports(): TransportFactory[] {
                 list: electron_serial_list_devices,
             },
         })
+        const hid = hidDiscovery()
+        if (hid) {
+            transports.push({
+                label: 'HID',
+                communication: 'hid',
+                pick_and_connect: {
+                    connect: electron_hid_connect,
+                    list: () => electron_hid_list_devices(hid),
+                },
+            })
+        }
     } else {
         if (navigator.serial) {
             transports.push({

@@ -20,7 +20,10 @@ import { ConnectionStatusBanner } from './ConnectionStatusBanner'
 import { TransportSection } from './TransportSection'
 
 interface StartPageProps {
-    onTransportCreated: (t: Transport, communication: 'serial' | 'ble') => void
+    onTransportCreated: (
+        t: Transport,
+        communication: 'serial' | 'ble' | 'hid',
+    ) => void
     onDemoConnect?: () => void | Promise<void>
 }
 

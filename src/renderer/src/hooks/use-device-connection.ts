@@ -14,7 +14,10 @@ interface UseDeviceConnectionResult {
 }
 
 export function useDeviceConnection(
-    onTransportCreated: (t: Transport, communication: 'serial' | 'ble') => void,
+    onTransportCreated: (
+        t: Transport,
+        communication: 'serial' | 'ble' | 'hid',
+    ) => void,
     setDevices: React.Dispatch<React.SetStateAction<DeviceWithTransport[]>>,
 ): UseDeviceConnectionResult {
     const [connectingDeviceId, setConnectingDeviceId] = useState<string | null>(

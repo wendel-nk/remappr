@@ -28,7 +28,7 @@ export interface TransportEventEmitter {
  */
 export type TransportFactory = {
     label: string
-    communication: 'serial' | 'ble'
+    communication: 'serial' | 'ble' | 'hid'
     isWireless?: boolean
     connect?: () => Promise<Transport>
     pick_and_connect?: {

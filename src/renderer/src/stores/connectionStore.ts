@@ -6,13 +6,13 @@ import type { LockState } from '@firmware/types'
 
 interface ConnectionState {
     service: KeyboardService | null
-    communication: 'serial' | 'ble' | null
+    communication: 'serial' | 'ble' | 'hid' | null
     deviceName: string | null
     lockState: LockState
     connectionAbort: AbortController
     setService: (
         service: KeyboardService | null,
-        communication?: 'serial' | 'ble',
+        communication?: 'serial' | 'ble' | 'hid',
     ) => void
     setDeviceName: (name: string | null) => void
     setLockState: (state: LockState) => void

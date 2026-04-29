@@ -79,3 +79,7 @@
 {"ts":"2026-04-29T11:22:57.568Z","rule":"preamble-missing","file":"/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/firmware/zmk/adapter.ts","decision":null,"reasonExcerpt":""}
 {"ts":"2026-04-29T11:42:32.323Z","rule":"preamble-missing","file":"/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/renderer/src/features/connection/start-page/StartPage.tsx","decision":null,"reasonExcerpt":""}
 {"ts":"2026-04-29T12:31:04.622Z","rule":"preamble-missing","file":"/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/firmware/mock/actions.ts","decision":null,"reasonExcerpt":""}
+{"ts":"2026-04-29T12:48:10.499Z","rule":"preamble-missing","file":"/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/firmware/qmk/protocol.ts","decision":null,"reasonExcerpt":""}
+{"ts":"2026-04-29T12:55:48.989Z","rule":"preamble-missing","file":"/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/shared/ipc-types.ts","decision":null,"reasonExcerpt":""}
+{"ts":"2026-04-29T13:36:22.346Z","rule":"preamble-missing","file":"/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/renderer/src/lib/transports.ts","decision":null,"reasonExcerpt":""}
+{"ts":"2026-04-29T13:38:43.157Z","rule":"preamble-missing","file":"/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/renderer/src/lib/transports.ts","decision":null,"reasonExcerpt":""}

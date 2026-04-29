@@ -11,7 +11,10 @@ import { Modal } from '@/ui/modal'
 
 export interface ConnectModalProps {
     open?: boolean
-    onTransportCreated: (t: Transport, communication: 'serial' | 'ble') => void
+    onTransportCreated: (
+        t: Transport,
+        communication: 'serial' | 'ble' | 'hid',
+    ) => void
 }
 
 export const ConnectModal = ({
@@ -25,7 +28,7 @@ export const ConnectModal = ({
         transports: TransportFactory[],
         onTransportCreated: (
             t: Transport,
-            communication: 'serial' | 'ble',
+            communication: 'serial' | 'ble' | 'hid',
         ) => void,
         open?: boolean,
     ): JSX.Element {

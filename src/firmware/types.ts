@@ -106,4 +106,4 @@ export interface ExportedFile {
     content: string | Uint8Array
 }
 
-export type TransportKind = 'serial' | 'ble'
+export type TransportKind = 'serial' | 'ble' | 'hid'

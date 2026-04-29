@@ -19,6 +19,13 @@ export interface BleDiscoveryPayload {
     charUuid: string
 }
 
+// pattern-check: skip — flat IPC DTO, no behavior
+export interface HidDiscoveryPayload {
+    vendorIds?: number[]
+    usagePage?: number
+    usage?: number
+}
+
 // --- IPC Channel Names ---
 
 /** Request/response channels (renderer invokes, main handles) */
@@ -42,6 +49,10 @@ export const IpcChannels = {
     // Noble (Linux only) — raw HCI socket, bypasses BlueZ entirely
     NOBLE_LIST_DEVICES: 'noble:list-devices',
     NOBLE_CONNECT: 'noble:connect',
+
+    // HID device operations (raw USB HID via node-hid)
+    HID_LIST_DEVICES: 'hid:list-devices',
+    HID_CONNECT: 'hid:connect',
 
     // Platform info
     GET_PLATFORM: 'platform:get',
@@ -137,6 +148,14 @@ export interface IpcInvokeMap {
     }
     [IpcChannels.NOBLE_CONNECT]: {
         params: { deviceId: string } & BleDiscoveryPayload
+        result: { ok: boolean; label?: string; error?: string }
+    }
+    [IpcChannels.HID_LIST_DEVICES]: {
+        params: HidDiscoveryPayload
+        result: AvailableDevice[]
+    }
+    [IpcChannels.HID_CONNECT]: {
+        params: { device: AvailableDevice } & HidDiscoveryPayload
         result: { ok: boolean; label?: string; error?: string }
     }
     [IpcChannels.GET_PLATFORM]: {

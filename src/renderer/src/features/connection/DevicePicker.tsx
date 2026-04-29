@@ -8,7 +8,10 @@ import { toast } from 'sonner'
 
 interface DevicePickerProps {
     transports: TransportFactory[]
-    onTransportCreated: (t: Transport, communication: 'serial' | 'ble') => void
+    onTransportCreated: (
+        t: Transport,
+        communication: 'serial' | 'ble' | 'hid',
+    ) => void
 }
 
 export function DevicePicker({

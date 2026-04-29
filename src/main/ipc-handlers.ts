@@ -30,6 +30,14 @@ import {
     disconnectNobleDevice,
     hasActiveNobleConnection,
 } from './noble-ble'
+import {
+    listHidDevices,
+    connectHidDevice,
+    writeHid,
+    disconnectHidDevice,
+    hasActiveHidConnection,
+    type HidDiscoveryFilter,
+} from './hid'
 
 // pattern-check: skip — local IPC payload validator, no abstraction.
 interface DiscoveryPayload {
@@ -48,10 +56,25 @@ function parseDiscovery(
     return { serviceUuid: a.serviceUuid, charUuid: a.charUuid }
 }
 
+// pattern-check: skip — local IPC payload validator, no abstraction.
+function parseHidDiscovery(arg: unknown): HidDiscoveryFilter {
+    if (!arg || typeof arg !== 'object') return {}
+    const a = arg as Record<string, unknown>
+    const out: HidDiscoveryFilter = {}
+    if (Array.isArray(a.vendorIds)) {
+        out.vendorIds = a.vendorIds.filter(
+            (v): v is number => typeof v === 'number',
+        )
+    }
+    if (typeof a.usagePage === 'number') out.usagePage = a.usagePage
+    if (typeof a.usage === 'number') out.usage = a.usage
+    return out
+}
+
 // Tracks which transport currently owns send/close. Set when a transport
 // connects, cleared on disconnect/error. Lets TRANSPORT_SEND_DATA and
 // TRANSPORT_CLOSE route to whichever transport is active.
-type ActiveKind = 'serial' | 'bluez' | 'noble' | null
+type ActiveKind = 'serial' | 'bluez' | 'noble' | 'hid' | null
 let activeKind: ActiveKind = null
 
 /** Send an event to all renderer windows */
@@ -198,6 +221,35 @@ export function registerIpcHandlers(getWindows: () => BrowserWindow[]): void {
         }
     })
 
+    // --- HID handlers (raw USB HID via node-hid) ---
+
+    ipcMain.handle(IpcChannels.HID_LIST_DEVICES, async (_, arg: unknown) => {
+        const filter = parseHidDiscovery(arg)
+        return await listHidDevices(filter)
+    })
+
+    ipcMain.handle(IpcChannels.HID_CONNECT, async (_, arg: unknown) => {
+        const a = arg as { device?: { id?: unknown; label?: unknown } }
+        const path =
+            a?.device && typeof a.device.id === 'string' ? a.device.id : null
+        if (!path) return { ok: false, error: 'Invalid HID device path' }
+        try {
+            const label = await connectHidDevice(path, {
+                onData: (data) => ipcHandlerContext.emitConnectionData(data),
+                onDisconnected: () => {
+                    activeKind = null
+                    ipcHandlerContext.emitConnectionDisconnected()
+                },
+            })
+            activeKind = 'hid'
+            return { ok: true, label }
+        } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e)
+            console.error('[ipc] HID_CONNECT failed:', msg)
+            return { ok: false, error: msg }
+        }
+    })
+
     // --- Transport Handlers (route via activeKind) ---
 
     ipcMain.handle(
@@ -208,6 +260,8 @@ export function registerIpcHandlers(getWindows: () => BrowserWindow[]): void {
                 await writeGatt(validData)
             } else if (activeKind === 'noble') {
                 await writeNoble(validData)
+            } else if (activeKind === 'hid') {
+                await writeHid(validData)
             } else {
                 await writeSerial(validData)
             }
@@ -219,6 +273,8 @@ export function registerIpcHandlers(getWindows: () => BrowserWindow[]): void {
             await disconnectGattDevice()
         } else if (activeKind === 'noble' || hasActiveNobleConnection()) {
             await disconnectNobleDevice()
+        } else if (activeKind === 'hid' || hasActiveHidConnection()) {
+            await disconnectHidDevice()
         } else {
             await disconnectSerial()
         }

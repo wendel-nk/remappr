@@ -11,7 +11,10 @@ import { ErrorDialog } from '@/components/modals/ErrorDialog'
 interface DeviceListProps {
     open?: boolean
     transports: TransportFactory[]
-    onTransportCreated: (t: Transport, communication: 'serial' | 'ble') => void
+    onTransportCreated: (
+        t: Transport,
+        communication: 'serial' | 'ble' | 'hid',
+    ) => void
 }
 
 export function DeviceList({
