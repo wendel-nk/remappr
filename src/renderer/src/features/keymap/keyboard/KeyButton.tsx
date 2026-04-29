@@ -2,6 +2,7 @@ import { Children, CSSProperties, PropsWithChildren } from 'react'
 import { KeyLabel } from './KeyLabel'
 import { HoldTapKeyLabel, type HoldTapLabels } from './HoldTapKeyLabel'
 import useUserSettingsStore from '@/stores/userSettingsStore'
+import useConnectionStore from '@/stores/connectionStore'
 
 export type { HoldTapLabels }
 
@@ -51,7 +52,12 @@ export const KeyButton = ({
     const size = makeSize(props, oneU)
     const maxChildFontSize = Math.max(10, oneU / 2.5)
     const maxHoldFontSize = Math.max(8, oneU / 4)
-    const keyDisplayMode = useUserSettingsStore((s) => s.keyDisplayMode)
+    const firmware = useConnectionStore((s) => s.service?.deviceInfo.firmware)
+    const keyDisplayModeMap = useUserSettingsStore((s) => s.keyDisplayMode)
+    const keyDisplayMode =
+        keyDisplayModeMap[firmware ?? '_default'] ??
+        keyDisplayModeMap['_default'] ??
+        'displayName'
 
     const effectiveHeader =
         keyDisplayMode === 'binding' && actionLabel ? actionLabel : header
