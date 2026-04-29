@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.tsx'
 import { silenceConsoleInProduction } from '../../shared/logger'
+import '@firmware/qmk'
 import '@firmware/zmk'
 import './index.css'
 
