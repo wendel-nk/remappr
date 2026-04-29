@@ -20,12 +20,8 @@ interface BindingFixture {
 }
 
 const makeAction = (b: BindingFixture): KeyAction => ({
-    kind: 'fixture',
-    params: {
-        behaviorId: b.behaviorId,
-        param1: b.param1,
-        param2: b.param2 ?? 0,
-    },
+    kind: String(b.behaviorId),
+    params: [b.param1, b.param2 ?? 0],
     label: { primary: 'fx' },
 })
 

@@ -1,8 +1,11 @@
-// Pattern check: Adapter (Tier 1) — extended — backs src/firmware/adapter.ts FirmwareAdapter; resolves neutral KeyAction.params (ZmkBindingParams) into UI label descriptors using ZMK behavior metadata.
+// Pattern check: Adapter (Tier 1) — extended — backs src/firmware/adapter.ts FirmwareAdapter; resolves neutral KeyAction params via zmkBindingFromAction helper into UI label descriptors using ZMK behavior metadata.
 import type { GetBehaviorDetailsResponse } from '@firmware/zmk'
 
 import type { Keymap, PhysicalLayout } from '@firmware/types'
-import type { ZmkBindingParams } from '@firmware/zmk/actions'
+import {
+    zmkBindingFromAction,
+    type ZmkBindingView,
+} from '@firmware/zmk/actions'
 
 import { HoldTapType, parseHoldTapBinding } from '@/lib/behaviors/holdTap'
 import {
@@ -57,7 +60,7 @@ function describeUsage(usage: number): string {
 }
 
 function buildHoldTapDescriptor(
-    binding: ZmkBindingParams,
+    binding: ZmkBindingView,
     behaviors: BehaviorMap,
     keymap: Keymap,
 ): ResolvedHoldTapDescriptor | undefined {
@@ -114,7 +117,7 @@ export function resolveBindingLabels(
         const layerKeys = keymap.layers[selectedLayerIndex].keys
         const outOfRange = i >= layerKeys.length
         const action = outOfRange ? undefined : layerKeys[i]
-        const binding = action ? (action.params as ZmkBindingParams) : undefined
+        const binding = action ? zmkBindingFromAction(action) : undefined
         const holdTap = binding
             ? buildHoldTapDescriptor(binding, behaviors, keymap)
             : undefined

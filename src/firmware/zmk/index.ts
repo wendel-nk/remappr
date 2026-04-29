@@ -15,8 +15,9 @@ export {
     bindingToKeyAction,
     buildKeyLabel,
     keyActionToBinding,
+    zmkBindingFromAction,
     type BehaviorMap,
-    type ZmkBindingParams,
+    type ZmkBindingView,
 } from './actions'
 export {
     behaviorToActionType,

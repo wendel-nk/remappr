@@ -1,7 +1,7 @@
-// pattern-check: skip mechanical port — generator now consumes neutral Keymap, reads ZmkBindingParams from KeyAction.params
+// pattern-check: skip mechanical port — generator now consumes neutral Keymap, reads ZMK binding via zmkBindingFromAction helper
 import type { Keymap } from '@firmware/types'
 import type { BehaviorMap } from '@/lib/behaviors/types'
-import type { ZmkBindingParams } from './actions'
+import { zmkBindingFromAction } from './actions'
 import { displayNameToBinding } from '@/lib/keymap/displayNameToBinding'
 
 export interface ZMKConfigOptions {
@@ -37,7 +37,7 @@ export function generateZMKKeymapFile(
         config += `        bindings = <\n`
 
         layer.keys.forEach((action, keyIndex) => {
-            const binding = action.params as ZmkBindingParams
+            const binding = zmkBindingFromAction(action)
             const behavior = behaviors[binding.behaviorId]
             if (behavior) {
                 const keyCode = generateKeyCode(binding, behavior)

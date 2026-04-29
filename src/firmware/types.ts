@@ -1,6 +1,6 @@
 export interface KeyAction {
     kind: string
-    params: unknown
+    params: number[]
     label: KeyLabel
 }
 

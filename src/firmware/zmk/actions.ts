@@ -15,10 +15,19 @@ import { displayNameToBinding } from '@/lib/keymap/displayNameToBinding'
 
 export type BehaviorMap = Record<number, GetBehaviorDetailsResponse>
 
-export interface ZmkBindingParams {
+export interface ZmkBindingView {
     behaviorId: number
     param1: number
     param2: number
+}
+
+export function zmkBindingFromAction(action: KeyAction): ZmkBindingView {
+    const behaviorId = Number.parseInt(action.kind, 10)
+    return {
+        behaviorId: Number.isNaN(behaviorId) ? 0 : behaviorId,
+        param1: action.params[0] ?? 0,
+        param2: action.params[1] ?? 0,
+    }
 }
 
 function describeUsage(usage: number): string {
@@ -80,25 +89,19 @@ export function bindingToKeyAction(
     behaviors: BehaviorMap,
     keymap: { layers: { name: string }[] },
 ): KeyAction {
-    const behavior = behaviors[binding.behaviorId]
-    const kind = behavior?.displayName || 'Unknown'
     return {
-        kind,
-        params: {
-            behaviorId: binding.behaviorId,
-            param1: binding.param1,
-            param2: binding.param2,
-        } satisfies ZmkBindingParams,
+        kind: String(binding.behaviorId),
+        params: [binding.param1, binding.param2],
         label: buildKeyLabel(binding, behaviors, keymap),
     }
 }
 
 export function keyActionToBinding(action: KeyAction): BehaviorBinding {
-    const params = action.params as ZmkBindingParams
+    const view = zmkBindingFromAction(action)
     return {
-        behaviorId: params.behaviorId,
-        param1: params.param1,
-        param2: params.param2,
+        behaviorId: view.behaviorId,
+        param1: view.param1,
+        param2: view.param2,
     } as BehaviorBinding
 }
 

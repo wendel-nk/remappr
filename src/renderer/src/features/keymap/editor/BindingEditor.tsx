@@ -9,10 +9,7 @@ import useConnectionStore from '@/stores/connectionStore'
 import useLayerSelectionStore from '@/stores/layerSelectionStore'
 import { produce } from 'immer'
 import type { KeyAction, Keymap } from '@firmware/types'
-import {
-    bindingToKeyAction,
-    type ZmkBindingParams,
-} from '@firmware/zmk/actions'
+import { bindingToKeyAction, keyActionToBinding } from '@firmware/zmk/actions'
 import { Card, CardContent } from '@/ui/card'
 import { Button } from '@/ui/button'
 import { toast } from 'sonner'
@@ -30,12 +27,7 @@ interface BindingEditorProps {
 }
 
 function actionToBinding(action: KeyAction): BehaviorBinding {
-    const p = action.params as ZmkBindingParams
-    return {
-        behaviorId: p.behaviorId,
-        param1: p.param1,
-        param2: p.param2,
-    } as BehaviorBinding
+    return keyActionToBinding(action)
 }
 
 export function BindingEditor({
