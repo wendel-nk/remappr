@@ -38,7 +38,8 @@ export function filterKeysBySearch(
     if (!query.trim()) return keys
     const lowerQuery = query.toLowerCase()
     return keys.filter((key) => {
-        const haystack = `${key.label} ${key.name} ${key.id}`
+        const aliasNames = key.aliases?.join(' ') ?? ''
+        const haystack = `${key.label} ${key.name} ${key.id} ${aliasNames}`
             .replace(/<[^>]*>/g, '')
             .toLowerCase()
         return haystack.includes(lowerQuery)

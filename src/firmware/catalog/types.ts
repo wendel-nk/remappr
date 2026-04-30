@@ -15,6 +15,9 @@ export interface CatalogEntry {
     w?: number
     h?: number
     kinds: ActionSlotKind[]
+    // Alternate names from merged duplicate entries (e.g. "Keypad Backspace"
+    // when merged into "Keyboard Backspace"). Picker search includes these.
+    aliases?: string[]
 }
 
 export interface CatalogPage {
