@@ -2,9 +2,20 @@
 // pattern-check: skip — drop dead lock guards now that App-shell render-gates locked state
 /* eslint-disable react-hooks/preserve-manual-memoization */
 import { useCallback, useEffect, useState } from 'react'
-import { Redo2, Save, Sliders, Sparkles, Trash2, Undo2 } from 'lucide-react'
+import {
+    Lightbulb,
+    Redo2,
+    Save,
+    Sliders,
+    Sparkles,
+    Trash2,
+    Undo2,
+    Wifi,
+} from 'lucide-react'
 import { DynamicEntriesModal } from '@/features/dynamic/DynamicEntriesModal'
 import { MacroEditorModal } from '@/features/dynamic/MacroEditorModal'
+import { WirelessSettingsModal } from '@/features/firmware/WirelessSettingsModal'
+import { RgbSettingsModal } from '@/features/firmware/RgbSettingsModal'
 import { GitHubIcon } from '@/components/GitHubIcon'
 import { REPO_URL } from '@/lib/constants'
 import useConnectionStore from '@/stores/connectionStore'
@@ -17,6 +28,7 @@ import { Separator } from '@/ui/separator'
 import { toast } from 'sonner'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/ui/tooltip'
 import { FeatureGate } from '@/features/firmware/FeatureGate'
+import { LayoutSideloadAction } from '@/features/firmware/LayoutSideloadAction'
 // pattern-check: skip — wrap toolbar buttons in capability gate, no abstraction
 export function Header(): JSX.Element {
     const { service, setService, communication } = useConnectionStore()
@@ -25,6 +37,8 @@ export function Header(): JSX.Element {
     const [unsaved, setUnsaved] = useState<boolean>(false)
     const [dynOpen, setDynOpen] = useState(false)
     const [macroOpen, setMacroOpen] = useState(false)
+    const [wirelessOpen, setWirelessOpen] = useState(false)
+    const [rgbOpen, setRgbOpen] = useState(false)
 
     useEffect(() => {
         if (!service) {
@@ -152,6 +166,53 @@ export function Header(): JSX.Element {
                         opened={macroOpen}
                         onClose={(): void => setMacroOpen(false)}
                     />
+                    <FeatureGate feature="wireless">
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    disabled={!service}
+                                    onClick={(): void => setWirelessOpen(true)}
+                                >
+                                    <Wifi aria-label="Wireless settings" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Wireless</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </FeatureGate>
+                    <WirelessSettingsModal
+                        service={service}
+                        opened={wirelessOpen}
+                        onClose={(): void => setWirelessOpen(false)}
+                    />
+                    <FeatureGate feature="rgb">
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    disabled={!service}
+                                    onClick={(): void => setRgbOpen(true)}
+                                >
+                                    <Lightbulb aria-label="RGB settings" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>RGB</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </FeatureGate>
+                    <RgbSettingsModal
+                        service={service}
+                        opened={rgbOpen}
+                        onClose={(): void => setRgbOpen(false)}
+                    />
+                    <FeatureGate feature="layoutSideloadable">
+                        <LayoutSideloadAction />
+                    </FeatureGate>
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <Button variant="ghost" size="icon" asChild>

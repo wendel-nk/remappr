@@ -29,7 +29,20 @@ export type {
 
 export { isUnlocked } from './types'
 
-export type { Capabilities, KeyboardService } from './service'
+export type {
+    Capabilities,
+    DynamicEntriesApi,
+    EncoderApi,
+    HsvColor,
+    IndicatorConfig,
+    KeyboardService,
+    MacroApi,
+    RgbApi,
+    WirelessApi,
+    WirelessLpm,
+    WirelessStatus,
+    WirelessTransport,
+} from './service'
 
 export type {
     BleDiscovery,

@@ -6,10 +6,13 @@ export type Feature =
     | 'encoders'
     | 'dynamic'
     | 'macros'
+    | 'wireless'
+    | 'rgb'
     | 'lock'
     | 'rename'
     | 'reorderLayers'
     | 'variableLayerCount'
+    | 'layoutSideloadable'
 
 interface Props {
     feature: Feature
@@ -32,6 +35,10 @@ export function FeatureGate({
                 return !!service.dynamic
             case 'macros':
                 return !!service.macros
+            case 'wireless':
+                return !!service.wireless
+            case 'rgb':
+                return !!service.rgb
             case 'lock':
                 return service.capabilities.lock
             case 'rename':
@@ -40,6 +47,8 @@ export function FeatureGate({
                 return service.capabilities.reorderLayers
             case 'variableLayerCount':
                 return service.capabilities.variableLayerCount
+            case 'layoutSideloadable':
+                return !!service.capabilities.layoutSideloadable
             default:
                 return false
         }

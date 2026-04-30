@@ -1,5 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 // Pattern check: Adapter (Tier 1) — extended — extends src/firmware/qmk/service.ts QmkKeyboardService; HidClient-backed Vial implementation of KeyboardService with on-device matrix, encoder, and lock support.
+import { filterCatalogByCodec } from '@firmware/catalog/filter'
+import type { KeyCatalog } from '@firmware/catalog/types'
 import { ProtocolError, UnsupportedError } from '@firmware/errors'
 import type { HidClient } from '@firmware/qmk/hidClient'
 import {
@@ -36,6 +38,7 @@ import type {
     PhysicalLayout,
 } from '@firmware/types'
 
+import { vialCodec } from './codec'
 import { decodeMacro, encodeMacro } from './macroCodec'
 
 import {
@@ -203,6 +206,7 @@ export class VialKeyboardService implements KeyboardService {
     public readonly encoders?: EncoderApi
     public readonly dynamic?: DynamicEntriesApi
     public readonly macros?: MacroApi
+    public readonly codec = vialCodec
 
     private readonly client: HidClient
     private readonly def: ParsedKeyboardDef
@@ -398,6 +402,10 @@ export class VialKeyboardService implements KeyboardService {
             this.layerNames,
             this.customNames,
         )
+    }
+
+    async listKeyCatalog(): Promise<KeyCatalog> {
+        return filterCatalogByCodec(this.codec)
     }
 
     async getKeymap(): Promise<Keymap> {
@@ -729,7 +737,7 @@ export class VialKeyboardService implements KeyboardService {
 
     async disconnect(): Promise<void> {
         if (this.closed) return
-        await this.client.close()
+        await this.client.close({ abortTransport: true })
         this.handleClientClosed('disconnect')
     }
 }

@@ -40,8 +40,8 @@ describe('qmk/actions — keycode codec', () => {
     it('mod-tap LSHIFT + A round-trips', () => {
         const action = buildQmkKeyAction(QMK_KIND.MOD_TAP, [0x02, 0x04])
         const kc = encodeKeycode(action)
-        // QK_MOD_TAP base 0x6000; mod 0x02 (LSHIFT) packs to 0b00010
-        expect(kc).toBe(0x6000 | (0b00010 << 8) | 0x04)
+        // QK_MOD_TAP base 0x2000; mod 0x02 (LSHIFT) packs to 0b00010
+        expect(kc).toBe(0x2000 | (0b00010 << 8) | 0x04)
         const decoded = decodeKeycode(kc)
         expect(decoded.kind).toBe(QMK_KIND.MOD_TAP)
         expect(decoded.params).toEqual([0x02, 0x04])
@@ -67,7 +67,7 @@ describe('qmk/actions — keycode codec', () => {
     it('momentary layer 3 round-trips', () => {
         const action = buildQmkKeyAction(QMK_KIND.MOMENTARY, [3])
         const kc = encodeKeycode(action)
-        expect(kc).toBe(0x5103)
+        expect(kc).toBe(0x5223)
         expect(decodeKeycode(kc)).toEqual({
             kind: QMK_KIND.MOMENTARY,
             params: [3],
@@ -76,11 +76,84 @@ describe('qmk/actions — keycode codec', () => {
 
     it('toggle-layer 1 round-trips', () => {
         const kc = encodeKeycode(buildQmkKeyAction(QMK_KIND.TOGGLE_LAYER, [1]))
-        expect(kc).toBe(0x5301)
+        expect(kc).toBe(0x5261)
         expect(decodeKeycode(kc)).toEqual({
             kind: QMK_KIND.TOGGLE_LAYER,
             params: [1],
         })
+    })
+
+    it('to-layer 2 round-trips', () => {
+        const kc = encodeKeycode(buildQmkKeyAction(QMK_KIND.TO_LAYER, [2]))
+        expect(kc).toBe(0x5202)
+        expect(decodeKeycode(kc)).toEqual({
+            kind: QMK_KIND.TO_LAYER,
+            params: [2],
+        })
+    })
+
+    it('default-layer 4 round-trips', () => {
+        const kc = encodeKeycode(buildQmkKeyAction(QMK_KIND.DEFAULT_LAYER, [4]))
+        expect(kc).toBe(0x5244)
+        expect(decodeKeycode(kc).kind).toBe(QMK_KIND.DEFAULT_LAYER)
+    })
+
+    it('one-shot-layer 5 round-trips', () => {
+        const kc = encodeKeycode(
+            buildQmkKeyAction(QMK_KIND.ONE_SHOT_LAYER, [5]),
+        )
+        expect(kc).toBe(0x5285)
+        const dec = decodeKeycode(kc)
+        expect(dec.kind).toBe(QMK_KIND.ONE_SHOT_LAYER)
+        expect(dec.params).toEqual([5])
+    })
+
+    it('one-shot-mod LSHIFT round-trips', () => {
+        const kc = encodeKeycode(
+            buildQmkKeyAction(QMK_KIND.ONE_SHOT_MOD, [0x02]),
+        )
+        expect(kc).toBe(0x52a0 | 0b00010)
+        const dec = decodeKeycode(kc)
+        expect(dec.kind).toBe(QMK_KIND.ONE_SHOT_MOD)
+        expect(dec.params).toEqual([0x02])
+    })
+
+    it('layer-mod L1 + LCTL round-trips', () => {
+        const kc = encodeKeycode(
+            buildQmkKeyAction(QMK_KIND.LAYER_MOD, [1, 0x01]),
+        )
+        // QK_LAYER_MOD=0x5000 | (layer<<5) | mod_packed
+        expect(kc).toBe(0x5000 | (1 << 5) | 0b00001)
+        const dec = decodeKeycode(kc)
+        expect(dec.kind).toBe(QMK_KIND.LAYER_MOD)
+        expect(dec.params).toEqual([1, 0x01])
+    })
+
+    it('tap-toggle-layer 6 round-trips', () => {
+        const kc = encodeKeycode(
+            buildQmkKeyAction(QMK_KIND.TAP_TOGGLE_LAYER, [6]),
+        )
+        expect(kc).toBe(0x52c6)
+        const dec = decodeKeycode(kc)
+        expect(dec.kind).toBe(QMK_KIND.TAP_TOGGLE_LAYER)
+    })
+
+    it('persistent-default-layer 3 round-trips', () => {
+        const kc = encodeKeycode(
+            buildQmkKeyAction(QMK_KIND.PERSISTENT_DEFAULT_LAYER, [3]),
+        )
+        expect(kc).toBe(0x52e3)
+        expect(decodeKeycode(kc).kind).toBe(QMK_KIND.PERSISTENT_DEFAULT_LAYER)
+    })
+
+    it('swap-hands-tap A round-trips', () => {
+        const kc = encodeKeycode(
+            buildQmkKeyAction(QMK_KIND.SWAP_HANDS_TAP, [0x04]),
+        )
+        expect(kc).toBe(0x5604)
+        const dec = decodeKeycode(kc)
+        expect(dec.kind).toBe(QMK_KIND.SWAP_HANDS_TAP)
+        expect(dec.params).toEqual([0x04])
     })
 
     it('label uses layer name when available', () => {

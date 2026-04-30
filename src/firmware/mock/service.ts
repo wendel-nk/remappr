@@ -1,5 +1,7 @@
 // Pattern check: Adapter (Tier 1) — extended — backs src/firmware/service.ts KeyboardService Facade; in-memory keyboard implementation for dev/storybook/tests, mirrors ZmkKeyboardService surface.
 // pattern-check: skip — wire encoders/dynamic/macros sub-bundles defined in service.ts
+import { filterCatalogByCodec } from '@firmware/catalog/filter'
+import type { KeyCatalog } from '@firmware/catalog/types'
 import type {
     Capabilities,
     DynamicEntriesApi,
@@ -36,6 +38,7 @@ import {
     buildMockKeyAction,
     relabelLayer,
 } from './actions'
+import { mockCodec } from './codec'
 import { MOCK_LAYOUTS, MOCK_KEY_COUNT, MOCK_CORNE_LAYOUT } from './layout'
 
 const MOCK_DYNAMIC_COUNTS: DynamicEntryCounts = {
@@ -114,6 +117,7 @@ interface MockServiceOptions {
 export class MockKeyboardService implements KeyboardService {
     public readonly capabilities: Capabilities = MOCK_CAPABILITIES
     public readonly deviceInfo: DeviceInfo
+    public readonly codec = mockCodec
     public readonly encoders: EncoderApi
     public readonly dynamic: DynamicEntriesApi
     public readonly macros: MacroApi
@@ -438,6 +442,10 @@ export class MockKeyboardService implements KeyboardService {
 
     buildKeyAction(kind: string, params: number[]): KeyAction {
         return buildMockKeyAction(kind, params, this.layerNames())
+    }
+
+    async listKeyCatalog(): Promise<KeyCatalog> {
+        return filterCatalogByCodec(this.codec)
     }
 
     async getKeymap(): Promise<Keymap> {

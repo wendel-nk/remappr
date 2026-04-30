@@ -1,6 +1,8 @@
 // pattern-check: skip mechanical drop-field codemod — removes RpcConnection from store; service is the sole connection handle
+// Pattern check: no GoF pattern (-) — rejected — additive zustand store slice for keyCatalog; existing store already exists, no abstraction needed.
 import { create, StateCreator } from 'zustand'
 import { devtools } from 'zustand/middleware'
+import type { KeyCatalog } from '@firmware/catalog/types'
 import type { KeyboardService } from '@firmware/service'
 import type { LockState } from '@firmware/types'
 
@@ -9,6 +11,7 @@ interface ConnectionState {
     communication: 'serial' | 'ble' | 'hid' | null
     deviceName: string | null
     lockState: LockState
+    keyCatalog: KeyCatalog | null
     connectionAbort: AbortController
     setService: (
         service: KeyboardService | null,
@@ -16,6 +19,7 @@ interface ConnectionState {
     ) => void
     setDeviceName: (name: string | null) => void
     setLockState: (state: LockState) => void
+    setKeyCatalog: (catalog: KeyCatalog | null) => void
     setConnectionAbort: (abort: AbortController) => void
     resetConnection: () => void
     showConnectionModal: boolean
@@ -45,11 +49,25 @@ const useConnectionStore = create<ConnectionState>()(
             communication: null,
             deviceName: null,
             lockState: 'locked' as LockState,
+            keyCatalog: null,
             connectionAbort: new AbortController(),
-            setService: (service, communication) =>
-                set({ service, communication: communication ?? null }),
+            setService: (service, communication) => {
+                set({ service, communication: communication ?? null })
+                if (service?.listKeyCatalog) {
+                    service
+                        .listKeyCatalog()
+                        .then((catalog) => set({ keyCatalog: catalog }))
+                        .catch((err) => {
+                            console.warn('listKeyCatalog failed', err)
+                            set({ keyCatalog: null })
+                        })
+                } else {
+                    set({ keyCatalog: null })
+                }
+            },
             setDeviceName: (name) => set({ deviceName: name }),
             setLockState: (state) => set({ lockState: state }),
+            setKeyCatalog: (catalog) => set({ keyCatalog: catalog }),
             setConnectionAbort: (abort) => set({ connectionAbort: abort }),
             resetConnection: () =>
                 set({
@@ -57,6 +75,7 @@ const useConnectionStore = create<ConnectionState>()(
                     communication: null,
                     deviceName: null,
                     lockState: 'locked' as LockState,
+                    keyCatalog: null,
                 }),
             showConnectionModal: false,
             setShowConnectionModal: (visible) =>

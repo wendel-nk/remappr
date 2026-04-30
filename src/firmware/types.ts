@@ -2,6 +2,10 @@ export interface KeyAction {
     kind: string
     params: number[]
     label: KeyLabel
+    /** Resolved canonical catalog id when codec.decode recognized the keycode.
+     *  Picker uses this to re-highlight the originating entry without rerunning
+     *  decode every render. Optional — adapters populate when known. */
+    canonicalId?: string
 }
 
 export interface HoldTapLabelData {
@@ -98,6 +102,9 @@ export interface DeviceInfo {
     firmware: string
     firmwareVersion?: string
     serialNumber?: string
+    // pattern-check: skip — additive optional scalar fields for VIA registry cache key
+    vid?: number
+    pid?: number
 }
 
 export type LockState = 'locked' | 'unlocking' | 'unlocked' | 'not-applicable'

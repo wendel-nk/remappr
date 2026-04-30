@@ -2,7 +2,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import type { ActionSlot, ActionType, KeyAction } from '@firmware/types'
-import { hidUsagePageAndIdFromUsage } from '@/lib/actions/hidUsages'
 import { ActionTypeSelector } from './ActionTypeSelector'
 import { ActionSlotsPicker } from './ActionSlotsPicker'
 import { SlotBar, type SlotDescriptor, type SlotKind } from './SlotBar'
@@ -41,8 +40,10 @@ function isSlotValid(
 ): boolean {
     if (value === undefined) return false
     if (slot.kind === 'hid') {
-        const [page, id] = hidUsagePageAndIdFromUsage(value)
-        return page !== 0 && id !== 0
+        // ZMK encodes (page<<16)|usage; QMK emits raw 16-bit (page implicit).
+        // Accept any non-zero numeric value; per-firmware codec already
+        // verified encodability when picker built `valueByEntryId`.
+        return value !== 0
     }
     if (slot.kind === 'layer') return layerIds.includes(value)
     if (slot.kind === 'number' && slot.range) {

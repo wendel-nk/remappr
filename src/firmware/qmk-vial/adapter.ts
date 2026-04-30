@@ -152,13 +152,17 @@ export function createVialAdapter(): FirmwareAdapter {
                 }
             }
             if (signal.aborted) {
-                await session.client.close().catch(() => undefined)
+                await session.client
+                    .close({ abortTransport: true })
+                    .catch(() => undefined)
                 throw signal.reason ?? new Error('aborted')
             }
             signal.addEventListener(
                 'abort',
                 () => {
-                    session!.client.close().catch(() => undefined)
+                    session!.client
+                        .close({ abortTransport: true })
+                        .catch(() => undefined)
                 },
                 { once: true },
             )

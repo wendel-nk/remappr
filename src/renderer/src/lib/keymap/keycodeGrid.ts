@@ -1,5 +1,5 @@
-// pattern-check: skip pure-extraction codemod from KeycodePickerGrid
-import type { KeyboardKeys } from '@/data/keys'
+// Pattern check: no GoF pattern (-) — rejected — codemod renaming UsageId to CatalogEntry, field references Label→label/Id→id; pure type swap.
+import type { CatalogEntry } from '@firmware/catalog/types'
 
 export enum Mods {
     LeftControl = 0x01,
@@ -31,21 +31,23 @@ export function maskMods(value: number): number {
     return value & ~(modsToFlags(all_mods) << 24)
 }
 
-export type UsageId = KeyboardKeys['UsageIds'][number]
-
-export function filterKeysBySearch(keys: UsageId[], query: string): UsageId[] {
+export function filterKeysBySearch(
+    keys: CatalogEntry[],
+    query: string,
+): CatalogEntry[] {
     if (!query.trim()) return keys
     const lowerQuery = query.toLowerCase()
     return keys.filter((key) => {
-        const label = key.Label || ''
-        const textContent = label.replace(/<[^>]*>/g, '').toLowerCase()
-        return textContent.includes(lowerQuery)
+        const haystack = `${key.label} ${key.name} ${key.id}`
+            .replace(/<[^>]*>/g, '')
+            .toLowerCase()
+        return haystack.includes(lowerQuery)
     })
 }
 
-export function splitKeysByPosition(keys: UsageId[]): {
-    withPositions: UsageId[]
-    withoutPositions: UsageId[]
+export function splitKeysByPosition(keys: CatalogEntry[]): {
+    withPositions: CatalogEntry[]
+    withoutPositions: CatalogEntry[]
 } {
     const withPositions = keys.filter(
         (key) =>
@@ -73,13 +75,13 @@ const STACK_GAP = 10
 const MIN_HEIGHT = 350
 
 export function calculateContainerHeight(
-    withPositions: UsageId[],
-    withoutPositions: UsageId[],
+    withPositions: CatalogEntry[],
+    withoutPositions: CatalogEntry[],
 ): number {
     let maxBottomPosition = 0
     withPositions.forEach((key) => {
-        const keyHeight = 'h' in key && key.h ? key.h / 2 : KEY_SIZE
-        const bottomPosition = (key.y! / 100) * KEY_SIZE + keyHeight
+        const keyHeight = key.h ? key.h / 2 : KEY_SIZE
+        const bottomPosition = ((key.y ?? 0) / 100) * KEY_SIZE + keyHeight
         if (bottomPosition > maxBottomPosition)
             maxBottomPosition = bottomPosition
     })
@@ -101,11 +103,11 @@ export function calculateContainerHeight(
     return Math.max(totalContentHeight, MIN_HEIGHT)
 }
 
-export function maxBottomForPositioned(withPositions: UsageId[]): number {
+export function maxBottomForPositioned(withPositions: CatalogEntry[]): number {
     let maxBottom = 0
     withPositions.forEach((key) => {
-        const keyHeight = 'h' in key && key.h ? key.h / 2 : KEY_SIZE
-        const bottomPosition = (key.y! / 100) * KEY_SIZE + keyHeight
+        const keyHeight = key.h ? key.h / 2 : KEY_SIZE
+        const bottomPosition = ((key.y ?? 0) / 100) * KEY_SIZE + keyHeight
         if (bottomPosition > maxBottom) maxBottom = bottomPosition
     })
     return maxBottom

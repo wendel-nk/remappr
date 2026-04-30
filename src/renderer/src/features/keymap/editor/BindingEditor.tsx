@@ -140,6 +140,13 @@ export function BindingEditor({
             doIt?.(async (): Promise<() => Promise<void>> => {
                 try {
                     await service.setKey(layerId, keyPosition, newAction)
+                    // console.log('[BindingEditor] setKey ok', {
+                    //     layerId,
+                    //     keyPosition,
+                    //     kind: draft.kind,
+                    //     params: draft.params,
+                    //     canonicalId: newAction.canonicalId,
+                    // })
                     setKeymap(
                         (prev: Keymap | undefined): Keymap | undefined => {
                             if (!prev) return prev

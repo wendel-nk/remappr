@@ -9,6 +9,7 @@ import { DownloadLatestButton } from '@/components/DownloadLatestButton'
 import { Modal } from '@/ui/modal'
 import { Button } from '@/ui/button'
 import { Label } from '@/ui/label'
+import useUserSettingsStore from '@/stores/userSettingsStore'
 import { APP_VERSION } from '@/lib/constants'
 import { IpcChannels } from '../../../../shared/ipc-types'
 import type { UpdateCheckResultPayload } from '../../../../shared/ipc-types'
@@ -29,6 +30,8 @@ export function Settings(_props: SettingsProps): JSX.Element {
     const [checking, setChecking] = useState(false)
     const api = (window as unknown as ElectronWindow).api
     const isElectron = Boolean(api)
+    const autoLoadLayout = useUserSettingsStore((s) => s.autoLoadLayout)
+    const setAutoLoadLayout = useUserSettingsStore((s) => s.setAutoLoadLayout)
 
     const handleCheckUpdates = async (): Promise<void> => {
         if (!api) return
@@ -99,6 +102,32 @@ export function Settings(_props: SettingsProps): JSX.Element {
                             </p>
                         </div>
                         <KeyDisplayModePicker />
+                    </div>
+                </div>
+
+                {/* Layout */}
+                <div className="space-y-4">
+                    <h3 className="text-lg font-semibold">Layout</h3>
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <Label htmlFor="auto-load-layout">
+                                Auto-load layout from registry
+                            </Label>
+                            <p className="text-sm text-muted-foreground">
+                                Search the-via and Keychron repos on connect.
+                                When off, use the Load layout JSON button to
+                                upload manually.
+                            </p>
+                        </div>
+                        <input
+                            id="auto-load-layout"
+                            type="checkbox"
+                            className="h-5 w-5 cursor-pointer"
+                            checked={autoLoadLayout}
+                            onChange={(e) =>
+                                setAutoLoadLayout(e.target.checked)
+                            }
+                        />
                     </div>
                 </div>
 

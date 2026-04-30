@@ -28,14 +28,14 @@ export function useLayout(): UseLayoutsReturn {
 
         let isCancelled = false
 
-        const fetchLayouts = async (): Promise<void> => {
-            setLayouts(undefined)
-
+        const fetchLayouts = async (resetSelected: boolean): Promise<void> => {
             try {
                 const got = await service.getPhysicalLayouts()
                 if (!isCancelled) {
                     setLayouts(got.layouts)
-                    setSelectedPhysicalLayoutIndex(got.activeLayoutId)
+                    if (resetSelected) {
+                        setSelectedPhysicalLayoutIndex(got.activeLayoutId)
+                    }
                 }
             } catch (error) {
                 if (!isCancelled) {
@@ -45,10 +45,16 @@ export function useLayout(): UseLayoutsReturn {
             }
         }
 
-        fetchLayouts()
+        setLayouts(undefined)
+        void fetchLayouts(true)
+
+        const off = service.subscribe?.((n) => {
+            if (n.topic === 'layout-changed') void fetchLayouts(false)
+        })
 
         return (): void => {
             isCancelled = true
+            off?.()
         }
     }, [service])
 

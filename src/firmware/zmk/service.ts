@@ -14,6 +14,8 @@ import type {
 import { LockState as ZmkLockState } from '@zmkfirmware/zmk-studio-ts-client/core'
 import type { Notification } from '@zmkfirmware/zmk-studio-ts-client/studio'
 
+import { filterCatalogByCodec } from '@firmware/catalog/filter'
+import type { KeyCatalog } from '@firmware/catalog/types'
 import type { Capabilities, KeyboardService } from '@firmware/service'
 import type {
     ActionType,
@@ -33,6 +35,7 @@ import {
     keyActionToBinding,
     type BehaviorMap,
 } from './actions'
+import { zmkCodec } from './codec'
 import { behaviorsToActionTypes } from './actionTypes'
 import { zmkKeymapToNeutral } from './keymap'
 import { generateZMKConfigFile, generateZMKKeymapFile } from './export'
@@ -63,6 +66,7 @@ type ClosedHandler = (reason?: unknown) => void
 
 export class ZmkKeyboardService implements KeyboardService {
     public readonly capabilities: Capabilities = ZMK_CAPABILITIES
+    public readonly codec = zmkCodec
 
     private readonly connection: RpcConnection
     private readonly behaviors: BehaviorMap = {}
@@ -250,6 +254,10 @@ export class ZmkKeyboardService implements KeyboardService {
         return bindingToKeyAction(binding, this.behaviors, {
             layers: layerNames,
         })
+    }
+
+    async listKeyCatalog(): Promise<KeyCatalog> {
+        return filterCatalogByCodec(this.codec)
     }
 
     async setKey(

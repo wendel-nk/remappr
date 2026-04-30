@@ -11,6 +11,7 @@ import { SidebarInset, SidebarProvider } from '@/ui/sidebar'
 import { ThemeProvider } from '@/providers/ThemeProvider'
 import { Toaster } from '@/ui/sonner'
 import { Header } from '@/layout/Header'
+import { AutoLayoutResolver } from '@/features/firmware/AutoLayoutResolver'
 // import { Footer } from '@/layout/Footer'
 import { ErrorBoundary } from '@/ui/ErrorBoundary'
 import { toast } from 'sonner'
@@ -129,6 +130,7 @@ function App(): JSX.Element {
                                     <Drawer />
                                     <SidebarInset>
                                         <Header />
+                                        <AutoLayoutResolver />
                                         <ErrorBoundary>
                                             <KeymapEditor />
                                         </ErrorBoundary>

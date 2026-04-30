@@ -77,4 +77,55 @@ export const QMK_ACTION_TYPES: ActionType[] = [
             },
         ],
     },
+    {
+        id: 'qmk:to-layer',
+        displayName: 'To Layer',
+        description: 'Switch to the given layer (TO).',
+        slots: [{ label: 'Layer', kind: 'layer', range: { min: 0, max: 15 } }],
+    },
+    {
+        id: 'qmk:default-layer',
+        displayName: 'Default Layer',
+        description: 'Switch the default layer (DF).',
+        slots: [{ label: 'Layer', kind: 'layer', range: { min: 0, max: 15 } }],
+    },
+    {
+        id: 'qmk:persistent-default-layer',
+        displayName: 'Persistent Default Layer',
+        description: 'Switch and persist the default layer (PDF).',
+        slots: [{ label: 'Layer', kind: 'layer', range: { min: 0, max: 15 } }],
+    },
+    {
+        id: 'qmk:layer-mod',
+        displayName: 'Layer + Mod',
+        description: 'Hold momentary layer with modifier (LM).',
+        slots: [
+            { label: 'Layer', kind: 'layer', range: { min: 0, max: 15 } },
+            { label: 'Mod', kind: 'modifier', values: MODIFIER_VALUES },
+        ],
+    },
+    {
+        id: 'qmk:one-shot-layer',
+        displayName: 'One Shot Layer',
+        description: 'Activate layer for the next key press (OSL).',
+        slots: [{ label: 'Layer', kind: 'layer', range: { min: 0, max: 15 } }],
+    },
+    {
+        id: 'qmk:one-shot-mod',
+        displayName: 'One Shot Mod',
+        description: 'Apply modifier to the next key press (OSM).',
+        slots: [{ label: 'Mod', kind: 'modifier', values: MODIFIER_VALUES }],
+    },
+    {
+        id: 'qmk:tap-toggle-layer',
+        displayName: 'Tap Toggle Layer',
+        description: 'Tap = toggle, hold = momentary (TT).',
+        slots: [{ label: 'Layer', kind: 'layer', range: { min: 0, max: 15 } }],
+    },
+    {
+        id: 'qmk:swap-hands-tap',
+        displayName: 'Swap-Hands Tap',
+        description: 'Swap hands while held, tap to send key (SH_T).',
+        slots: [{ label: 'Tap', kind: 'hid' }],
+    },
 ]

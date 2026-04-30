@@ -12,6 +12,12 @@ import {
     requestAndConnect as web_serial_request_new,
 } from '../transport/web-serial'
 import {
+    listGrantedDevices as web_hid_list,
+    connectToGrantedDevice as web_hid_connect_granted,
+    requestAndConnect as web_hid_request_new,
+    type HidFilter,
+} from '../transport/web-hid'
+import {
     connect as tauri_ble_connect,
     list_devices as ble_list_devices,
 } from '../tauri/ble.ts'
@@ -56,6 +62,28 @@ function hidDiscovery(): {
         }
     }
     return null
+}
+
+// WebHID requestDevice() takes a filters array — emit one filter per
+// registered adapter so all firmware variants surface in the chooser.
+function hidFilters(): HidFilter[] {
+    const out: HidFilter[] = []
+    for (const adapter of getAdapters()) {
+        const hid = adapter.discovery.hid
+        if (!hid) continue
+        const vids =
+            hid.vendorIds && hid.vendorIds.length > 0
+                ? hid.vendorIds
+                : [undefined]
+        for (const vendorId of vids) {
+            out.push({
+                vendorId,
+                usagePage: hid.usagePage,
+                usage: hid.usage,
+            })
+        }
+    }
+    return out
 }
 
 declare global {
@@ -163,6 +191,19 @@ export function getTransports(): TransportFactory[] {
                     connect: web_serial_connect_granted,
                 },
                 request_new: web_serial_request_new,
+            })
+        }
+
+        if ('hid' in navigator) {
+            const filters = hidFilters()
+            transports.push({
+                label: 'HID',
+                communication: 'hid',
+                pick_and_connect: {
+                    list: () => web_hid_list(filters),
+                    connect: web_hid_connect_granted,
+                },
+                request_new: () => web_hid_request_new(filters),
             })
         }
 

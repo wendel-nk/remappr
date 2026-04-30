@@ -21,6 +21,8 @@ import {
     VIA_USAGE_PAGE,
 } from './protocol'
 import { QmkKeyboardService, readQmkLayerCount } from './service'
+import { cacheKey, loadCached } from './layoutSideload'
+import type { ParsedKeyboardDef } from '@firmware/kle/parser'
 
 const PROBE_DEADLINE_MS = 750
 
@@ -46,6 +48,39 @@ interface ProbedSession {
 
 const probedSessions = new WeakMap<Transport, ProbedSession>()
 
+function parseVidPidFromLabel(
+    label: string,
+): { vid: number; pid: number } | null {
+    const m = label.match(/\b([0-9a-f]{4}):([0-9a-f]{4})\b/i)
+    if (!m) return null
+    const vid = Number.parseInt(m[1], 16)
+    const pid = Number.parseInt(m[2], 16)
+    if (!Number.isFinite(vid) || !Number.isFinite(pid)) return null
+    return { vid, pid }
+}
+
+function readTransportIds(transport: Transport): {
+    vid?: number
+    pid?: number
+} {
+    if (
+        typeof transport.vid === 'number' &&
+        typeof transport.pid === 'number'
+    ) {
+        return { vid: transport.vid, pid: transport.pid }
+    }
+    const parsed = parseVidPidFromLabel(transport.label || '')
+    return parsed ?? {}
+}
+
+function resolveLayoutDefFromCache(
+    deviceInfo: DeviceInfo,
+): ParsedKeyboardDef | null {
+    const key = cacheKey(deviceInfo)
+    if (!key) return null
+    return loadCached(key)
+}
+
 async function probeViaSession(
     transport: Transport,
 ): Promise<ProbedSession | null> {
@@ -70,6 +105,7 @@ async function probeViaSession(
 
         const layerCount = await readQmkLayerCount(client)
 
+        const ids = readTransportIds(transport)
         const deviceInfo: DeviceInfo = {
             name: transport.label || 'QMK keyboard',
             firmware: 'qmk-via',
@@ -77,6 +113,8 @@ async function probeViaSession(
                 firmwareVersion !== undefined
                     ? firmwareVersion.toString()
                     : `via-${protocolVersion}`,
+            vid: ids.vid,
+            pid: ids.pid,
         }
 
         return { client, deviceInfo, layerCount }
@@ -146,17 +184,21 @@ export function createQmkAdapter(
             signal.addEventListener(
                 'abort',
                 () => {
-                    session!.client.close().catch(() => undefined)
+                    session!.client
+                        .close({ abortTransport: true })
+                        .catch(() => undefined)
                 },
                 { once: true },
             )
 
+            const def = resolveLayoutDefFromCache(session.deviceInfo)
             return QmkKeyboardService.create({
                 deviceInfo: session.deviceInfo,
                 client: session.client,
                 rows,
                 cols,
                 layerCount: session.layerCount,
+                def: def ?? undefined,
             })
         },
     }
