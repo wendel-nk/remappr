@@ -3,6 +3,7 @@ import { create } from 'zustand'
 import { createJSONStorage, devtools, persist } from 'zustand/middleware'
 
 export type KeyDisplayMode = 'displayName' | 'binding'
+export type AdapterCategory = 'zmk' | 'qmk'
 
 const DEFAULT_FIRMWARE_KEY = '_default'
 
@@ -12,6 +13,7 @@ interface UserSettingsState {
     autosave: boolean
     autoLoadLayout: boolean
     keyDisplayMode: Record<string, KeyDisplayMode>
+    preferredAdapterCategory: AdapterCategory
     setTheme: (theme: 'dark' | 'light') => void
     setAutosave: (enabled: boolean) => void
     setAutoLoadLayout: (enabled: boolean) => void
@@ -20,6 +22,7 @@ interface UserSettingsState {
         mode: KeyDisplayMode,
     ) => void
     getKeyDisplayMode: (firmware: string | undefined) => KeyDisplayMode
+    setPreferredAdapterCategory: (category: AdapterCategory) => void
 }
 
 const useUserSettingsStore = create<UserSettingsState>()(
@@ -30,6 +33,7 @@ const useUserSettingsStore = create<UserSettingsState>()(
                 autosave: false,
                 autoLoadLayout: false,
                 keyDisplayMode: {},
+                preferredAdapterCategory: 'zmk',
                 setTheme: (theme) => set({ theme }),
                 setAutosave: (enabled) => set({ autosave: enabled }),
                 setAutoLoadLayout: (enabled) =>
@@ -49,18 +53,19 @@ const useUserSettingsStore = create<UserSettingsState>()(
                         'displayName'
                     )
                 },
+                setPreferredAdapterCategory: (preferredAdapterCategory) =>
+                    set({ preferredAdapterCategory }),
             }),
             {
                 name: 'user-settings-store',
                 storage: createJSONStorage(() => localStorage),
-                version: 2,
+                version: 3,
                 migrate: (persisted: unknown, version: number) => {
-                    if (
-                        version < 2 &&
-                        persisted &&
-                        typeof persisted === 'object'
-                    ) {
-                        const p = persisted as Record<string, unknown>
+                    if (!persisted || typeof persisted !== 'object') {
+                        return persisted as Partial<UserSettingsState>
+                    }
+                    const p = persisted as Record<string, unknown>
+                    if (version < 2) {
                         const legacy = p.keyDisplayMode
                         if (typeof legacy === 'string') {
                             p.keyDisplayMode = {
@@ -70,9 +75,14 @@ const useUserSettingsStore = create<UserSettingsState>()(
                         } else if (!legacy || typeof legacy !== 'object') {
                             p.keyDisplayMode = {}
                         }
-                        return p as Partial<UserSettingsState>
                     }
-                    return persisted as Partial<UserSettingsState>
+                    if (version < 3) {
+                        const cat = p.preferredAdapterCategory
+                        if (cat !== 'zmk' && cat !== 'qmk') {
+                            p.preferredAdapterCategory = 'zmk'
+                        }
+                    }
+                    return p as Partial<UserSettingsState>
                 },
             },
         ),

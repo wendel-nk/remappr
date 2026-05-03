@@ -1,13 +1,13 @@
-// pattern-check: skip macro sequence editor with per-action inline forms
+// pattern-check: skip — macro sequence editor with per-action inline switch
 import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react'
-import { useEffect, useState } from 'react'
-import { toast } from 'sonner'
+import { useState } from 'react'
 
 import type { KeyboardService, MacroAction } from '@firmware'
-import { Modal } from '@/ui/modal'
+import { assertNever } from '@/lib/assertNever'
+import { clampInt, parseIntSafe } from '@/lib/clampInt'
 import { Button } from '@/ui/button'
 import { Input } from '@/ui/input'
-import { Label } from '@/ui/label'
+import { Modal } from '@/ui/modal'
 import {
     Select,
     SelectContent,
@@ -16,18 +16,96 @@ import {
     SelectValue,
 } from '@/ui/select'
 
+import { IndexInput } from './_shared/IndexInput'
+import { NumField } from './_shared/NumField'
+import { saveWithToast } from './_shared/saveWithToast'
+import { useDynamicEntry } from './_shared/useDynamicEntry'
+
 interface Props {
     service: KeyboardService | null
     opened: boolean
     onClose: () => void
 }
 
-const hex = (v: number): string =>
-    '0x' + (v & 0xffff).toString(16).padStart(4, '0')
+const ACTION_KINDS: ReadonlyArray<{
+    value: MacroAction['kind']
+    label: string
+}> = [
+    { value: 'tap', label: 'Tap' },
+    { value: 'down', label: 'Down' },
+    { value: 'up', label: 'Up' },
+    { value: 'delay', label: 'Delay' },
+    { value: 'text', label: 'Text' },
+]
 
-const parseHex = (s: string): number => {
-    const v = s.startsWith('0x') ? parseInt(s.slice(2), 16) : parseInt(s, 10)
-    return Number.isFinite(v) ? v & 0xffff : 0
+function defaultActionFor(kind: MacroAction['kind']): MacroAction {
+    switch (kind) {
+        case 'tap':
+        case 'down':
+        case 'up':
+            return { kind, keycode: 0 }
+        case 'delay':
+            return { kind: 'delay', ms: 100 }
+        case 'text':
+            return { kind: 'text', text: '' }
+        default:
+            return assertNever(kind)
+    }
+}
+
+function ActionFields({
+    action,
+    onChange,
+}: {
+    action: MacroAction
+    onChange: (next: MacroAction) => void
+}): JSX.Element | null {
+    switch (action.kind) {
+        case 'tap':
+        case 'down':
+        case 'up':
+            return (
+                <NumField
+                    label="Keycode"
+                    value={action.keycode}
+                    onChange={(v) => onChange({ ...action, keycode: v })}
+                />
+            )
+        case 'delay':
+            return (
+                <Input
+                    type="number"
+                    min={0}
+                    max={0xffff}
+                    value={action.ms}
+                    onChange={(e) =>
+                        onChange({
+                            kind: 'delay',
+                            ms: clampInt(
+                                parseIntSafe(e.target.value),
+                                0,
+                                0xffff,
+                            ),
+                        })
+                    }
+                    className="w-32 text-xs"
+                    placeholder="ms"
+                />
+            )
+        case 'text':
+            return (
+                <Input
+                    value={action.text}
+                    onChange={(e) =>
+                        onChange({ kind: 'text', text: e.target.value })
+                    }
+                    className="flex-1 text-xs"
+                    placeholder="ASCII text"
+                />
+            )
+        default:
+            return assertNever(action)
+    }
 }
 
 function ActionRow({
@@ -38,7 +116,7 @@ function ActionRow({
     onMoveDown,
 }: {
     action: MacroAction
-    onChange: (a: MacroAction) => void
+    onChange: (next: MacroAction) => void
     onRemove: () => void
     onMoveUp: () => void
     onMoveDown: () => void
@@ -47,78 +125,44 @@ function ActionRow({
         <div className="flex items-center gap-2 border rounded p-2">
             <Select
                 value={action.kind}
-                onValueChange={(k) => {
-                    if (k === 'tap' || k === 'down' || k === 'up') {
-                        onChange({ kind: k, keycode: 0 })
-                    } else if (k === 'delay') {
-                        onChange({ kind: 'delay', ms: 100 })
-                    } else if (k === 'text') {
-                        onChange({ kind: 'text', text: '' })
-                    }
-                }}
+                onValueChange={(k) =>
+                    onChange(defaultActionFor(k as MacroAction['kind']))
+                }
             >
                 <SelectTrigger className="w-24">
                     <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                    <SelectItem value="tap">Tap</SelectItem>
-                    <SelectItem value="down">Down</SelectItem>
-                    <SelectItem value="up">Up</SelectItem>
-                    <SelectItem value="delay">Delay</SelectItem>
-                    <SelectItem value="text">Text</SelectItem>
+                    {ACTION_KINDS.map((k) => (
+                        <SelectItem key={k.value} value={k.value}>
+                            {k.label}
+                        </SelectItem>
+                    ))}
                 </SelectContent>
             </Select>
-            {(action.kind === 'tap' ||
-                action.kind === 'down' ||
-                action.kind === 'up') && (
-                <Input
-                    value={hex(action.keycode)}
-                    onChange={(e) =>
-                        onChange({
-                            ...action,
-                            keycode: parseHex(e.target.value),
-                        })
-                    }
-                    className="w-32 font-mono text-xs"
-                    placeholder="keycode"
-                />
-            )}
-            {action.kind === 'delay' && (
-                <Input
-                    type="number"
-                    min={0}
-                    max={0xffff}
-                    value={action.ms}
-                    onChange={(e) =>
-                        onChange({
-                            kind: 'delay',
-                            ms: Math.max(
-                                0,
-                                Math.min(0xffff, parseInt(e.target.value) || 0),
-                            ),
-                        })
-                    }
-                    className="w-32 text-xs"
-                    placeholder="ms"
-                />
-            )}
-            {action.kind === 'text' && (
-                <Input
-                    value={action.text}
-                    onChange={(e) =>
-                        onChange({ kind: 'text', text: e.target.value })
-                    }
-                    className="flex-1 text-xs"
-                    placeholder="ASCII text"
-                />
-            )}
-            <Button variant="ghost" size="icon" onClick={onMoveUp}>
+            <ActionFields action={action} onChange={onChange} />
+            <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Move action up"
+                onClick={onMoveUp}
+            >
                 <ArrowUp className="h-3 w-3" />
             </Button>
-            <Button variant="ghost" size="icon" onClick={onMoveDown}>
+            <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Move action down"
+                onClick={onMoveDown}
+            >
                 <ArrowDown className="h-3 w-3" />
             </Button>
-            <Button variant="ghost" size="icon" onClick={onRemove}>
+            <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Remove action"
+                onClick={onRemove}
+            >
                 <Trash2 className="h-3 w-3" />
             </Button>
         </div>
@@ -131,33 +175,20 @@ export function MacroEditorModal({
     onClose,
 }: Props): JSX.Element | null {
     const count = service?.macros?.getCount() ?? 0
-    const [idx, setIdx] = useState(0)
-    const [actions, setActions] = useState<MacroAction[] | null>(null)
-    const [loading, setLoading] = useState(false)
+    const [rawIdx, setIdx] = useState(0)
+    const idx = Math.min(Math.max(0, rawIdx), Math.max(0, count - 1))
 
-    /* eslint-disable react-hooks/set-state-in-effect */
-    useEffect(() => {
-        if (!service || !opened || !service.macros) return
-        let cancelled = false
-        setLoading(true)
-        service.macros
-            .getMacro(idx)
-            .then((a) => {
-                if (!cancelled) setActions(a)
-            })
-            .catch((e) => {
-                console.error('Failed to load macro', e)
-                toast.error('Failed to load macro')
-                if (!cancelled) setActions([])
-            })
-            .finally(() => {
-                if (!cancelled) setLoading(false)
-            })
-        return () => {
-            cancelled = true
-        }
-    }, [service, idx, opened])
-    /* eslint-enable react-hooks/set-state-in-effect */
+    const {
+        entry: actions,
+        setEntry: setActions,
+        loading,
+    } = useDynamicEntry<MacroAction[]>(
+        service,
+        idx,
+        opened,
+        (s, i) => s.macros?.getMacro(i),
+        'macro',
+    )
 
     if (!service || count === 0) return null
 
@@ -168,10 +199,8 @@ export function MacroEditorModal({
         setActions(next)
     }
 
-    const remove = (i: number): void => {
-        if (!actions) return
-        setActions(actions.filter((_, k) => k !== i))
-    }
+    const remove = (i: number): void =>
+        setActions((prev) => (prev ? prev.filter((_, k) => k !== i) : prev))
 
     const move = (i: number, delta: number): void => {
         if (!actions) return
@@ -183,23 +212,18 @@ export function MacroEditorModal({
         setActions(next)
     }
 
-    const add = (): void => {
-        setActions([...(actions ?? []), { kind: 'tap', keycode: 0 }])
-    }
+    const add = (): void =>
+        setActions((prev) => [...(prev ?? []), { kind: 'tap', keycode: 0 }])
 
-    const save = async (): Promise<void> => {
-        if (!actions || !service.macros) return
-        try {
-            await service.macros.setMacro(idx, actions)
-            toast.success(`Macro #${idx} saved`)
-        } catch (e) {
-            toast.error(
-                'Failed to save macro: ' +
-                    (e instanceof Error ? e.message : String(e)),
-            )
-            console.error(e)
-        }
-    }
+    const save = (): Promise<void> =>
+        saveWithToast(
+            async () => {
+                if (!actions || !service.macros) return
+                await service.macros.setMacro(idx, actions)
+            },
+            `Macro #${idx} saved`,
+            'Failed to save macro',
+        )
 
     return (
         <Modal
@@ -212,30 +236,12 @@ export function MacroEditorModal({
             customModalBoxClass="w-[640px] max-w-[90vw]"
         >
             <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                    <Label>Macro</Label>
-                    <Input
-                        type="number"
-                        min={0}
-                        max={count - 1}
-                        value={idx}
-                        onChange={(e) =>
-                            setIdx(
-                                Math.max(
-                                    0,
-                                    Math.min(
-                                        count - 1,
-                                        parseInt(e.target.value) || 0,
-                                    ),
-                                ),
-                            )
-                        }
-                        className="w-20"
-                    />
-                    <span className="text-xs text-muted-foreground">
-                        of {count}
-                    </span>
-                </div>
+                <IndexInput
+                    label="Macro"
+                    value={idx}
+                    count={count}
+                    onChange={setIdx}
+                />
                 {loading && (
                     <p className="text-xs text-muted-foreground">Loading…</p>
                 )}

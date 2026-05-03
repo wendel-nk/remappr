@@ -4,6 +4,7 @@ import type { Transport } from '@firmware'
 import { rememberConnectedDeviceName } from '@/transport/web-serial'
 import { LockedOverlay } from '@/features/connection/LockedOverlay'
 import useConnectionStore from '@/stores/connectionStore'
+import useUserSettingsStore from '@/stores/userSettingsStore'
 import undoRedoStore from '@/stores/undoRedoStore'
 import { KeymapEditor } from '@/features/keymap/editor/KeymapEditor'
 import { Drawer } from '@/layout/Drawer'
@@ -46,6 +47,18 @@ function App(): JSX.Element {
         updateLockState()
         return service.onLockStateChanged(setLockState)
     }, [service, setLockState, reset, updateLockState])
+
+    const setPreferredAdapterCategory = useUserSettingsStore(
+        (s) => s.setPreferredAdapterCategory,
+    )
+    useEffect(() => {
+        if (!service) {
+            setPreferredAdapterCategory('zmk')
+            return
+        }
+        const fw = service.deviceInfo.firmware
+        setPreferredAdapterCategory(fw === 'zmk' ? 'zmk' : 'qmk')
+    }, [service, setPreferredAdapterCategory])
 
     const onConnect = async (
         t: Transport,

@@ -5,18 +5,25 @@ import {
     listGrantedDevices as web_ble_list,
     connectToGrantedDevice as web_ble_connect_granted,
     requestAndConnect as web_ble_request_new,
+    forgetGrantedDevice as web_ble_forget,
 } from '../transport/web-ble'
 import {
     listGrantedPorts as web_serial_list,
     connectToGrantedPort as web_serial_connect_granted,
     requestAndConnect as web_serial_request_new,
+    setUserDeviceName as web_serial_set_user_name,
+    forgetGrantedPort as web_serial_forget,
+    onPortsChanged as web_serial_on_ports_changed,
 } from '../transport/web-serial'
 import {
     listGrantedDevices as web_hid_list,
     connectToGrantedDevice as web_hid_connect_granted,
     requestAndConnect as web_hid_request_new,
+    forgetGrantedDevice as web_hid_forget,
+    onDevicesChanged as web_hid_on_devices_changed,
     type HidFilter,
 } from '../transport/web-hid'
+import { onDevicesChanged as electron_on_devices_changed } from '../electron/serial'
 import {
     connect as tauri_ble_connect,
     list_devices as ble_list_devices,
@@ -191,6 +198,9 @@ export function getTransports(): TransportFactory[] {
                     connect: web_serial_connect_granted,
                 },
                 request_new: web_serial_request_new,
+                renameDevice: (device, name) =>
+                    web_serial_set_user_name(device.id, name),
+                forgetDevice: (device) => web_serial_forget(device.id),
             })
         }
 
@@ -204,6 +214,7 @@ export function getTransports(): TransportFactory[] {
                     connect: web_hid_connect_granted,
                 },
                 request_new: () => web_hid_request_new(filters),
+                forgetDevice: (device) => web_hid_forget(device.id),
             })
         }
 
@@ -212,8 +223,22 @@ export function getTransports(): TransportFactory[] {
         void web_ble_list
         void web_ble_connect_granted
         void web_ble_request_new
+        void web_ble_forget
     }
 
     cachedTransports = transports
     return cachedTransports
+}
+
+// pattern-check: Adapter (Tier 1) — applied — unifies Electron + Web Serial + Web HID change-event APIs into one subscribe signature
+export function subscribeToTransportChanges(cb: () => void): () => void {
+    if (isElectron()) {
+        return electron_on_devices_changed(cb)
+    }
+    const unsubs: Array<() => void> = []
+    if (typeof navigator !== 'undefined') {
+        if (navigator.serial) unsubs.push(web_serial_on_ports_changed(cb))
+        if ('hid' in navigator) unsubs.push(web_hid_on_devices_changed(cb))
+    }
+    return (): void => unsubs.forEach((u) => u())
 }

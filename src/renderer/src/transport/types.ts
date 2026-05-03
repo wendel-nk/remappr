@@ -1,4 +1,4 @@
-// pattern-check: skip — extracting existing TransportFactory type from ConnectModal into transport layer, no new logic
+// pattern-check: skip — extending existing TransportFactory type with optional capability hooks
 import type { Transport } from '@firmware'
 
 export interface AvailableDevice {
@@ -22,9 +22,9 @@ export interface TransportEventEmitter {
 }
 
 /**
- * Unified transport factory interface used by ConnectModal and StartPage.
- * Each transport provides either a direct `connect` (browser Web APIs)
- * or a `pick_and_connect` with device listing (Tauri/Electron native).
+ * Unified transport factory interface used by StartPage. Each transport
+ * provides either a direct `connect` (browser Web APIs) or a
+ * `pick_and_connect` with device listing (Electron native).
  */
 export type TransportFactory = {
     label: string
@@ -36,10 +36,13 @@ export type TransportFactory = {
         connect: (dev: AvailableDevice) => Promise<Transport>
     }
     /**
-     * Optional: trigger the browser/OS chooser to grant access to a new
-     * device, then connect to it. Used by Web Serial / Web BLE where the
-     * granted-device list (pick_and_connect.list) is empty until the user
-     * has gone through the native chooser at least once.
+     * Trigger the browser/OS chooser to grant access to a new device, then
+     * connect. Used by Web Serial / Web HID / Web BLE where the granted list
+     * starts empty until the user picks once.
      */
     request_new?: () => Promise<Transport>
+    /** Persist a user-supplied display name for a previously seen device. */
+    renameDevice?: (device: AvailableDevice, name: string) => void
+    /** Revoke browser permission for a paired device (browser only). */
+    forgetDevice?: (device: AvailableDevice) => Promise<void>
 }

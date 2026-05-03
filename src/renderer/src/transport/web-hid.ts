@@ -153,6 +153,17 @@ export async function requestAndConnect(
     return openTransport(d)
 }
 
+// pattern-check: skip — sibling capability utility, no abstraction
+export async function forgetGrantedDevice(deviceId: string): Promise<void> {
+    const d = deviceRegistry.get(deviceId)
+    if (!d) return
+    const forget = (d as HIDDevice & { forget?: () => Promise<void> }).forget
+    if (typeof forget === 'function') {
+        await forget.call(d).catch(() => undefined)
+    }
+    deviceRegistry.delete(deviceId)
+}
+
 export function onDevicesChanged(cb: () => void): () => void {
     if (!hasWebHid()) return () => undefined
     const handler = (): void => cb()

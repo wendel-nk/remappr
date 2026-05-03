@@ -6,46 +6,15 @@ import { Button } from '@/ui/button'
 import { Separator } from '@/ui/separator'
 import { toast } from 'sonner'
 import useConnectionStore from '@/stores/connectionStore'
-// pattern-check: skip — drop dead lock guards now that App-shell render-gates locked state
-import type { ExportedFile, Keymap } from '@firmware/types'
+import { downloadExports, exportedContentToString } from '@/lib/blob'
+import type { Keymap } from '@firmware/types'
 
 interface DownloadProps {
     opened?: boolean
     onClose?: () => void
 }
 
-function exportedContentToString(content: string | Uint8Array): string {
-    if (typeof content === 'string') return content
-    return new TextDecoder().decode(content)
-}
-
-function downloadExports(files: ExportedFile[]): void {
-    files.forEach((f, i) => {
-        const part: BlobPart =
-            typeof f.content === 'string'
-                ? f.content
-                : new Uint8Array(
-                      f.content.buffer.slice(
-                          f.content.byteOffset,
-                          f.content.byteOffset + f.content.byteLength,
-                      ) as ArrayBuffer,
-                  )
-        const blob = new Blob([part], { type: f.mime })
-        const url = URL.createObjectURL(blob)
-        const link = document.createElement('a')
-        link.href = url
-        link.download = f.filename
-        document.body.appendChild(link)
-        setTimeout((): void => {
-            link.click()
-            document.body.removeChild(link)
-            URL.revokeObjectURL(url)
-        }, i * 100)
-    })
-}
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export function Download(_props: DownloadProps): JSX.Element {
+export function Download({ opened, onClose }: DownloadProps): JSX.Element {
     const { service } = useConnectionStore()
 
     const [keymap, setKeymap] = useState<Keymap | undefined>(undefined)
@@ -69,15 +38,20 @@ export function Download(_props: DownloadProps): JSX.Element {
         }
     }, [service])
 
-    const handleGenerateConfig = async (): Promise<void> => {
+    const requireService = (): boolean => {
         if (!service) {
             toast.error(
                 'No keymap data available. Please connect to a keyboard first.',
             )
-            return
+            return false
         }
+        return true
+    }
+
+    const handleGenerateConfig = async (): Promise<void> => {
+        if (!requireService()) return
         try {
-            const files = await service.exportConfig()
+            const files = await service!.exportConfig()
             downloadExports(files)
             toast.success('Configuration files downloaded successfully!')
         } catch (error) {
@@ -87,14 +61,9 @@ export function Download(_props: DownloadProps): JSX.Element {
     }
 
     const handleCopyToClipboard = async (): Promise<void> => {
-        if (!service) {
-            toast.error(
-                'No keymap data available. Please connect to a keyboard first.',
-            )
-            return
-        }
+        if (!requireService()) return
         try {
-            const files = await service.exportConfig()
+            const files = await service!.exportConfig()
             const primary = files[0]
             if (!primary) {
                 toast.error('exportConfig returned no files')
@@ -114,6 +83,8 @@ export function Download(_props: DownloadProps): JSX.Element {
 
     return (
         <Modal
+            opened={opened}
+            onClose={onClose}
             customModalBoxClass="w-11/14 max-w-4xl"
             type="icon"
             icon={<DownloadIcon />}
@@ -171,7 +142,7 @@ export function Download(_props: DownloadProps): JSX.Element {
                                 </span>
                             </div>
                             <p className="text-sm text-green-700 dark:text-green-300">
-                                Found {keymap?.layers?.length || 0} layers.
+                                Found {keymap?.layers?.length ?? 0} layers.
                                 Export formats:{' '}
                                 {service?.capabilities.exportFormats.join(
                                     ', ',

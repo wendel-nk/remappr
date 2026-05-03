@@ -13,7 +13,7 @@ import {
     SidebarHeader,
     SidebarFooter,
 } from '@/ui/sidebar'
-import { DeviceMenu } from '@/features/connection/DeviceMenu'
+import { DeviceMenu } from '@/features/connection/device-menu/DeviceMenu'
 // pattern-check: skip — drop dead lock guards now that App-shell render-gates locked state
 import type { Keymap } from '@firmware/types'
 import { produce } from 'immer'
