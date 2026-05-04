@@ -1,0 +1,83 @@
+export type {
+    ActionSlot,
+    ActionSlotKind,
+    ActionType,
+    AdapterNotification,
+    AltRepeatKeyEntry,
+    AltRepeatKeyOptions,
+    ComboEntry,
+    DeviceInfo,
+    DynamicEntryCounts,
+    EncoderAction,
+    EncoderSlot,
+    ExportedFile,
+    KeyAction,
+    HoldTapLabelData,
+    KeyLabel,
+    KeyOverrideEntry,
+    KeyOverrideOptions,
+    KeyUpdate,
+    Keymap,
+    Layer,
+    LockState,
+    MacroAction,
+    PhysicalLayout,
+    PhysicalLayoutKey,
+    TapDanceEntry,
+    TransportKind,
+} from './types'
+
+export {isUnlocked} from './types'
+
+export type {
+    Capabilities,
+    DynamicEntriesApi,
+    EncoderApi,
+    HsvColor,
+    IndicatorConfig,
+    KeyboardService,
+    MacroApi,
+    RgbApi,
+    WirelessApi,
+    WirelessLpm,
+    WirelessStatus,
+    WirelessTransport,
+} from './service'
+
+export type {
+    BleDiscovery,
+    Discovery,
+    FirmwareAdapter,
+    HidDiscovery,
+    Probe,
+    ProbeHint,
+} from './adapter'
+
+export type {Transport} from './transport'
+
+export {
+    FirmwareError,
+    LockedError,
+    ProtocolError,
+    TransportError,
+    UnsupportedError,
+} from './errors'
+
+// Re-exported transport error: thrown by every transport factory when
+// the user cancels a system picker (web-serial / web-bluetooth / native
+// equivalents). Surfaced from @firmware so the renderer never needs to
+// import @firmware/zmk for it.
+export {UserCancelledError} from '@zmkfirmware/zmk-studio-ts-client/transport/errors'
+
+export {
+    resolveBindingLabels,
+    type ResolvedBindingPosition,
+    type ResolvedHoldTapDescriptor,
+} from './labels'
+
+export {getAdapters, pickAdapter, registerAdapter} from './registry'
+
+// Mock / demo entry point. The adapter is registered (id 'mock') but only
+// matches a sentinel transport label; `connectMock()` bypasses pickAdapter so
+// the Try Demo flow is independent of probe ordering.
+export {connectMock, MOCK_TRANSPORT_LABEL} from './mock/adapter'
