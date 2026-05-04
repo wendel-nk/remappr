@@ -6,8 +6,10 @@ import type {
     Capabilities,
     DynamicEntriesApi,
     EncoderApi,
+    HsvColor,
     KeyboardService,
     MacroApi,
+    RgbApi,
 } from '@firmware/service'
 import type {
     ActionType,
@@ -50,6 +52,7 @@ const MOCK_DYNAMIC_COUNTS: DynamicEntryCounts = {
 const MOCK_MACRO_COUNT = 3
 const MOCK_MACRO_BUFFER = 256
 const MOCK_ENCODER_COUNT = 2
+const MOCK_LED_COUNT = 24
 
 const MOCK_CAPABILITIES: Capabilities = {
     lock: true,
@@ -121,6 +124,7 @@ export class MockKeyboardService implements KeyboardService {
     public readonly encoders: EncoderApi
     public readonly dynamic: DynamicEntriesApi
     public readonly macros: MacroApi
+    public readonly rgb: RgbApi
 
     private tapDances: TapDanceEntry[] = Array.from(
         { length: MOCK_DYNAMIC_COUNTS.tapDance },
@@ -159,6 +163,21 @@ export class MockKeyboardService implements KeyboardService {
     private readonly closedListeners = new Set<ClosedHandler>()
 
     private nextLayerId = 0
+
+    private perKeyColors: HsvColor[] = Array.from(
+        { length: MOCK_LED_COUNT },
+        (_, i) => ({
+            h: Math.round(((i * 255) / MOCK_LED_COUNT) % 256),
+            s: 220,
+            v: 200,
+        }),
+    )
+    private perKeyType: number = 0
+    private indicatorsRaw: Uint8Array = new Uint8Array([
+        0x01, 0x00, 0xff, 0x80, 0x80,
+    ])
+    private mixedRegions: Uint8Array = new Uint8Array([0x01, 0x02, 0x03, 0x04])
+    private mixedEffect: Uint8Array = new Uint8Array([0x05, 0x06, 0x07, 0x08])
 
     constructor(opts: MockServiceOptions = {}) {
         this.deviceInfo = {
@@ -251,6 +270,56 @@ export class MockKeyboardService implements KeyboardService {
                 this.requireUnlocked()
                 this.requireMacro(idx)
                 this.macroBuffers[idx] = actions.map((a) => ({ ...a }))
+                this.markPending(true)
+            },
+        }
+        this.rgb = {
+            getLedCount: async () => MOCK_LED_COUNT,
+            getIndicators: async () => ({ raw: this.indicatorsRaw.slice() }),
+            setIndicators: async (cfg) => {
+                this.indicatorsRaw = cfg.raw.slice()
+                this.markPending(true)
+            },
+            save: async () => {
+                /* in-memory mock has no persistence */
+            },
+            getPerKeyType: async () => this.perKeyType,
+            setPerKeyType: async (t) => {
+                this.perKeyType = t & 0xff
+                this.markPending(true)
+            },
+            getPerKeyColors: async (start, count) => {
+                if (start < 0 || start + count > this.perKeyColors.length) {
+                    throw new ProtocolError(
+                        `Per-key range out of bounds: start=${start} count=${count}`,
+                    )
+                }
+                return this.perKeyColors
+                    .slice(start, start + count)
+                    .map((c) => ({ ...c }))
+            },
+            setPerKeyColors: async (start, colors) => {
+                if (
+                    start < 0 ||
+                    start + colors.length > this.perKeyColors.length
+                ) {
+                    throw new ProtocolError(
+                        `Per-key range out of bounds: start=${start} count=${colors.length}`,
+                    )
+                }
+                for (let i = 0; i < colors.length; i++) {
+                    this.perKeyColors[start + i] = { ...colors[i] }
+                }
+                this.markPending(true)
+            },
+            getMixedRegions: async () => this.mixedRegions.slice(),
+            setMixedRegions: async (b) => {
+                this.mixedRegions = b.slice()
+                this.markPending(true)
+            },
+            getMixedEffect: async () => this.mixedEffect.slice(),
+            setMixedEffect: async (b) => {
+                this.mixedEffect = b.slice()
                 this.markPending(true)
             },
         }

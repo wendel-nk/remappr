@@ -46,10 +46,6 @@ export const IpcChannels = {
     BLUEZ_LIST_DEVICES: 'bluez:list-devices',
     BLUEZ_CONNECT: 'bluez:connect',
 
-    // Noble (Linux only) — raw HCI socket, bypasses BlueZ entirely
-    NOBLE_LIST_DEVICES: 'noble:list-devices',
-    NOBLE_CONNECT: 'noble:connect',
-
     // HID device operations (raw USB HID via node-hid)
     HID_LIST_DEVICES: 'hid:list-devices',
     HID_CONNECT: 'hid:connect',
@@ -140,14 +136,6 @@ export interface IpcInvokeMap {
     }
     [IpcChannels.BLUEZ_CONNECT]: {
         params: { devicePath: string } & BleDiscoveryPayload
-        result: { ok: boolean; label?: string; error?: string }
-    }
-    [IpcChannels.NOBLE_LIST_DEVICES]: {
-        params: BleDiscoveryPayload
-        result: AvailableDevice[]
-    }
-    [IpcChannels.NOBLE_CONNECT]: {
-        params: { deviceId: string } & BleDiscoveryPayload
         result: { ok: boolean; label?: string; error?: string }
     }
     [IpcChannels.HID_LIST_DEVICES]: {

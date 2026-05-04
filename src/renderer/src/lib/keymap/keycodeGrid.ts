@@ -12,7 +12,7 @@ export enum Mods {
     RightGUI = 0x80,
 }
 
-export const all_mods: Mods[] = [
+const all_mods: readonly Mods[] = [
     Mods.LeftControl,
     Mods.LeftShift,
     Mods.LeftAlt,
@@ -23,12 +23,11 @@ export const all_mods: Mods[] = [
     Mods.RightGUI,
 ]
 
-export function modsToFlags(mods: Mods[]): number {
-    return mods.reduce((a: number, v: Mods): number => a + v, 0)
-}
+const MODS_FLAGS_SHIFTED =
+    all_mods.reduce((a: number, v: Mods): number => a | v, 0) << 24
 
 export function maskMods(value: number): number {
-    return value & ~(modsToFlags(all_mods) << 24)
+    return value & ~MODS_FLAGS_SHIFTED
 }
 
 export function filterKeysBySearch(
@@ -79,13 +78,7 @@ export function calculateContainerHeight(
     withPositions: CatalogEntry[],
     withoutPositions: CatalogEntry[],
 ): number {
-    let maxBottomPosition = 0
-    withPositions.forEach((key) => {
-        const keyHeight = key.h ? key.h / 2 : KEY_SIZE
-        const bottomPosition = ((key.y ?? 0) / 100) * KEY_SIZE + keyHeight
-        if (bottomPosition > maxBottomPosition)
-            maxBottomPosition = bottomPosition
-    })
+    const maxBottomPosition = maxBottomForPositioned(withPositions)
 
     let keysWithoutPosHeight = 0
     if (withoutPositions.length > 0) {

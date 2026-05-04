@@ -1,5 +1,5 @@
 // pattern-check: skip — hook consolidation, replaces use-transport-discovery + use-device-connection
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import type { Transport } from '@firmware'
 import { UserCancelledError } from '@firmware'
@@ -40,18 +40,20 @@ export function useConnection(
 ): UseConnectionResult {
     const transports = useMemo(() => getTransports(), [])
 
-    const haveTransports = transports.length > 0
-    const hasListableTransports = useMemo(
-        (): boolean => transports.some((t): boolean => !!t.pick_and_connect),
-        [transports],
-    )
-    const hasSimpleConnectOnly = useMemo(
-        (): boolean =>
-            transports.every(
-                (t): boolean => !t.pick_and_connect && !!t.connect,
-            ),
-        [transports],
-    )
+    const { haveTransports, hasListableTransports, hasSimpleConnectOnly } =
+        useMemo(() => {
+            let hasListable = false
+            let allSimple = transports.length > 0
+            for (const t of transports) {
+                if (t.pick_and_connect) hasListable = true
+                if (t.pick_and_connect || !t.connect) allSimple = false
+            }
+            return {
+                haveTransports: transports.length > 0,
+                hasListableTransports: hasListable,
+                hasSimpleConnectOnly: allSimple,
+            }
+        }, [transports])
 
     const [devices, setDevices] = useState<DeviceWithTransport[]>([])
     const [refreshing, setRefreshing] = useState(false)
@@ -94,12 +96,17 @@ export function useConnection(
         }
     }, [hasListableTransports, loadDevices])
 
+    const connectingDeviceIdRef = useRef(connectingDeviceId)
+    useEffect(() => {
+        connectingDeviceIdRef.current = connectingDeviceId
+    }, [connectingDeviceId])
+
     useEffect(() => {
         if (!hasListableTransports) return
         return subscribeToTransportChanges((): void => {
-            if (connectingDeviceId === null) loadDevices()
+            if (connectingDeviceIdRef.current === null) loadDevices()
         })
-    }, [hasListableTransports, loadDevices, connectingDeviceId])
+    }, [hasListableTransports, loadDevices])
 
     const refresh = useCallback((): void => {
         loadDevices()

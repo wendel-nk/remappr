@@ -1,8 +1,29 @@
-// Pattern check: Adapter (Tier 1) — extended — extends src/renderer/src/electron/serial.ts pattern; bridges HID IPC channels into the @firmware Transport contract.
-import { IpcChannels, IpcEvents } from '../../../shared/ipc-types'
+// Pattern check: Adapter (Tier 1) — extended — bridges Electron HID_CONNECT IPC into IpcTransportAdapter contract
+import { IpcChannels } from '../../../shared/ipc-types'
 import type { HidDiscoveryPayload } from '../../../shared/ipc-types'
-import type { Transport } from '@firmware'
 import type { AvailableDevice } from '../transport/types'
+import {
+    IpcTransportAdapter,
+    electronIpc,
+    type IpcConnectResult,
+} from '../transport/adapter/ipc-adapter'
+import { registerTransport } from '../transport/adapter/registry'
+
+export class ElectronHidAdapter extends IpcTransportAdapter {
+    constructor(private readonly dev: AvailableDevice) {
+        super(electronIpc, dev.label)
+    }
+
+    protected async connectIpc(): Promise<IpcConnectResult> {
+        const result = (await window.api.invoke(IpcChannels.HID_CONNECT, {
+            device: this.dev,
+        })) as { ok: boolean; label?: string; error?: string }
+        if (!result.ok) {
+            throw new Error(result.error ?? 'HID connect failed')
+        }
+        return { label: result.label ?? this.dev.label }
+    }
+}
 
 export async function list_devices(
     discovery: HidDiscoveryPayload,
@@ -13,66 +34,19 @@ export async function list_devices(
     )) as AvailableDevice[]
 }
 
-export async function connect(dev: AvailableDevice): Promise<Transport> {
-    const result = (await window.api.invoke(IpcChannels.HID_CONNECT, {
-        device: dev,
-    })) as { ok: boolean; label?: string; error?: string }
-    if (!result.ok) {
-        throw new Error(result.error ?? 'HID connect failed')
-    }
-
-    const abortController = new AbortController()
-
-    const writable = new WritableStream<Uint8Array>({
-        async write(chunk) {
-            await window.api.invoke(
-                IpcChannels.TRANSPORT_SEND_DATA,
-                new Uint8Array(chunk),
-            )
-        },
-    })
-
-    const { writable: response_writable, readable } = new TransformStream<
-        Uint8Array,
-        Uint8Array
-    >()
-
-    const unlisten_data = window.api.on(
-        IpcEvents.CONNECTION_DATA,
-        async (...args: unknown[]) => {
-            const data = args[0] as number[]
-            const writer = response_writable.getWriter()
-            await writer.write(new Uint8Array(data))
-            writer.releaseLock()
-        },
-    )
-
-    const unlisten_disconnected = window.api.on(
-        IpcEvents.CONNECTION_DISCONNECTED,
-        async () => {
-            unlisten_data()
-            unlisten_disconnected()
-            try {
-                await response_writable.close()
-            } catch {
-                /* already closed */
-            }
-        },
-    )
-
-    const abort_cb = async (): Promise<void> => {
-        unlisten_data()
-        unlisten_disconnected()
-        await window.api.invoke(IpcChannels.TRANSPORT_CLOSE)
-        abortController.signal.removeEventListener('abort', abort_cb)
-    }
-
-    abortController.signal.addEventListener('abort', abort_cb)
-
-    return {
-        label: result.label ?? dev.label,
-        abortController,
-        readable,
-        writable,
-    }
-}
+registerTransport({
+    id: 'electron:hid',
+    envs: 'electron',
+    create(ctx) {
+        const hid = ctx.hidDiscovery()
+        if (!hid) return null
+        return {
+            label: 'HID',
+            communication: 'hid',
+            pick_and_connect: {
+                list: () => list_devices(hid),
+                connect: (dev) => new ElectronHidAdapter(dev).connect(),
+            },
+        }
+    },
+})

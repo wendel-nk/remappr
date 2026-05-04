@@ -9,10 +9,11 @@ import type {
 import { Button } from '@/ui/button'
 import { FieldGroup } from '@/ui/field'
 
+import { saveWithToast } from '@/lib/saveWithToast'
+
 import { IndexInput } from '../_shared/IndexInput'
 import { NumField } from '../_shared/NumField'
 import { OptionGrid, type OptionDef } from '../_shared/OptionGrid'
-import { saveWithToast } from '../_shared/saveWithToast'
 import { useDynamicEntry } from '../_shared/useDynamicEntry'
 
 interface Props {

@@ -5,9 +5,10 @@ import type { KeyboardService, TapDanceEntry } from '@firmware'
 import { Button } from '@/ui/button'
 import { FieldGroup } from '@/ui/field'
 
+import { saveWithToast } from '@/lib/saveWithToast'
+
 import { IndexInput } from '../_shared/IndexInput'
 import { NumField } from '../_shared/NumField'
-import { saveWithToast } from '../_shared/saveWithToast'
 import { useDynamicEntry } from '../_shared/useDynamicEntry'
 
 interface Props {

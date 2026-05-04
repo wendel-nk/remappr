@@ -46,11 +46,12 @@ export function useLayout(): UseLayoutsReturn {
         }
 
         setLayouts(undefined)
-        void fetchLayouts(true)
 
         const off = service.subscribe?.((n) => {
             if (n.topic === 'layout-changed') void fetchLayouts(false)
         })
+
+        void fetchLayouts(true)
 
         return (): void => {
             isCancelled = true

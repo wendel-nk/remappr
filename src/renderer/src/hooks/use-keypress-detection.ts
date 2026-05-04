@@ -1,4 +1,5 @@
-import { useEffect } from 'react'
+// Pattern check: no GoF pattern (-) — rejected — ref-latest fix to stop listener re-attach, no abstraction needed
+import { useEffect, useRef } from 'react'
 import {
     findKeyPositionForDomKey,
     type KeypressDetectionConfig,
@@ -13,6 +14,14 @@ export function useKeypressDetection(
     config: KeypressDetectionConfig | null,
     { onPressed, onReleased }: KeypressHandlers,
 ): void {
+    const onPressedRef = useRef(onPressed)
+    const onReleasedRef = useRef(onReleased)
+
+    useEffect(() => {
+        onPressedRef.current = onPressed
+        onReleasedRef.current = onReleased
+    }, [onPressed, onReleased])
+
     useEffect(() => {
         if (!config) return
 
@@ -24,12 +33,12 @@ export function useKeypressDetection(
                 return
             }
             const keyPosition = findKeyPositionForDomKey(event.code, config)
-            if (keyPosition !== null) onPressed(keyPosition)
+            if (keyPosition !== null) onPressedRef.current(keyPosition)
         }
 
         const handleKeyUp = (event: KeyboardEvent): void => {
             const keyPosition = findKeyPositionForDomKey(event.code, config)
-            if (keyPosition !== null) onReleased(keyPosition)
+            if (keyPosition !== null) onReleasedRef.current(keyPosition)
         }
 
         window.addEventListener('keydown', handleKeyDown)
@@ -39,5 +48,5 @@ export function useKeypressDetection(
             window.removeEventListener('keydown', handleKeyDown)
             window.removeEventListener('keyup', handleKeyUp)
         }
-    }, [config, onPressed, onReleased])
+    }, [config])
 }

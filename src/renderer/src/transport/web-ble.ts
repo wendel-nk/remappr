@@ -45,25 +45,58 @@ async function openTransport(
 
     const char = await svc.getCharacteristic(charUuid)
 
+    let onValueChanged: ((ev: Event) => void) | null = null
+    let onDisconnected: (() => void) | null = null
+
     const readable = new ReadableStream<Uint8Array>({
         async start(controller) {
             await char.stopNotifications().catch(() => undefined)
             await char.startNotifications()
 
-            const vc = (ev: Event): void => {
+            // B7: respect view byteOffset/byteLength — value is a DataView
+            onValueChanged = (ev: Event): void => {
                 const target = ev.target as BluetoothRemoteGATTCharacteristic
-                const buf = target?.value?.buffer
-                if (!buf) return
-                controller.enqueue(new Uint8Array(buf))
+                const v = target?.value
+                if (!v) return
+                controller.enqueue(
+                    new Uint8Array(v.buffer, v.byteOffset, v.byteLength),
+                )
             }
-            char.addEventListener('characteristicvaluechanged', vc)
+            char.addEventListener('characteristicvaluechanged', onValueChanged)
 
-            const cb = async (): Promise<void> => {
-                char.removeEventListener('characteristicvaluechanged', vc)
-                dev.removeEventListener('gattserverdisconnected', cb)
+            onDisconnected = (): void => {
+                if (onValueChanged) {
+                    char.removeEventListener(
+                        'characteristicvaluechanged',
+                        onValueChanged,
+                    )
+                }
+                if (onDisconnected) {
+                    dev.removeEventListener(
+                        'gattserverdisconnected',
+                        onDisconnected,
+                    )
+                }
                 controller.close()
             }
-            dev.addEventListener('gattserverdisconnected', cb)
+            dev.addEventListener('gattserverdisconnected', onDisconnected)
+        },
+        // B5: clean up listeners if consumer cancels before disconnect fires
+        cancel(): void {
+            if (onValueChanged) {
+                char.removeEventListener(
+                    'characteristicvaluechanged',
+                    onValueChanged,
+                )
+                onValueChanged = null
+            }
+            if (onDisconnected) {
+                dev.removeEventListener(
+                    'gattserverdisconnected',
+                    onDisconnected,
+                )
+                onDisconnected = null
+            }
         },
     })
 

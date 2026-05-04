@@ -1,5 +1,5 @@
-// Pattern check: no GoF pattern (-) — rejected — refactor hook to consume catalog from connectionStore instead of legacy keyboards import; data source swap.
-import { useEffect, useMemo, useState } from 'react'
+// Pattern check: no GoF pattern (-) — rejected — derive active tab instead of set-state-in-effect, single-hook refactor
+import { useMemo, useState } from 'react'
 import { CATALOG_PAGES } from '@firmware/catalog/pages'
 import type { CatalogPage } from '@firmware/catalog/types'
 import useConnectionStore from '@/stores/connectionStore'
@@ -16,7 +16,7 @@ interface UseKeycodeFilterResult {
 
 export function useKeycodeFilter(): UseKeycodeFilterResult {
     const [searchQuery, setSearchQuery] = useState('')
-    const [activeTab, setActiveTab] = useState('0')
+    const [userTab, setUserTab] = useState('0')
     const keyCatalog = useConnectionStore((s) => s.keyCatalog)
 
     const pages: CatalogPage[] = useMemo(
@@ -31,24 +31,22 @@ export function useKeycodeFilter(): UseKeycodeFilterResult {
         })
     }, [pages, searchQuery])
 
-    useEffect(() => {
-        if (!searchQuery.trim()) return
-        const currentTabIndex = parseInt(activeTab)
-        const currentPage = pagesWithMatches[currentTabIndex]
-        if (currentPage && !currentPage.hasMatches) {
-            const firstEnabledTab = pagesWithMatches.find((k) => k.hasMatches)
-            if (firstEnabledTab) {
-                // eslint-disable-next-line react-hooks/set-state-in-effect
-                setActiveTab(firstEnabledTab.index.toString())
-            }
-        }
-    }, [searchQuery, activeTab, pagesWithMatches])
+    const activeTab = useMemo(() => {
+        const userIndex = parseInt(userTab)
+        const maxIndex = pages.length - 1
+        const clamped = Math.min(Math.max(0, userIndex), Math.max(0, maxIndex))
+        if (!searchQuery.trim()) return clamped.toString()
+        const current = pagesWithMatches[clamped]
+        if (current?.hasMatches) return clamped.toString()
+        const firstMatch = pagesWithMatches.find((k) => k.hasMatches)
+        return (firstMatch?.index ?? clamped).toString()
+    }, [userTab, searchQuery, pagesWithMatches, pages.length])
 
     return {
         searchQuery,
         setSearchQuery,
         activeTab,
-        setActiveTab,
+        setActiveTab: setUserTab,
         pages,
         pagesWithMatches,
     }

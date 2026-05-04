@@ -19,6 +19,7 @@ import { toast } from 'sonner'
 import { StartPage } from '@/features/connection/start-page/StartPage'
 import { UpdateNotification } from '@/components/UpdateNotification'
 import { TitleBar } from '@/layout/TitleBar'
+import { isElectron as isElectronEnv } from '@/transport'
 
 function App(): JSX.Element {
     // pattern-check: skip — UI sweep, replace store-connection with store-service
@@ -105,9 +106,7 @@ function App(): JSX.Element {
         }
     }
 
-    const isElectron =
-        typeof window !== 'undefined' &&
-        Boolean((window as unknown as { api?: unknown }).api)
+    const isElectron = isElectronEnv()
 
     useEffect(() => {
         if (!isElectron) return

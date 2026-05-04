@@ -6,7 +6,7 @@ export function exportedContentToString(content: string | Uint8Array): string {
 }
 
 export function downloadExports(files: ExportedFile[]): void {
-    files.forEach((f, i) => {
+    files.forEach((f) => {
         const part: BlobPart =
             typeof f.content === 'string'
                 ? f.content
@@ -22,10 +22,8 @@ export function downloadExports(files: ExportedFile[]): void {
         link.href = url
         link.download = f.filename
         document.body.appendChild(link)
-        setTimeout((): void => {
-            link.click()
-            document.body.removeChild(link)
-            URL.revokeObjectURL(url)
-        }, i * 100)
+        link.click()
+        document.body.removeChild(link)
+        URL.revokeObjectURL(url)
     })
 }

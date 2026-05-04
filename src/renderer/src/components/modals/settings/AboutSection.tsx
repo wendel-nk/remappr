@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { Button } from '@/ui/button'
 import { DownloadLatestButton } from '@/components/DownloadLatestButton'
 import { APP_VERSION } from '@/lib/constants'
+import { isElectron as isElectronEnv } from '@/transport'
 import { IpcChannels } from '../../../../../shared/ipc-types'
 import type { UpdateCheckResultPayload } from '../../../../../shared/ipc-types'
 
@@ -16,7 +17,7 @@ interface ElectronWindow {
 export function AboutSection(): JSX.Element {
     const [checking, setChecking] = useState(false)
     const api = (window as unknown as ElectronWindow).api
-    const isElectron = Boolean(api)
+    const isElectron = isElectronEnv()
 
     const handleCheckUpdates = async (): Promise<void> => {
         if (!api) return

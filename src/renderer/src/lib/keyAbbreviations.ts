@@ -17,7 +17,7 @@ const ELLIPSIS = '…'
  * Keys are matched case-insensitively. Both common spellings (with/without
  * spaces or hyphens) are included where relevant.
  */
-export const KEY_ABBREVIATIONS: Readonly<Record<string, string>> = {
+const KEY_ABBREVIATIONS: Readonly<Record<string, string>> = {
     backspace: 'BkSp',
     delete: 'Del',
     escape: 'Esc',

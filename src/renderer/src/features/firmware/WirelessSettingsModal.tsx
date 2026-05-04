@@ -1,25 +1,23 @@
-// pattern-check: skip — Keychron wireless settings modal; per-feature reads/writes through service.wireless facade
+// pattern-check: skip — Keychron wireless settings modal; reads/writes through service.wireless facade
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 
-import type { KeyboardService, WirelessStatus } from '@firmware'
+import type { WirelessStatus } from '@firmware'
+import useConnectionStore from '@/stores/connectionStore'
+import { saveWithToast } from '@/lib/saveWithToast'
 import { Modal } from '@/ui/modal'
 import { Button } from '@/ui/button'
 import { Input } from '@/ui/input'
 import { Label } from '@/ui/label'
+import { Switch } from '@/ui/switch'
 
 interface Props {
-    service: KeyboardService | null
     opened: boolean
     onClose: () => void
 }
 
-export function WirelessSettingsModal({
-    service,
-    opened,
-    onClose,
-}: Props): JSX.Element {
-    const wireless = service?.wireless
+export function WirelessSettingsModal({ opened, onClose }: Props): JSX.Element {
+    const wireless = useConnectionStore((s) => s.service?.wireless)
 
     const [lpmEnabled, setLpmEnabled] = useState(false)
     const [lpmTimeout, setLpmTimeout] = useState(0)
@@ -63,7 +61,9 @@ export function WirelessSettingsModal({
                 if (!cancelled) setLoading(false)
             }
         })()
-        const off = wireless.onStatusChanged((s) => setStatus(s))
+        const off = wireless.onStatusChanged((s) => {
+            if (!cancelled) setStatus(s)
+        })
         return (): void => {
             cancelled = true
             off()
@@ -72,38 +72,28 @@ export function WirelessSettingsModal({
 
     if (!wireless) return <></>
 
-    const saveLpm = async (): Promise<void> => {
-        try {
-            await wireless.setLpm({
-                enabled: lpmEnabled,
-                timeoutMs: lpmTimeout,
-            })
-            toast.success('Wireless LPM updated')
-        } catch (e) {
-            toast.error(
-                `Failed to update LPM: ${
-                    e instanceof Error ? e.message : String(e)
-                }`,
-            )
-        }
-    }
+    const saveLpm = (): Promise<void | undefined> =>
+        saveWithToast(
+            () =>
+                wireless.setLpm({
+                    enabled: lpmEnabled,
+                    timeoutMs: lpmTimeout,
+                }),
+            'Wireless LPM updated',
+            'Failed to update LPM',
+        )
 
     const toggleNkro = async (next: boolean): Promise<void> => {
         if (!wireless.setNkro) return
-        try {
-            await wireless.setNkro(next)
-            setNkro(next)
-            toast.success(`NKRO ${next ? 'enabled' : 'disabled'}`)
-        } catch (e) {
-            toast.error(
-                `Failed to update NKRO: ${
-                    e instanceof Error ? e.message : String(e)
-                }`,
-            )
-        }
+        const r = await saveWithToast(
+            () => wireless.setNkro!(next),
+            `NKRO ${next ? 'enabled' : 'disabled'}`,
+            'Failed to update NKRO',
+        )
+        if (r !== undefined) setNkro(next)
     }
 
-    const factoryReset = async (): Promise<void> => {
+    const factoryReset = (): Promise<void | undefined> | void => {
         if (!wireless.factoryReset) return
         if (
             !window.confirm(
@@ -112,16 +102,11 @@ export function WirelessSettingsModal({
         ) {
             return
         }
-        try {
-            await wireless.factoryReset()
-            toast.success('Factory reset issued')
-        } catch (e) {
-            toast.error(
-                `Factory reset failed: ${
-                    e instanceof Error ? e.message : String(e)
-                }`,
-            )
-        }
+        return saveWithToast(
+            () => wireless.factoryReset!(),
+            'Factory reset issued',
+            'Factory reset failed',
+        )
     }
 
     return (
@@ -148,11 +133,10 @@ export function WirelessSettingsModal({
                 <section className="flex flex-col gap-2">
                     <h3 className="font-semibold">Low-power mode</h3>
                     <div className="flex items-center gap-2">
-                        <input
+                        <Switch
                             id="lpm-enabled"
-                            type="checkbox"
                             checked={lpmEnabled}
-                            onChange={(e) => setLpmEnabled(e.target.checked)}
+                            onCheckedChange={setLpmEnabled}
                             disabled={loading}
                         />
                         <Label htmlFor="lpm-enabled">Enable LPM</Label>
@@ -185,11 +169,10 @@ export function WirelessSettingsModal({
                     <section className="flex flex-col gap-2">
                         <h3 className="font-semibold">N-Key Rollover</h3>
                         <div className="flex items-center gap-2">
-                            <input
+                            <Switch
                                 id="nkro"
-                                type="checkbox"
                                 checked={nkro}
-                                onChange={(e) => toggleNkro(e.target.checked)}
+                                onCheckedChange={toggleNkro}
                                 disabled={loading}
                             />
                             <Label htmlFor="nkro">Enable NKRO</Label>

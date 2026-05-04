@@ -184,7 +184,6 @@ export function Header(): JSX.Element {
                         </Tooltip>
                     </FeatureGate>
                     <WirelessSettingsModal
-                        service={service}
                         opened={wirelessOpen}
                         onClose={(): void => setWirelessOpen(false)}
                     />
@@ -206,7 +205,6 @@ export function Header(): JSX.Element {
                         </Tooltip>
                     </FeatureGate>
                     <RgbSettingsModal
-                        service={service}
                         opened={rgbOpen}
                         onClose={(): void => setRgbOpen(false)}
                     />

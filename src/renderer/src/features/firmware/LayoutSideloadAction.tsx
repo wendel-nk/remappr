@@ -1,4 +1,4 @@
-// Pattern check: no GoF pattern (-) — rejected — file-picker UI glue around service.applyLayout; small single-purpose component.
+// pattern-check: skip — file-picker UI glue around service.applyLayout
 import { useCallback, useRef } from 'react'
 import { Upload } from 'lucide-react'
 import { toast } from 'sonner'
@@ -7,6 +7,7 @@ import { Button } from '@/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/ui/tooltip'
 import useConnectionStore from '@/stores/connectionStore'
 import useKeymapStore from '@/stores/keymapStore'
+import { saveWithToast } from '@/lib/saveWithToast'
 import {
     cacheKey,
     parseSideloadJson,
@@ -14,7 +15,7 @@ import {
 } from '@firmware/qmk/layoutSideload'
 
 export function LayoutSideloadAction(): JSX.Element | null {
-    const { service } = useConnectionStore()
+    const service = useConnectionStore((s) => s.service)
     const setKeymap = useKeymapStore((s) => s.setKeymap)
     const inputRef = useRef<HTMLInputElement | null>(null)
 
@@ -27,21 +28,21 @@ export function LayoutSideloadAction(): JSX.Element | null {
                 toast.error('This firmware does not support layout sideload')
                 return
             }
-            try {
-                const text = await file.text()
-                const def = parseSideloadJson(text)
-                await service.applyLayout(def)
-                const key = cacheKey(service.deviceInfo)
-                if (key) saveCached(key, def)
-                const km = await service.getKeymap()
-                setKeymap(km)
-                toast.success(`Layout loaded: ${def.name}`)
-            } catch (err) {
-                console.error('Layout sideload failed', err)
-                toast.error(
-                    `Failed to load layout: ${(err as Error).message ?? 'unknown error'}`,
-                )
-            }
+            const name = await saveWithToast(
+                async () => {
+                    const text = await file.text()
+                    const def = parseSideloadJson(text)
+                    await service.applyLayout!(def)
+                    const key = cacheKey(service.deviceInfo)
+                    if (key) saveCached(key, def)
+                    const km = await service.getKeymap()
+                    setKeymap(km)
+                    return def.name
+                },
+                null,
+                'Failed to load layout',
+            )
+            if (name) toast.success(`Layout loaded: ${name}`)
         },
         [service, setKeymap],
     )

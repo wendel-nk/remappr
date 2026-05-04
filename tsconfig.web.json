@@ -8,8 +8,17 @@
     "src/shared/**/*",
     "src/firmware/**/*"
   ],
+  "exclude": [
+    "node_modules",
+    "out-types",
+    "**/*.stories.ts",
+    "**/*.stories.tsx"
+  ],
   "compilerOptions": {
     "composite": true,
+    "declaration": true,
+    "outDir": "./out-types/web",
+    "emitDeclarationOnly": true,
     "jsx": "react-jsx",
     "strict": true,
     "noImplicitAny": true,

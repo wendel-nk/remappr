@@ -24,13 +24,6 @@ import {
     hasActiveBluezConnection,
 } from './bluez'
 import {
-    listNobleDevices,
-    connectNobleDevice,
-    writeNoble,
-    disconnectNobleDevice,
-    hasActiveNobleConnection,
-} from './noble-ble'
-import {
     listHidDevices,
     connectHidDevice,
     writeHid,
@@ -74,7 +67,7 @@ function parseHidDiscovery(arg: unknown): HidDiscoveryFilter {
 // Tracks which transport currently owns send/close. Set when a transport
 // connects, cleared on disconnect/error. Lets TRANSPORT_SEND_DATA and
 // TRANSPORT_CLOSE route to whichever transport is active.
-type ActiveKind = 'serial' | 'bluez' | 'noble' | 'hid' | null
+type ActiveKind = 'serial' | 'bluez' | 'hid' | null
 let activeKind: ActiveKind = null
 
 /** Send an event to all renderer windows */
@@ -180,47 +173,6 @@ export function registerIpcHandlers(getWindows: () => BrowserWindow[]): void {
 
     ipcMain.handle(IpcChannels.GET_PLATFORM, async () => process.platform)
 
-    // --- Noble direct handlers (Linux, raw HCI) ---
-
-    ipcMain.handle(IpcChannels.NOBLE_LIST_DEVICES, async (_, arg: unknown) => {
-        const d = parseDiscovery(arg)
-        if (!d) return []
-        return await listNobleDevices(d.serviceUuid)
-    })
-
-    ipcMain.handle(IpcChannels.NOBLE_CONNECT, async (_, arg: unknown) => {
-        const a = arg as { deviceId?: unknown } & DiscoveryPayload
-        const deviceId = a?.deviceId
-        if (typeof deviceId !== 'string' || !deviceId) {
-            return { ok: false, error: 'Invalid device id' }
-        }
-        const d = parseDiscovery(arg)
-        if (!d) {
-            return { ok: false, error: 'Invalid discovery payload' }
-        }
-        try {
-            const label = await connectNobleDevice(
-                deviceId,
-                d.serviceUuid,
-                d.charUuid,
-                {
-                    onData: (data) =>
-                        ipcHandlerContext.emitConnectionData(data),
-                    onDisconnected: () => {
-                        activeKind = null
-                        ipcHandlerContext.emitConnectionDisconnected()
-                    },
-                },
-            )
-            activeKind = 'noble'
-            return { ok: true, label }
-        } catch (e) {
-            const msg = e instanceof Error ? e.message : String(e)
-            console.error('[ipc] NOBLE_CONNECT failed:', msg)
-            return { ok: false, error: msg }
-        }
-    })
-
     // --- HID handlers (raw USB HID via node-hid) ---
 
     ipcMain.handle(IpcChannels.HID_LIST_DEVICES, async (_, arg: unknown) => {
@@ -258,8 +210,6 @@ export function registerIpcHandlers(getWindows: () => BrowserWindow[]): void {
             const validData = validateUint8Array(data)
             if (activeKind === 'bluez') {
                 await writeGatt(validData)
-            } else if (activeKind === 'noble') {
-                await writeNoble(validData)
             } else if (activeKind === 'hid') {
                 await writeHid(validData)
             } else {
@@ -271,8 +221,6 @@ export function registerIpcHandlers(getWindows: () => BrowserWindow[]): void {
     ipcMain.handle(IpcChannels.TRANSPORT_CLOSE, async () => {
         if (activeKind === 'bluez' || hasActiveBluezConnection()) {
             await disconnectGattDevice()
-        } else if (activeKind === 'noble' || hasActiveNobleConnection()) {
-            await disconnectNobleDevice()
         } else if (activeKind === 'hid' || hasActiveHidConnection()) {
             await disconnectHidDevice()
         } else {

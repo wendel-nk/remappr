@@ -1,18 +1,20 @@
-import * as React from 'react'
+// Pattern check: no GoF pattern (-) — rejected — import normalization + matchMedia source-of-truth fix, no abstraction
+import { useEffect, useState } from 'react'
 
 const MOBILE_BREAKPOINT = 768
+const MOBILE_QUERY = `(max-width: ${MOBILE_BREAKPOINT - 1}px)`
 
 export function useIsMobile(): boolean {
-    const [isMobile, setIsMobile] = React.useState<boolean>(
+    const [isMobile, setIsMobile] = useState<boolean>(() =>
         typeof window !== 'undefined'
-            ? window.innerWidth < MOBILE_BREAKPOINT
+            ? window.matchMedia(MOBILE_QUERY).matches
             : false,
     )
 
-    React.useEffect((): (() => void) => {
-        const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`)
+    useEffect((): (() => void) => {
+        const mql = window.matchMedia(MOBILE_QUERY)
         const onChange = (): void => {
-            setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
+            setIsMobile(mql.matches)
         }
         mql.addEventListener('change', onChange)
         return (): void => mql.removeEventListener('change', onChange)

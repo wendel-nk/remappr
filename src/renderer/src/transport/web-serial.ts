@@ -1,6 +1,7 @@
 // pattern-check: skip — bug fix in single transport module; cache + perm helpers are utilities
 import type { Transport } from '@firmware'
 import type { AvailableDevice } from '@/transport/types'
+import { registerTransport } from '@/transport/adapter/registry'
 
 const BAUD_RATE = 12500
 
@@ -320,3 +321,25 @@ export async function forgetGrantedPort(deviceId: string): Promise<void> {
         }
     }
 }
+
+registerTransport({
+    id: 'web:serial',
+    envs: 'web',
+    create() {
+        if (typeof navigator === 'undefined' || !navigator.serial) return null
+        return {
+            label: 'USB',
+            communication: 'serial',
+            pick_and_connect: {
+                list: listGrantedPorts,
+                connect: connectToGrantedPort,
+            },
+            request_new: requestAndConnect,
+            renameDevice: (device, name) => setUserDeviceName(device.id, name),
+            forgetDevice: (device) => forgetGrantedPort(device.id),
+        }
+    },
+    subscribeChanges(_ctx, cb) {
+        return onPortsChanged(cb)
+    },
+})

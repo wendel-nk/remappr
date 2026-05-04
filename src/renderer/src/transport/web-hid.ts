@@ -1,6 +1,7 @@
 // Pattern check: Adapter (Tier 1) — extended — bridges navigator.hid (WebHID) into firmware Transport contract; mirrors src/renderer/src/transport/web-serial.ts.
 import type { Transport } from '@firmware'
 import type { AvailableDevice } from '@/transport/types'
+import { registerTransport } from '@/transport/adapter/registry'
 
 export interface HidFilter {
     vendorId?: number
@@ -174,3 +175,25 @@ export function onDevicesChanged(cb: () => void): () => void {
         navigator.hid.removeEventListener('disconnect', handler)
     }
 }
+
+registerTransport({
+    id: 'web:hid',
+    envs: 'web',
+    create(ctx) {
+        if (!hasWebHid()) return null
+        const filters = ctx.hidFilters()
+        return {
+            label: 'HID',
+            communication: 'hid',
+            pick_and_connect: {
+                list: () => listGrantedDevices(filters),
+                connect: connectToGrantedDevice,
+            },
+            request_new: () => requestAndConnect(filters),
+            forgetDevice: (device) => forgetGrantedDevice(device.id),
+        }
+    },
+    subscribeChanges(_ctx, cb) {
+        return onDevicesChanged(cb)
+    },
+})

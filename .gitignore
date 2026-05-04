@@ -10,6 +10,7 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+out-types
 *.local
 src/data
 out
@@ -32,6 +33,7 @@ package-lock.json
 *.njsproj
 *.sln
 *.sw?
+*.tsbuildinfo
 
 *storybook.log
 .patchwork

@@ -50,21 +50,23 @@ export function setupBleDeviceSelection(window: BrowserWindow): void {
             // Store the callback so we can resolve it when the user picks a device
             pendingDeviceCallback = callback
 
-            // Drop nameless ghosts. Chromium labels nameless advertisements
-            // as "Unknown or Unsupported Device (MAC)" — skip those too, not
-            // just truly-empty deviceName. Keyboards always advertise a real
-            // friendly name.
+            // ZMK keyboards don't always include a friendly name in the BLE
+            // advertising payload — when already paired to the OS, the name
+            // resolution may not surface. Keep "Unknown or Unsupported"
+            // devices and label them by MAC so the user can still pick.
+            // Chromium uses the format "Unknown or Unsupported Device (MAC)";
+            // strip the prefix so the label is just "BLE C0:60:61:96:8F:1C".
             const availableDevices: AvailableDevice[] = devices
                 .filter((d) => {
                     const n = (d.deviceName || '').trim()
-                    if (!n) return false
-                    if (/^Unknown or Unsupported/i.test(n)) return false
-                    return true
+                    return n.length > 0
                 })
-                .map((d) => ({
-                    label: d.deviceName,
-                    id: d.deviceId,
-                }))
+                .map((d) => {
+                    const raw = d.deviceName.trim()
+                    const isUnknown = /^Unknown or Unsupported/i.test(raw)
+                    const label = isUnknown ? `BLE ${d.deviceId}` : raw
+                    return { label, id: d.deviceId }
+                })
 
             console.log(
                 '[ble-manager] forwarding to renderer, kept:',
@@ -106,6 +108,16 @@ export function registerBleIpcHandlers(): void {
         async (_, deviceId: unknown) => {
             if (typeof deviceId !== 'string' || !deviceId) {
                 return false
+            }
+
+            // The renderer may call BLE_SELECT_DEVICE before Chromium has
+            // fired the next select-bluetooth-device event (which sets
+            // pendingDeviceCallback). Wait briefly for it to arrive instead
+            // of returning false immediately — fixes second-click failures
+            // when the previous callback was already consumed.
+            const deadline = Date.now() + 3000
+            while (!pendingDeviceCallback && Date.now() < deadline) {
+                await new Promise((r) => setTimeout(r, 50))
             }
 
             if (pendingDeviceCallback) {

@@ -1,14 +1,19 @@
-// Pattern check: no GoF pattern (-) — rejected — effect-driven runtime lookup with banner UI; small component, single caller.
+// pattern-check: skip — effect-driven runtime lookup with banner UI; single caller
 import { useEffect, useState } from 'react'
 import { Loader2, X } from 'lucide-react'
 import { toast } from 'sonner'
 
+import type { KeyboardService } from '@firmware'
 import useConnectionStore from '@/stores/connectionStore'
 import useKeymapStore from '@/stores/keymapStore'
 import useUserSettingsStore from '@/stores/userSettingsStore'
 import { Button } from '@/ui/button'
 import { cacheKey, saveCached } from '@firmware/qmk/layoutSideload'
 import { findDef, type LookupStatus } from '@firmware/qmk/viaRegistry'
+
+const dbg = (...args: unknown[]): void => {
+    if (import.meta.env.DEV) console.log('[AutoLayoutResolver]', ...args)
+}
 
 function statusLine(s: LookupStatus): string {
     switch (s.phase) {
@@ -27,66 +32,77 @@ function statusLine(s: LookupStatus): string {
     }
 }
 
+type RunPlan =
+    | { run: false; reason: string }
+    | { run: true; vid: number; pid: number; name: string | undefined }
+
+function shouldRunAutoLayout(
+    service: KeyboardService | null,
+    autoLoadLayout: boolean,
+): RunPlan {
+    if (!service) return { run: false, reason: 'no service' }
+    if (!service.capabilities.layoutSideloadable)
+        return { run: false, reason: '!layoutSideloadable' }
+    if (!autoLoadLayout)
+        return { run: false, reason: 'autoLoadLayout disabled' }
+    if (!service.applyLayout) return { run: false, reason: '!applyLayout' }
+    const { vid, pid, name } = service.deviceInfo
+    if (vid === undefined || pid === undefined)
+        return { run: false, reason: 'vid/pid missing' }
+    return { run: true, vid, pid, name }
+}
+
+function deviceKey(service: KeyboardService | null): string | null {
+    if (!service) return null
+    const { vid, pid } = service.deviceInfo
+    if (vid === undefined || pid === undefined) return null
+    return `${vid.toString(16)}:${pid.toString(16)}`
+}
+
 export function AutoLayoutResolver(): JSX.Element | null {
-    const { service } = useConnectionStore()
+    const service = useConnectionStore((s) => s.service)
     const setKeymap = useKeymapStore((s) => s.setKeymap)
     const autoLoadLayout = useUserSettingsStore((s) => s.autoLoadLayout)
     const [status, setStatus] = useState<LookupStatus | null>(null)
     const [applying, setApplying] = useState(false)
     const [done, setDone] = useState<'hit' | 'miss' | 'error' | null>(null)
-    const [dismissed, setDismissed] = useState(false)
+    const [dismissedKey, setDismissedKey] = useState<string | null>(null)
+
+    const currentKey = deviceKey(service)
+    const dismissed = dismissedKey !== null && dismissedKey === currentKey
 
     useEffect(() => {
-        if (!service) {
-            // eslint-disable-next-line react-hooks/set-state-in-effect
-            setStatus(null)
-            setDone(null)
-            setDismissed(false)
+        const plan = shouldRunAutoLayout(service, autoLoadLayout)
+        if (!plan.run) {
+            dbg('skip:', plan.reason)
+            if (!service) {
+                /* eslint-disable react-hooks/set-state-in-effect */
+                setStatus(null)
+                setDone(null)
+                setDismissedKey(null)
+                /* eslint-enable react-hooks/set-state-in-effect */
+            }
             return
         }
-        if (!service.capabilities.layoutSideloadable) {
-            console.log('[AutoLayoutResolver] skip: !layoutSideloadable')
-            return
-        }
-        if (!autoLoadLayout) {
-            console.log('[AutoLayoutResolver] skip: autoLoadLayout disabled')
-            return
-        }
-        if (!service.applyLayout) {
-            console.log('[AutoLayoutResolver] skip: !applyLayout')
-            return
-        }
-        if (
-            service.deviceInfo.vid === undefined ||
-            service.deviceInfo.pid === undefined
-        ) {
-            console.log(
-                '[AutoLayoutResolver] skip: vid/pid missing',
-                service.deviceInfo,
-            )
-            return
-        }
-        console.log(
-            '[AutoLayoutResolver] running for',
-            service.deviceInfo.vid.toString(16),
-            service.deviceInfo.pid.toString(16),
-            service.deviceInfo.name,
+        dbg(
+            'running for',
+            plan.vid.toString(16),
+            plan.pid.toString(16),
+            plan.name,
         )
+        setStatus(null)
+        setDone(null)
 
+        const key = cacheKey(service!.deviceInfo)
         const cached = (() => {
-            const key = cacheKey(service.deviceInfo)
             if (!key) return false
             try {
-                const raw = window.localStorage.getItem(key)
-                return !!raw
+                return !!window.localStorage.getItem(key)
             } catch {
                 return false
             }
         })()
         if (cached) {
-            // Adapter already applied cached def at connect time. Surface a
-            // banner so the user sees the layout came from cache, with a
-            // dismiss button.
             setStatus({ phase: 'cache-hit' })
             setDone('hit')
             return
@@ -94,22 +110,16 @@ export function AutoLayoutResolver(): JSX.Element | null {
 
         let cancelled = false
         ;(async () => {
-            const def = await findDef(
-                service.deviceInfo.vid!,
-                service.deviceInfo.pid!,
-                service.deviceInfo.name,
-                (s) => {
-                    if (!cancelled) setStatus(s)
-                },
-            )
+            const def = await findDef(plan.vid, plan.pid, plan.name, (s) => {
+                if (!cancelled) setStatus(s)
+            })
             if (cancelled) return
-            if (def && service.applyLayout) {
+            if (def && service!.applyLayout) {
                 setApplying(true)
                 try {
-                    await service.applyLayout(def)
-                    const key = cacheKey(service.deviceInfo)
+                    await service!.applyLayout(def)
                     if (key) saveCached(key, def)
-                    const km = await service.getKeymap()
+                    const km = await service!.getKeymap()
                     setKeymap(km)
                     setDone('hit')
                     toast.success(`Layout loaded: ${def.name}`)
@@ -154,7 +164,7 @@ export function AutoLayoutResolver(): JSX.Element | null {
                 <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => setDismissed(true)}
+                    onClick={(): void => setDismissedKey(currentKey)}
                     aria-label="Dismiss"
                     className="h-6 w-6"
                 >
