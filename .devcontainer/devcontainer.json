@@ -1,0 +1,16 @@
+{
+  "name": "ZMK Development",
+  "dockerFile": "Dockerfile",
+  "runArgs": [
+    "--security-opt",
+    "label=disable"
+  ],
+  "mounts": [
+    "type=bind,source=../zmk,target=/opt/zmk"
+  ],
+  "containerEnv": {},
+  "forwardPorts": [
+    5174,
+    6006
+  ]
+}

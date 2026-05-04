@@ -1,0 +1,4 @@
+{
+    "$comment": "Languages bundled in the Electron build. Each entry is a Chromium locale code (e.g. en-US, ja, de, fr, es, pt-BR). Adding a code here will include its Chromium .pak in the next build. Removing one trims its .pak from the installer.",
+    "languages": ["en-US"]
+}

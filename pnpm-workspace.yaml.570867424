@@ -1,0 +1,18 @@
+ignoredBuiltDependencies:
+  - '@serialport/bindings-cpp'
+  - '@swc/core'
+  - '@zmkfirmware/zmk-studio-ts-client'
+  - electron
+  - electron-winstaller
+  - esbuild
+  - node-hid
+  - protobufjs
+  - usocket
+
+onlyBuiltDependencies:
+  - '@serialport/bindings-cpp'
+  - '@swc/core'
+  - '@zmkfirmware/zmk-studio-ts-client'
+  - esbuild
+  - node-hid
+  - protobufjs

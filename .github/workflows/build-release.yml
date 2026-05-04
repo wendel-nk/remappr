@@ -1,0 +1,144 @@
+name: build-release
+
+on:
+  release:
+    types: [ published ]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-release-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
+
+jobs:
+  electron:
+    name: Electron (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, windows-latest, macos-latest ]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install Linux build deps
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libudev-dev libusb-1.0-0-dev
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: pnpm run build:linux
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build (Windows)
+        if: matrix.os == 'windows-latest'
+        run: pnpm run build:win
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build (macOS)
+        if: matrix.os == 'macos-latest'
+        run: pnpm run build:mac
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload electron artifacts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          shopt -s nullglob
+          ASSETS=()
+          for f in dist/*.AppImage dist/*.deb dist/*.snap dist/*.exe dist/*.msi dist/*.dmg dist/*.zip; do
+            ASSETS+=("$f")
+          done
+          if [ ${#ASSETS[@]} -gt 0 ]; then
+            gh release upload "$TAG" "${ASSETS[@]}" --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            echo "No electron artifacts found in dist/"
+          fi
+
+  tauri:
+    name: Tauri (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, windows-latest, macos-latest ]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: ./src-tauri -> target
+
+      - name: Install Linux tauri deps
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libudev-dev libusb-1.0-0-dev
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Build & upload Tauri bundle
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.event.release.tag_name }}
+          releaseId: ${{ github.event.release.id }}
+
+  cleanup-old-binaries:
+    name: Prune binaries from older releases
+    needs: [ electron, tauri ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete binary assets from prior releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CURRENT_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -e
+          echo "Current release tag: $CURRENT_TAG"
+          gh release list --limit 100 --repo "$GITHUB_REPOSITORY" --json tagName --jq '.[].tagName' \
+            | grep -v "^$CURRENT_TAG\$" \
+            | while read -r tag; do
+                echo "Inspecting release $tag"
+                gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' \
+                  | grep -E '\.(AppImage|deb|exe|dmg|msi|zip|rpm|snap|blockmap|sig)$' \
+                  | while read -r asset; do
+                      echo "  deleting $asset from $tag"
+                      gh release delete-asset "$tag" "$asset" --yes --repo "$GITHUB_REPOSITORY" || true
+                    done
+              done

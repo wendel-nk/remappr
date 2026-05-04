@@ -1,0 +1,44 @@
+{
+  "extends": "@electron-toolkit/tsconfig/tsconfig.node.json",
+  "compilerOptions": {
+    "composite": true,
+    "declaration": true,
+    "outDir": "./out-types/node",
+    "emitDeclarationOnly": true,
+    "skipLibCheck": true,
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    "noImplicitAny": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ],
+      "@firmware": [
+        "./src/firmware"
+      ],
+      "@firmware/*": [
+        "./src/firmware/*"
+      ],
+      "@shared/*": [
+        "./src/shared/*"
+      ],
+      "lzma1": [
+        "./src/firmware/qmk-vial/lzma1.d.ts"
+      ]
+    }
+  },
+  "include": [
+    "vite.config.ts",
+    "electron.vite.config.*",
+    "src/main/**/*",
+    "src/preload/**/*",
+    "src/shared/**/*",
+    "src/firmware/**/*"
+  ],
+  "exclude": [
+    "src/firmware/zmk/**"
+  ]
+}
