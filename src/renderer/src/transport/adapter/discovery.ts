@@ -1,5 +1,5 @@
 // Pattern check: Strategy (Tier 1) — applied — pluggable discovery providers per communication kind
-import {getAdapters} from '@firmware'
+import { getAdapters } from '@firmware'
 
 export interface BleDiscovery {
     serviceUuid: string
@@ -19,18 +19,18 @@ export interface HidFilter {
     usage?: number
 }
 
-export function bleDiscovery (): BleDiscovery | null {
-    for ( const adapter of getAdapters() ) {
+export function bleDiscovery(): BleDiscovery | null {
+    for (const adapter of getAdapters()) {
         const ble = adapter.discovery.ble
-        if ( ble ) return {serviceUuid: ble.serviceUuid, charUuid: ble.charUuid}
+        if (ble) return { serviceUuid: ble.serviceUuid, charUuid: ble.charUuid }
     }
     return null
 }
 
-export function hidDiscovery (): HidDiscovery | null {
-    for ( const adapter of getAdapters() ) {
+export function hidDiscovery(): HidDiscovery | null {
+    for (const adapter of getAdapters()) {
         const hid = adapter.discovery.hid
-        if ( hid ) {
+        if (hid) {
             return {
                 vendorIds: hid.vendorIds,
                 usagePage: hid.usagePage,
@@ -43,21 +43,21 @@ export function hidDiscovery (): HidDiscovery | null {
 
 // WebHID requestDevice() takes a filters array — emit one filter per
 // registered adapter so all firmware variants surface in the chooser.
-export function hidFilters (): HidFilter[] {
+export function hidFilters(): HidFilter[] {
     const out: HidFilter[] = []
-    for ( const adapter of getAdapters() ) {
+    for (const adapter of getAdapters()) {
         const hid = adapter.discovery.hid
-        if ( !hid ) continue
+        if (!hid) continue
         const vids =
             hid.vendorIds && hid.vendorIds.length > 0
                 ? hid.vendorIds
                 : [undefined]
-        for ( const vendorId of vids ) {
-            out.push( {
+        for (const vendorId of vids) {
+            out.push({
                 vendorId,
                 usagePage: hid.usagePage,
                 usage: hid.usage,
-            } )
+            })
         }
     }
     return out

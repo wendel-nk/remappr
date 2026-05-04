@@ -1,8 +1,8 @@
 // Pattern check: no GoF pattern (-) — rejected — small presentational chip-row, no abstraction warranted.
 // pattern-check: skip a11y refactor: split nested button into siblings + handler
-import {Button} from '@/ui/button'
-import {HidUsageLabel} from '@/features/keymap/keyboard/HidUsageLabel'
-import {X} from 'lucide-react'
+import { Button } from '@/ui/button'
+import { HidUsageLabel } from '@/features/keymap/keyboard/HidUsageLabel'
+import { X } from 'lucide-react'
 
 export type SlotKind = 'hid' | 'layer' | 'plain'
 
@@ -21,21 +21,21 @@ export interface SlotDescriptor {
 interface SlotBarProps {
     slots: SlotDescriptor[]
     activeSlotId?: string
-    onActivate?: ( id: string ) => void
+    onActivate?: (id: string) => void
 }
 
-function SlotValue ( {slot}: { slot: SlotDescriptor } ): JSX.Element {
-    if ( slot.value === undefined || slot.value === 0 ) {
+function SlotValue({ slot }: { slot: SlotDescriptor }): JSX.Element {
+    if (slot.value === undefined || slot.value === 0) {
         return <span className="text-xs text-muted-foreground italic">—</span>
     }
-    if ( slot.kind === 'layer' ) {
+    if (slot.kind === 'layer') {
         return (
             <span className="text-sm">
                 {slot.layerName ?? `L${slot.value}`}
             </span>
         )
     }
-    if ( slot.kind === 'hid' ) {
+    if (slot.kind === 'hid') {
         return (
             <span className="text-sm">
                 <HidUsageLabel hid_usage={slot.value} />
@@ -45,14 +45,14 @@ function SlotValue ( {slot}: { slot: SlotDescriptor } ): JSX.Element {
     return <span className="text-sm">{slot.value}</span>
 }
 
-export function SlotBar ( {
+export function SlotBar({
     slots,
     activeSlotId,
     onActivate,
-}: SlotBarProps ): JSX.Element {
+}: SlotBarProps): JSX.Element {
     return (
         <div className="flex flex-row flex-wrap gap-2 items-center">
-            {slots.map( ( slot ) => {
+            {slots.map((slot) => {
                 const isActive = slot.id === activeSlotId
                 const inactive = slot.inactiveBorderClass ?? 'border-border'
                 const ringClass = isActive
@@ -71,7 +71,7 @@ export function SlotBar ( {
                             type="button"
                             disabled={slot.disabled}
                             onClick={() =>
-                                !slot.disabled && onActivate?.( slot.id )
+                                !slot.disabled && onActivate?.(slot.id)
                             }
                             title={
                                 slot.disabled ? slot.disabledHint : undefined
@@ -103,7 +103,7 @@ export function SlotBar ( {
                         )}
                     </div>
                 )
-            } )}
+            })}
         </div>
     )
 }

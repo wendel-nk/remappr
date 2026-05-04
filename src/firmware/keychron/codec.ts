@@ -1,7 +1,7 @@
 // Pattern check: Strategy (Tier 1) — extended — KeychronCodec extends QmkCodec strategy; adds QK_KB_0..31 range encode/decode for wireless + OS keys; cite src/firmware/qmk/codec.ts.
-import type {CanonicalKeyId} from '../catalog/types'
-import type {DecodedKeycode, EncodedKeycode} from '../codec'
-import {QmkCodec} from '../qmk/codec'
+import type { CanonicalKeyId } from '../catalog/types'
+import type { DecodedKeycode, EncodedKeycode } from '../codec'
+import { QmkCodec } from '../qmk/codec'
 
 const QK_KB_BASE = 0x7e00
 const QK_KB_END = 0x7e1f
@@ -29,31 +29,31 @@ const CANONICAL_TO_OFFSET: Record<CanonicalKeyId, number> = {
 }
 
 const OFFSET_TO_CANONICAL: Map<number, CanonicalKeyId> = new Map(
-    Object.entries( CANONICAL_TO_OFFSET ).map( ( [id, off] ) => [off, id] ),
+    Object.entries(CANONICAL_TO_OFFSET).map(([id, off]) => [off, id]),
 )
 
 export class KeychronCodec extends QmkCodec {
-    override encode ( id: CanonicalKeyId ): EncodedKeycode | null {
+    override encode(id: CanonicalKeyId): EncodedKeycode | null {
         const offset = CANONICAL_TO_OFFSET[id]
-        if ( offset !== undefined ) {
-            return {value: QK_KB_BASE + offset}
+        if (offset !== undefined) {
+            return { value: QK_KB_BASE + offset }
         }
-        return super.encode( id )
+        return super.encode(id)
     }
 
-    override decode ( rawValue: number ): DecodedKeycode | null {
+    override decode(rawValue: number): DecodedKeycode | null {
         const code = rawValue & 0xffff
-        if ( code >= QK_KB_BASE && code <= QK_KB_END ) {
+        if (code >= QK_KB_BASE && code <= QK_KB_END) {
             const offset = code - QK_KB_BASE
-            const id = OFFSET_TO_CANONICAL.get( offset )
-            if ( id ) return {canonicalId: id}
+            const id = OFFSET_TO_CANONICAL.get(offset)
+            if (id) return { canonicalId: id }
             return null
         }
-        return super.decode( rawValue )
+        return super.decode(rawValue)
     }
 
-    override supports ( id: CanonicalKeyId ): boolean {
-        return id in CANONICAL_TO_OFFSET || super.supports( id )
+    override supports(id: CanonicalKeyId): boolean {
+        return id in CANONICAL_TO_OFFSET || super.supports(id)
     }
 }
 

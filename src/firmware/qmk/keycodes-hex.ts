@@ -1,7 +1,7 @@
 // Pattern check: no GoF pattern (-) — rejected — authoritative QMK quantum
 // keycode hex map sourced from qmk_firmware-2025q3/quantum/keycodes.h.
 // Pure data; expand by syncing the header.
-import type {CanonicalKeyId} from '../catalog/types'
+import type { CanonicalKeyId } from '../catalog/types'
 
 // MIDI note ids: octaves 0..5, 12 notes each. C0 starts at 0x7103.
 const NOTE_LETTERS = [
@@ -19,19 +19,19 @@ const NOTE_LETTERS = [
     'b',
 ] as const
 const midiNotes: Record<string, number> = {}
-for ( let oct = 0; oct <= 5; oct++ ) {
-    for ( let n = 0; n < 12; n++ ) {
+for (let oct = 0; oct <= 5; oct++) {
+    for (let n = 0; n < 12; n++) {
         midiNotes[`midi.note.${NOTE_LETTERS[n]}_${oct}`] = 0x7103 + oct * 12 + n
     }
 }
 
 const joystickButtons: Record<string, number> = {}
-for ( let i = 0; i < 32; i++ ) {
+for (let i = 0; i < 32; i++) {
     joystickButtons[`joystick.button.${i}`] = 0x7400 + i
 }
 
 const programmableButtons: Record<string, number> = {}
-for ( let i = 1; i <= 32; i++ ) {
+for (let i = 1; i <= 32; i++) {
     programmableButtons[`programmable.button.${i}`] = 0x7440 + (i - 1)
 }
 
@@ -386,7 +386,7 @@ export const QMK_HEX_BY_CANONICAL: Record<CanonicalKeyId, number> = {
 }
 
 export const QMK_CANONICAL_BY_HEX: Map<number, CanonicalKeyId> = new Map(
-    Object.entries( QMK_HEX_BY_CANONICAL ).map( ( [id, hex] ) => [hex, id] ),
+    Object.entries(QMK_HEX_BY_CANONICAL).map(([id, hex]) => [hex, id]),
 )
 
 // Modifier-wrapped (S(kc) / LCTL(kc) / etc.) range bases. high byte holds
@@ -425,7 +425,7 @@ export const SHIFTED_SYMBOLS: Record<CanonicalKeyId, number> = {
     'key.shifted.question': QK_LSFT | 0x38,
 }
 
-for ( const [id, hex] of Object.entries( SHIFTED_SYMBOLS ) ) {
+for (const [id, hex] of Object.entries(SHIFTED_SYMBOLS)) {
     QMK_HEX_BY_CANONICAL[id] = hex
-    QMK_CANONICAL_BY_HEX.set( hex, id )
+    QMK_CANONICAL_BY_HEX.set(hex, id)
 }

@@ -1,12 +1,12 @@
 // pattern-check: skip — thin Modal+Tabs shell, per-tab content delegated
-import type {KeyboardService} from '@firmware'
-import {Modal} from '@/ui/modal'
-import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/ui/tabs'
+import type { KeyboardService } from '@firmware'
+import { Modal } from '@/ui/modal'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/ui/tabs'
 
-import {AltRepeatKeyTab} from './tabs/AltRepeatKeyTab'
-import {ComboTab} from './tabs/ComboTab'
-import {KeyOverrideTab} from './tabs/KeyOverrideTab'
-import {TapDanceTab} from './tabs/TapDanceTab'
+import { AltRepeatKeyTab } from './tabs/AltRepeatKeyTab'
+import { ComboTab } from './tabs/ComboTab'
+import { KeyOverrideTab } from './tabs/KeyOverrideTab'
+import { TapDanceTab } from './tabs/TapDanceTab'
 
 interface Props {
     service: KeyboardService | null
@@ -14,31 +14,31 @@ interface Props {
     onClose: () => void
 }
 
-export function DynamicEntriesModal ( {
+export function DynamicEntriesModal({
     service,
     opened,
     onClose,
-}: Props ): JSX.Element | null {
-    if ( !service ) return null
+}: Props): JSX.Element | null {
+    if (!service) return null
     const counts = service.dynamic?.getCounts()
     const hasARK = !!service.dynamic?.getAltRepeatKey
-    if ( !counts ) return null
+    if (!counts) return null
 
     const hasAny =
         counts.tapDance > 0 ||
         counts.combo > 0 ||
         counts.keyOverride > 0 ||
         hasARK
-    if ( !hasAny ) return null
+    if (!hasAny) return null
 
     const defaultTab =
         counts.tapDance > 0
             ? 'td'
             : counts.combo > 0
-                ? 'combo'
-                : counts.keyOverride > 0
-                    ? 'ko'
-                    : 'ark'
+              ? 'combo'
+              : counts.keyOverride > 0
+                ? 'ko'
+                : 'ark'
 
     return (
         <Modal

@@ -3,7 +3,7 @@
 // with the web/Electron renderer process.
 // Use the Web Serial API via serial.ts or Tauri serial via tauri/serial.ts instead.
 // import { SerialPort } from 'serialport';
-import { TransportEventEmitter, AvailableDevice } from './types'
+import { AvailableDevice, TransportEventEmitter } from './types'
 
 /**
  * SimpleSerialTransport - Placeholder for Node.js serialport-based transport
@@ -18,14 +18,12 @@ export class SimpleSerialTransport {
         this._eventEmitter = eventEmitter
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     async serialConnect(_id: string): Promise<boolean> {
         throw new Error(
             'SimpleSerialTransport is not implemented. Use Web Serial API or Tauri serial instead.',
         )
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     async write(_data: Uint8Array): Promise<void> {
         throw new Error(
             'SimpleSerialTransport is not implemented. Use Web Serial API or Tauri serial instead.',

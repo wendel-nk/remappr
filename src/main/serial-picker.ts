@@ -1,4 +1,7 @@
 import type { BrowserWindow } from 'electron'
+import { createLogger } from '../shared/logger'
+
+const log = createLogger('serial-picker')
 
 /**
  * Safety-net handler for navigator.serial.requestPort() calls in the renderer.
@@ -14,8 +17,8 @@ export function setupSerialDeviceSelection(window: BrowserWindow): void {
         'select-serial-port',
         (event, portList, _wc, callback) => {
             event.preventDefault()
-            console.warn(
-                '[serial-picker] select-serial-port fired — renderer should be using IPC path. Ports:',
+            log.warn(
+                'select-serial-port fired — renderer should be using IPC path. Ports:',
                 portList,
             )
             callback(portList.length > 0 ? portList[0].portId : '')

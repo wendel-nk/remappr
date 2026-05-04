@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Download as DownloadIcon, Copy, FileText } from 'lucide-react'
+import { Copy, Download as DownloadIcon, FileText } from 'lucide-react'
 import { Modal } from '@/ui/modal'
 import { Button } from '@/ui/button'
 import { Input } from '@/ui/input'
@@ -10,18 +10,20 @@ import useConnectionStore from '@/stores/connectionStore'
 import { useConnectedDeviceData } from '@/hooks/use-connected-device-data'
 import { useBehaviors } from '@/hooks/use-behaviors'
 import {
-    generateZMKKeymapFile,
-    generateZMKConfigFile,
     downloadConfigZip,
+    generateZMKConfigFile,
+    generateZMKKeymapFile,
 } from '@/lib/zmkConfigGenerator'
 import { Keymap } from '@zmkfirmware/zmk-studio-ts-client/keymap'
+import { createLogger } from '@shared/logger'
+
+const log = createLogger('Download')
 
 interface DownloadProps {
     opened?: boolean
     onClose?: () => void
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function Download(_props: DownloadProps): JSX.Element {
     const { connection, deviceName } = useConnectionStore()
     const behaviors = useBehaviors()
@@ -61,7 +63,7 @@ export function Download(_props: DownloadProps): JSX.Element {
             downloadConfigZip(keymapContent, configContent, keyboardName)
             toast.success('Configuration files downloaded successfully!')
         } catch (error) {
-            console.error('Error generating config:', error)
+            log.error('Error generating config:', error)
             toast.error('Failed to generate configuration files')
         }
     }
@@ -85,7 +87,7 @@ export function Download(_props: DownloadProps): JSX.Element {
             await navigator.clipboard.writeText(keymapContent)
             toast.success('Keymap copied to clipboard!')
         } catch (error) {
-            console.error('Error copying to clipboard:', error)
+            log.error('Error copying to clipboard:', error)
             toast.error('Failed to copy to clipboard')
         }
     }

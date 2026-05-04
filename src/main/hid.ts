@@ -3,9 +3,9 @@
 // Uses node-hid; loaded lazily so packaging without the native module
 // (e.g. browser-only Vite preview) doesn't blow up at import time.
 
-import {createLogger} from '../shared/logger'
+import { createLogger } from '../shared/logger'
 
-const log = createLogger( 'hid' )
+const log = createLogger('hid')
 
 export interface HidDeviceInfo {
     id: string
@@ -13,7 +13,7 @@ export interface HidDeviceInfo {
 }
 
 export interface HidEventCallbacks {
-    onData: ( data: number[] ) => void
+    onData: (data: number[]) => void
     onDisconnected: () => void
 }
 
@@ -36,24 +36,24 @@ interface NodeHidDevice {
 }
 
 interface HidLike {
-    on ( event: 'data', cb: ( data: Buffer ) => void ): void
+    on(event: 'data', cb: (data: Buffer) => void): void
 
-    on ( event: 'error', cb: ( err: Error ) => void ): void
+    on(event: 'error', cb: (err: Error) => void): void
 
-    write ( data: number[] ): number
+    write(data: number[]): number
 
-    close (): void
+    close(): void
 }
 
 interface NodeHidModule {
     devices: () => NodeHidDevice[]
-    HID: new ( path: string ) => HidLike
+    HID: new (path: string) => HidLike
 }
 
 let cachedModule: NodeHidModule | null = null
 
-async function loadNodeHid (): Promise<NodeHidModule | null> {
-    if ( cachedModule ) return cachedModule
+async function loadNodeHid(): Promise<NodeHidModule | null> {
+    if (cachedModule) return cachedModule
     try {
         const mod = (await import('node-hid')) as unknown as
             | NodeHidModule
@@ -63,8 +63,8 @@ async function loadNodeHid (): Promise<NodeHidModule | null> {
                 ? (mod as NodeHidModule)
                 : (mod as { default: NodeHidModule }).default
         return cachedModule
-    } catch ( err ) {
-        log.warn( 'node-hid unavailable:', err )
+    } catch (err) {
+        log.warn('node-hid unavailable:', err)
         return null
     }
 }
@@ -77,9 +77,9 @@ interface ActiveHidConnection {
 
 let activeConnection: ActiveHidConnection | null = null
 
-function matchesFilter ( d: NodeHidDevice, filter: HidDiscoveryFilter ): boolean {
-    if ( filter.vendorIds && filter.vendorIds.length > 0 ) {
-        if ( !filter.vendorIds.includes( d.vendorId ) ) return false
+function matchesFilter(d: NodeHidDevice, filter: HidDiscoveryFilter): boolean {
+    if (filter.vendorIds && filter.vendorIds.length > 0) {
+        if (!filter.vendorIds.includes(d.vendorId)) return false
     }
     if (
         filter.usagePage !== undefined &&
@@ -98,85 +98,85 @@ function matchesFilter ( d: NodeHidDevice, filter: HidDiscoveryFilter ): boolean
     return true
 }
 
-function buildLabel ( d: NodeHidDevice ): string {
+function buildLabel(d: NodeHidDevice): string {
     const parts: string[] = []
-    if ( d.product ) parts.push( d.product )
-    else if ( d.manufacturer ) parts.push( d.manufacturer )
+    if (d.product) parts.push(d.product)
+    else if (d.manufacturer) parts.push(d.manufacturer)
     parts.push(
-        `${d.vendorId.toString( 16 ).padStart( 4, '0' ).toUpperCase()}:${d.productId.toString( 16 ).padStart( 4, '0' ).toUpperCase()}`,
+        `${d.vendorId.toString(16).padStart(4, '0').toUpperCase()}:${d.productId.toString(16).padStart(4, '0').toUpperCase()}`,
     )
-    if ( d.serialNumber ) parts.push( d.serialNumber )
-    return parts.join( ' · ' )
+    if (d.serialNumber) parts.push(d.serialNumber)
+    return parts.join(' · ')
 }
 
-export async function listHidDevices (
+export async function listHidDevices(
     filter: HidDiscoveryFilter,
 ): Promise<HidDeviceInfo[]> {
     const mod = await loadNodeHid()
-    if ( !mod ) return []
+    if (!mod) return []
     try {
         const all = mod.devices()
-        const matched = all.filter( ( d ) => matchesFilter( d, filter ) )
+        const matched = all.filter((d) => matchesFilter(d, filter))
         return matched
-            .filter( ( d ): d is NodeHidDevice & { path: string } => !!d.path )
-            .map( ( d ) => ({id: d.path, label: buildLabel( d )}) )
-    } catch ( err ) {
-        log.error( 'list failed:', err )
+            .filter((d): d is NodeHidDevice & { path: string } => !!d.path)
+            .map((d) => ({ id: d.path, label: buildLabel(d) }))
+    } catch (err) {
+        log.error('list failed:', err)
         return []
     }
 }
 
-export async function connectHidDevice (
+export async function connectHidDevice(
     devicePath: string,
     callbacks: HidEventCallbacks,
 ): Promise<string> {
-    if ( activeConnection ) {
+    if (activeConnection) {
         await disconnectHidDevice()
     }
     const mod = await loadNodeHid()
-    if ( !mod ) {
-        throw new Error( 'node-hid module unavailable' )
+    if (!mod) {
+        throw new Error('node-hid module unavailable')
     }
-    const device = new mod.HID( devicePath )
-    activeConnection = {device, path: devicePath, callbacks}
+    const device = new mod.HID(devicePath)
+    activeConnection = { device, path: devicePath, callbacks }
 
-    device.on( 'data', ( data: Buffer ) => {
-        callbacks.onData( Array.from( new Uint8Array( data ) ) )
-    } )
-    device.on( 'error', ( err: Error ) => {
-        log.error( 'device error:', err )
-        if ( activeConnection?.path === devicePath ) {
+    device.on('data', (data: Buffer) => {
+        callbacks.onData(Array.from(new Uint8Array(data)))
+    })
+    device.on('error', (err: Error) => {
+        log.error('device error:', err)
+        if (activeConnection?.path === devicePath) {
             activeConnection = null
             callbacks.onDisconnected()
         }
-    } )
+    })
     return devicePath
 }
 
-export async function writeHid ( data: Uint8Array ): Promise<void> {
-    if ( !activeConnection ) {
-        throw new Error( 'No active HID connection' )
+export async function writeHid(data: Uint8Array): Promise<void> {
+    if (!activeConnection) {
+        throw new Error('No active HID connection')
     }
     // node-hid.write() prepends a report id of 0x00 when the buffer
     // length is exactly the report size; on Windows the report id MUST
     // be the first byte. Caller is expected to pass the 32-byte VIA
     // payload — we prepend 0x00 here to satisfy the Windows convention.
-    const wire = new Array<number>( data.length + 1 )
+    const wire = new Array<number>(data.length + 1)
     wire[0] = 0x00
-    for ( let i = 0; i < data.length; i++ ) wire[i + 1] = data[i]
-    activeConnection.device.write( wire )
+    for (let i = 0; i < data.length; i++) wire[i + 1] = data[i]
+    activeConnection.device.write(wire)
 }
 
-export async function disconnectHidDevice (): Promise<void> {
-    if ( !activeConnection ) return
+export async function disconnectHidDevice(): Promise<void> {
+    if (!activeConnection) return
     try {
         activeConnection.device.close()
-    } catch ( err ) {
-        log.warn( 'close failed:', err )
+    } catch (err) {
+        log.warn('close failed:', err)
     }
     activeConnection = null
 }
 
-export function hasActiveHidConnection (): boolean {
+export function hasActiveHidConnection(): boolean {
     return activeConnection !== null
 }

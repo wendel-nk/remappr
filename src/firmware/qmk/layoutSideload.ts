@@ -5,28 +5,28 @@ import {
     type ParsedKeyboardDef,
     type RawKeyboardDef,
 } from '@firmware/kle/parser'
-import type {DeviceInfo} from '@firmware/types'
-import {ProtocolError} from '@firmware/errors'
+import type { DeviceInfo } from '@firmware/types'
+import { ProtocolError } from '@firmware/errors'
 
 const CACHE_PREFIX = 'qmk-via-layout:v1:'
 
-export function parseSideloadJson ( text: string ): ParsedKeyboardDef {
+export function parseSideloadJson(text: string): ParsedKeyboardDef {
     let json: unknown
     try {
-        json = JSON.parse( text )
-    } catch ( err ) {
+        json = JSON.parse(text)
+    } catch (err) {
         throw new ProtocolError(
             `Layout JSON parse failed: ${(err as Error).message}`,
         )
     }
-    return parseKeyboardDef( validateDef( json ) )
+    return parseKeyboardDef(validateDef(json))
 }
 
-export function cacheKey ( deviceInfo: DeviceInfo ): string | null {
-    if ( deviceInfo.vid === undefined || deviceInfo.pid === undefined )
+export function cacheKey(deviceInfo: DeviceInfo): string | null {
+    if (deviceInfo.vid === undefined || deviceInfo.pid === undefined)
         return null
-    const vid = deviceInfo.vid.toString( 16 ).padStart( 4, '0' )
-    const pid = deviceInfo.pid.toString( 16 ).padStart( 4, '0' )
+    const vid = deviceInfo.vid.toString(16).padStart(4, '0')
+    const pid = deviceInfo.pid.toString(16).padStart(4, '0')
     return `${CACHE_PREFIX}${vid}:${pid}`
 }
 
@@ -35,8 +35,8 @@ interface CacheEntry {
     raw: RawKeyboardDef
 }
 
-function getStorage (): Storage | null {
-    if ( typeof window === 'undefined' ) return null
+function getStorage(): Storage | null {
+    if (typeof window === 'undefined') return null
     try {
         return window.localStorage
     } catch {
@@ -44,36 +44,36 @@ function getStorage (): Storage | null {
     }
 }
 
-export function loadCached ( key: string ): ParsedKeyboardDef | null {
+export function loadCached(key: string): ParsedKeyboardDef | null {
     const store = getStorage()
-    if ( !store ) return null
-    const text = store.getItem( key )
-    if ( !text ) return null
+    if (!store) return null
+    const text = store.getItem(key)
+    if (!text) return null
     try {
-        const entry = JSON.parse( text ) as CacheEntry
-        if ( entry.v !== 1 || !entry.raw ) return null
-        return parseKeyboardDef( validateDef( entry.raw ) )
+        const entry = JSON.parse(text) as CacheEntry
+        if (entry.v !== 1 || !entry.raw) return null
+        return parseKeyboardDef(validateDef(entry.raw))
     } catch {
         return null
     }
 }
 
-export function saveCached ( key: string, def: ParsedKeyboardDef ): void {
+export function saveCached(key: string, def: ParsedKeyboardDef): void {
     const store = getStorage()
-    if ( !store ) return
-    const entry: CacheEntry = {v: 1, raw: def.raw}
+    if (!store) return
+    const entry: CacheEntry = { v: 1, raw: def.raw }
     try {
-        store.setItem( key, JSON.stringify( entry ) )
+        store.setItem(key, JSON.stringify(entry))
     } catch {
         /* quota exceeded — silent */
     }
 }
 
-export function clearCached ( key: string ): void {
+export function clearCached(key: string): void {
     const store = getStorage()
-    if ( !store ) return
+    if (!store) return
     try {
-        store.removeItem( key )
+        store.removeItem(key)
     } catch {
         /* ignore */
     }

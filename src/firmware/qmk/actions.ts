@@ -2,14 +2,14 @@
 // QMK 16-bit keycode encoding/decoding for the action kinds the QMK adapter supports.
 // Reference: qmk_firmware-2025q3/quantum/keycodes.h (QK_* range constants).
 
-import {CATALOG} from '@firmware/catalog/entries'
-import type {KeycodeCodec} from '@firmware/codec'
-import type {ActionType, KeyAction, KeyLabel} from '@firmware/types'
-import {ProtocolError} from '@firmware/errors'
+import { CATALOG } from '@firmware/catalog/entries'
+import type { KeycodeCodec } from '@firmware/codec'
+import type { ActionType, KeyAction, KeyLabel } from '@firmware/types'
+import { ProtocolError } from '@firmware/errors'
 
-import {QMK_ACTION_TYPES} from './actionTypes'
+import { QMK_ACTION_TYPES } from './actionTypes'
 
-const CATALOG_BY_ID = new Map( CATALOG.map( ( e ) => [e.id, e] ) )
+const CATALOG_BY_ID = new Map(CATALOG.map((e) => [e.id, e]))
 
 // QMK kind ids — match action catalog in actionTypes.ts.
 export const QMK_KIND = {
@@ -71,7 +71,7 @@ const MOD_BIT_TO_PACKED: Record<number, number> = {
 }
 
 const PACKED_TO_MOD_BIT: Record<number, number> = Object.fromEntries(
-    Object.entries( MOD_BIT_TO_PACKED ).map( ( [k, v] ) => [v, Number( k )] ),
+    Object.entries(MOD_BIT_TO_PACKED).map(([k, v]) => [v, Number(k)]),
 )
 
 const BASIC_KEY_NAMES: Record<number, string> = {
@@ -111,94 +111,94 @@ const MOD_LABELS: Record<number, string> = {
     0x80: 'RGui',
 }
 
-function basicKeyLabel ( code: number ): string {
-    if ( code === 0 ) return 'No'
+function basicKeyLabel(code: number): string {
+    if (code === 0) return 'No'
     const named = BASIC_KEY_NAMES[code]
-    if ( named ) return named
-    if ( code >= 0x04 && code <= 0x1d ) {
-        return String.fromCharCode( 'A'.charCodeAt( 0 ) + (code - 0x04) )
+    if (named) return named
+    if (code >= 0x04 && code <= 0x1d) {
+        return String.fromCharCode('A'.charCodeAt(0) + (code - 0x04))
     }
-    if ( code === 0x27 ) return '0'
-    if ( code >= 0x1e && code <= 0x26 ) {
-        return String.fromCharCode( '1'.charCodeAt( 0 ) + (code - 0x1e) )
+    if (code === 0x27) return '0'
+    if (code >= 0x1e && code <= 0x26) {
+        return String.fromCharCode('1'.charCodeAt(0) + (code - 0x1e))
     }
-    if ( code >= 0x3a && code <= 0x45 ) {
+    if (code >= 0x3a && code <= 0x45) {
         return `F${code - 0x39}`
     }
-    return `0x${code.toString( 16 ).padStart( 2, '0' )}`
+    return `0x${code.toString(16).padStart(2, '0')}`
 }
 
-function modLabel ( modBit: number ): string {
-    return MOD_LABELS[modBit] ?? `mod 0x${modBit.toString( 16 )}`
+function modLabel(modBit: number): string {
+    return MOD_LABELS[modBit] ?? `mod 0x${modBit.toString(16)}`
 }
 
-function layerName ( layer: number, layerNames?: string[] ): string {
-    if ( layerNames && layerNames[layer] ) return layerNames[layer]
+function layerName(layer: number, layerNames?: string[]): string {
+    if (layerNames && layerNames[layer]) return layerNames[layer]
     return `L${layer}`
 }
 
-export function buildLabel (
+export function buildLabel(
     kind: string,
     params: number[],
     layerNames?: string[],
 ): KeyLabel {
-    switch ( kind ) {
+    switch (kind) {
         case QMK_KIND.NONE:
-            return {primary: 'No', description: 'KC_NO'}
+            return { primary: 'No', description: 'KC_NO' }
         case QMK_KIND.TRANS:
-            return {primary: '▽', description: 'Transparent (KC_TRNS)'}
+            return { primary: '▽', description: 'Transparent (KC_TRNS)' }
         case QMK_KIND.BASIC: {
             const code = params[0] ?? 0
-            const primary = basicKeyLabel( code )
+            const primary = basicKeyLabel(code)
             return {
                 primary,
                 primaryUsage: code,
-                description: `Basic 0x${code.toString( 16 ).padStart( 2, '0' )}`,
+                description: `Basic 0x${code.toString(16).padStart(2, '0')}`,
             }
         }
         case QMK_KIND.MOD_TAP: {
             const mod = params[0] ?? 0
             const tap = params[1] ?? 0
             return {
-                primary: basicKeyLabel( tap ),
-                secondary: modLabel( mod ),
-                description: `MT(${modLabel( mod )}, ${basicKeyLabel( tap )})`,
+                primary: basicKeyLabel(tap),
+                secondary: modLabel(mod),
+                description: `MT(${modLabel(mod)}, ${basicKeyLabel(tap)})`,
             }
         }
         case QMK_KIND.LAYER_TAP: {
             const layer = params[0] ?? 0
             const tap = params[1] ?? 0
             return {
-                primary: basicKeyLabel( tap ),
-                secondary: layerName( layer, layerNames ),
-                description: `LT(${layerName( layer, layerNames )}, ${basicKeyLabel( tap )})`,
+                primary: basicKeyLabel(tap),
+                secondary: layerName(layer, layerNames),
+                description: `LT(${layerName(layer, layerNames)}, ${basicKeyLabel(tap)})`,
             }
         }
         case QMK_KIND.MOMENTARY: {
             const layer = params[0] ?? 0
             return {
-                primary: `MO ${layerName( layer, layerNames )}`,
+                primary: `MO ${layerName(layer, layerNames)}`,
                 description: `MO(${layer})`,
             }
         }
         case QMK_KIND.TOGGLE_LAYER: {
             const layer = params[0] ?? 0
             return {
-                primary: `TG ${layerName( layer, layerNames )}`,
+                primary: `TG ${layerName(layer, layerNames)}`,
                 description: `TG(${layer})`,
             }
         }
         case QMK_KIND.DEFAULT_LAYER: {
             const layer = params[0] ?? 0
             return {
-                primary: `DF ${layerName( layer, layerNames )}`,
+                primary: `DF ${layerName(layer, layerNames)}`,
                 description: `DF(${layer})`,
             }
         }
         case QMK_KIND.PERSISTENT_DEFAULT_LAYER: {
             const layer = params[0] ?? 0
             return {
-                primary: `PDF ${layerName( layer, layerNames )}`,
+                primary: `PDF ${layerName(layer, layerNames)}`,
                 description: `PDF(${layer})`,
             }
         }
@@ -206,53 +206,53 @@ export function buildLabel (
             const layer = params[0] ?? 0
             const mod = params[1] ?? 0
             return {
-                primary: `LM ${layerName( layer, layerNames )}`,
-                secondary: modLabel( mod ),
-                description: `LM(${layer}, ${modLabel( mod )})`,
+                primary: `LM ${layerName(layer, layerNames)}`,
+                secondary: modLabel(mod),
+                description: `LM(${layer}, ${modLabel(mod)})`,
             }
         }
         case QMK_KIND.ONE_SHOT_LAYER: {
             const layer = params[0] ?? 0
             return {
-                primary: `OSL ${layerName( layer, layerNames )}`,
+                primary: `OSL ${layerName(layer, layerNames)}`,
                 description: `OSL(${layer})`,
             }
         }
         case QMK_KIND.ONE_SHOT_MOD: {
             const mod = params[0] ?? 0
             return {
-                primary: `OSM ${modLabel( mod )}`,
-                description: `OSM(${modLabel( mod )})`,
+                primary: `OSM ${modLabel(mod)}`,
+                description: `OSM(${modLabel(mod)})`,
             }
         }
         case QMK_KIND.SWAP_HANDS_TAP: {
             const tap = params[0] ?? 0
             return {
-                primary: basicKeyLabel( tap ),
+                primary: basicKeyLabel(tap),
                 secondary: 'SH',
-                description: `SH_T(${basicKeyLabel( tap )})`,
+                description: `SH_T(${basicKeyLabel(tap)})`,
             }
         }
         case QMK_KIND.TO_LAYER: {
             const layer = params[0] ?? 0
             return {
-                primary: `TO ${layerName( layer, layerNames )}`,
+                primary: `TO ${layerName(layer, layerNames)}`,
                 description: `TO(${layer})`,
             }
         }
         case QMK_KIND.TAP_TOGGLE_LAYER: {
             const layer = params[0] ?? 0
             return {
-                primary: `TT ${layerName( layer, layerNames )}`,
+                primary: `TT ${layerName(layer, layerNames)}`,
                 description: `TT(${layer})`,
             }
         }
         default:
-            return {primary: kind}
+            return { primary: kind }
     }
 }
 
-export function buildQmkKeyAction (
+export function buildQmkKeyAction(
     kind: string,
     params: number[],
     layerNames?: string[],
@@ -261,14 +261,14 @@ export function buildQmkKeyAction (
     const action: KeyAction = {
         kind,
         params: [...params],
-        label: buildLabel( kind, params, layerNames ),
+        label: buildLabel(kind, params, layerNames),
     }
-    if ( codec && kind === QMK_KIND.BASIC ) {
-        const decoded = codec.decode( params[0] ?? 0 )
-        if ( decoded ) {
+    if (codec && kind === QMK_KIND.BASIC) {
+        const decoded = codec.decode(params[0] ?? 0)
+        if (decoded) {
             action.canonicalId = decoded.canonicalId
-            const entry = CATALOG_BY_ID.get( decoded.canonicalId )
-            if ( entry ) {
+            const entry = CATALOG_BY_ID.get(decoded.canonicalId)
+            if (entry) {
                 action.label = {
                     ...action.label,
                     primary: entry.label,
@@ -281,9 +281,9 @@ export function buildQmkKeyAction (
 }
 
 // Encode a neutral KeyAction → 16-bit QMK keycode.
-export function encodeKeycode ( action: KeyAction ): number {
+export function encodeKeycode(action: KeyAction): number {
     const p = action.params
-    switch ( action.kind ) {
+    switch (action.kind) {
         case QMK_KIND.NONE:
             return 0x0000
         case QMK_KIND.TRANS:
@@ -343,50 +343,50 @@ export interface DecodedKeycode {
 }
 
 // Decode a 16-bit QMK keycode → neutral kind + params.
-export function decodeKeycode ( kc: number ): DecodedKeycode {
+export function decodeKeycode(kc: number): DecodedKeycode {
     const code = kc & 0xffff
-    if ( code === 0x0000 ) return {kind: QMK_KIND.NONE, params: []}
-    if ( code === 0x0001 ) return {kind: QMK_KIND.TRANS, params: []}
-    if ( code <= QK_BASIC_MAX ) {
-        return {kind: QMK_KIND.BASIC, params: [code]}
+    if (code === 0x0000) return { kind: QMK_KIND.NONE, params: [] }
+    if (code === 0x0001) return { kind: QMK_KIND.TRANS, params: [] }
+    if (code <= QK_BASIC_MAX) {
+        return { kind: QMK_KIND.BASIC, params: [code] }
     }
-    if ( code >= QK_MOD_TAP && code <= QK_MOD_TAP_MAX ) {
+    if (code >= QK_MOD_TAP && code <= QK_MOD_TAP_MAX) {
         const packed = (code >> 8) & 0x1f
         const modBit = PACKED_TO_MOD_BIT[packed] ?? 0
-        return {kind: QMK_KIND.MOD_TAP, params: [modBit, code & 0xff]}
+        return { kind: QMK_KIND.MOD_TAP, params: [modBit, code & 0xff] }
     }
-    if ( code >= QK_LAYER_TAP && code <= QK_LAYER_TAP_MAX ) {
+    if (code >= QK_LAYER_TAP && code <= QK_LAYER_TAP_MAX) {
         const layer = (code >> 8) & 0x0f
-        return {kind: QMK_KIND.LAYER_TAP, params: [layer, code & 0xff]}
+        return { kind: QMK_KIND.LAYER_TAP, params: [layer, code & 0xff] }
     }
-    if ( code >= QK_LAYER_MOD && code <= QK_LAYER_MOD_MAX ) {
+    if (code >= QK_LAYER_MOD && code <= QK_LAYER_MOD_MAX) {
         const layer = (code >> 5) & 0x0f
         const packed = code & 0x1f
         const modBit = PACKED_TO_MOD_BIT[packed] ?? 0
-        return {kind: QMK_KIND.LAYER_MOD, params: [layer, modBit]}
+        return { kind: QMK_KIND.LAYER_MOD, params: [layer, modBit] }
     }
-    if ( code >= QK_TO && code <= QK_TO_MAX ) {
-        return {kind: QMK_KIND.TO_LAYER, params: [code & 0x1f]}
+    if (code >= QK_TO && code <= QK_TO_MAX) {
+        return { kind: QMK_KIND.TO_LAYER, params: [code & 0x1f] }
     }
-    if ( code >= QK_MOMENTARY && code <= QK_MOMENTARY_MAX ) {
-        return {kind: QMK_KIND.MOMENTARY, params: [code & 0x1f]}
+    if (code >= QK_MOMENTARY && code <= QK_MOMENTARY_MAX) {
+        return { kind: QMK_KIND.MOMENTARY, params: [code & 0x1f] }
     }
-    if ( code >= QK_DEF_LAYER && code <= QK_DEF_LAYER_MAX ) {
-        return {kind: QMK_KIND.DEFAULT_LAYER, params: [code & 0x1f]}
+    if (code >= QK_DEF_LAYER && code <= QK_DEF_LAYER_MAX) {
+        return { kind: QMK_KIND.DEFAULT_LAYER, params: [code & 0x1f] }
     }
-    if ( code >= QK_TOGGLE_LAYER && code <= QK_TOGGLE_LAYER_MAX ) {
-        return {kind: QMK_KIND.TOGGLE_LAYER, params: [code & 0x1f]}
+    if (code >= QK_TOGGLE_LAYER && code <= QK_TOGGLE_LAYER_MAX) {
+        return { kind: QMK_KIND.TOGGLE_LAYER, params: [code & 0x1f] }
     }
-    if ( code >= QK_ONE_SHOT_LAYER && code <= QK_ONE_SHOT_LAYER_MAX ) {
-        return {kind: QMK_KIND.ONE_SHOT_LAYER, params: [code & 0x1f]}
+    if (code >= QK_ONE_SHOT_LAYER && code <= QK_ONE_SHOT_LAYER_MAX) {
+        return { kind: QMK_KIND.ONE_SHOT_LAYER, params: [code & 0x1f] }
     }
-    if ( code >= QK_ONE_SHOT_MOD && code <= QK_ONE_SHOT_MOD_MAX ) {
+    if (code >= QK_ONE_SHOT_MOD && code <= QK_ONE_SHOT_MOD_MAX) {
         const packed = code & 0x1f
         const modBit = PACKED_TO_MOD_BIT[packed] ?? 0
-        return {kind: QMK_KIND.ONE_SHOT_MOD, params: [modBit]}
+        return { kind: QMK_KIND.ONE_SHOT_MOD, params: [modBit] }
     }
-    if ( code >= QK_LAYER_TAP_TOGGLE && code <= QK_LAYER_TAP_TOGGLE_MAX ) {
-        return {kind: QMK_KIND.TAP_TOGGLE_LAYER, params: [code & 0x1f]}
+    if (code >= QK_LAYER_TAP_TOGGLE && code <= QK_LAYER_TAP_TOGGLE_MAX) {
+        return { kind: QMK_KIND.TAP_TOGGLE_LAYER, params: [code & 0x1f] }
     }
     if (
         code >= QK_PERSISTENT_DEF_LAYER &&
@@ -397,35 +397,35 @@ export function decodeKeycode ( kc: number ): DecodedKeycode {
             params: [code & 0x1f],
         }
     }
-    if ( code >= QK_SWAP_HANDS && code <= QK_SWAP_HANDS_MAX ) {
-        return {kind: QMK_KIND.SWAP_HANDS_TAP, params: [code & 0xff]}
+    if (code >= QK_SWAP_HANDS && code <= QK_SWAP_HANDS_MAX) {
+        return { kind: QMK_KIND.SWAP_HANDS_TAP, params: [code & 0xff] }
     }
     // Fallback: treat as raw basic; loses fidelity but never throws.
-    return {kind: QMK_KIND.BASIC, params: [code & 0xff]}
+    return { kind: QMK_KIND.BASIC, params: [code & 0xff] }
 }
 
-export function decodeAsKeyAction (
+export function decodeAsKeyAction(
     kc: number,
     layerNames?: string[],
     codec?: KeycodeCodec,
 ): KeyAction {
-    const {kind, params} = decodeKeycode( kc )
-    return buildQmkKeyAction( kind, params, layerNames, codec )
+    const { kind, params } = decodeKeycode(kc)
+    return buildQmkKeyAction(kind, params, layerNames, codec)
 }
 
-export function relabelQmkLayer (
+export function relabelQmkLayer(
     keys: KeyAction[],
     layerNames: string[],
     codec?: KeycodeCodec,
 ): KeyAction[] {
-    return keys.map( ( k ) => {
-        const label = buildLabel( k.kind, k.params, layerNames )
-        if ( codec && k.kind === QMK_KIND.BASIC ) {
-            const decoded = codec.decode( k.params[0] ?? 0 )
+    return keys.map((k) => {
+        const label = buildLabel(k.kind, k.params, layerNames)
+        if (codec && k.kind === QMK_KIND.BASIC) {
+            const decoded = codec.decode(k.params[0] ?? 0)
             const entry = decoded
-                ? CATALOG_BY_ID.get( decoded.canonicalId )
+                ? CATALOG_BY_ID.get(decoded.canonicalId)
                 : undefined
-            if ( entry ) {
+            if (entry) {
                 return {
                     ...k,
                     canonicalId: decoded!.canonicalId,
@@ -437,10 +437,10 @@ export function relabelQmkLayer (
                 }
             }
         }
-        return {...k, label}
-    } )
+        return { ...k, label }
+    })
 }
 
-export function getActionTypes (): ActionType[] {
+export function getActionTypes(): ActionType[] {
     return QMK_ACTION_TYPES
 }

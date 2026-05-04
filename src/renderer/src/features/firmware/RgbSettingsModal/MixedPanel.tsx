@@ -1,46 +1,46 @@
 // pattern-check: skip — composes BytesEditor for regions + effect bytes
-import {useCallback, useEffect, useState} from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
-import type {RgbApi} from '@firmware/service'
-import {saveWithToast} from '@/lib/saveWithToast'
+import type { RgbApi } from '@firmware/service'
+import { saveWithToast } from '@/lib/saveWithToast'
 
-import {BytesEditor} from './BytesEditor'
+import { BytesEditor } from './BytesEditor'
 
 interface Props {
     rgb: RgbApi
 }
 
-export function MixedPanel ( {rgb}: Props ): JSX.Element {
-    const [regions, setRegions] = useState<Uint8Array>( new Uint8Array() )
-    const [effect, setEffect] = useState<Uint8Array>( new Uint8Array() )
+export function MixedPanel({ rgb }: Props): JSX.Element {
+    const [regions, setRegions] = useState<Uint8Array>(new Uint8Array())
+    const [effect, setEffect] = useState<Uint8Array>(new Uint8Array())
 
-    const reloadRegions = useCallback( async () => {
-        if ( !rgb.getMixedRegions ) return
+    const reloadRegions = useCallback(async () => {
+        if (!rgb.getMixedRegions) return
         const r = await saveWithToast(
             () => rgb.getMixedRegions!(),
             null,
             'Regions read failed',
         )
-        if ( r ) setRegions( r )
-    }, [rgb] )
+        if (r) setRegions(r)
+    }, [rgb])
 
-    const reloadEffect = useCallback( async () => {
-        if ( !rgb.getMixedEffect ) return
+    const reloadEffect = useCallback(async () => {
+        if (!rgb.getMixedEffect) return
         const r = await saveWithToast(
             () => rgb.getMixedEffect!(),
             null,
             'Effect read failed',
         )
-        if ( r ) setEffect( r )
-    }, [rgb] )
+        if (r) setEffect(r)
+    }, [rgb])
 
-    useEffect( () => {
+    useEffect(() => {
         // eslint-disable-next-line react-hooks/set-state-in-effect
         void reloadRegions()
         void reloadEffect()
-    }, [reloadRegions, reloadEffect] )
+    }, [reloadRegions, reloadEffect])
 
-    if ( !rgb.getMixedRegions || !rgb.setMixedRegions ) {
+    if (!rgb.getMixedRegions || !rgb.setMixedRegions) {
         return (
             <div className="text-xs text-muted-foreground">
                 Mixed-effect not exposed by this firmware build.
@@ -56,9 +56,9 @@ export function MixedPanel ( {rgb}: Props ): JSX.Element {
                 onChange={setRegions}
                 onReload={reloadRegions}
                 onWrite={async (): Promise<void> => {
-                    if ( !rgb.setMixedRegions ) return
+                    if (!rgb.setMixedRegions) return
                     await saveWithToast(
-                        () => rgb.setMixedRegions!( regions ),
+                        () => rgb.setMixedRegions!(regions),
                         'Regions written',
                         'Regions write failed',
                     )
@@ -71,9 +71,9 @@ export function MixedPanel ( {rgb}: Props ): JSX.Element {
                     onChange={setEffect}
                     onReload={reloadEffect}
                     onWrite={async (): Promise<void> => {
-                        if ( !rgb.setMixedEffect ) return
+                        if (!rgb.setMixedEffect) return
                         await saveWithToast(
-                            () => rgb.setMixedEffect!( effect ),
+                            () => rgb.setMixedEffect!(effect),
                             'Effect written',
                             'Effect write failed',
                         )

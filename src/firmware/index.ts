@@ -27,7 +27,7 @@ export type {
     TransportKind,
 } from './types'
 
-export {isUnlocked} from './types'
+export { isUnlocked } from './types'
 
 export type {
     Capabilities,
@@ -53,7 +53,7 @@ export type {
     ProbeHint,
 } from './adapter'
 
-export type {Transport} from './transport'
+export type { Transport } from './transport'
 
 export {
     FirmwareError,
@@ -67,7 +67,7 @@ export {
 // the user cancels a system picker (web-serial / web-bluetooth / native
 // equivalents). Surfaced from @firmware so the renderer never needs to
 // import @firmware/zmk for it.
-export {UserCancelledError} from '@zmkfirmware/zmk-studio-ts-client/transport/errors'
+export { UserCancelledError } from '@zmkfirmware/zmk-studio-ts-client/transport/errors'
 
 export {
     resolveBindingLabels,
@@ -75,9 +75,9 @@ export {
     type ResolvedHoldTapDescriptor,
 } from './labels'
 
-export {getAdapters, pickAdapter, registerAdapter} from './registry'
+export { getAdapters, pickAdapter, registerAdapter } from './registry'
 
 // Mock / demo entry point. The adapter is registered (id 'mock') but only
 // matches a sentinel transport label; `connectMock()` bypasses pickAdapter so
 // the Try Demo flow is independent of probe ordering.
-export {connectMock, MOCK_TRANSPORT_LABEL} from './mock/adapter'
+export { connectMock, MOCK_TRANSPORT_LABEL } from './mock/adapter'

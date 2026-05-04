@@ -1,7 +1,7 @@
 // pattern-check: skip barrel module — re-exports + single registerAdapter side effect
-import {registerAdapter} from '@firmware/registry'
+import { registerAdapter } from '@firmware/registry'
 
-import {keychronAdapter} from './adapter'
+import { keychronAdapter } from './adapter'
 
 export {
     keychronAdapter,
@@ -20,8 +20,8 @@ export {
     type FeatureFlags,
     type MiscFeatureFlags,
 } from './protocol'
-export {createWirelessFacade} from './wireless'
-export {createRgbFacade} from './rgb'
+export { createWirelessFacade } from './wireless'
+export { createRgbFacade } from './rgb'
 export {
     KEYCHRON_BOARDS,
     matchBoard,
@@ -29,4 +29,4 @@ export {
     type KeychronBoardPreset,
 } from './boards'
 
-registerAdapter( keychronAdapter )
+registerAdapter(keychronAdapter)

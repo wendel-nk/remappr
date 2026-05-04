@@ -1,5 +1,5 @@
 // Pattern check: no GoF pattern (-) — rejected — pure mapper from neutral KeyAction.label + PhysicalLayout geometry to renderer-shaped per-position descriptor.
-import type {HoldTapLabelData, Keymap, PhysicalLayout} from './types'
+import type { HoldTapLabelData, Keymap, PhysicalLayout } from './types'
 
 export type ResolvedHoldTapDescriptor = HoldTapLabelData
 
@@ -20,13 +20,13 @@ export interface ResolvedBindingPosition {
     ry: number
 }
 
-export function resolveBindingLabels (
+export function resolveBindingLabels(
     layout: PhysicalLayout,
     keymap: Keymap,
     selectedLayerIndex: number,
 ): ResolvedBindingPosition[] {
-    if ( !keymap.layers[selectedLayerIndex] ) return []
-    return layout.keys.map( ( k, i ) => {
+    if (!keymap.layers[selectedLayerIndex]) return []
+    return layout.keys.map((k, i) => {
         const layerKeys = keymap.layers[selectedLayerIndex].keys
         const outOfRange = i >= layerKeys.length
         const action = outOfRange ? undefined : layerKeys[i]
@@ -47,5 +47,5 @@ export function resolveBindingLabels (
             rx: (k.rx || 0) / 100.0,
             ry: (k.ry || 0) / 100.0,
         }
-    } )
+    })
 }

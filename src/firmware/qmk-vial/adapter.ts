@@ -5,7 +5,7 @@ import type {
     Probe,
     ProbeHint,
 } from '@firmware/adapter'
-import {TransportError} from '@firmware/errors'
+import { TransportError } from '@firmware/errors'
 import {
     createHidClientFromTransport,
     type HidClient,
@@ -20,23 +20,23 @@ import {
     VIA_USAGE,
     VIA_USAGE_PAGE,
 } from '@firmware/qmk/protocol'
-import type {KeyboardService} from '@firmware/service'
-import type {Transport} from '@firmware/transport'
-import type {DeviceInfo} from '@firmware/types'
+import type { KeyboardService } from '@firmware/service'
+import type { Transport } from '@firmware/transport'
+import type { DeviceInfo } from '@firmware/types'
 
-import {fetchAndParseKeyboardDef, type ParsedKeyboardDef} from './keyboardDef'
+import { fetchAndParseKeyboardDef, type ParsedKeyboardDef } from './keyboardDef'
 import {
     getKeyboardIdCmd,
     parseKeyboardId,
     SUPPORTED_VIAL_PROTOCOLS,
 } from './protocol'
-import {VialKeyboardService} from './service'
+import { VialKeyboardService } from './service'
 
 const PROBE_DEADLINE_MS = 1500
 const DEF_FETCH_DEADLINE_MS = 5000
 
 const VIAL_DISCOVERY: Discovery = {
-    hid: {usagePage: VIA_USAGE_PAGE, usage: VIA_USAGE},
+    hid: { usagePage: VIA_USAGE_PAGE, usage: VIA_USAGE },
 }
 
 interface ProbedSession {
@@ -50,44 +50,44 @@ interface ProbedSession {
 
 const probedSessions = new WeakMap<Transport, ProbedSession>()
 
-async function readVialLayerCount ( client: HidClient ): Promise<number> {
-    const resp = await client.send( getLayerCountCmd(), PROBE_DEADLINE_MS )
-    const n = parseLayerCount( resp )
-    if ( n <= 0 || n > 32 ) {
-        throw new TransportError( `Vial reported invalid layer count: ${n}` )
+async function readVialLayerCount(client: HidClient): Promise<number> {
+    const resp = await client.send(getLayerCountCmd(), PROBE_DEADLINE_MS)
+    const n = parseLayerCount(resp)
+    if (n <= 0 || n > 32) {
+        throw new TransportError(`Vial reported invalid layer count: ${n}`)
     }
     return n
 }
 
-async function probeVialSession (
+async function probeVialSession(
     transport: Transport,
 ): Promise<ProbedSession | null> {
-    const client = createHidClientFromTransport( transport )
+    const client = createHidClientFromTransport(transport)
     try {
         // VIA layer first — confirms framing works at all.
         const protoResp = await client.send(
             getProtocolVersionCmd(),
             PROBE_DEADLINE_MS,
         )
-        parseProtocolVersion( protoResp )
+        parseProtocolVersion(protoResp)
 
         // Vial-specific: keyboard id payload.
-        const idResp = await client.send( getKeyboardIdCmd(), PROBE_DEADLINE_MS )
-        const {vialProtocol, keyboardId} = parseKeyboardId( idResp )
-        if ( !SUPPORTED_VIAL_PROTOCOLS.includes( vialProtocol as 0 ) ) {
-            await client.close().catch( () => undefined )
+        const idResp = await client.send(getKeyboardIdCmd(), PROBE_DEADLINE_MS)
+        const { vialProtocol, keyboardId } = parseKeyboardId(idResp)
+        if (!SUPPORTED_VIAL_PROTOCOLS.includes(vialProtocol as 0)) {
+            await client.close().catch(() => undefined)
             return null
         }
 
-        const def = await Promise.race( [
-            fetchAndParseKeyboardDef( client ),
-            new Promise<ParsedKeyboardDef>( ( _, reject ) =>
+        const def = await Promise.race([
+            fetchAndParseKeyboardDef(client),
+            new Promise<ParsedKeyboardDef>((_, reject) =>
                 setTimeout(
-                    () => reject( new TransportError( 'Vial def fetch timeout' ) ),
+                    () => reject(new TransportError('Vial def fetch timeout')),
                     DEF_FETCH_DEADLINE_MS,
                 ),
             ),
-        ] )
+        ])
 
         let firmwareVersion: number | undefined
         try {
@@ -95,12 +95,12 @@ async function probeVialSession (
                 getFirmwareVersionCmd(),
                 PROBE_DEADLINE_MS,
             )
-            firmwareVersion = parseFirmwareVersion( fwResp )
+            firmwareVersion = parseFirmwareVersion(fwResp)
         } catch {
             /* optional */
         }
 
-        const layerCount = await readVialLayerCount( client )
+        const layerCount = await readVialLayerCount(client)
 
         const deviceInfo: DeviceInfo = {
             name: def.name || transport.label || 'Vial keyboard',
@@ -109,71 +109,71 @@ async function probeVialSession (
                 firmwareVersion !== undefined
                     ? firmwareVersion.toString()
                     : `vial-${vialProtocol}`,
-            serialNumber: keyboardId.toString( 16 ),
+            serialNumber: keyboardId.toString(16),
         }
-        return {client, deviceInfo, def, layerCount, vialProtocol, keyboardId}
+        return { client, deviceInfo, def, layerCount, vialProtocol, keyboardId }
     } catch {
-        await client.close().catch( () => undefined )
+        await client.close().catch(() => undefined)
         return null
     }
 }
 
-export function createVialAdapter (): FirmwareAdapter {
+export function createVialAdapter(): FirmwareAdapter {
     return {
         id: 'qmk-vial',
         displayName: 'QMK (Vial)',
         discovery: VIAL_DISCOVERY,
 
-        async canHandle (
+        async canHandle(
             transport: Transport,
             hint?: ProbeHint,
         ): Promise<Probe> {
-            if ( hint && hint.transportKind !== 'hid' ) {
-                return {ok: false, reason: 'qmk-vial requires HID transport'}
+            if (hint && hint.transportKind !== 'hid') {
+                return { ok: false, reason: 'qmk-vial requires HID transport' }
             }
-            const cached = probedSessions.get( transport )
-            if ( cached ) return {ok: true, deviceInfo: cached.deviceInfo}
-            const session = await probeVialSession( transport )
-            if ( !session ) return {ok: false, reason: 'not a Vial device'}
-            probedSessions.set( transport, session )
-            return {ok: true, deviceInfo: session.deviceInfo}
+            const cached = probedSessions.get(transport)
+            if (cached) return { ok: true, deviceInfo: cached.deviceInfo }
+            const session = await probeVialSession(transport)
+            if (!session) return { ok: false, reason: 'not a Vial device' }
+            probedSessions.set(transport, session)
+            return { ok: true, deviceInfo: session.deviceInfo }
         },
 
-        async connect (
+        async connect(
             transport: Transport,
             signal: AbortSignal,
         ): Promise<KeyboardService> {
-            let session = probedSessions.get( transport ) ?? null
-            if ( session ) probedSessions.delete( transport )
+            let session = probedSessions.get(transport) ?? null
+            if (session) probedSessions.delete(transport)
             else {
-                session = await probeVialSession( transport )
-                if ( !session ) {
-                    throw new TransportError( 'Vial probe failed during connect' )
+                session = await probeVialSession(transport)
+                if (!session) {
+                    throw new TransportError('Vial probe failed during connect')
                 }
             }
-            if ( signal.aborted ) {
+            if (signal.aborted) {
                 await session.client
-                    .close( {abortTransport: true} )
-                    .catch( () => undefined )
-                throw signal.reason ?? new Error( 'aborted' )
+                    .close({ abortTransport: true })
+                    .catch(() => undefined)
+                throw signal.reason ?? new Error('aborted')
             }
             signal.addEventListener(
                 'abort',
                 () => {
                     session!.client
-                        .close( {abortTransport: true} )
-                        .catch( () => undefined )
+                        .close({ abortTransport: true })
+                        .catch(() => undefined)
                 },
-                {once: true},
+                { once: true },
             )
-            return VialKeyboardService.create( {
+            return VialKeyboardService.create({
                 deviceInfo: session.deviceInfo,
                 client: session.client,
                 def: session.def,
                 layerCount: session.layerCount,
                 vialProtocol: session.vialProtocol,
                 keyboardId: session.keyboardId,
-            } )
+            })
         },
     }
 }

@@ -1,7 +1,7 @@
 // pattern-check: skip — thin store-reading wrapper around useFeatureAvailable
-import {ReactNode} from 'react'
+import { ReactNode } from 'react'
 
-import {useFeatureAvailable, type Feature} from './useFeatureAvailable'
+import { useFeatureAvailable, type Feature } from './useFeatureAvailable'
 
 interface Props {
     feature: Feature
@@ -9,10 +9,10 @@ interface Props {
     fallback?: ReactNode
 }
 
-export function FeatureGate ( {
+export function FeatureGate({
     feature,
     children,
     fallback = null,
-}: Props ): JSX.Element {
-    return <>{useFeatureAvailable( feature ) ? children : fallback}</>
+}: Props): JSX.Element {
+    return <>{useFeatureAvailable(feature) ? children : fallback}</>
 }

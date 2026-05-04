@@ -1,5 +1,5 @@
-import type {KeyCatalog} from './catalog/types'
-import type {KeycodeCodec} from './codec'
+import type { KeyCatalog } from './catalog/types'
+import type { KeycodeCodec } from './codec'
 import type {
     ActionType,
     AdapterNotification,
@@ -34,7 +34,7 @@ export interface Capabilities {
 
 // Pattern check: Facade (Tier 1) — applied — group related optional methods into 3 cohesive feature facades for renderer single-guard reads
 export interface EncoderApi {
-    setEncoder (
+    setEncoder(
         layerId: number,
         encoderIdx: number,
         direction: 0 | 1,
@@ -43,31 +43,31 @@ export interface EncoderApi {
 }
 
 export interface DynamicEntriesApi {
-    getCounts (): DynamicEntryCounts
+    getCounts(): DynamicEntryCounts
 
-    getTapDance ( idx: number ): Promise<TapDanceEntry>
+    getTapDance(idx: number): Promise<TapDanceEntry>
 
-    setTapDance ( idx: number, entry: TapDanceEntry ): Promise<void>
+    setTapDance(idx: number, entry: TapDanceEntry): Promise<void>
 
-    getCombo ( idx: number ): Promise<ComboEntry>
+    getCombo(idx: number): Promise<ComboEntry>
 
-    setCombo ( idx: number, entry: ComboEntry ): Promise<void>
+    setCombo(idx: number, entry: ComboEntry): Promise<void>
 
-    getKeyOverride ( idx: number ): Promise<KeyOverrideEntry>
+    getKeyOverride(idx: number): Promise<KeyOverrideEntry>
 
-    setKeyOverride ( idx: number, entry: KeyOverrideEntry ): Promise<void>
+    setKeyOverride(idx: number, entry: KeyOverrideEntry): Promise<void>
 
-    getAltRepeatKey? ( idx: number ): Promise<AltRepeatKeyEntry>
+    getAltRepeatKey?(idx: number): Promise<AltRepeatKeyEntry>
 
-    setAltRepeatKey? ( idx: number, entry: AltRepeatKeyEntry ): Promise<void>
+    setAltRepeatKey?(idx: number, entry: AltRepeatKeyEntry): Promise<void>
 }
 
 export interface MacroApi {
-    getCount (): number
+    getCount(): number
 
-    getMacro ( idx: number ): Promise<MacroAction[]>
+    getMacro(idx: number): Promise<MacroAction[]>
 
-    setMacro ( idx: number, actions: MacroAction[] ): Promise<void>
+    setMacro(idx: number, actions: MacroAction[]): Promise<void>
 }
 
 // Pattern check: Facade (Tier 1) — applied — Keychron-style wireless surface (BT/2.4G/battery/LPM) grouped behind one optional service member; renderer reads service.wireless once instead of N capability flags.
@@ -85,21 +85,21 @@ export interface WirelessStatus {
 }
 
 export interface WirelessApi {
-    getLpm (): Promise<WirelessLpm>
+    getLpm(): Promise<WirelessLpm>
 
-    setLpm ( opts: WirelessLpm ): Promise<void>
+    setLpm(opts: WirelessLpm): Promise<void>
 
-    getStatus (): Promise<WirelessStatus>
+    getStatus(): Promise<WirelessStatus>
 
-    onStatusChanged ( cb: ( status: WirelessStatus ) => void ): () => void
+    onStatusChanged(cb: (status: WirelessStatus) => void): () => void
 
-    getNkro? (): Promise<boolean>
+    getNkro?(): Promise<boolean>
 
-    setNkro? ( enabled: boolean ): Promise<void>
+    setNkro?(enabled: boolean): Promise<void>
 
-    factoryReset? (): Promise<void>
+    factoryReset?(): Promise<void>
 
-    getModuleInfo? (): Promise<WirelessModuleInfo>
+    getModuleInfo?(): Promise<WirelessModuleInfo>
 }
 
 // pattern-check: skip — plain DTO for wireless-module firmware label
@@ -123,62 +123,62 @@ export interface HsvColor {
 }
 
 export interface RgbApi {
-    getLedCount (): Promise<number>
+    getLedCount(): Promise<number>
 
-    getIndicators (): Promise<IndicatorConfig>
+    getIndicators(): Promise<IndicatorConfig>
 
-    setIndicators ( cfg: IndicatorConfig ): Promise<void>
+    setIndicators(cfg: IndicatorConfig): Promise<void>
 
-    save (): Promise<void>
+    save(): Promise<void>
 
-    getPerKeyType? (): Promise<number>
+    getPerKeyType?(): Promise<number>
 
-    setPerKeyType? ( type: number ): Promise<void>
+    setPerKeyType?(type: number): Promise<void>
 
-    getPerKeyColors? ( startLed: number, count: number ): Promise<HsvColor[]>
+    getPerKeyColors?(startLed: number, count: number): Promise<HsvColor[]>
 
-    setPerKeyColors? ( startLed: number, colors: HsvColor[] ): Promise<void>
+    setPerKeyColors?(startLed: number, colors: HsvColor[]): Promise<void>
 
-    getMixedRegions? (): Promise<Uint8Array>
+    getMixedRegions?(): Promise<Uint8Array>
 
-    setMixedRegions? ( payload: Uint8Array ): Promise<void>
+    setMixedRegions?(payload: Uint8Array): Promise<void>
 
-    getMixedEffect? (): Promise<Uint8Array>
+    getMixedEffect?(): Promise<Uint8Array>
 
-    setMixedEffect? ( payload: Uint8Array ): Promise<void>
+    setMixedEffect?(payload: Uint8Array): Promise<void>
 }
 
 export interface KeyboardService {
     readonly deviceInfo: DeviceInfo
     readonly capabilities: Capabilities
 
-    getLockState (): Promise<LockState>
+    getLockState(): Promise<LockState>
 
-    unlock (): Promise<void>
+    unlock(): Promise<void>
 
-    onLockStateChanged ( cb: ( state: LockState ) => void ): () => void
+    onLockStateChanged(cb: (state: LockState) => void): () => void
 
-    listActionTypes (): Promise<ActionType[]>
+    listActionTypes(): Promise<ActionType[]>
 
-    buildKeyAction ( kind: string, params: number[] ): KeyAction
+    buildKeyAction(kind: string, params: number[]): KeyAction
 
     /** Unified canonical catalog filtered by codec.supports(). PR 1 optional;
      *  promoted to required after every adapter ships a codec (PR 2). */
-    listKeyCatalog? (): Promise<KeyCatalog>
+    listKeyCatalog?(): Promise<KeyCatalog>
 
     /** Strategy reference. Adapters expose codec for cross-firmware encode/decode. */
     codec?: KeycodeCodec
 
-    getKeymap (): Promise<Keymap>
+    getKeymap(): Promise<Keymap>
 
-    getPhysicalLayouts (): Promise<{
+    getPhysicalLayouts(): Promise<{
         layouts: import('./types').PhysicalLayout[]
         activeLayoutId: number
     }>
 
-    setKey ( layerId: number, position: number, action: KeyAction ): Promise<void>
+    setKey(layerId: number, position: number, action: KeyAction): Promise<void>
 
-    setKeys ( updates: KeyUpdate[] ): Promise<void>
+    setKeys(updates: KeyUpdate[]): Promise<void>
 
     encoders?: EncoderApi
     dynamic?: DynamicEntriesApi
@@ -186,40 +186,40 @@ export interface KeyboardService {
     wireless?: WirelessApi
     rgb?: RgbApi
 
-    addLayer (): Promise<Layer>
+    addLayer(): Promise<Layer>
 
-    removeLayer ( layerId: number ): Promise<void>
+    removeLayer(layerId: number): Promise<void>
 
-    renameLayer ( layerId: number, name: string ): Promise<void>
+    renameLayer(layerId: number, name: string): Promise<void>
 
-    moveLayer ( startIndex: number, destIndex: number ): Promise<void>
+    moveLayer(startIndex: number, destIndex: number): Promise<void>
 
-    restoreLayer ( layerId: number, atIndex: number ): Promise<Layer>
+    restoreLayer(layerId: number, atIndex: number): Promise<Layer>
 
-    setActivePhysicalLayout ( layoutId: number ): Promise<Keymap>
+    setActivePhysicalLayout(layoutId: number): Promise<Keymap>
 
     /** Optional: swap to a sideloaded/registry-fetched VIA-style keyboard def.
      *  Throws on matrix-mismatch or pendingChanges. Adapters that don't expose
      *  this capability omit it. */
-    applyLayout? ( def: import('./kle/parser').ParsedKeyboardDef ): Promise<void>
+    applyLayout?(def: import('./kle/parser').ParsedKeyboardDef): Promise<void>
 
-    commit (): Promise<void>
+    commit(): Promise<void>
 
-    discardChanges (): Promise<void>
+    discardChanges(): Promise<void>
 
-    resetSettings (): Promise<void>
+    resetSettings(): Promise<void>
 
-    hasPendingChanges (): boolean
+    hasPendingChanges(): boolean
 
-    refreshPendingChanges (): Promise<boolean>
+    refreshPendingChanges(): Promise<boolean>
 
-    onPendingChangesChanged ( cb: ( pending: boolean ) => void ): () => void
+    onPendingChangesChanged(cb: (pending: boolean) => void): () => void
 
-    subscribe ( cb: ( notification: AdapterNotification ) => void ): () => void
+    subscribe(cb: (notification: AdapterNotification) => void): () => void
 
-    exportConfig (): Promise<ExportedFile[]>
+    exportConfig(): Promise<ExportedFile[]>
 
-    onClosed ( cb: ( reason?: unknown ) => void ): () => void
+    onClosed(cb: (reason?: unknown) => void): () => void
 
-    disconnect (): Promise<void>
+    disconnect(): Promise<void>
 }

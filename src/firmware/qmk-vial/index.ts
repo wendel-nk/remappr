@@ -1,10 +1,10 @@
 // pattern-check: skip barrel module — re-exports + single registerAdapter side effect
-import {registerAdapter} from '@firmware/registry'
-import {vialAdapter} from './adapter'
+import { registerAdapter } from '@firmware/registry'
+import { vialAdapter } from './adapter'
 
-export {vialAdapter, createVialAdapter} from './adapter'
-export {VialKeyboardService} from './service'
-export {VIAL_ACTION_TYPES, buildVialActionTypes} from './actionTypes'
+export { vialAdapter, createVialAdapter } from './adapter'
+export { VialKeyboardService } from './service'
+export { VIAL_ACTION_TYPES, buildVialActionTypes } from './actionTypes'
 export {
     getMacroCount,
     getMacroBufferSize,
@@ -73,6 +73,6 @@ export type {
     AltRepeatKeyEntry,
     AltRepeatKeyOptions,
 } from './dynamic'
-export {readEncoder, writeEncoder} from './encoder'
+export { readEncoder, writeEncoder } from './encoder'
 
-registerAdapter( vialAdapter )
+registerAdapter(vialAdapter)

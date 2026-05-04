@@ -1,7 +1,7 @@
 // pattern-check: skip — small UI component, single caller branches by transport count
-import {Plus, Bluetooth, Usb, Cable} from 'lucide-react'
-import type {JSX} from 'react'
-import {Button} from '@/ui/button'
+import { Bluetooth, Plus, Usb } from 'lucide-react'
+import type { JSX } from 'react'
+import { Button } from '@/ui/button'
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -10,11 +10,11 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/ui/dropdown-menu'
-import type {TransportFactory} from '@/transport/types'
+import type { TransportFactory } from '@/transport/types'
 
 interface PairNewButtonProps {
     transports: TransportFactory[]
-    onRequestNew: ( t: TransportFactory ) => void
+    onRequestNew: (t: TransportFactory) => void
     variant?: 'default' | 'outline'
     size?: 'default' | 'sm'
 }
@@ -26,42 +26,35 @@ interface TransportPresentation {
     description: string
 }
 
-function presentTransport ( t: TransportFactory ): TransportPresentation {
-    if ( t.communication === 'ble' || t.isWireless ) {
+function presentTransport(t: TransportFactory): TransportPresentation {
+    if (t.communication === 'ble' || t.isWireless) {
         return {
             icon: <Bluetooth className="h-4 w-4 text-blue-500" />,
             title: 'Bluetooth',
             description: 'Wireless keyboards paired over BLE',
         }
     }
-    if ( t.communication === 'hid' ) {
-        return {
-            icon: <Cable className="h-4 w-4" />,
-            title: 'USB (HID)',
-            description: 'Raw HID firmware (e.g. QMK / VIA)',
-        }
-    }
     return {
         icon: <Usb className="h-4 w-4" />,
-        title: 'USB (Serial)',
-        description: 'Most ZMK keyboards over USB cable',
+        title: 'USB',
+        description: 'Wired keyboards over USB cable',
     }
 }
 
-export function PairNewButton ( {
+export function PairNewButton({
     transports,
     onRequestNew,
     variant = 'default',
     size = 'default',
-}: PairNewButtonProps ): JSX.Element | null {
-    if ( transports.length === 0 ) return null
+}: PairNewButtonProps): JSX.Element | null {
+    if (transports.length === 0) return null
 
-    if ( transports.length === 1 ) {
+    if (transports.length === 1) {
         return (
             <Button
                 variant={variant}
                 size={size}
-                onClick={() => onRequestNew( transports[0] )}
+                onClick={() => onRequestNew(transports[0])}
             >
                 <Plus className="mr-2 h-4 w-4" />
                 Pair new device
@@ -80,12 +73,12 @@ export function PairNewButton ( {
             <DropdownMenuContent align="start" className="w-72">
                 <DropdownMenuLabel>Choose connection type</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {transports.map( ( t ) => {
-                    const p = presentTransport( t )
+                {transports.map((t) => {
+                    const p = presentTransport(t)
                     return (
                         <DropdownMenuItem
                             key={t.label}
-                            onClick={() => onRequestNew( t )}
+                            onClick={() => onRequestNew(t)}
                             className="flex items-start gap-3 py-2.5"
                         >
                             <span className="mt-0.5 shrink-0">{p.icon}</span>
@@ -99,7 +92,7 @@ export function PairNewButton ( {
                             </span>
                         </DropdownMenuItem>
                     )
-                } )}
+                })}
             </DropdownMenuContent>
         </DropdownMenu>
     )

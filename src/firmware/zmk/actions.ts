@@ -1,6 +1,6 @@
 // Pattern check: Adapter (Tier 1) — extended — backs src/firmware/adapter.ts FirmwareAdapter; translates ZMK BehaviorBinding ↔ neutral KeyAction with slot-driven labels baked in.
-import type {BehaviorBinding} from '@zmkfirmware/zmk-studio-ts-client/keymap'
-import type {GetBehaviorDetailsResponse} from '@zmkfirmware/zmk-studio-ts-client/behaviors'
+import type { BehaviorBinding } from '@zmkfirmware/zmk-studio-ts-client/keymap'
+import type { GetBehaviorDetailsResponse } from '@zmkfirmware/zmk-studio-ts-client/behaviors'
 import type {
     ActionSlot,
     HoldTapLabelData,
@@ -15,8 +15,8 @@ import {
     abbreviateLayerName,
     formatMomentaryLayer,
 } from '@/lib/keyAbbreviations'
-import {displayNameToBinding} from './displayNameToBinding'
-import {behaviorToActionType} from './actionTypes'
+import { displayNameToBinding } from './displayNameToBinding'
+import { behaviorToActionType } from './actionTypes'
 
 export type BehaviorMap = Record<number, GetBehaviorDetailsResponse>
 
@@ -26,40 +26,40 @@ export interface ZmkBindingView {
     param2: number
 }
 
-export function zmkBindingFromAction ( action: KeyAction ): ZmkBindingView {
-    const behaviorId = Number.parseInt( action.kind, 10 )
+export function zmkBindingFromAction(action: KeyAction): ZmkBindingView {
+    const behaviorId = Number.parseInt(action.kind, 10)
     return {
-        behaviorId: Number.isNaN( behaviorId ) ? 0 : behaviorId,
+        behaviorId: Number.isNaN(behaviorId) ? 0 : behaviorId,
         param1: action.params[0] ?? 0,
         param2: action.params[1] ?? 0,
     }
 }
 
-function describeUsage ( usage: number ): string {
-    const [pageMut, id] = hidUsagePageAndIdFromUsage( usage )
+function describeUsage(usage: number): string {
+    const [pageMut, id] = hidUsagePageAndIdFromUsage(usage)
     const page = pageMut & 0xff
-    const labels = hid_usage_get_labels( page, id )
+    const labels = hid_usage_get_labels(page, id)
     const long = labels.long || labels.med || labels.short
-    return long ? long.replace( /^Keyboard /, '' ) : `0x${usage.toString( 16 )}`
+    return long ? long.replace(/^Keyboard /, '') : `0x${usage.toString(16)}`
 }
 
-function buildHoldTapLabelData (
+function buildHoldTapLabelData(
     binding: BehaviorBinding,
     behavior: GetBehaviorDetailsResponse,
     slots: ActionSlot[],
     keymap: { layers: { name: string }[] },
 ): HoldTapLabelData | undefined {
-    if ( slots.length !== 2 ) return undefined
+    if (slots.length !== 2) return undefined
     const actionTypeName = behavior.displayName
-    const actionLabel = displayNameToBinding( actionTypeName )
+    const actionLabel = displayNameToBinding(actionTypeName)
     const tapParam = binding.param2
     const holdParam = binding.param1
-    const tapDesc = describeUsage( tapParam )
+    const tapDesc = describeUsage(tapParam)
 
-    if ( slots[0].kind === 'layer' ) {
+    if (slots[0].kind === 'layer') {
         const layerName = keymap.layers[holdParam]?.name
-        const layerLabel = abbreviateLayerName( layerName, holdParam )
-        const mo = formatMomentaryLayer( holdParam )
+        const layerLabel = abbreviateLayerName(layerName, holdParam)
+        const mo = formatMomentaryLayer(holdParam)
         const holdDesc = layerName ? `${mo} (${layerLabel})` : mo
         return {
             actionTypeName,
@@ -75,7 +75,7 @@ function buildHoldTapLabelData (
         }
     }
 
-    const holdDesc = describeUsage( holdParam )
+    const holdDesc = describeUsage(holdParam)
     return {
         actionTypeName,
         actionLabel,
@@ -88,19 +88,19 @@ function buildHoldTapLabelData (
     }
 }
 
-export function buildKeyLabel (
+export function buildKeyLabel(
     binding: BehaviorBinding,
     behaviors: BehaviorMap,
     keymap: { layers: { name: string }[] },
 ): KeyLabel {
     const behavior = behaviors[binding.behaviorId]
-    if ( !behavior ) {
-        return {primary: 'Unknown', description: 'Unknown'}
+    if (!behavior) {
+        return { primary: 'Unknown', description: 'Unknown' }
     }
-    const slots = behaviorToActionType( behavior ).slots
-    const bindingPrefix = displayNameToBinding( behavior.displayName )
-    const holdTap = buildHoldTapLabelData( binding, behavior, slots, keymap )
-    if ( holdTap ) {
+    const slots = behaviorToActionType(behavior).slots
+    const bindingPrefix = displayNameToBinding(behavior.displayName)
+    const holdTap = buildHoldTapLabelData(binding, behavior, slots, keymap)
+    if (holdTap) {
         return {
             primary: holdTap.tapDesc,
             secondary:
@@ -123,20 +123,20 @@ export function buildKeyLabel (
     }
 }
 
-export function bindingToKeyAction (
+export function bindingToKeyAction(
     binding: BehaviorBinding,
     behaviors: BehaviorMap,
     keymap: { layers: { name: string }[] },
 ): KeyAction {
     return {
-        kind: String( binding.behaviorId ),
+        kind: String(binding.behaviorId),
         params: [binding.param1, binding.param2],
-        label: buildKeyLabel( binding, behaviors, keymap ),
+        label: buildKeyLabel(binding, behaviors, keymap),
     }
 }
 
-export function keyActionToBinding ( action: KeyAction ): BehaviorBinding {
-    const view = zmkBindingFromAction( action )
+export function keyActionToBinding(action: KeyAction): BehaviorBinding {
+    const view = zmkBindingFromAction(action)
     return {
         behaviorId: view.behaviorId,
         param1: view.param1,
@@ -144,6 +144,6 @@ export function keyActionToBinding ( action: KeyAction ): BehaviorBinding {
     } as BehaviorBinding
 }
 
-export function bindingPrefix ( behavior: GetBehaviorDetailsResponse ): string {
-    return displayNameToBinding( behavior.displayName )
+export function bindingPrefix(behavior: GetBehaviorDetailsResponse): string {
+    return displayNameToBinding(behavior.displayName)
 }

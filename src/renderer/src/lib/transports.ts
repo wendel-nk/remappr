@@ -1,15 +1,24 @@
-// pattern-check: skip — merge conflict resolution, no new logic
+// pattern-check: skip — wires capability methods + adds Adapter for change events
 import { TransportFactory } from '../transport/types'
 import {
-    listGrantedDevices as web_ble_list,
     connectToGrantedDevice as web_ble_connect_granted,
+    forgetGrantedDevice as web_ble_forget,
+    listGrantedDevices as web_ble_list,
     requestAndConnect as web_ble_request_new,
 } from '../transport/web-ble'
 import {
-    listGrantedPorts as web_serial_list,
     connectToGrantedPort as web_serial_connect_granted,
+    forgetGrantedPort as web_serial_forget,
+    listGrantedPorts as web_serial_list,
+    onPortsChanged as web_serial_on_ports_changed,
     requestAndConnect as web_serial_request_new,
+    setUserDeviceName as web_serial_set_user_name,
 } from '../transport/web-serial'
+import {
+    connect as electron_serial_connect,
+    list_devices as electron_serial_list_devices,
+    onDevicesChanged as electron_on_devices_changed,
+} from '../electron/serial.ts'
 import {
     connect as tauri_ble_connect,
     list_devices as ble_list_devices,
@@ -26,10 +35,6 @@ import {
     connect as electron_noble_connect,
     list_devices as electron_noble_list_devices,
 } from '../electron/noble-ble.ts'
-import {
-    connect as electron_serial_connect,
-    list_devices as electron_serial_list_devices,
-} from '../electron/serial.ts'
 
 declare global {
     interface Window {
@@ -124,6 +129,9 @@ export function getTransports(): TransportFactory[] {
                     connect: web_serial_connect_granted,
                 },
                 request_new: web_serial_request_new,
+                renameDevice: (device, name) =>
+                    web_serial_set_user_name(device.id, name),
+                forgetDevice: (device) => web_serial_forget(device.id),
             })
         }
 
@@ -154,8 +162,20 @@ export function getTransports(): TransportFactory[] {
         void web_ble_list
         void web_ble_connect_granted
         void web_ble_request_new
+        void web_ble_forget
     }
 
     cachedTransports = transports
     return cachedTransports
+}
+
+// pattern-check: Adapter (Tier 1) — applied — unifies Electron + Web Serial change-event APIs into one subscribe signature
+export function subscribeToTransportChanges(cb: () => void): () => void {
+    if (isElectron()) {
+        return electron_on_devices_changed(cb)
+    }
+    if (typeof navigator !== 'undefined' && navigator.serial) {
+        return web_serial_on_ports_changed(cb)
+    }
+    return (): void => undefined
 }

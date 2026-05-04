@@ -1,19 +1,19 @@
 // pattern-check: skip — composes shadcn Input + Field primitives, no abstraction
-import {useId} from 'react'
+import { useId } from 'react'
 
-import {hex16, parseHex16} from '@/lib/hex'
-import {Field, FieldLabel} from '@/ui/field'
-import {Input} from '@/ui/input'
+import { hex16, parseHex16 } from '@/lib/hex'
+import { Field, FieldLabel } from '@/ui/field'
+import { Input } from '@/ui/input'
 
 interface Props {
     label: string
     value: number
-    onChange: ( next: number ) => void
+    onChange: (next: number) => void
     /** Optional bitmask applied after parse (e.g. 0xff for byte fields). */
     mask?: number
 }
 
-export function NumField ( {label, value, onChange, mask}: Props ): JSX.Element {
+export function NumField({ label, value, onChange, mask }: Props): JSX.Element {
     const id = useId()
     return (
         <Field orientation="horizontal" className="gap-2">
@@ -22,10 +22,10 @@ export function NumField ( {label, value, onChange, mask}: Props ): JSX.Element 
             </FieldLabel>
             <Input
                 id={id}
-                value={hex16( value )}
-                onChange={( e ) => {
-                    const v = parseHex16( e.target.value )
-                    onChange( mask !== undefined ? v & mask : v )
+                value={hex16(value)}
+                onChange={(e) => {
+                    const v = parseHex16(e.target.value)
+                    onChange(mask !== undefined ? v & mask : v)
                 }}
                 className="w-32 font-mono text-xs"
             />

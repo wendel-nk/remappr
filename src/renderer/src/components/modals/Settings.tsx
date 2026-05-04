@@ -1,6 +1,6 @@
 // pattern-check: skip — adding manual check button + IPC plumbing, no abstraction
 import { useState } from 'react'
-import { Settings as SettingsIcon, RefreshCw } from 'lucide-react'
+import { RefreshCw, Settings as SettingsIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { DarkModeToggle } from '@/components/DarkModeToggle'
 import { ThemePicker } from '@/components/ThemePicker'
@@ -10,8 +10,8 @@ import { Modal } from '@/ui/modal'
 import { Button } from '@/ui/button'
 import { Label } from '@/ui/label'
 import { APP_VERSION } from '@/lib/constants'
-import { IpcChannels } from '../../../../shared/ipc-types'
 import type { UpdateCheckResultPayload } from '../../../../shared/ipc-types'
+import { IpcChannels } from '../../../../shared/ipc-types'
 
 interface ElectronWindow {
     api?: {
@@ -24,7 +24,6 @@ interface SettingsProps {
     onClose?: () => void
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function Settings(_props: SettingsProps): JSX.Element {
     const [checking, setChecking] = useState(false)
     const api = (window as unknown as ElectronWindow).api

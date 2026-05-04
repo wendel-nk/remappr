@@ -1,10 +1,9 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 // Pattern check: Adapter (Tier 1) — extended — backs src/firmware/adapter.ts FirmwareAdapter; sentinel-label probe + connect returning MockKeyboardService.
-import type {Discovery, FirmwareAdapter, Probe} from '@firmware/adapter'
-import type {KeyboardService} from '@firmware/service'
-import type {Transport} from '@firmware/transport'
+import type { Discovery, FirmwareAdapter, Probe } from '@firmware/adapter'
+import type { KeyboardService } from '@firmware/service'
+import type { Transport } from '@firmware/transport'
 
-import {MockKeyboardService} from './service'
+import { MockKeyboardService } from './service'
 
 export const MOCK_TRANSPORT_LABEL = 'mock://demo'
 
@@ -15,9 +14,9 @@ export const mockAdapter: FirmwareAdapter = {
     displayName: 'Mock (Demo)',
     discovery: MOCK_DISCOVERY,
 
-    async canHandle ( transport: Transport ): Promise<Probe> {
-        if ( transport.label !== MOCK_TRANSPORT_LABEL ) {
-            return {ok: false, reason: 'not a mock transport'}
+    async canHandle(transport: Transport): Promise<Probe> {
+        if (transport.label !== MOCK_TRANSPORT_LABEL) {
+            return { ok: false, reason: 'not a mock transport' }
         }
         return {
             ok: true,
@@ -30,7 +29,7 @@ export const mockAdapter: FirmwareAdapter = {
         }
     },
 
-    async connect (
+    async connect(
         _transport: Transport,
         _signal: AbortSignal,
     ): Promise<KeyboardService> {
@@ -43,17 +42,17 @@ export const mockAdapter: FirmwareAdapter = {
  * (closed/discarded) — MockKeyboardService never reads or writes them. Used by
  * the demo flow and by the contract suite to drive `pickAdapter` end-to-end.
  */
-export function createMockTransport (): Transport {
-    const readable = new ReadableStream<Uint8Array>( {
-        start ( controller ) {
+export function createMockTransport(): Transport {
+    const readable = new ReadableStream<Uint8Array>({
+        start(controller) {
             controller.close()
         },
-    } )
-    const writable = new WritableStream<Uint8Array>( {
-        write () {
+    })
+    const writable = new WritableStream<Uint8Array>({
+        write() {
             /* discard */
         },
-    } )
+    })
     return {
         label: MOCK_TRANSPORT_LABEL,
         abortController: new AbortController(),
@@ -67,8 +66,8 @@ export function createMockTransport (): Transport {
  * a ready KeyboardService. Bypasses pickAdapter on purpose so the demo button
  * never depends on probe ordering.
  */
-export async function connectMock (): Promise<KeyboardService> {
+export async function connectMock(): Promise<KeyboardService> {
     const transport = createMockTransport()
     const ctrl = new AbortController()
-    return mockAdapter.connect( transport, ctrl.signal )
+    return mockAdapter.connect(transport, ctrl.signal)
 }

@@ -1,5 +1,5 @@
 // Pattern check: Adapter (Tier 1) — extended — extends src/firmware/qmk/adapter.ts FirmwareAdapter; real VIA HID probe (id_get_protocol_version) + connect builds QmkKeyboardService.
-import type {Transport} from '@firmware/transport'
+import type { Transport } from '@firmware/transport'
 
 import type {
     Discovery,
@@ -7,11 +7,11 @@ import type {
     Probe,
     ProbeHint,
 } from '@firmware/adapter'
-import type {KeyboardService} from '@firmware/service'
-import type {DeviceInfo} from '@firmware/types'
-import {TransportError} from '@firmware/errors'
+import type { KeyboardService } from '@firmware/service'
+import type { DeviceInfo } from '@firmware/types'
+import { TransportError } from '@firmware/errors'
 
-import {createHidClientFromTransport, type HidClient} from './hidClient'
+import { createHidClientFromTransport, type HidClient } from './hidClient'
 import {
     getFirmwareVersionCmd,
     getProtocolVersionCmd,
@@ -20,9 +20,9 @@ import {
     VIA_USAGE,
     VIA_USAGE_PAGE,
 } from './protocol'
-import {QmkKeyboardService, readQmkLayerCount} from './service'
-import {cacheKey, loadCached} from './layoutSideload'
-import type {ParsedKeyboardDef} from '@firmware/kle/parser'
+import { QmkKeyboardService, readQmkLayerCount } from './service'
+import { cacheKey, loadCached } from './layoutSideload'
+import type { ParsedKeyboardDef } from '@firmware/kle/parser'
 
 const PROBE_DEADLINE_MS = 750
 
@@ -48,18 +48,18 @@ interface ProbedSession {
 
 const probedSessions = new WeakMap<Transport, ProbedSession>()
 
-function parseVidPidFromLabel (
+function parseVidPidFromLabel(
     label: string,
 ): { vid: number; pid: number } | null {
-    const m = label.match( /\b([0-9a-f]{4}):([0-9a-f]{4})\b/i )
-    if ( !m ) return null
-    const vid = Number.parseInt( m[1], 16 )
-    const pid = Number.parseInt( m[2], 16 )
-    if ( !Number.isFinite( vid ) || !Number.isFinite( pid ) ) return null
-    return {vid, pid}
+    const m = label.match(/\b([0-9a-f]{4}):([0-9a-f]{4})\b/i)
+    if (!m) return null
+    const vid = Number.parseInt(m[1], 16)
+    const pid = Number.parseInt(m[2], 16)
+    if (!Number.isFinite(vid) || !Number.isFinite(pid)) return null
+    return { vid, pid }
 }
 
-function readTransportIds ( transport: Transport ): {
+function readTransportIds(transport: Transport): {
     vid?: number
     pid?: number
 } {
@@ -67,30 +67,30 @@ function readTransportIds ( transport: Transport ): {
         typeof transport.vid === 'number' &&
         typeof transport.pid === 'number'
     ) {
-        return {vid: transport.vid, pid: transport.pid}
+        return { vid: transport.vid, pid: transport.pid }
     }
-    const parsed = parseVidPidFromLabel( transport.label || '' )
+    const parsed = parseVidPidFromLabel(transport.label || '')
     return parsed ?? {}
 }
 
-function resolveLayoutDefFromCache (
+function resolveLayoutDefFromCache(
     deviceInfo: DeviceInfo,
 ): ParsedKeyboardDef | null {
-    const key = cacheKey( deviceInfo )
-    if ( !key ) return null
-    return loadCached( key )
+    const key = cacheKey(deviceInfo)
+    if (!key) return null
+    return loadCached(key)
 }
 
-async function probeViaSession (
+async function probeViaSession(
     transport: Transport,
 ): Promise<ProbedSession | null> {
-    const client = createHidClientFromTransport( transport )
+    const client = createHidClientFromTransport(transport)
     try {
         const protoResp = await client.send(
             getProtocolVersionCmd(),
             PROBE_DEADLINE_MS,
         )
-        const protocolVersion = parseProtocolVersion( protoResp )
+        const protocolVersion = parseProtocolVersion(protoResp)
 
         let firmwareVersion: number | undefined
         try {
@@ -98,14 +98,14 @@ async function probeViaSession (
                 getFirmwareVersionCmd(),
                 PROBE_DEADLINE_MS,
             )
-            firmwareVersion = parseFirmwareVersion( fwResp )
+            firmwareVersion = parseFirmwareVersion(fwResp)
         } catch {
             // Optional — some VIA-compatible firmwares omit it.
         }
 
-        const layerCount = await readQmkLayerCount( client )
+        const layerCount = await readQmkLayerCount(client)
 
-        const ids = readTransportIds( transport )
+        const ids = readTransportIds(transport)
         const deviceInfo: DeviceInfo = {
             name: transport.label || 'QMK keyboard',
             firmware: 'qmk-via',
@@ -117,10 +117,10 @@ async function probeViaSession (
             pid: ids.pid,
         }
 
-        return {client, deviceInfo, layerCount}
-    } catch ( err ) {
-        await client.close().catch( () => undefined )
-        if ( err instanceof TransportError ) return null
+        return { client, deviceInfo, layerCount }
+    } catch (err) {
+        await client.close().catch(() => undefined)
+        if (err instanceof TransportError) return null
         return null
     }
 }
@@ -130,7 +130,7 @@ export interface QmkAdapterOptions {
     cols?: number
 }
 
-export function createQmkAdapter (
+export function createQmkAdapter(
     opts: QmkAdapterOptions = {},
 ): FirmwareAdapter {
     const rows = opts.rows ?? DEFAULT_ROWS
@@ -141,69 +141,69 @@ export function createQmkAdapter (
         displayName: 'QMK (VIA)',
         discovery: QMK_DISCOVERY,
 
-        async canHandle (
+        async canHandle(
             transport: Transport,
             hint?: ProbeHint,
         ): Promise<Probe> {
             // VIA only speaks HID. Skip serial/BLE byte streams so we do not
             // pollute another adapter's transport with a 32-byte VIA frame.
-            if ( hint && hint.transportKind !== 'hid' ) {
-                return {ok: false, reason: 'qmk-via requires HID transport'}
+            if (hint && hint.transportKind !== 'hid') {
+                return { ok: false, reason: 'qmk-via requires HID transport' }
             }
-            const cached = probedSessions.get( transport )
-            if ( cached ) return {ok: true, deviceInfo: cached.deviceInfo}
+            const cached = probedSessions.get(transport)
+            if (cached) return { ok: true, deviceInfo: cached.deviceInfo }
 
-            const session = await probeViaSession( transport )
-            if ( !session ) {
-                return {ok: false, reason: 'not a VIA HID device'}
+            const session = await probeViaSession(transport)
+            if (!session) {
+                return { ok: false, reason: 'not a VIA HID device' }
             }
-            probedSessions.set( transport, session )
-            return {ok: true, deviceInfo: session.deviceInfo}
+            probedSessions.set(transport, session)
+            return { ok: true, deviceInfo: session.deviceInfo }
         },
 
-        async connect (
+        async connect(
             transport: Transport,
             signal: AbortSignal,
         ): Promise<KeyboardService> {
-            let session = probedSessions.get( transport ) ?? null
-            if ( session ) {
-                probedSessions.delete( transport )
+            let session = probedSessions.get(transport) ?? null
+            if (session) {
+                probedSessions.delete(transport)
             } else {
-                session = await probeViaSession( transport )
-                if ( !session ) {
+                session = await probeViaSession(transport)
+                if (!session) {
                     throw new TransportError(
                         'QMK/VIA probe failed during connect',
                     )
                 }
             }
 
-            if ( signal.aborted ) {
-                await session.client.close().catch( () => undefined )
-                throw signal.reason ?? new Error( 'aborted' )
+            if (signal.aborted) {
+                await session.client.close().catch(() => undefined)
+                throw signal.reason ?? new Error('aborted')
             }
             signal.addEventListener(
                 'abort',
                 () => {
                     session!.client
-                        .close( {abortTransport: true} )
-                        .catch( () => undefined )
+                        .close({ abortTransport: true })
+                        .catch(() => undefined)
                 },
-                {once: true},
+                { once: true },
             )
 
-            const def = resolveLayoutDefFromCache( session.deviceInfo )
-            return QmkKeyboardService.create( {
+            const def = resolveLayoutDefFromCache(session.deviceInfo)
+            return QmkKeyboardService.create({
                 deviceInfo: session.deviceInfo,
                 client: session.client,
                 rows,
                 cols,
                 layerCount: session.layerCount,
                 def: def ?? undefined,
-            } )
+            })
         },
     }
 }
 
 export const qmkAdapter: FirmwareAdapter = createQmkAdapter()
 
-export {DEFAULT_ROWS as QMK_DEFAULT_ROWS, DEFAULT_COLS as QMK_DEFAULT_COLS}
+export { DEFAULT_ROWS as QMK_DEFAULT_ROWS, DEFAULT_COLS as QMK_DEFAULT_COLS }

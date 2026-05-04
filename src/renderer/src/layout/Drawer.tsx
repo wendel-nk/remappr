@@ -9,11 +9,11 @@ import useKeymapStore from '@/stores/keymapStore'
 import {
     Sidebar,
     SidebarContent,
+    SidebarFooter,
     SidebarGroup,
     SidebarHeader,
-    SidebarFooter,
 } from '@/ui/sidebar'
-import { DeviceMenu } from '@/features/connection/DeviceMenu'
+import { DeviceMenu } from '@/features/connection/device-menu/DeviceMenu'
 import { setKeymapRequest } from '@/services/rpcEventsService'
 import { callRpc } from '@/services/rpcCall'
 import { LockState } from '@zmkfirmware/zmk-studio-ts-client/core'

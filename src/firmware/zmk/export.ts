@@ -1,8 +1,8 @@
 // pattern-check: skip mechanical port — generator now consumes neutral Keymap, reads ZMK binding via zmkBindingFromAction helper
-import type {Keymap} from '@firmware/types'
-import type {BehaviorMap} from './actions'
-import {zmkBindingFromAction} from './actions'
-import {displayNameToBinding} from './displayNameToBinding'
+import type { Keymap } from '@firmware/types'
+import type { BehaviorMap } from './actions'
+import { zmkBindingFromAction } from './actions'
+import { displayNameToBinding } from './displayNameToBinding'
 
 export interface ZMKConfigOptions {
     keyboardName: string
@@ -11,7 +11,7 @@ export interface ZMKConfigOptions {
     includeLayers?: boolean
 }
 
-export function generateZMKKeymapFile (
+export function generateZMKKeymapFile(
     keymap: Keymap,
     behaviors: BehaviorMap,
     options: ZMKConfigOptions,
@@ -19,11 +19,11 @@ export function generateZMKKeymapFile (
     let config = `// Generated ZMK keymap for ${options.keyboardName}\n`
     config += `// Keymap: ${options.keymapName}\n\n`
 
-    if ( keymap.layers && options.includeLayers ) {
+    if (keymap.layers && options.includeLayers) {
         config += `// Layer definitions\n`
-        keymap.layers.forEach( ( layer, index ) => {
+        keymap.layers.forEach((layer, index) => {
             config += `#define L${index} ${layer.id}\n`
-        } )
+        })
         config += `\n`
     }
 
@@ -31,34 +31,34 @@ export function generateZMKKeymapFile (
     config += `keymap {\n`
     config += `    compatible = "zmk,keymap";\n\n`
 
-    keymap.layers.forEach( ( layer, layerIndex ) => {
+    keymap.layers.forEach((layer, layerIndex) => {
         config += `    layer_${layerIndex} {\n`
         config += `        label = "Layer ${layerIndex}";\n`
         config += `        bindings = <\n`
 
-        layer.keys.forEach( ( action, keyIndex ) => {
-            const binding = zmkBindingFromAction( action )
+        layer.keys.forEach((action, keyIndex) => {
+            const binding = zmkBindingFromAction(action)
             const behavior = behaviors[binding.behaviorId]
-            if ( behavior ) {
-                const keyCode = generateKeyCode( binding, behavior )
+            if (behavior) {
+                const keyCode = generateKeyCode(binding, behavior)
                 config += `            ${keyCode}`
-                if ( keyIndex < layer.keys.length - 1 ) {
+                if (keyIndex < layer.keys.length - 1) {
                     config += `,`
                 }
                 config += `\n`
             }
-        } )
+        })
 
         config += `        >;\n`
         config += `    };\n\n`
-    } )
+    })
 
     config += `};\n`
 
     return config
 }
 
-export function generateZMKConfigFile ( options: ZMKConfigOptions ): string {
+export function generateZMKConfigFile(options: ZMKConfigOptions): string {
     let config = `// Generated ZMK configuration for ${options.keyboardName}\n`
     config += `// Configuration: ${options.keymapName}\n\n`
 
@@ -86,14 +86,14 @@ export function generateZMKConfigFile ( options: ZMKConfigOptions ): string {
     return config
 }
 
-function generateKeyCode (
+function generateKeyCode(
     binding: { param1: number; param2?: number },
     behavior: { displayName: string },
 ): string {
-    const prefix = displayNameToBinding( behavior.displayName )
-    switch ( behavior.displayName ) {
+    const prefix = displayNameToBinding(behavior.displayName)
+    switch (behavior.displayName) {
         case 'Modifier':
-            return `${prefix} ${getModifierName( binding.param1 )}`
+            return `${prefix} ${getModifierName(binding.param1)}`
         case 'Layer':
             return `${prefix} ${binding.param1}`
         case 'Transparent':
@@ -101,11 +101,11 @@ function generateKeyCode (
             return prefix
         case 'Key Press':
         default:
-            return `${prefix} ${getHIDUsageName( binding.param1 )}`
+            return `${prefix} ${getHIDUsageName(binding.param1)}`
     }
 }
 
-function getHIDUsageName ( hidUsage: number ): string {
+function getHIDUsageName(hidUsage: number): string {
     // Map HID usage codes to ZMK key names
     const hidMap: Record<number, string> = {
         0x04: 'A',
@@ -282,10 +282,10 @@ function getHIDUsageName ( hidUsage: number ): string {
         0xaf: 'CALC',
     }
 
-    return hidMap[hidUsage] || `UNKNOWN_${hidUsage.toString( 16 )}`
+    return hidMap[hidUsage] || `UNKNOWN_${hidUsage.toString(16)}`
 }
 
-function getModifierName ( modifier: number ): string {
+function getModifierName(modifier: number): string {
     const modifierMap: Record<number, string> = {
         0x01: 'LEFTCTRL',
         0x02: 'LEFTSHIFT',
@@ -297,30 +297,30 @@ function getModifierName ( modifier: number ): string {
         0x80: 'RIGHTMETA',
     }
 
-    return modifierMap[modifier] || `MOD_${modifier.toString( 16 )}`
+    return modifierMap[modifier] || `MOD_${modifier.toString(16)}`
 }
 
-export function downloadConfigFile ( content: string, filename: string ): void {
-    const blob = new Blob( [content], {type: 'text/plain'} )
-    const url = URL.createObjectURL( blob )
-    const link = document.createElement( 'a' )
+export function downloadConfigFile(content: string, filename: string): void {
+    const blob = new Blob([content], { type: 'text/plain' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
     link.href = url
     link.download = filename
-    document.body.appendChild( link )
+    document.body.appendChild(link)
     link.click()
-    document.body.removeChild( link )
-    URL.revokeObjectURL( url )
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
 }
 
-export function downloadConfigZip (
+export function downloadConfigZip(
     keymapContent: string,
     configContent: string,
     keyboardName: string,
 ): void {
     // For now, we'll download the files separately
     // In a full implementation, you'd use a library like JSZip to create a zip file
-    downloadConfigFile( keymapContent, `${keyboardName}.keymap` )
-    setTimeout( () => {
-        downloadConfigFile( configContent, `${keyboardName}.conf` )
-    }, 100 )
+    downloadConfigFile(keymapContent, `${keyboardName}.keymap`)
+    setTimeout(() => {
+        downloadConfigFile(configContent, `${keyboardName}.conf`)
+    }, 100)
 }

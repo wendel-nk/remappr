@@ -1,20 +1,20 @@
 // pattern-check: skip — branch extraction from TransportSection
-import type {TransportFactory} from '@/transport/types'
-import type {DeviceWithTransport} from '@/features/connection/types'
-import {DiscoveredDeviceList} from '../DiscoveredDeviceList'
-import {PairNewButton} from './PairNewButton'
+import type { TransportFactory } from '@/transport/types'
+import type { DeviceWithTransport } from '@/features/connection/types'
+import { DiscoveredDeviceList } from '../DiscoveredDeviceList'
+import { PairNewButton } from './PairNewButton'
 
 interface ListedDevicesProps {
     devices: DeviceWithTransport[]
     pairableTransports: TransportFactory[]
     connectingDeviceId: string | null
     refreshing: boolean
-    onConnect: ( d: DeviceWithTransport ) => void
+    onConnect: (d: DeviceWithTransport) => void
     onRefresh: () => void
-    onRequestNew: ( t: TransportFactory ) => void
+    onRequestNew: (t: TransportFactory) => void
 }
 
-export function ListedDevices ( {
+export function ListedDevices({
     devices,
     pairableTransports,
     connectingDeviceId,
@@ -22,7 +22,7 @@ export function ListedDevices ( {
     onConnect,
     onRefresh,
     onRequestNew,
-}: ListedDevicesProps ): JSX.Element {
+}: ListedDevicesProps): JSX.Element {
     return (
         <div className="space-y-3">
             <DiscoveredDeviceList

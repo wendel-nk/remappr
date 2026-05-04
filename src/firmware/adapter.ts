@@ -1,6 +1,6 @@
-import type {Transport} from './transport'
-import type {KeyboardService} from './service'
-import type {DeviceInfo, TransportKind} from './types'
+import type { Transport } from './transport'
+import type { KeyboardService } from './service'
+import type { DeviceInfo, TransportKind } from './types'
 
 export interface BleDiscovery {
     serviceUuid: string
@@ -32,7 +32,7 @@ export interface FirmwareAdapter {
     readonly displayName: string
     readonly discovery: Discovery
 
-    canHandle ( transport: Transport, hint?: ProbeHint ): Promise<Probe>
+    canHandle(transport: Transport, hint?: ProbeHint): Promise<Probe>
 
-    connect ( transport: Transport, signal: AbortSignal ): Promise<KeyboardService>
+    connect(transport: Transport, signal: AbortSignal): Promise<KeyboardService>
 }

@@ -1,14 +1,14 @@
 // pattern-check: skip — composes shadcn Input + Field primitives, no abstraction
-import {useId} from 'react'
+import { useId } from 'react'
 
-import {clampInt, parseIntSafe} from '@/lib/clampInt'
-import {Field, FieldLabel} from '@/ui/field'
-import {Input} from '@/ui/input'
+import { clampInt, parseIntSafe } from '@/lib/clampInt'
+import { Field, FieldLabel } from '@/ui/field'
+import { Input } from '@/ui/input'
 
 interface Props {
     label: string
     value: number
-    onChange: ( next: number ) => void
+    onChange: (next: number) => void
     /** Total entry count. When provided, max = count - 1 and renders "of N". */
     count?: number
     /** Hard upper bound used when no exact count is known (ARK soft cap). */
@@ -16,14 +16,14 @@ interface Props {
     min?: number
 }
 
-export function IndexInput ( {
+export function IndexInput({
     label,
     value,
     onChange,
     count,
     max,
     min = 0,
-}: Props ): JSX.Element {
+}: Props): JSX.Element {
     const id = useId()
     const upper = count !== undefined ? count - 1 : (max ?? 0)
     return (
@@ -35,8 +35,8 @@ export function IndexInput ( {
                 min={min}
                 max={upper}
                 value={value}
-                onChange={( e ) =>
-                    onChange( clampInt( parseIntSafe( e.target.value ), min, upper ) )
+                onChange={(e) =>
+                    onChange(clampInt(parseIntSafe(e.target.value), min, upper))
                 }
                 className="w-20"
             />

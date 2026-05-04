@@ -6,4 +6,4 @@ export const ZMK_SERVICE_UUID_NOBLE = ZMK_SERVICE_UUID.replace(
     /-/g,
     '',
 ).toLowerCase()
-export const ZMK_CHAR_UUID_NOBLE = ZMK_CHAR_UUID.replace( /-/g, '' ).toLowerCase()
+export const ZMK_CHAR_UUID_NOBLE = ZMK_CHAR_UUID.replace(/-/g, '').toLowerCase()

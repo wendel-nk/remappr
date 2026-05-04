@@ -2,7 +2,7 @@
 // Vial = VIA superset. All Vial commands are framed as VIA cmd 0xFE + sub-command byte.
 // Reference: https://get.vial.today/ + protocol/constants.py.
 
-import {ProtocolError} from '@firmware/errors'
+import { ProtocolError } from '@firmware/errors'
 import {
     VIA_PAYLOAD_SIZE,
     makeFrame,
@@ -53,7 +53,7 @@ export const VIAL_FEATURE = {
     ADVANCED_MACROS: 2,
 } as const
 
-function readU32LE ( buf: Uint8Array, off: number ): number {
+function readU32LE(buf: Uint8Array, off: number): number {
     return (
         (buf[off] |
             (buf[off + 1] << 8) |
@@ -63,19 +63,19 @@ function readU32LE ( buf: Uint8Array, off: number ): number {
     )
 }
 
-function writeU32LE ( buf: Uint8Array, off: number, v: number ): void {
+function writeU32LE(buf: Uint8Array, off: number, v: number): void {
     buf[off] = v & 0xff
     buf[off + 1] = (v >> 8) & 0xff
     buf[off + 2] = (v >> 16) & 0xff
     buf[off + 3] = (v >> 24) & 0xff
 }
 
-export function makeVialFrame ( sub: number, body: number[] = [] ): Uint8Array {
-    return makeFrame( VIAL_PREFIX, [sub & 0xff, ...body] )
+export function makeVialFrame(sub: number, body: number[] = []): Uint8Array {
+    return makeFrame(VIAL_PREFIX, [sub & 0xff, ...body])
 }
 
-export function getKeyboardIdCmd (): Uint8Array {
-    return makeVialFrame( VIAL_CMD.GET_KEYBOARD_ID )
+export function getKeyboardIdCmd(): Uint8Array {
+    return makeVialFrame(VIAL_CMD.GET_KEYBOARD_ID)
 }
 
 export interface KeyboardIdResponse {
@@ -83,37 +83,37 @@ export interface KeyboardIdResponse {
     keyboardId: bigint
 }
 
-export function parseKeyboardId ( resp: Uint8Array ): KeyboardIdResponse {
-    if ( resp.length < 12 ) {
+export function parseKeyboardId(resp: Uint8Array): KeyboardIdResponse {
+    if (resp.length < 12) {
         throw new ProtocolError(
             `Vial keyboard-id: short response (${resp.length})`,
         )
     }
-    const vialProtocol = readU32LE( resp, 0 )
+    const vialProtocol = readU32LE(resp, 0)
     let keyboardId = 0n
-    for ( let i = 0; i < 8; i++ ) {
-        keyboardId |= BigInt( resp[4 + i] ) << BigInt( i * 8 )
+    for (let i = 0; i < 8; i++) {
+        keyboardId |= BigInt(resp[4 + i]) << BigInt(i * 8)
     }
-    return {vialProtocol, keyboardId}
+    return { vialProtocol, keyboardId }
 }
 
-export function getSizeCmd (): Uint8Array {
-    return makeVialFrame( VIAL_CMD.GET_SIZE )
+export function getSizeCmd(): Uint8Array {
+    return makeVialFrame(VIAL_CMD.GET_SIZE)
 }
 
-export function parseSize ( resp: Uint8Array ): number {
-    if ( resp.length < 4 ) throw new ProtocolError( 'Vial size: short response' )
-    return readU32LE( resp, 0 )
+export function parseSize(resp: Uint8Array): number {
+    if (resp.length < 4) throw new ProtocolError('Vial size: short response')
+    return readU32LE(resp, 0)
 }
 
-export function getDefinitionCmd ( block: number ): Uint8Array {
-    const out = makeVialFrame( VIAL_CMD.GET_DEFINITION )
-    writeU32LE( out, 2, block >>> 0 )
+export function getDefinitionCmd(block: number): Uint8Array {
+    const out = makeVialFrame(VIAL_CMD.GET_DEFINITION)
+    writeU32LE(out, 2, block >>> 0)
     return out
 }
 
-export function getEncoderCmd ( layer: number, idx: number ): Uint8Array {
-    return makeVialFrame( VIAL_CMD.GET_ENCODER, [layer & 0xff, idx & 0xff] )
+export function getEncoderCmd(layer: number, idx: number): Uint8Array {
+    return makeVialFrame(VIAL_CMD.GET_ENCODER, [layer & 0xff, idx & 0xff])
 }
 
 export interface EncoderPair {
@@ -121,28 +121,28 @@ export interface EncoderPair {
     ccw: number
 }
 
-export function parseEncoder ( resp: Uint8Array ): EncoderPair {
-    if ( resp.length < 4 ) throw new ProtocolError( 'Vial encoder: short response' )
-    return {cw: readU16BE( resp, 0 ), ccw: readU16BE( resp, 2 )}
+export function parseEncoder(resp: Uint8Array): EncoderPair {
+    if (resp.length < 4) throw new ProtocolError('Vial encoder: short response')
+    return { cw: readU16BE(resp, 0), ccw: readU16BE(resp, 2) }
 }
 
-export function setEncoderCmd (
+export function setEncoderCmd(
     layer: number,
     idx: number,
     direction: 0 | 1,
     keycode: number,
 ): Uint8Array {
-    const out = makeVialFrame( VIAL_CMD.SET_ENCODER, [
+    const out = makeVialFrame(VIAL_CMD.SET_ENCODER, [
         layer & 0xff,
         idx & 0xff,
         direction & 0xff,
-    ] )
-    writeU16BE( out, 5, keycode & 0xffff )
+    ])
+    writeU16BE(out, 5, keycode & 0xffff)
     return out
 }
 
-export function getUnlockStatusCmd (): Uint8Array {
-    return makeVialFrame( VIAL_CMD.GET_UNLOCK_STATUS )
+export function getUnlockStatusCmd(): Uint8Array {
+    return makeVialFrame(VIAL_CMD.GET_UNLOCK_STATUS)
 }
 
 export interface UnlockStatusResponse {
@@ -151,8 +151,8 @@ export interface UnlockStatusResponse {
     unlockKeys: { row: number; col: number }[]
 }
 
-export function parseUnlockStatus ( resp: Uint8Array ): UnlockStatusResponse {
-    if ( resp.length < 32 ) {
+export function parseUnlockStatus(resp: Uint8Array): UnlockStatusResponse {
+    if (resp.length < 32) {
         throw new ProtocolError(
             `Vial unlock-status: short response (${resp.length})`,
         )
@@ -160,30 +160,30 @@ export function parseUnlockStatus ( resp: Uint8Array ): UnlockStatusResponse {
     const status = resp[0] & 0xff
     const inProgress = (resp[1] & 0xff) !== 0
     const keys: { row: number; col: number }[] = []
-    for ( let i = 0; i < 15; i++ ) {
+    for (let i = 0; i < 15; i++) {
         const row = resp[2 + i * 2]
         const col = resp[3 + i * 2]
-        if ( row !== 0xff && col !== 0xff ) keys.push( {row, col} )
+        if (row !== 0xff && col !== 0xff) keys.push({ row, col })
     }
-    return {locked: status !== 1, inProgress, unlockKeys: keys}
+    return { locked: status !== 1, inProgress, unlockKeys: keys }
 }
 
-export function unlockStartCmd (): Uint8Array {
-    return makeVialFrame( VIAL_CMD.UNLOCK_START )
+export function unlockStartCmd(): Uint8Array {
+    return makeVialFrame(VIAL_CMD.UNLOCK_START)
 }
 
-export function unlockPollCmd (): Uint8Array {
-    return makeVialFrame( VIAL_CMD.UNLOCK_POLL )
+export function unlockPollCmd(): Uint8Array {
+    return makeVialFrame(VIAL_CMD.UNLOCK_POLL)
 }
 
-export function lockCmd (): Uint8Array {
-    return makeVialFrame( VIAL_CMD.LOCK )
+export function lockCmd(): Uint8Array {
+    return makeVialFrame(VIAL_CMD.LOCK)
 }
 
-export function dynamicGetEntryCountCmd (): Uint8Array {
-    return makeVialFrame( VIAL_CMD.DYNAMIC_ENTRY_OP, [
+export function dynamicGetEntryCountCmd(): Uint8Array {
+    return makeVialFrame(VIAL_CMD.DYNAMIC_ENTRY_OP, [
         DYNAMIC_OP.GET_NUMBER_OF_ENTRIES,
-    ] )
+    ])
 }
 
 export interface DynamicEntryCount {
@@ -192,9 +192,9 @@ export interface DynamicEntryCount {
     keyOverride: number
 }
 
-export function parseDynamicEntryCount ( resp: Uint8Array ): DynamicEntryCount {
-    if ( resp.length < 4 ) {
-        throw new ProtocolError( 'Vial dynamic count: short response' )
+export function parseDynamicEntryCount(resp: Uint8Array): DynamicEntryCount {
+    if (resp.length < 4) {
+        throw new ProtocolError('Vial dynamic count: short response')
     }
     return {
         tapDance: resp[0] & 0xff,
@@ -203,26 +203,26 @@ export function parseDynamicEntryCount ( resp: Uint8Array ): DynamicEntryCount {
     }
 }
 
-export function dynamicGetCmd ( op: number, idx: number ): Uint8Array {
-    return makeVialFrame( VIAL_CMD.DYNAMIC_ENTRY_OP, [op & 0xff, idx & 0xff] )
+export function dynamicGetCmd(op: number, idx: number): Uint8Array {
+    return makeVialFrame(VIAL_CMD.DYNAMIC_ENTRY_OP, [op & 0xff, idx & 0xff])
 }
 
-export function dynamicSetCmd (
+export function dynamicSetCmd(
     op: number,
     idx: number,
     payload: Uint8Array,
 ): Uint8Array {
-    if ( payload.length > VIA_PAYLOAD_SIZE - 4 ) {
+    if (payload.length > VIA_PAYLOAD_SIZE - 4) {
         throw new ProtocolError(
             `Vial dynamic-set: payload too large (${payload.length})`,
         )
     }
-    const out = makeVialFrame( VIAL_CMD.DYNAMIC_ENTRY_OP, [
+    const out = makeVialFrame(VIAL_CMD.DYNAMIC_ENTRY_OP, [
         op & 0xff,
         idx & 0xff,
-    ] )
-    out.set( payload, 4 )
+    ])
+    out.set(payload, 4)
     return out
 }
 
-export {readU16BE, writeU16BE, readU32LE, writeU32LE}
+export { readU16BE, writeU16BE, readU32LE, writeU32LE }

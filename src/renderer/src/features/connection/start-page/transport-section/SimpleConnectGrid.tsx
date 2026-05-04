@@ -1,24 +1,24 @@
 // pattern-check: skip — branch extraction from TransportSection
-import {Button} from '@/ui/button'
-import type {TransportFactory} from '@/transport/types'
+import { Button } from '@/ui/button'
+import type { TransportFactory } from '@/transport/types'
 
 interface SimpleConnectGridProps {
     transports: TransportFactory[]
-    onSimpleConnect: ( t: TransportFactory ) => void
+    onSimpleConnect: (t: TransportFactory) => void
 }
 
-export function SimpleConnectGrid ( {
+export function SimpleConnectGrid({
     transports,
     onSimpleConnect,
-}: SimpleConnectGridProps ): JSX.Element {
+}: SimpleConnectGridProps): JSX.Element {
     return (
         <div className="grid gap-3 sm:grid-cols-2">
-            {transports.map( ( t ) => (
+            {transports.map((t) => (
                 <Button
                     key={t.label}
                     variant="outline"
                     className="h-auto flex-col gap-2 py-6"
-                    onClick={() => onSimpleConnect( t )}
+                    onClick={() => onSimpleConnect(t)}
                 >
                     {t.isWireless ? (
                         <span className="text-blue-500">Bluetooth</span>
@@ -29,7 +29,7 @@ export function SimpleConnectGrid ( {
                         Connect via {t.label}
                     </span>
                 </Button>
-            ) )}
+            ))}
         </div>
     )
 }

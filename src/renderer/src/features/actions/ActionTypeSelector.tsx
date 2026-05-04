@@ -1,8 +1,8 @@
 // Pattern check: no GoF pattern (-) — rejected — presentational selector over neutral ActionType list.
-import {useMemo, useState} from 'react'
-import {Check, ChevronsUpDown} from 'lucide-react'
-import type {ActionType} from '@firmware/types'
-import {Button} from '@/ui/button'
+import { useMemo, useState } from 'react'
+import { Check, ChevronsUpDown } from 'lucide-react'
+import type { ActionType } from '@firmware/types'
+import { Button } from '@/ui/button'
 import {
     Command,
     CommandEmpty,
@@ -11,43 +11,43 @@ import {
     CommandItem,
     CommandList,
 } from '@/ui/command'
-import {Popover, PopoverContent, PopoverTrigger} from '@/ui/popover'
-import {cn} from '@/lib/cn'
+import { Popover, PopoverContent, PopoverTrigger } from '@/ui/popover'
+import { cn } from '@/lib/cn'
 
 export interface ActionTypeSelectorProps {
     actionTypes: ActionType[]
     selectedId: string
-    onSelect: ( id: string ) => void
+    onSelect: (id: string) => void
     placeholder?: string
     className?: string
 }
 
-export const ActionTypeSelector = ( {
+export const ActionTypeSelector = ({
     actionTypes,
     selectedId,
     onSelect,
     placeholder = 'Select action...',
     className,
-}: ActionTypeSelectorProps ): JSX.Element => {
-    const [open, setOpen] = useState( false )
+}: ActionTypeSelectorProps): JSX.Element => {
+    const [open, setOpen] = useState(false)
 
     const sorted = useMemo(
         (): ActionType[] =>
-            [...actionTypes].sort( ( a, b ) =>
-                a.displayName.localeCompare( b.displayName ),
+            [...actionTypes].sort((a, b) =>
+                a.displayName.localeCompare(b.displayName),
             ),
         [actionTypes],
     )
 
     const selected = useMemo(
         (): ActionType | undefined =>
-            sorted.find( ( t ): boolean => t.id === selectedId ),
+            sorted.find((t): boolean => t.id === selectedId),
         [sorted, selectedId],
     )
 
-    const handleSelect = ( id: string ): void => {
-        onSelect( id )
-        setOpen( false )
+    const handleSelect = (id: string): void => {
+        onSelect(id)
+        setOpen(false)
     }
 
     return (
@@ -57,7 +57,7 @@ export const ActionTypeSelector = ( {
                     variant="outline"
                     role="combobox"
                     aria-expanded={open}
-                    className={cn( 'w-64 justify-between', className )}
+                    className={cn('w-64 justify-between', className)}
                 >
                     {selected ? selected.displayName : placeholder}
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -69,11 +69,11 @@ export const ActionTypeSelector = ( {
                     <CommandList>
                         <CommandEmpty>No action found.</CommandEmpty>
                         <CommandGroup>
-                            {sorted.map( ( t ) => (
+                            {sorted.map((t) => (
                                 <CommandItem
                                     key={t.id}
                                     value={t.displayName}
-                                    onSelect={() => handleSelect( t.id )}
+                                    onSelect={() => handleSelect(t.id)}
                                 >
                                     <Check
                                         className={cn(
@@ -85,7 +85,7 @@ export const ActionTypeSelector = ( {
                                     />
                                     {t.displayName}
                                 </CommandItem>
-                            ) )}
+                            ))}
                         </CommandGroup>
                     </CommandList>
                 </Command>

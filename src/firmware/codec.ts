@@ -1,5 +1,5 @@
 // Pattern check: Strategy (Tier 1) — applied — per-firmware encode/decode codec swappable behind unified canonical catalog interface; renderer treats every adapter the same.
-import type {CanonicalKeyId} from './catalog/types'
+import type { CanonicalKeyId } from './catalog/types'
 
 export interface EncodedKeycode {
     /** 32-bit packed value flowing through KeyAction.params[0]. */
@@ -14,11 +14,11 @@ export interface DecodedKeycode {
 
 export interface KeycodeCodec {
     /** Returns null if this firmware cannot encode the canonical key. */
-    encode ( id: CanonicalKeyId ): EncodedKeycode | null
+    encode(id: CanonicalKeyId): EncodedKeycode | null
 
     /** Returns null if raw value isn't a recognized canonical key. */
-    decode ( rawValue: number ): DecodedKeycode | null
+    decode(rawValue: number): DecodedKeycode | null
 
     /** Fast filter for catalog assembly. Default is to try encode and check. */
-    supports ( id: CanonicalKeyId ): boolean
+    supports(id: CanonicalKeyId): boolean
 }

@@ -1,8 +1,8 @@
 // Pattern check: no GoF pattern (-) — rejected — fake Vial responder over paired streams driving the shared FirmwareAdapter contract suite, no abstraction warranted.
-import {compress as lzmaCompress} from 'lzma1'
+import { compress as lzmaCompress } from 'lzma1'
 
-import {runContractSuite} from '@firmware/__tests__/contract'
-import type {Transport} from '@firmware'
+import { runContractSuite } from '@firmware/__tests__/contract'
+import type { Transport } from '@firmware'
 import {
     VIA_ID,
     VIA_KBV,
@@ -10,8 +10,8 @@ import {
     writeU16BE,
 } from '@firmware/qmk/protocol'
 
-import {createVialAdapter} from './adapter'
-import {DYNAMIC_OP, VIAL_CMD, VIAL_PREFIX} from './protocol'
+import { createVialAdapter } from './adapter'
+import { DYNAMIC_OP, VIAL_CMD, VIAL_PREFIX } from './protocol'
 
 const FAKE_ROWS = 1
 const FAKE_COLS = 1
@@ -19,33 +19,33 @@ const FAKE_LAYERS = 2
 const VIAL_PROTOCOL = 6
 const KEYBOARD_ID = 0x1122334455667788n
 
-function makeDefJson (): string {
-    return JSON.stringify( {
+function makeDefJson(): string {
+    return JSON.stringify({
         name: 'Fake Vial',
-        matrix: {rows: FAKE_ROWS, cols: FAKE_COLS},
-        layouts: {keymap: [['0,0']]},
+        matrix: { rows: FAKE_ROWS, cols: FAKE_COLS },
+        layouts: { keymap: [['0,0']] },
         customKeycodes: [],
-    } )
+    })
 }
 
-function makeDefBytes (): Uint8Array {
+function makeDefBytes(): Uint8Array {
     const text = makeDefJson()
-    const enc = new TextEncoder().encode( text )
-    return lzmaCompress( enc )
+    const enc = new TextEncoder().encode(text)
+    return lzmaCompress(enc)
 }
 
-function defaultKeymap (): number[][][] {
+function defaultKeymap(): number[][][] {
     const layers: number[][][] = []
-    for ( let l = 0; l < FAKE_LAYERS; l++ ) {
+    for (let l = 0; l < FAKE_LAYERS; l++) {
         const layer: number[][] = []
-        for ( let r = 0; r < FAKE_ROWS; r++ ) {
+        for (let r = 0; r < FAKE_ROWS; r++) {
             const row: number[] = []
-            for ( let c = 0; c < FAKE_COLS; c++ ) {
-                row.push( l === 0 ? 0x04 : 0x0001 )
+            for (let c = 0; c < FAKE_COLS; c++) {
+                row.push(l === 0 ? 0x04 : 0x0001)
             }
-            layer.push( row )
+            layer.push(row)
         }
-        layers.push( layer )
+        layers.push(layer)
     }
     return layers
 }
@@ -57,19 +57,19 @@ interface FakeState {
     unlockInProgress: boolean
 }
 
-function frame (): Uint8Array {
-    return new Uint8Array( VIA_PAYLOAD_SIZE )
+function frame(): Uint8Array {
+    return new Uint8Array(VIA_PAYLOAD_SIZE)
 }
 
-function buildResponse ( req: Uint8Array, state: FakeState ): Uint8Array {
+function buildResponse(req: Uint8Array, state: FakeState): Uint8Array {
     const out = frame()
     const id = req[0]
     out[0] = id
 
-    if ( id === VIAL_PREFIX ) {
+    if (id === VIAL_PREFIX) {
         const sub = req[1]
         out[1] = sub
-        switch ( sub ) {
+        switch (sub) {
             case VIAL_CMD.GET_KEYBOARD_ID: {
                 // u32 LE protocol + u64 LE id (12 bytes total).
                 out[0] = VIAL_PROTOCOL & 0xff
@@ -77,8 +77,8 @@ function buildResponse ( req: Uint8Array, state: FakeState ): Uint8Array {
                 out[2] = 0
                 out[3] = 0
                 let id64 = KEYBOARD_ID
-                for ( let i = 0; i < 8; i++ ) {
-                    out[4 + i] = Number( id64 & 0xffn )
+                for (let i = 0; i < 8; i++) {
+                    out[4 + i] = Number(id64 & 0xffn)
                     id64 >>= 8n
                 }
                 return out
@@ -103,8 +103,8 @@ function buildResponse ( req: Uint8Array, state: FakeState ): Uint8Array {
                     start + VIA_PAYLOAD_SIZE,
                     state.defBytes.length,
                 )
-                if ( start < state.defBytes.length ) {
-                    out.set( state.defBytes.subarray( start, end ), 0 )
+                if (start < state.defBytes.length) {
+                    out.set(state.defBytes.subarray(start, end), 0)
                 }
                 return out
             }
@@ -114,7 +114,7 @@ function buildResponse ( req: Uint8Array, state: FakeState ): Uint8Array {
                 const r = frame()
                 r[0] = state.locked ? 0 : 1
                 r[1] = state.unlockInProgress ? 1 : 0
-                for ( let i = 0; i < 15; i++ ) {
+                for (let i = 0; i < 15; i++) {
                     r[2 + i * 2] = 0xff
                     r[3 + i * 2] = 0xff
                 }
@@ -133,7 +133,7 @@ function buildResponse ( req: Uint8Array, state: FakeState ): Uint8Array {
                 return out
             case VIAL_CMD.DYNAMIC_ENTRY_OP: {
                 const op = req[2]
-                if ( op === DYNAMIC_OP.GET_NUMBER_OF_ENTRIES ) {
+                if (op === DYNAMIC_OP.GET_NUMBER_OF_ENTRIES) {
                     out[0] = 0
                     out[1] = 0
                     out[2] = 0
@@ -146,13 +146,13 @@ function buildResponse ( req: Uint8Array, state: FakeState ): Uint8Array {
         }
     }
 
-    switch ( id ) {
+    switch (id) {
         case VIA_ID.GET_PROTOCOL_VERSION:
-            writeU16BE( out, 1, 0x000c )
+            writeU16BE(out, 1, 0x000c)
             return out
         case VIA_ID.GET_KEYBOARD_VALUE:
             out[1] = req[1]
-            if ( req[1] === VIA_KBV.FIRMWARE_VERSION ) {
+            if (req[1] === VIA_KBV.FIRMWARE_VERSION) {
                 out[2] = 0
                 out[3] = 0
                 out[4] = 0
@@ -170,7 +170,7 @@ function buildResponse ( req: Uint8Array, state: FakeState ): Uint8Array {
             out[2] = r
             out[3] = c
             const kc = state.keymap[l]?.[r]?.[c] ?? 0
-            writeU16BE( out, 4, kc )
+            writeU16BE(out, 4, kc)
             return out
         }
         case VIA_ID.DYNAMIC_KEYMAP_SET_KEYCODE: {
@@ -182,14 +182,14 @@ function buildResponse ( req: Uint8Array, state: FakeState ): Uint8Array {
             out[1] = l
             out[2] = r
             out[3] = c
-            writeU16BE( out, 4, kc )
+            writeU16BE(out, 4, kc)
             return out
         }
         case VIA_ID.DYNAMIC_KEYMAP_RESET: {
             const fresh = defaultKeymap()
-            for ( let l = 0; l < FAKE_LAYERS; l++ )
-                for ( let r = 0; r < FAKE_ROWS; r++ )
-                    for ( let c = 0; c < FAKE_COLS; c++ )
+            for (let l = 0; l < FAKE_LAYERS; l++)
+                for (let r = 0; r < FAKE_ROWS; r++)
+                    for (let c = 0; c < FAKE_COLS; c++)
                         state.keymap[l][r][c] = fresh[l][r][c]
             return out
         }
@@ -198,7 +198,7 @@ function buildResponse ( req: Uint8Array, state: FakeState ): Uint8Array {
     }
 }
 
-function createFakeVialTransport (): Transport {
+function createFakeVialTransport(): Transport {
     const inbound = new TransformStream<Uint8Array, Uint8Array>()
     const outbound = new TransformStream<Uint8Array, Uint8Array>()
     const state: FakeState = {
@@ -212,12 +212,12 @@ function createFakeVialTransport (): Transport {
 
     void (async () => {
         try {
-            while ( true ) {
-                const {value, done} = await reader.read()
-                if ( done ) break
-                if ( !value || value.length === 0 ) continue
-                const resp = buildResponse( value, state )
-                await writer.write( resp )
+            while (true) {
+                const { value, done } = await reader.read()
+                if (done) break
+                if (!value || value.length === 0) continue
+                const resp = buildResponse(value, state)
+                await writer.write(resp)
             }
         } catch {
             /* torn down */
@@ -238,17 +238,17 @@ function createFakeVialTransport (): Transport {
     }
 }
 
-function createMismatchTransport (): Transport {
-    const readable = new ReadableStream<Uint8Array>( {
-        start ( controller ) {
+function createMismatchTransport(): Transport {
+    const readable = new ReadableStream<Uint8Array>({
+        start(controller) {
             controller.close()
         },
-    } )
-    const writable = new WritableStream<Uint8Array>( {
-        write () {
+    })
+    const writable = new WritableStream<Uint8Array>({
+        write() {
             /* discard */
         },
-    } )
+    })
     return {
         label: 'fake-not-vial',
         abortController: new AbortController(),
@@ -259,10 +259,10 @@ function createMismatchTransport (): Transport {
 
 const adapter = createVialAdapter()
 
-runContractSuite( 'qmk-vial', {
+runContractSuite('qmk-vial', {
     makeAdapter: () => adapter,
     makeMatchingTransport: createFakeVialTransport,
     makeMismatchingTransport: createMismatchTransport,
     transportKind: 'hid',
     autoUnlock: true,
-} )
+})

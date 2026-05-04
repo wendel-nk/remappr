@@ -160,3 +160,15 @@ export async function requestAndConnect(): Promise<RpcTransport> {
 
 // Back-compat alias for the original single-call connect().
 export const connect = requestAndConnect
+
+// pattern-check: skip — sibling capability utility, no abstraction
+export async function forgetGrantedDevice(deviceId: string): Promise<void> {
+    const dev = deviceRegistry.get(deviceId)
+    if (!dev) return
+    const forget = (dev as BluetoothDevice & { forget?: () => Promise<void> })
+        .forget
+    if (typeof forget === 'function') {
+        await forget.call(dev).catch(() => undefined)
+    }
+    deviceRegistry.delete(deviceId)
+}

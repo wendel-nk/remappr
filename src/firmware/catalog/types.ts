@@ -1,5 +1,5 @@
 // Pattern check: no GoF pattern (-) — rejected — plain data type definitions for catalog entries/pages, no abstraction needed.
-import type {ActionSlotKind} from '../types'
+import type { ActionSlotKind } from '../types'
 
 // Neutral domain id for a pickable key, e.g. 'key.letter.a',
 // 'wireless.profile.1', 'mouse.cursor.up'. Stable across firmwares.

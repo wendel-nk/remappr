@@ -1,47 +1,47 @@
-import {useState} from 'react'
-import {RefreshCw} from 'lucide-react'
-import {toast} from 'sonner'
-import {Button} from '@/ui/button'
-import {DownloadLatestButton} from '@/components/DownloadLatestButton'
-import {APP_VERSION} from '@/lib/constants'
-import {isElectron as isElectronEnv} from '@/transport'
-import {IpcChannels} from '../../../../../shared/ipc-types'
-import type {UpdateCheckResultPayload} from '../../../../../shared/ipc-types'
+import { useState } from 'react'
+import { RefreshCw } from 'lucide-react'
+import { toast } from 'sonner'
+import { Button } from '@/ui/button'
+import { DownloadLatestButton } from '@/components/DownloadLatestButton'
+import { APP_VERSION } from '@/lib/constants'
+import { isElectron as isElectronEnv } from '@/transport'
+import { IpcChannels } from '../../../../../shared/ipc-types'
+import type { UpdateCheckResultPayload } from '../../../../../shared/ipc-types'
 
 interface ElectronWindow {
     api?: {
-        invoke: ( channel: string, ...args: unknown[] ) => Promise<unknown>
+        invoke: (channel: string, ...args: unknown[]) => Promise<unknown>
     }
 }
 
-export function AboutSection (): JSX.Element {
-    const [checking, setChecking] = useState( false )
+export function AboutSection(): JSX.Element {
+    const [checking, setChecking] = useState(false)
     const api = (window as unknown as ElectronWindow).api
     const isElectron = isElectronEnv()
 
     const handleCheckUpdates = async (): Promise<void> => {
-        if ( !api ) return
-        setChecking( true )
+        if (!api) return
+        setChecking(true)
         try {
             const result = (await api.invoke(
                 IpcChannels.UPDATES_CHECK,
             )) as UpdateCheckResultPayload
-            if ( result.status === 'newer' && result.version ) {
-                toast.success( `Update available: v${result.version}`, {
+            if (result.status === 'newer' && result.version) {
+                toast.success(`Update available: v${result.version}`, {
                     description:
                         'A toast with download options should appear shortly.',
-                } )
-            } else if ( result.status === 'current' ) {
-                toast.success( 'You are on the latest version', {
+                })
+            } else if (result.status === 'current') {
+                toast.success('You are on the latest version', {
                     description: `Remappr v${APP_VERSION} is up to date.`,
-                } )
+                })
             } else {
-                toast.error( 'Could not check for updates', {
+                toast.error('Could not check for updates', {
                     description: result.error ?? 'Unknown error',
-                } )
+                })
             }
         } finally {
-            setChecking( false )
+            setChecking(false)
         }
     }
 

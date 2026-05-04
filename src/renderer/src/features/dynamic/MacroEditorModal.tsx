@@ -1,13 +1,13 @@
 // pattern-check: skip — macro sequence editor with per-action inline switch
-import {ArrowDown, ArrowUp, Plus, Trash2} from 'lucide-react'
-import {useState} from 'react'
+import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react'
+import { useState } from 'react'
 
-import type {KeyboardService, MacroAction} from '@firmware'
-import {assertNever} from '@/lib/assertNever'
-import {clampInt, parseIntSafe} from '@/lib/clampInt'
-import {Button} from '@/ui/button'
-import {Input} from '@/ui/input'
-import {Modal} from '@/ui/modal'
+import type { KeyboardService, MacroAction } from '@firmware'
+import { assertNever } from '@/lib/assertNever'
+import { clampInt, parseIntSafe } from '@/lib/clampInt'
+import { Button } from '@/ui/button'
+import { Input } from '@/ui/input'
+import { Modal } from '@/ui/modal'
 import {
     Select,
     SelectContent,
@@ -16,11 +16,11 @@ import {
     SelectValue,
 } from '@/ui/select'
 
-import {saveWithToast} from '@/lib/saveWithToast'
+import { saveWithToast } from '@/lib/saveWithToast'
 
-import {IndexInput} from './_shared/IndexInput'
-import {NumField} from './_shared/NumField'
-import {useDynamicEntry} from './_shared/useDynamicEntry'
+import { IndexInput } from './_shared/IndexInput'
+import { NumField } from './_shared/NumField'
+import { useDynamicEntry } from './_shared/useDynamicEntry'
 
 interface Props {
     service: KeyboardService | null
@@ -32,36 +32,36 @@ const ACTION_KINDS: ReadonlyArray<{
     value: MacroAction['kind']
     label: string
 }> = [
-    {value: 'tap', label: 'Tap'},
-    {value: 'down', label: 'Down'},
-    {value: 'up', label: 'Up'},
-    {value: 'delay', label: 'Delay'},
-    {value: 'text', label: 'Text'},
+    { value: 'tap', label: 'Tap' },
+    { value: 'down', label: 'Down' },
+    { value: 'up', label: 'Up' },
+    { value: 'delay', label: 'Delay' },
+    { value: 'text', label: 'Text' },
 ]
 
-function defaultActionFor ( kind: MacroAction['kind'] ): MacroAction {
-    switch ( kind ) {
+function defaultActionFor(kind: MacroAction['kind']): MacroAction {
+    switch (kind) {
         case 'tap':
         case 'down':
         case 'up':
-            return {kind, keycode: 0}
+            return { kind, keycode: 0 }
         case 'delay':
-            return {kind: 'delay', ms: 100}
+            return { kind: 'delay', ms: 100 }
         case 'text':
-            return {kind: 'text', text: ''}
+            return { kind: 'text', text: '' }
         default:
-            return assertNever( kind )
+            return assertNever(kind)
     }
 }
 
-function ActionFields ( {
+function ActionFields({
     action,
     onChange,
 }: {
     action: MacroAction
-    onChange: ( next: MacroAction ) => void
-} ): JSX.Element | null {
-    switch ( action.kind ) {
+    onChange: (next: MacroAction) => void
+}): JSX.Element | null {
+    switch (action.kind) {
         case 'tap':
         case 'down':
         case 'up':
@@ -69,7 +69,7 @@ function ActionFields ( {
                 <NumField
                     label="Keycode"
                     value={action.keycode}
-                    onChange={( v ) => onChange( {...action, keycode: v} )}
+                    onChange={(v) => onChange({ ...action, keycode: v })}
                 />
             )
         case 'delay':
@@ -79,15 +79,15 @@ function ActionFields ( {
                     min={0}
                     max={0xffff}
                     value={action.ms}
-                    onChange={( e ) =>
-                        onChange( {
+                    onChange={(e) =>
+                        onChange({
                             kind: 'delay',
                             ms: clampInt(
-                                parseIntSafe( e.target.value ),
+                                parseIntSafe(e.target.value),
                                 0,
                                 0xffff,
                             ),
-                        } )
+                        })
                     }
                     className="w-32 text-xs"
                     placeholder="ms"
@@ -97,19 +97,19 @@ function ActionFields ( {
             return (
                 <Input
                     value={action.text}
-                    onChange={( e ) =>
-                        onChange( {kind: 'text', text: e.target.value} )
+                    onChange={(e) =>
+                        onChange({ kind: 'text', text: e.target.value })
                     }
                     className="flex-1 text-xs"
                     placeholder="ASCII text"
                 />
             )
         default:
-            return assertNever( action )
+            return assertNever(action)
     }
 }
 
-function ActionRow ( {
+function ActionRow({
     action,
     onChange,
     onRemove,
@@ -117,28 +117,28 @@ function ActionRow ( {
     onMoveDown,
 }: {
     action: MacroAction
-    onChange: ( next: MacroAction ) => void
+    onChange: (next: MacroAction) => void
     onRemove: () => void
     onMoveUp: () => void
     onMoveDown: () => void
-} ): JSX.Element {
+}): JSX.Element {
     return (
         <div className="flex items-center gap-2 border rounded p-2">
             <Select
                 value={action.kind}
-                onValueChange={( k ) =>
-                    onChange( defaultActionFor( k as MacroAction['kind'] ) )
+                onValueChange={(k) =>
+                    onChange(defaultActionFor(k as MacroAction['kind']))
                 }
             >
                 <SelectTrigger className="w-24">
                     <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                    {ACTION_KINDS.map( ( k ) => (
+                    {ACTION_KINDS.map((k) => (
                         <SelectItem key={k.value} value={k.value}>
                             {k.label}
                         </SelectItem>
-                    ) )}
+                    ))}
                 </SelectContent>
             </Select>
             <ActionFields action={action} onChange={onChange} />
@@ -170,14 +170,14 @@ function ActionRow ( {
     )
 }
 
-export function MacroEditorModal ( {
+export function MacroEditorModal({
     service,
     opened,
     onClose,
-}: Props ): JSX.Element | null {
+}: Props): JSX.Element | null {
     const count = service?.macros?.getCount() ?? 0
-    const [rawIdx, setIdx] = useState( 0 )
-    const idx = Math.min( Math.max( 0, rawIdx ), Math.max( 0, count - 1 ) )
+    const [rawIdx, setIdx] = useState(0)
+    const idx = Math.min(Math.max(0, rawIdx), Math.max(0, count - 1))
 
     const {
         entry: actions,
@@ -187,40 +187,40 @@ export function MacroEditorModal ( {
         service,
         idx,
         opened,
-        ( s, i ) => s.macros?.getMacro( i ),
+        (s, i) => s.macros?.getMacro(i),
         'macro',
     )
 
-    if ( !service || count === 0 ) return null
+    if (!service || count === 0) return null
 
-    const update = ( i: number, a: MacroAction ): void => {
-        if ( !actions ) return
+    const update = (i: number, a: MacroAction): void => {
+        if (!actions) return
         const next = actions.slice()
         next[i] = a
-        setActions( next )
+        setActions(next)
     }
 
-    const remove = ( i: number ): void =>
-        setActions( ( prev ) => (prev ? prev.filter( ( _, k ) => k !== i ) : prev) )
+    const remove = (i: number): void =>
+        setActions((prev) => (prev ? prev.filter((_, k) => k !== i) : prev))
 
-    const move = ( i: number, delta: number ): void => {
-        if ( !actions ) return
+    const move = (i: number, delta: number): void => {
+        if (!actions) return
         const j = i + delta
-        if ( j < 0 || j >= actions.length ) return
+        if (j < 0 || j >= actions.length) return
         const next = actions.slice()
-        const [item] = next.splice( i, 1 )
-        next.splice( j, 0, item )
-        setActions( next )
+        const [item] = next.splice(i, 1)
+        next.splice(j, 0, item)
+        setActions(next)
     }
 
     const add = (): void =>
-        setActions( ( prev ) => [...(prev ?? []), {kind: 'tap', keycode: 0}] )
+        setActions((prev) => [...(prev ?? []), { kind: 'tap', keycode: 0 }])
 
     const save = (): Promise<void> =>
         saveWithToast(
             async () => {
-                if ( !actions || !service.macros ) return
-                await service.macros.setMacro( idx, actions )
+                if (!actions || !service.macros) return
+                await service.macros.setMacro(idx, actions)
             },
             `Macro #${idx} saved`,
             'Failed to save macro',
@@ -248,16 +248,16 @@ export function MacroEditorModal ( {
                 )}
                 {actions && (
                     <div className="space-y-2 max-h-96 overflow-y-auto">
-                        {actions.map( ( a, i ) => (
+                        {actions.map((a, i) => (
                             <ActionRow
                                 key={i}
                                 action={a}
-                                onChange={( na ) => update( i, na )}
-                                onRemove={() => remove( i )}
-                                onMoveUp={() => move( i, -1 )}
-                                onMoveDown={() => move( i, 1 )}
+                                onChange={(na) => update(i, na)}
+                                onRemove={() => remove(i)}
+                                onMoveUp={() => move(i, -1)}
+                                onMoveDown={() => move(i, 1)}
                             />
-                        ) )}
+                        ))}
                         {actions.length === 0 && (
                             <p className="text-xs text-muted-foreground italic">
                                 Empty macro. Add actions below.

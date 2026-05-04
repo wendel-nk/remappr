@@ -1,6 +1,6 @@
 // pattern-check: skip — presentational dedup, no abstraction
-import type {ReactNode} from 'react'
-import {Card, CardContent} from '@/ui/card'
+import type { ReactNode } from 'react'
+import { Card, CardContent } from '@/ui/card'
 
 interface FeatureCardProps {
     title: string
@@ -8,11 +8,11 @@ interface FeatureCardProps {
     action: ReactNode
 }
 
-export function FeatureCard ( {
+export function FeatureCard({
     title,
     description,
     action,
-}: FeatureCardProps ): JSX.Element {
+}: FeatureCardProps): JSX.Element {
     return (
         <Card className="border-dashed">
             <CardContent className="flex h-full flex-col items-center justify-between gap-4 py-8 text-center">

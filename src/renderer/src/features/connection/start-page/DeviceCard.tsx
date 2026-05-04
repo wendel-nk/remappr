@@ -1,5 +1,5 @@
 // pattern-check: skip — render-scope cleanup + optional prop, no abstraction
-import {useRef, useState} from 'react'
+import { useRef, useState } from 'react'
 import {
     Bluetooth,
     Usb,
@@ -10,10 +10,10 @@ import {
     X,
     Trash2,
 } from 'lucide-react'
-import {Button} from '@/ui/button'
-import {Input} from '@/ui/input'
-import {cn} from '@/lib/cn'
-import type {DeviceStatus} from '@/features/connection/types'
+import { Button } from '@/ui/button'
+import { Input } from '@/ui/input'
+import { cn } from '@/lib/cn'
+import type { DeviceStatus } from '@/features/connection/types'
 
 export interface DeviceCardProps {
     name: string
@@ -23,7 +23,7 @@ export interface DeviceCardProps {
     onDisconnect?: () => void
     disabled?: boolean
     canRename?: boolean
-    onRename?: ( newName: string ) => void
+    onRename?: (newName: string) => void
     onForget?: () => void
 }
 
@@ -60,7 +60,7 @@ const STATUS_CONFIG: Record<
     },
 }
 
-function StatusBadge ( {status}: { status: DeviceStatus } ): JSX.Element {
+function StatusBadge({ status }: { status: DeviceStatus }): JSX.Element {
     const config = STATUS_CONFIG[status]
     return (
         <div
@@ -76,14 +76,14 @@ function StatusBadge ( {status}: { status: DeviceStatus } ): JSX.Element {
                     config.pulse && 'animate-pulse',
                 )}
             />
-            <span className={cn( 'text-xs font-medium', config.textColor )}>
+            <span className={cn('text-xs font-medium', config.textColor)}>
                 {config.label}
             </span>
         </div>
     )
 }
 
-export function DeviceCard ( {
+export function DeviceCard({
     name,
     status,
     isWireless = false,
@@ -93,34 +93,34 @@ export function DeviceCard ( {
     canRename = false,
     onRename,
     onForget,
-}: DeviceCardProps ): JSX.Element {
+}: DeviceCardProps): JSX.Element {
     const isConnecting = status === 'connecting'
     const isConnected = status === 'connected'
 
-    const [editing, setEditing] = useState( false )
-    const [draft, setDraft] = useState( name )
-    const [confirmingForget, setConfirmingForget] = useState( false )
-    const inputRef = useRef<HTMLInputElement>( null )
+    const [editing, setEditing] = useState(false)
+    const [draft, setDraft] = useState(name)
+    const [confirmingForget, setConfirmingForget] = useState(false)
+    const inputRef = useRef<HTMLInputElement>(null)
 
     const startEdit = (): void => {
-        setDraft( name )
-        setEditing( true )
-        queueMicrotask( () => inputRef.current?.select() )
+        setDraft(name)
+        setEditing(true)
+        queueMicrotask(() => inputRef.current?.select())
     }
     const commit = (): void => {
         const next = draft.trim()
-        if ( next && next !== name && onRename ) onRename( next )
-        setEditing( false )
+        if (next && next !== name && onRename) onRename(next)
+        setEditing(false)
     }
     const cancel = (): void => {
-        setDraft( name )
-        setEditing( false )
+        setDraft(name)
+        setEditing(false)
     }
 
     const cardClickable =
         !disabled && !editing && !confirmingForget && status === 'available'
     const handleCardActivate = (): void => {
-        if ( !cardClickable ) return
+        if (!cardClickable) return
         onConnect()
     }
 
@@ -133,19 +133,19 @@ export function DeviceCard ( {
             onClick={cardClickable ? handleCardActivate : undefined}
             onKeyDown={
                 cardClickable
-                    ? ( e ) => {
-                        if ( e.key === 'Enter' || e.key === ' ' ) {
-                            e.preventDefault()
-                            handleCardActivate()
-                        }
-                    }
+                    ? (e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault()
+                              handleCardActivate()
+                          }
+                      }
                     : undefined
             }
             className={cn(
                 'group relative overflow-hidden rounded-xl border bg-card p-4 transition-all duration-300',
                 'hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5',
                 cardClickable &&
-                'cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+                    'cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
                 isConnected && 'border-primary/50 bg-primary/5',
                 isConnecting && 'border-amber-500/50',
                 disabled && 'opacity-50 pointer-events-none',
@@ -168,9 +168,9 @@ export function DeviceCard ( {
                                 ? 'bg-blue-500/10 text-blue-500 group-hover:bg-blue-500/20'
                                 : 'bg-muted text-muted-foreground group-hover:bg-muted/80',
                             isConnected &&
-                            (isWireless
-                                ? 'bg-blue-500/20'
-                                : 'bg-primary/10 text-primary'),
+                                (isWireless
+                                    ? 'bg-blue-500/20'
+                                    : 'bg-primary/10 text-primary'),
                         )}
                     >
                         {isWireless ? (
@@ -187,12 +187,12 @@ export function DeviceCard ( {
                                     <Input
                                         ref={inputRef}
                                         value={draft}
-                                        onChange={( e ) =>
-                                            setDraft( e.target.value )
+                                        onChange={(e) =>
+                                            setDraft(e.target.value)
                                         }
-                                        onKeyDown={( e ) => {
-                                            if ( e.key === 'Enter' ) commit()
-                                            else if ( e.key === 'Escape' )
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') commit()
+                                            else if (e.key === 'Escape')
                                                 cancel()
                                         }}
                                         className="h-7 text-sm"
@@ -226,7 +226,7 @@ export function DeviceCard ( {
                                             variant="ghost"
                                             size="icon"
                                             className="h-6 w-6 shrink-0 opacity-60 hover:opacity-100"
-                                            onClick={( e ) => {
+                                            onClick={(e) => {
                                                 e.stopPropagation()
                                                 startEdit()
                                             }}
@@ -242,19 +242,19 @@ export function DeviceCard ( {
                                             className={cn(
                                                 'h-6 w-6 shrink-0 opacity-60 hover:opacity-100',
                                                 confirmingForget &&
-                                                'opacity-100 text-destructive',
+                                                    'opacity-100 text-destructive',
                                             )}
-                                            onClick={( e ) => {
+                                            onClick={(e) => {
                                                 e.stopPropagation()
-                                                if ( confirmingForget ) {
+                                                if (confirmingForget) {
                                                     onForget()
-                                                    setConfirmingForget( false )
+                                                    setConfirmingForget(false)
                                                 } else {
-                                                    setConfirmingForget( true )
+                                                    setConfirmingForget(true)
                                                 }
                                             }}
                                             onBlur={() =>
-                                                setConfirmingForget( false )
+                                                setConfirmingForget(false)
                                             }
                                             aria-label={
                                                 confirmingForget
@@ -290,7 +290,7 @@ export function DeviceCard ( {
                         <Button
                             variant="outline"
                             size="sm"
-                            onClick={( e ) => {
+                            onClick={(e) => {
                                 e.stopPropagation()
                                 onDisconnect?.()
                             }}
@@ -301,7 +301,7 @@ export function DeviceCard ( {
                     ) : (
                         <Button
                             size="sm"
-                            onClick={( e ) => {
+                            onClick={(e) => {
                                 e.stopPropagation()
                                 onConnect()
                             }}
@@ -309,7 +309,7 @@ export function DeviceCard ( {
                             className={cn(
                                 'min-w-[100px]',
                                 !isConnecting &&
-                                'shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/30',
+                                    'shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/30',
                             )}
                         >
                             {isConnecting ? (

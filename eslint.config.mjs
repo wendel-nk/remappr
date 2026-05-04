@@ -8,7 +8,16 @@ import eslintPluginStorybook from 'eslint-plugin-storybook'
 import eslintPluginJsxA11y from 'eslint-plugin-jsx-a11y'
 
 export default defineConfig(
-    { ignores: ['**/node_modules', '**/dist', '**/out'] },
+    {
+        ignores: [
+            '**/node_modules',
+            '**/dist',
+            '**/out',
+            '**/out-types',
+            '**/build',
+            'src-tauri/target/**',
+        ],
+    },
     tseslint.configs.recommended,
     eslintPluginReact.configs.flat.recommended,
     eslintPluginReact.configs.flat['jsx-runtime'],
@@ -30,6 +39,14 @@ export default defineConfig(
         rules: {
             ...eslintPluginReactHooks.configs.recommended.rules,
             ...eslintPluginReactRefresh.configs.vite.rules,
+            '@typescript-eslint/no-unused-vars': [
+                'error',
+                {
+                    argsIgnorePattern: '^_',
+                    varsIgnorePattern: '^_',
+                    caughtErrorsIgnorePattern: '^_',
+                },
+            ],
         },
     },
     {

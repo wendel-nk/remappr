@@ -23,7 +23,7 @@ import {
     SHIFTED_ENTRIES,
     WIRELESS_ENTRIES,
 } from './entries'
-import type {CanonicalKeyId, CatalogPage} from './types'
+import type { CanonicalKeyId, CatalogPage } from './types'
 
 // PR 1 ships HID pages only. PR 2 adds 'wireless' / 'os-keys' / 'rgb' /
 // 'backlight' / 'audio' / 'mouse' / 'midi' / 'magic' / 'quantum' /
@@ -199,7 +199,7 @@ const PREFIX_TO_PAGE: Record<string, string> = {
     secure: 'misc',
 }
 
-export const groupForId = ( id: CanonicalKeyId ): string | null => {
-    const prefix = id.split( '.' )[0]
+export const groupForId = (id: CanonicalKeyId): string | null => {
+    const prefix = id.split('.')[0]
     return PREFIX_TO_PAGE[prefix] ?? null
 }

@@ -1,4 +1,4 @@
-import { TransportEventEmitter, AvailableDevice } from './types'
+import { AvailableDevice, TransportEventEmitter } from './types'
 
 export class SerialTransport {
     private port?: SerialPort
@@ -11,7 +11,6 @@ export class SerialTransport {
         this.eventEmitter = eventEmitter
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     async serialConnect(_id: string): Promise<boolean> {
         try {
             // Use Web Serial API

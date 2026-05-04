@@ -5,7 +5,6 @@ import path from 'path'
 import pkg from './package.json' with { type: 'json' }
 // https://vitejs.dev/config/
 export default defineConfig({
-    base: '/', //todo remove it after finishing refactoring
     root: path.resolve(__dirname, 'src/renderer'),
     publicDir: path.resolve(__dirname, 'public'),
     plugins: [react(), tailwindcss()],
@@ -15,6 +14,8 @@ export default defineConfig({
     resolve: {
         alias: {
             '@': path.resolve(__dirname, './src/renderer/src'),
+            '@firmware': path.resolve(__dirname, './src/firmware'),
+            '@shared': path.resolve(__dirname, './src/shared'),
         },
     },
     // prevent vite from obscuring rust errors
@@ -35,7 +36,7 @@ export default defineConfig({
     ],
     build: {
         outDir: path.resolve(__dirname, 'dist'),
-        chunkSizeWarningLimit: 1000, // todo remove after refactoring
+        chunkSizeWarningLimit: 1000,
         // Tauri uses Chromium on Windows and WebKit on macOS and Linux
         target: process.env.TAURI_PLATFORM
             ? process.env.TAURI_PLATFORM == 'windows'

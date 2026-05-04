@@ -1,23 +1,19 @@
-import { useState } from 'react'
+// pattern-check: skip — UI shell consuming useConnection
 import { Keyboard } from 'lucide-react'
 import { toast } from 'sonner'
 import type { RpcTransport } from '@zmkfirmware/zmk-studio-ts-client/transport/index'
 
 import { Button } from '@/ui/button'
-import { Card, CardContent } from '@/ui/card'
 import { ExternalLink } from '@/components/ExternalLink'
 import { GitHubIcon } from '@/components/GitHubIcon'
 import { DownloadLatestButton } from '@/components/DownloadLatestButton'
 import { APP_VERSION, REPO_URL } from '@/lib/constants'
 import { LicenseNoticeModal } from '@/components/modals/LicenseNoticeModal'
-import {
-    useTransportDiscovery,
-    type DeviceWithTransport,
-} from '@/hooks/use-transport-discovery'
-import { useDeviceConnection } from '@/hooks/use-device-connection'
+import { useConnection } from '@/hooks/use-connection'
 
 import { ConnectionStatusBanner } from './ConnectionStatusBanner'
 import { TransportSection } from './TransportSection'
+import { FeatureCard } from './FeatureCard'
 
 interface StartPageProps {
     onTransportCreated: (
@@ -27,23 +23,19 @@ interface StartPageProps {
 }
 
 export function StartPage({ onTransportCreated }: StartPageProps): JSX.Element {
-    const [devices, setDevices] = useState<DeviceWithTransport[]>([])
-
-    const {
-        connectingDeviceId,
-        handleConnect,
-        handleSimpleConnect,
-        handleRequestNew,
-    } = useDeviceConnection(onTransportCreated, setDevices)
-
     const {
         transports,
         haveTransports,
         hasListableTransports,
         hasSimpleConnectOnly,
+        devices,
+        connectingDeviceId,
         refreshing,
         refresh,
-    } = useTransportDiscovery(setDevices, connectingDeviceId)
+        connect,
+        simpleConnect,
+        requestNew,
+    } = useConnection(onTransportCreated)
 
     if (!haveTransports) {
         return <ConnectionStatusBanner />
@@ -92,23 +84,16 @@ export function StartPage({ onTransportCreated }: StartPageProps): JSX.Element {
                         refreshing={refreshing}
                         connectingDeviceId={connectingDeviceId}
                         onRefresh={refresh}
-                        onConnect={handleConnect}
-                        onSimpleConnect={handleSimpleConnect}
-                        onRequestNew={handleRequestNew}
+                        onConnect={connect}
+                        onSimpleConnect={simpleConnect}
+                        onRequestNew={requestNew}
                     />
 
                     <div className="mt-6 grid gap-6 md:grid-cols-2">
-                        <Card className="border-dashed">
-                            <CardContent className="flex h-full flex-col items-center justify-between gap-4 py-8 text-center">
-                                <div>
-                                    <h3 className="font-semibold">
-                                        Try Demo Mode
-                                    </h3>
-                                    <p className="text-sm text-muted-foreground">
-                                        Explore Remappr with a simulated
-                                        keyboard - no device required.
-                                    </p>
-                                </div>
+                        <FeatureCard
+                            title="Try Demo Mode"
+                            description="Explore Remappr with a simulated keyboard - no device required."
+                            action={
                                 <Button
                                     variant="secondary"
                                     onClick={() => {
@@ -120,23 +105,13 @@ export function StartPage({ onTransportCreated }: StartPageProps): JSX.Element {
                                 >
                                     Try Demo
                                 </Button>
-                            </CardContent>
-                        </Card>
-
-                        <Card className="border-dashed">
-                            <CardContent className="flex h-full flex-col items-center justify-between gap-4 py-8 text-center">
-                                <div>
-                                    <h3 className="font-semibold">
-                                        Get the desktop app
-                                    </h3>
-                                    <p className="text-sm text-muted-foreground">
-                                        Download the latest Remappr build for
-                                        your operating system.
-                                    </p>
-                                </div>
-                                <DownloadLatestButton />
-                            </CardContent>
-                        </Card>
+                            }
+                        />
+                        <FeatureCard
+                            title="Get the desktop app"
+                            description="Download the latest Remappr build for your operating system."
+                            action={<DownloadLatestButton />}
+                        />
                     </div>
                 </div>
             </main>

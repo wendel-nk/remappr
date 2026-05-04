@@ -11,9 +11,9 @@ import type {
     PhysicalLayout,
     PhysicalLayoutKey,
 } from '@firmware/types'
-import {bindingToKeyAction, type BehaviorMap} from './actions'
+import { bindingToKeyAction, type BehaviorMap } from './actions'
 
-function zmkLayerToNeutral (
+function zmkLayerToNeutral(
     layer: ZmkLayer,
     behaviors: BehaviorMap,
     keymap: Pick<ZmkKeymap, 'layers'>,
@@ -21,20 +21,20 @@ function zmkLayerToNeutral (
     return {
         id: layer.id,
         name: layer.name,
-        keys: layer.bindings.map( ( b ) =>
-            bindingToKeyAction( b, behaviors, keymap ),
+        keys: layer.bindings.map((b) =>
+            bindingToKeyAction(b, behaviors, keymap),
         ),
     }
 }
 
-function zmkPhysicalLayoutToNeutral (
+function zmkPhysicalLayoutToNeutral(
     layout: ZmkPhysicalLayout,
     index: number,
 ): PhysicalLayout {
     return {
         id: index,
         name: layout.name,
-        keys: layout.keys.map<PhysicalLayoutKey>( ( k ) => ({
+        keys: layout.keys.map<PhysicalLayoutKey>((k) => ({
             x: k.x,
             y: k.y,
             w: k.width,
@@ -42,21 +42,21 @@ function zmkPhysicalLayoutToNeutral (
             r: k.r,
             rx: k.rx,
             ry: k.ry,
-        }) ),
+        })),
     }
 }
 
-export function zmkKeymapToNeutral (
+export function zmkKeymapToNeutral(
     keymap: ZmkKeymap,
     layouts: ZmkPhysicalLayouts,
     behaviors: BehaviorMap,
 ): Keymap {
     return {
-        layers: keymap.layers.map( ( l ) =>
-            zmkLayerToNeutral( l, behaviors, keymap ),
+        layers: keymap.layers.map((l) =>
+            zmkLayerToNeutral(l, behaviors, keymap),
         ),
         availableLayers: keymap.availableLayers,
         activeLayoutId: layouts.activeLayoutIndex,
-        layouts: layouts.layouts.map( zmkPhysicalLayoutToNeutral ),
+        layouts: layouts.layouts.map(zmkPhysicalLayoutToNeutral),
     }
 }

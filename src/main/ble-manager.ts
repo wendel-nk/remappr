@@ -15,12 +15,15 @@
  * 7. Renderer proceeds with GATT connection using the resolved BluetoothDevice
  */
 
-import { ipcMain, type BrowserWindow } from 'electron'
+import { type BrowserWindow, ipcMain } from 'electron'
 import {
+    type AvailableDevice,
     IpcChannels,
     IpcEvents,
-    type AvailableDevice,
 } from '../shared/ipc-types'
+import { createLogger } from '../shared/logger'
+
+const log = createLogger('ble-manager')
 
 // ZMK Studio BLE service UUID
 export const ZMK_STUDIO_SERVICE_UUID = '00000000-0196-6107-c967-c5cfb1c2482a'
@@ -42,8 +45,8 @@ export function setupBleDeviceSelection(window: BrowserWindow): void {
         (event, devices, callback) => {
             event.preventDefault()
 
-            console.log(
-                '[ble-manager] select-bluetooth-device fired, devices:',
+            log.info(
+                'select-bluetooth-device fired, devices:',
                 devices.length,
                 devices.map(
                     (d) => `${d.deviceName || '(no-name)'}@${d.deviceId}`,
@@ -69,10 +72,7 @@ export function setupBleDeviceSelection(window: BrowserWindow): void {
                     id: d.deviceId,
                 }))
 
-            console.log(
-                '[ble-manager] forwarding to renderer, kept:',
-                availableDevices.length,
-            )
+            log.info('forwarding to renderer, kept:', availableDevices.length)
 
             // Send discovered devices to the renderer
             if (!window.isDestroyed()) {
@@ -91,12 +91,12 @@ export function setupBleDeviceSelection(window: BrowserWindow): void {
  */
 export function registerBleIpcHandlers(): void {
     ipcMain.handle(IpcChannels.BLE_START_SCAN, async () => {
-        console.log('[ble-manager] BLE_START_SCAN received')
+        log.info('BLE_START_SCAN received')
         pendingDeviceCallback = null
     })
 
     ipcMain.handle(IpcChannels.BLE_STOP_SCAN, async () => {
-        console.log('[ble-manager] BLE_STOP_SCAN received')
+        log.info('BLE_STOP_SCAN received')
         // Cancel any pending device request
         if (pendingDeviceCallback) {
             pendingDeviceCallback('')

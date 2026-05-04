@@ -1,15 +1,15 @@
 // pattern-check: skip — form tab composing shared primitives
-import {useState} from 'react'
+import { useState } from 'react'
 
-import type {ComboEntry, KeyboardService} from '@firmware'
-import {Button} from '@/ui/button'
-import {FieldGroup} from '@/ui/field'
+import type { ComboEntry, KeyboardService } from '@firmware'
+import { Button } from '@/ui/button'
+import { FieldGroup } from '@/ui/field'
 
-import {saveWithToast} from '@/lib/saveWithToast'
+import { saveWithToast } from '@/lib/saveWithToast'
 
-import {IndexInput} from '../_shared/IndexInput'
-import {NumField} from '../_shared/NumField'
-import {useDynamicEntry} from '../_shared/useDynamicEntry'
+import { IndexInput } from '../_shared/IndexInput'
+import { NumField } from '../_shared/NumField'
+import { useDynamicEntry } from '../_shared/useDynamicEntry'
 
 interface Props {
     service: KeyboardService
@@ -17,29 +17,29 @@ interface Props {
     opened: boolean
 }
 
-export function ComboTab ( {service, count, opened}: Props ): JSX.Element {
-    const [rawIdx, setIdx] = useState( 0 )
-    const idx = Math.min( Math.max( 0, rawIdx ), Math.max( 0, count - 1 ) )
-    const {entry, setEntry, loading} = useDynamicEntry<ComboEntry>(
+export function ComboTab({ service, count, opened }: Props): JSX.Element {
+    const [rawIdx, setIdx] = useState(0)
+    const idx = Math.min(Math.max(0, rawIdx), Math.max(0, count - 1))
+    const { entry, setEntry, loading } = useDynamicEntry<ComboEntry>(
         service,
         idx,
         opened,
-        ( s, i ) => s.dynamic?.getCombo( i ),
+        (s, i) => s.dynamic?.getCombo(i),
         'combo',
     )
 
-    const setKey = ( i: 0 | 1 | 2 | 3, v: number ): void => {
-        if ( !entry ) return
+    const setKey = (i: 0 | 1 | 2 | 3, v: number): void => {
+        if (!entry) return
         const keys: ComboEntry['keys'] = [...entry.keys]
         keys[i] = v
-        setEntry( {...entry, keys} )
+        setEntry({ ...entry, keys })
     }
 
     const save = (): Promise<void> =>
         saveWithToast(
             async () => {
-                if ( !entry || !service.dynamic ) return
-                await service.dynamic.setCombo( idx, entry )
+                if (!entry || !service.dynamic) return
+                await service.dynamic.setCombo(idx, entry)
             },
             `Combo #${idx} saved`,
             'Failed to save combo',
@@ -58,18 +58,18 @@ export function ComboTab ( {service, count, opened}: Props ): JSX.Element {
             )}
             {entry && (
                 <>
-                    {entry.keys.map( ( k, i ) => (
+                    {entry.keys.map((k, i) => (
                         <NumField
                             key={i}
                             label={`Key ${i + 1}`}
                             value={k}
-                            onChange={( v ) => setKey( i as 0 | 1 | 2 | 3, v )}
+                            onChange={(v) => setKey(i as 0 | 1 | 2 | 3, v)}
                         />
-                    ) )}
+                    ))}
                     <NumField
                         label="Output"
                         value={entry.output}
-                        onChange={( v ) => setEntry( {...entry, output: v} )}
+                        onChange={(v) => setEntry({ ...entry, output: v })}
                     />
                     <Button onClick={save} size="sm">
                         Save

@@ -15,6 +15,7 @@ concurrency:
 jobs:
     release:
         runs-on: ubuntu-latest
+        environment: github-pages
         outputs:
             release_created: ${{ steps.rp.outputs.release_created }}
             tag_name: ${{ steps.rp.outputs.tag_name }}

@@ -1,56 +1,56 @@
 // pattern-check: skip — Keychron RGB settings modal shell; tabs orchestration only
-import {useEffect, useState} from 'react'
+import { useEffect, useState } from 'react'
 
 import useConnectionStore from '@/stores/connectionStore'
-import {saveWithToast} from '@/lib/saveWithToast'
-import {Modal} from '@/ui/modal'
-import {Button} from '@/ui/button'
-import {Tabs, TabsList, TabsTrigger, TabsContent} from '@/ui/tabs'
+import { saveWithToast } from '@/lib/saveWithToast'
+import { Modal } from '@/ui/modal'
+import { Button } from '@/ui/button'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/ui/tabs'
 
-import {BytesEditor} from './BytesEditor'
-import {MixedPanel} from './MixedPanel'
-import {PerKeyPanel} from './PerKeyPanel'
+import { BytesEditor } from './BytesEditor'
+import { MixedPanel } from './MixedPanel'
+import { PerKeyPanel } from './PerKeyPanel'
 
 interface Props {
     opened: boolean
     onClose: () => void
 }
 
-export function RgbSettingsModal ( {opened, onClose}: Props ): JSX.Element {
-    const rgb = useConnectionStore( ( s ) => s.service?.rgb )
+export function RgbSettingsModal({ opened, onClose }: Props): JSX.Element {
+    const rgb = useConnectionStore((s) => s.service?.rgb)
 
-    const [ledCount, setLedCount] = useState<number | null>( null )
+    const [ledCount, setLedCount] = useState<number | null>(null)
     const [indicatorsRaw, setIndicatorsRaw] = useState<Uint8Array>(
         new Uint8Array(),
     )
-    const [loading, setLoading] = useState( false )
+    const [loading, setLoading] = useState(false)
 
-    useEffect( () => {
-        if ( !opened || !rgb ) return
+    useEffect(() => {
+        if (!opened || !rgb) return
         let cancelled = false
         ;(async () => {
-            setLoading( true )
+            setLoading(true)
             const r = await saveWithToast(
                 async () => {
                     const count = await rgb.getLedCount()
                     const ind = await rgb.getIndicators()
-                    return {count, raw: ind.raw}
+                    return { count, raw: ind.raw }
                 },
                 null,
                 'Read RGB failed',
             )
-            if ( !cancelled && r ) {
-                setLedCount( r.count )
-                setIndicatorsRaw( r.raw )
+            if (!cancelled && r) {
+                setLedCount(r.count)
+                setIndicatorsRaw(r.raw)
             }
-            if ( !cancelled ) setLoading( false )
+            if (!cancelled) setLoading(false)
         })()
         return (): void => {
             cancelled = true
         }
-    }, [opened, rgb] )
+    }, [opened, rgb])
 
-    if ( !rgb ) return <></>
+    if (!rgb) return <></>
 
     const save = (): Promise<void | undefined> =>
         saveWithToast(
@@ -61,7 +61,7 @@ export function RgbSettingsModal ( {opened, onClose}: Props ): JSX.Element {
 
     const writeIndicators = (): Promise<void | undefined> =>
         saveWithToast(
-            () => rgb.setIndicators( {raw: indicatorsRaw} ),
+            () => rgb.setIndicators({ raw: indicatorsRaw }),
             'Indicators written',
             'Indicators write failed',
         )
@@ -72,7 +72,7 @@ export function RgbSettingsModal ( {opened, onClose}: Props ): JSX.Element {
             null,
             'Indicators read failed',
         )
-        if ( r ) setIndicatorsRaw( r.raw )
+        if (r) setIndicatorsRaw(r.raw)
     }
 
     return (

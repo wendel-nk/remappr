@@ -275,6 +275,7 @@ export function onPortsChanged(cb: () => void): () => void {
 // Persist a user-chosen friendly name for the device. Looked up first in
 // the resolution chain, so it always wins over the WebUSB productName and
 // the vendor-id fallback.
+// pattern-check: skip — adding sibling utility forgetGrantedPort, no abstraction
 export function setUserDeviceName(deviceId: string, name: string): void {
     const port = portRegistry.get(deviceId)
     if (!port) return
@@ -292,4 +293,30 @@ export function setUserDeviceName(deviceId: string, name: string): void {
         cache[k] = trimmed
     }
     writeCache(USER_NAME_CACHE_KEY, cache)
+}
+
+// Revoke browser permission for a previously granted port and clear any
+// per-id user-name override so a re-pair starts fresh.
+export async function forgetGrantedPort(deviceId: string): Promise<void> {
+    const port = portRegistry.get(deviceId)
+    if (!port) return
+    const info = port.getInfo()
+    const vid = info.usbVendorId
+    const pid = info.usbProductId
+
+    const forget = (port as SerialPort & { forget?: () => Promise<void> })
+        .forget
+    if (typeof forget === 'function') {
+        await forget.call(port).catch(() => undefined)
+    }
+    portRegistry.delete(deviceId)
+
+    if (vid !== undefined && pid !== undefined) {
+        const cache = readCache(USER_NAME_CACHE_KEY)
+        const k = vidPidKey(vid, pid)
+        if (k in cache) {
+            delete cache[k]
+            writeCache(USER_NAME_CACHE_KEY, cache)
+        }
+    }
 }

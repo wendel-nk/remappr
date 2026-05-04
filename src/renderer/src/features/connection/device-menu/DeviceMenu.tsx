@@ -1,46 +1,50 @@
-import {useCallback} from 'react'
-import {RestoreStockModal} from './RestoreStockModal'
+// pattern-check: skip — v2-compatible DeviceMenu, uses connection store + callRpc
+import { useCallback } from 'react'
+import { LockState } from '@zmkfirmware/zmk-studio-ts-client/core'
+import { RestoreStockModal } from './RestoreStockModal'
 import useConnectionStore from '@/stores/connectionStore'
 import undoRedoStore from '@/stores/undoRedoStore'
-import {Button} from '@/ui/button'
-import {Settings, Power} from 'lucide-react'
+import { Button } from '@/ui/button'
+import { Power, Settings } from 'lucide-react'
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/ui/dropdown-menu'
-import {SidebarMenu, SidebarMenuItem} from '@/ui/sidebar'
-// pattern-check: skip — drop dead lock guards now that App-shell render-gates locked state
-import {toast} from 'sonner'
+import { SidebarMenu, SidebarMenuItem } from '@/ui/sidebar'
+import { toast } from 'sonner'
+import { callRpc } from '@/services/rpcCall'
 
 export const DeviceMenu = (): JSX.Element => {
-    const {service, setService, communication, deviceName, disconnect} =
+    const { connection, setConnection, deviceName, lockState, disconnect } =
         useConnectionStore()
-    const {reset} = undoRedoStore()
+    const { reset } = undoRedoStore()
 
-    const resetSettings = useCallback( async (): Promise<void> => {
-        if ( !service ) return
-        try {
-            await service.resetSettings()
-        } catch ( e ) {
-            console.error( 'Failed to settings reset', e )
-            toast.error( 'Failed to settings reset' )
+    const resetSettings = useCallback(async (): Promise<void> => {
+        const resp = await callRpc({
+            core: { resetSettings: true },
+        })
+
+        if (!resp.core?.resetSettings) {
+            console.error('Failed to settings reset', resp)
+            toast.error('Failed to settings reset')
             return
         }
 
         reset()
 
-        const currentService = service
-        const currentCommunication = communication
-        setService( null )
+        const currentConnection = connection
+        setConnection(null)
 
-        setTimeout( () => {
-            setService( currentService, currentCommunication ?? undefined )
-        }, 0 )
-    }, [service, communication, reset, setService] )
+        setTimeout(() => {
+            setConnection(currentConnection)
+        }, 0)
+    }, [connection, reset, setConnection])
 
-    const isDisabled = !deviceName
+    const isDisabled =
+        !deviceName ||
+        lockState !== LockState.ZMK_STUDIO_CORE_LOCK_STATE_UNLOCKED
 
     return (
         <SidebarMenu>

@@ -7,29 +7,32 @@
  * This file provides the handler registration pattern and placeholder implementations.
  */
 
-import { ipcMain, type BrowserWindow } from 'electron'
+import { type BrowserWindow, ipcMain } from 'electron'
 import { IpcChannels, IpcEvents } from '../shared/ipc-types'
+import { createLogger } from '../shared/logger'
 import { validateAvailableDevice, validateUint8Array } from './ipc-validation'
 import {
-    listSerialDevices,
     connectSerial,
     disconnectSerial,
+    listSerialDevices,
     writeSerial,
 } from './serial'
 import {
-    listZmkDevices,
     connectZmkDevice,
-    writeZmk,
     disconnectZmkDevice,
     hasActiveBluezConnection,
+    listZmkDevices,
+    writeZmk,
 } from './bluez'
 import {
-    listNobleDevices,
     connectNobleDevice,
-    writeNoble,
     disconnectNobleDevice,
     hasActiveNobleConnection,
+    listNobleDevices,
+    writeNoble,
 } from './noble-ble'
+
+const log = createLogger('ipc')
 
 // Tracks which transport currently owns send/close. Set when a transport
 // connects, cleared on disconnect/error. Lets TRANSPORT_SEND_DATA and
@@ -93,7 +96,7 @@ export function registerIpcHandlers(getWindows: () => BrowserWindow[]): void {
     ipcMain.handle(IpcChannels.BLE_CONNECT, async (_, device: unknown) => {
         const validDevice = validateAvailableDevice(device)
         // BLE connection happens via Web Bluetooth in the renderer.
-        console.log(`BLE connect (Web Bluetooth): ${validDevice.label}`)
+        log.info(`BLE connect (Web Bluetooth): ${validDevice.label}`)
         return true
     })
 
@@ -122,7 +125,7 @@ export function registerIpcHandlers(getWindows: () => BrowserWindow[]): void {
                 return { ok: true, label }
             } catch (e) {
                 const msg = e instanceof Error ? e.message : String(e)
-                console.error('[ipc] BLUEZ_CONNECT failed:', msg)
+                log.error('BLUEZ_CONNECT failed:', msg)
                 return { ok: false, error: msg }
             }
         },
@@ -152,7 +155,7 @@ export function registerIpcHandlers(getWindows: () => BrowserWindow[]): void {
             return { ok: true, label }
         } catch (e) {
             const msg = e instanceof Error ? e.message : String(e)
-            console.error('[ipc] NOBLE_CONNECT failed:', msg)
+            log.error('NOBLE_CONNECT failed:', msg)
             return { ok: false, error: msg }
         }
     })
@@ -207,7 +210,6 @@ function setupEventEmitters(getWindows: () => BrowserWindow[]): void {
  * Transport implementations import this to push events to the renderer.
  */
 export const ipcHandlerContext = {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     emitConnectionData: (_data: number[]): void => {},
     emitConnectionDisconnected: (): void => {},
 }

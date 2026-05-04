@@ -18,6 +18,9 @@
 
 import { createRequire } from 'module'
 import type { AvailableDevice } from '../shared/ipc-types'
+import { createLogger } from '../shared/logger'
+
+const log = createLogger('noble')
 
 // Lazy load noble — importing it eagerly opens an HCI socket and starts
 // polling adapter state, which fails noisily when caps/perms aren't set.
@@ -96,7 +99,7 @@ export async function listNobleDevices(): Promise<AvailableDevice[]> {
     try {
         await ensureNobleReady()
     } catch (e) {
-        console.error('[noble] adapter not ready:', e)
+        log.error('adapter not ready:', e)
         return []
     }
 
@@ -123,7 +126,7 @@ export async function listNobleDevices(): Promise<AvailableDevice[]> {
         await getNoble().startScanningAsync([ZMK_SERVICE_UUID_NOBLE], false)
     } catch (e) {
         getNoble().removeListener('discover', onDiscover)
-        console.error('[noble] startScanning failed:', e)
+        log.error('startScanning failed:', e)
         return []
     }
 
@@ -140,7 +143,7 @@ export async function listNobleDevices(): Promise<AvailableDevice[]> {
     for (const d of discovered.values()) {
         out.push({ id: d.id, label: d.name })
     }
-    console.log('[noble] scan returned', out.length, 'devices')
+    log.info('scan returned', out.length, 'devices')
     return out
 }
 
@@ -160,12 +163,12 @@ export async function connectNobleDevice(
     }
 
     const peripheral = entry.peripheral
-    console.log(
-        `[noble] connecting to ${peripheral.id} (${peripheral.advertisement.localName})`,
+    log.info(
+        `connecting to ${peripheral.id} (${peripheral.advertisement.localName})`,
     )
 
     await peripheral.connectAsync()
-    console.log('[noble] connected, discovering services')
+    log.info('connected, discovering services')
 
     const { characteristics } =
         await peripheral.discoverSomeServicesAndCharacteristicsAsync(
@@ -179,11 +182,11 @@ export async function connectNobleDevice(
     }
 
     const characteristic = characteristics[0]
-    console.log('[noble] char found, properties:', characteristic.properties)
+    log.info('char found, properties:', characteristic.properties)
 
     const onData = (data: Buffer, isNotification: boolean): void => {
-        console.log(
-            `[noble] ${isNotification ? 'notify' : 'read'} ${data.length} bytes:`,
+        log.info(
+            `${isNotification ? 'notify' : 'read'} ${data.length} bytes:`,
             Array.from(data.subarray(0, Math.min(16, data.length))),
         )
         callbacks.onData(Array.from(new Uint8Array(data)))
@@ -191,13 +194,13 @@ export async function connectNobleDevice(
     characteristic.on('data', onData)
 
     const onDisconnect = (): void => {
-        console.log('[noble] peripheral disconnected')
+        log.info('peripheral disconnected')
         callbacks.onDisconnected()
     }
     peripheral.once('disconnect', onDisconnect)
 
     await characteristic.subscribeAsync()
-    console.log('[noble] subscribed to char')
+    log.info('subscribed to char')
 
     active = {
         peripheral,
@@ -215,15 +218,15 @@ export async function writeNoble(data: Uint8Array): Promise<void> {
     const supportsWithoutResponse = active.characteristic.properties.includes(
         'writeWithoutResponse',
     )
-    console.log(
-        `[noble] write ${data.length} bytes (withoutResponse=${supportsWithoutResponse}):`,
+    log.info(
+        `write ${data.length} bytes (withoutResponse=${supportsWithoutResponse}):`,
         Array.from(data.subarray(0, Math.min(16, data.length))),
     )
     await active.characteristic.writeAsync(
         Buffer.from(data),
         supportsWithoutResponse,
     )
-    console.log('[noble] write ok')
+    log.info('write ok')
 }
 
 export async function disconnectNobleDevice(): Promise<void> {

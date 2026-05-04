@@ -1,8 +1,8 @@
 // Pattern check: no GoF pattern (-) — rejected — static neutral ActionType[] for Vial action catalog with optional per-device custom-keycode entries; data only.
-import {QMK_ACTION_TYPES} from '@firmware/qmk/actionTypes'
-import type {ActionType} from '@firmware/types'
+import { QMK_ACTION_TYPES } from '@firmware/qmk/actionTypes'
+import type { ActionType } from '@firmware/types'
 
-import type {VialCustomKeycode} from './keyboardDef'
+import type { VialCustomKeycode } from './keyboardDef'
 
 const VIAL_BASE: ActionType[] = [
     {
@@ -10,7 +10,7 @@ const VIAL_BASE: ActionType[] = [
         displayName: 'Tap Dance',
         description: 'Reference a configured tap-dance entry.',
         slots: [
-            {label: 'Index', kind: 'number', range: {min: 0, max: 255}},
+            { label: 'Index', kind: 'number', range: { min: 0, max: 255 } },
         ],
     },
     {
@@ -18,7 +18,7 @@ const VIAL_BASE: ActionType[] = [
         displayName: 'Dynamic Macro',
         description: 'Trigger a dynamic macro slot.',
         slots: [
-            {label: 'Index', kind: 'number', range: {min: 0, max: 127}},
+            { label: 'Index', kind: 'number', range: { min: 0, max: 127 } },
         ],
     },
     {
@@ -29,12 +29,12 @@ const VIAL_BASE: ActionType[] = [
     },
 ]
 
-export function buildVialActionTypes (
+export function buildVialActionTypes(
     customKeycodes?: VialCustomKeycode[],
 ): ActionType[] {
     const out: ActionType[] = [...QMK_ACTION_TYPES, ...VIAL_BASE]
-    if ( customKeycodes && customKeycodes.length > 0 ) {
-        out.push( {
+    if (customKeycodes && customKeycodes.length > 0) {
+        out.push({
             id: 'vial:user',
             displayName: 'Custom Keycode',
             description: 'Per-board user-defined keycode.',
@@ -42,13 +42,13 @@ export function buildVialActionTypes (
                 {
                     label: 'Keycode',
                     kind: 'enum',
-                    values: customKeycodes.map( ( k, i ) => ({
+                    values: customKeycodes.map((k, i) => ({
                         value: i,
                         label: k.title || k.shortName || k.name,
-                    }) ),
+                    })),
                 },
             ],
-        } )
+        })
     }
     return out
 }

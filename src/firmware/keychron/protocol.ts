@@ -6,7 +6,7 @@
 // dynamic-keymap codec (0x01-0x13) still owns keymap reads/writes.
 // This module covers only the Keychron-specific 0xA0-series.
 
-import {ProtocolError} from '@firmware/errors'
+import { ProtocolError } from '@firmware/errors'
 
 export const KEYCHRON_PAYLOAD_SIZE = 32
 export const KEYCHRON_USAGE_PAGE = 0xff60
@@ -118,64 +118,64 @@ export interface MiscFeatureFlags {
     raw: number
 }
 
-export function makeFrame ( id: number, body: number[] = [] ): Uint8Array {
-    if ( body.length > KEYCHRON_PAYLOAD_SIZE - 1 ) {
+export function makeFrame(id: number, body: number[] = []): Uint8Array {
+    if (body.length > KEYCHRON_PAYLOAD_SIZE - 1) {
         throw new ProtocolError(
             `Keychron frame body too large: ${body.length} > ${KEYCHRON_PAYLOAD_SIZE - 1}`,
         )
     }
-    const out = new Uint8Array( KEYCHRON_PAYLOAD_SIZE )
+    const out = new Uint8Array(KEYCHRON_PAYLOAD_SIZE)
     out[0] = id & 0xff
-    for ( let i = 0; i < body.length; i++ ) out[i + 1] = body[i] & 0xff
+    for (let i = 0; i < body.length; i++) out[i + 1] = body[i] & 0xff
     return out
 }
 
-export function makeSubFrame (
+export function makeSubFrame(
     id: number,
     sub: number,
     body: number[] = [],
 ): Uint8Array {
-    return makeFrame( id, [sub, ...body] )
+    return makeFrame(id, [sub, ...body])
 }
 
-function isErrorResponse ( resp: Uint8Array ): boolean {
+function isErrorResponse(resp: Uint8Array): boolean {
     return resp[0] === 0xff && resp[1] === 0x00
 }
 
-function expectId ( resp: Uint8Array, id: number, label: string ): void {
-    if ( resp.length < KEYCHRON_PAYLOAD_SIZE ) {
+function expectId(resp: Uint8Array, id: number, label: string): void {
+    if (resp.length < KEYCHRON_PAYLOAD_SIZE) {
         throw new ProtocolError(
             `Keychron ${label}: short response (${resp.length} bytes)`,
         )
     }
-    if ( isErrorResponse( resp ) ) {
-        throw new ProtocolError( `Keychron ${label}: device returned 0xFF/0x00` )
+    if (isErrorResponse(resp)) {
+        throw new ProtocolError(`Keychron ${label}: device returned 0xFF/0x00`)
     }
-    if ( resp[0] !== id ) {
+    if (resp[0] !== id) {
         throw new ProtocolError(
-            `Keychron ${label}: response id 0x${resp[0].toString( 16 )} != 0x${id.toString( 16 )}`,
+            `Keychron ${label}: response id 0x${resp[0].toString(16)} != 0x${id.toString(16)}`,
         )
     }
 }
 
-function expectSub (
+function expectSub(
     resp: Uint8Array,
     id: number,
     sub: number,
     label: string,
 ): void {
-    expectId( resp, id, label )
-    if ( resp[1] !== sub ) {
+    expectId(resp, id, label)
+    if (resp[1] !== sub) {
         throw new ProtocolError(
-            `Keychron ${label}: sub 0x${resp[1].toString( 16 )} != 0x${sub.toString( 16 )}`,
+            `Keychron ${label}: sub 0x${resp[1].toString(16)} != 0x${sub.toString(16)}`,
         )
     }
 }
 
 // ---------- 0xA0 / 0xA1 / 0xA2 / 0xA3 ----------
 
-export function getProtocolVersionCmd (): Uint8Array {
-    return makeFrame( KC_ID.GET_PROTOCOL_VERSION )
+export function getProtocolVersionCmd(): Uint8Array {
+    return makeFrame(KC_ID.GET_PROTOCOL_VERSION)
 }
 
 export interface ProtocolVersionInfo {
@@ -183,31 +183,31 @@ export interface ProtocolVersionInfo {
     qmkCommandSet: number
 }
 
-export function parseProtocolVersion ( resp: Uint8Array ): ProtocolVersionInfo {
-    expectId( resp, KC_ID.GET_PROTOCOL_VERSION, 'protocol-version' )
+export function parseProtocolVersion(resp: Uint8Array): ProtocolVersionInfo {
+    expectId(resp, KC_ID.GET_PROTOCOL_VERSION, 'protocol-version')
     return {
         protocolVersion: resp[1] & 0xff,
         qmkCommandSet: resp[3] & 0xff,
     }
 }
 
-export function getFirmwareVersionCmd (): Uint8Array {
-    return makeFrame( KC_ID.GET_FIRMWARE_VERSION )
+export function getFirmwareVersionCmd(): Uint8Array {
+    return makeFrame(KC_ID.GET_FIRMWARE_VERSION)
 }
 
-export function parseFirmwareVersion ( resp: Uint8Array ): string {
-    expectId( resp, KC_ID.GET_FIRMWARE_VERSION, 'firmware-version' )
+export function parseFirmwareVersion(resp: Uint8Array): string {
+    expectId(resp, KC_ID.GET_FIRMWARE_VERSION, 'firmware-version')
     let end = 1
-    while ( end < resp.length && resp[end] !== 0 ) end++
-    return new TextDecoder( 'ascii' ).decode( resp.slice( 1, end ) ).trim()
+    while (end < resp.length && resp[end] !== 0) end++
+    return new TextDecoder('ascii').decode(resp.slice(1, end)).trim()
 }
 
-export function getSupportFeatureCmd (): Uint8Array {
-    return makeFrame( KC_ID.GET_SUPPORT_FEATURE )
+export function getSupportFeatureCmd(): Uint8Array {
+    return makeFrame(KC_ID.GET_SUPPORT_FEATURE)
 }
 
-export function parseFeatureFlags ( resp: Uint8Array ): FeatureFlags {
-    expectId( resp, KC_ID.GET_SUPPORT_FEATURE, 'support-feature' )
+export function parseFeatureFlags(resp: Uint8Array): FeatureFlags {
+    expectId(resp, KC_ID.GET_SUPPORT_FEATURE, 'support-feature')
     const lo = resp[1] & 0xff
     const hi = resp[2] & 0xff
     const raw = lo | (hi << 8)
@@ -226,19 +226,19 @@ export function parseFeatureFlags ( resp: Uint8Array ): FeatureFlags {
     }
 }
 
-export function getDefaultLayerCmd (): Uint8Array {
-    return makeFrame( KC_ID.GET_DEFAULT_LAYER )
+export function getDefaultLayerCmd(): Uint8Array {
+    return makeFrame(KC_ID.GET_DEFAULT_LAYER)
 }
 
-export function parseDefaultLayer ( resp: Uint8Array ): number {
-    expectId( resp, KC_ID.GET_DEFAULT_LAYER, 'default-layer' )
+export function parseDefaultLayer(resp: Uint8Array): number {
+    expectId(resp, KC_ID.GET_DEFAULT_LAYER, 'default-layer')
     return resp[1] & 0xff
 }
 
 // ---------- 0xA7 misc ----------
 
-export function getMiscProtocolVersionCmd (): Uint8Array {
-    return makeSubFrame( KC_ID.MISC_CMD_GROUP, MISC_SUB.GET_PROTOCOL_VER )
+export function getMiscProtocolVersionCmd(): Uint8Array {
+    return makeSubFrame(KC_ID.MISC_CMD_GROUP, MISC_SUB.GET_PROTOCOL_VER)
 }
 
 export interface MiscProtocolInfo {
@@ -246,7 +246,7 @@ export interface MiscProtocolInfo {
     miscFeatures: MiscFeatureFlags
 }
 
-export function parseMiscProtocolVersion ( resp: Uint8Array ): MiscProtocolInfo {
+export function parseMiscProtocolVersion(resp: Uint8Array): MiscProtocolInfo {
     expectSub(
         resp,
         KC_ID.MISC_CMD_GROUP,
@@ -274,8 +274,8 @@ export function parseMiscProtocolVersion ( resp: Uint8Array ): MiscProtocolInfo 
     }
 }
 
-export function getWirelessLpmCmd (): Uint8Array {
-    return makeSubFrame( KC_ID.MISC_CMD_GROUP, MISC_SUB.WIRELESS_LPM_GET )
+export function getWirelessLpmCmd(): Uint8Array {
+    return makeSubFrame(KC_ID.MISC_CMD_GROUP, MISC_SUB.WIRELESS_LPM_GET)
 }
 
 export interface WirelessLpmConfig {
@@ -283,7 +283,7 @@ export interface WirelessLpmConfig {
     timeoutMs: number
 }
 
-export function parseWirelessLpm ( resp: Uint8Array ): WirelessLpmConfig {
+export function parseWirelessLpm(resp: Uint8Array): WirelessLpmConfig {
     expectSub(
         resp,
         KC_ID.MISC_CMD_GROUP,
@@ -299,31 +299,31 @@ export function parseWirelessLpm ( resp: Uint8Array ): WirelessLpmConfig {
     }
 }
 
-export function setWirelessLpmCmd ( cfg: WirelessLpmConfig ): Uint8Array {
-    return makeSubFrame( KC_ID.MISC_CMD_GROUP, MISC_SUB.WIRELESS_LPM_SET, [
+export function setWirelessLpmCmd(cfg: WirelessLpmConfig): Uint8Array {
+    return makeSubFrame(KC_ID.MISC_CMD_GROUP, MISC_SUB.WIRELESS_LPM_SET, [
         cfg.enabled ? 1 : 0,
         cfg.timeoutMs & 0xff,
         (cfg.timeoutMs >> 8) & 0xff,
-    ] )
+    ])
 }
 
-export function getNkroCmd (): Uint8Array {
-    return makeSubFrame( KC_ID.MISC_CMD_GROUP, MISC_SUB.NKRO_GET )
+export function getNkroCmd(): Uint8Array {
+    return makeSubFrame(KC_ID.MISC_CMD_GROUP, MISC_SUB.NKRO_GET)
 }
 
-export function parseNkro ( resp: Uint8Array ): boolean {
-    expectSub( resp, KC_ID.MISC_CMD_GROUP, MISC_SUB.NKRO_GET, 'nkro-get' )
+export function parseNkro(resp: Uint8Array): boolean {
+    expectSub(resp, KC_ID.MISC_CMD_GROUP, MISC_SUB.NKRO_GET, 'nkro-get')
     return (resp[2] & 0xff) !== 0
 }
 
-export function setNkroCmd ( enabled: boolean ): Uint8Array {
-    return makeSubFrame( KC_ID.MISC_CMD_GROUP, MISC_SUB.NKRO_SET, [
+export function setNkroCmd(enabled: boolean): Uint8Array {
+    return makeSubFrame(KC_ID.MISC_CMD_GROUP, MISC_SUB.NKRO_SET, [
         enabled ? 1 : 0,
-    ] )
+    ])
 }
 
-export function factoryResetCmd (): Uint8Array {
-    return makeSubFrame( KC_ID.MISC_CMD_GROUP, MISC_SUB.FACTORY_RESET )
+export function factoryResetCmd(): Uint8Array {
+    return makeSubFrame(KC_ID.MISC_CMD_GROUP, MISC_SUB.FACTORY_RESET)
 }
 
 // pattern-check: skip — pure read-only DFU info codec helpers, byte marshalling only
@@ -331,8 +331,8 @@ export function factoryResetCmd (): Uint8Array {
 // Used by Studio to show firmware revision in the Wireless panel; we do
 // NOT expose the full DFU flash flow (0xAA) — that requires vendor spec
 // and a rollback plan and risks bricking the module if interrupted.
-export function getDfuInfoCmd (): Uint8Array {
-    return makeSubFrame( KC_ID.MISC_CMD_GROUP, MISC_SUB.DFU_INFO_GET )
+export function getDfuInfoCmd(): Uint8Array {
+    return makeSubFrame(KC_ID.MISC_CMD_GROUP, MISC_SUB.DFU_INFO_GET)
 }
 
 export interface DfuModuleInfo {
@@ -343,32 +343,32 @@ export interface DfuModuleInfo {
     raw: Uint8Array
 }
 
-export function parseDfuInfo ( resp: Uint8Array ): DfuModuleInfo {
-    expectSub( resp, KC_ID.MISC_CMD_GROUP, MISC_SUB.DFU_INFO_GET, 'dfu-info-get' )
+export function parseDfuInfo(resp: Uint8Array): DfuModuleInfo {
+    expectSub(resp, KC_ID.MISC_CMD_GROUP, MISC_SUB.DFU_INFO_GET, 'dfu-info-get')
     return {
         moduleType: resp[2] & 0xff,
         versionMajor: resp[3] & 0xff,
         versionMinor: resp[4] & 0xff,
         versionPatch: resp[5] & 0xff,
-        raw: resp.slice( 2 ),
+        raw: resp.slice(2),
     }
 }
 
-export function dfuModuleLabel ( info: DfuModuleInfo ): string {
+export function dfuModuleLabel(info: DfuModuleInfo): string {
     const name =
         info.moduleType === 1
             ? 'LKBT51'
             : info.moduleType === 2
-                ? 'CKBT51'
-                : `module-${info.moduleType}`
+              ? 'CKBT51'
+              : `module-${info.moduleType}`
     return `${name} v${info.versionMajor}.${info.versionMinor}.${info.versionPatch}`
 }
 
-export function getDipSwitchCmd (): Uint8Array {
-    return makeSubFrame( KC_ID.MISC_CMD_GROUP, MISC_SUB.DIP_SWITCH_GET )
+export function getDipSwitchCmd(): Uint8Array {
+    return makeSubFrame(KC_ID.MISC_CMD_GROUP, MISC_SUB.DIP_SWITCH_GET)
 }
 
-export function parseDipSwitch ( resp: Uint8Array ): number {
+export function parseDipSwitch(resp: Uint8Array): number {
     expectSub(
         resp,
         KC_ID.MISC_CMD_GROUP,
@@ -380,11 +380,11 @@ export function parseDipSwitch ( resp: Uint8Array ): number {
 
 // ---------- 0xA8 RGB ----------
 
-export function getRgbProtocolVersionCmd (): Uint8Array {
-    return makeSubFrame( KC_ID.KEYCHRON_RGB, RGB_SUB.GET_PROTOCOL_VER )
+export function getRgbProtocolVersionCmd(): Uint8Array {
+    return makeSubFrame(KC_ID.KEYCHRON_RGB, RGB_SUB.GET_PROTOCOL_VER)
 }
 
-export function parseRgbProtocolVersion ( resp: Uint8Array ): number {
+export function parseRgbProtocolVersion(resp: Uint8Array): number {
     expectSub(
         resp,
         KC_ID.KEYCHRON_RGB,
@@ -395,28 +395,28 @@ export function parseRgbProtocolVersion ( resp: Uint8Array ): number {
     return (resp[2] & 0xff) | ((resp[3] & 0xff) << 8)
 }
 
-export function rgbSaveCmd (): Uint8Array {
-    return makeSubFrame( KC_ID.KEYCHRON_RGB, RGB_SUB.SAVE )
+export function rgbSaveCmd(): Uint8Array {
+    return makeSubFrame(KC_ID.KEYCHRON_RGB, RGB_SUB.SAVE)
 }
 
-export function getLedCountCmd (): Uint8Array {
-    return makeSubFrame( KC_ID.KEYCHRON_RGB, RGB_SUB.GET_LED_COUNT )
+export function getLedCountCmd(): Uint8Array {
+    return makeSubFrame(KC_ID.KEYCHRON_RGB, RGB_SUB.GET_LED_COUNT)
 }
 
-export function parseLedCount ( resp: Uint8Array ): number {
-    expectSub( resp, KC_ID.KEYCHRON_RGB, RGB_SUB.GET_LED_COUNT, 'rgb-led-count' )
+export function parseLedCount(resp: Uint8Array): number {
+    expectSub(resp, KC_ID.KEYCHRON_RGB, RGB_SUB.GET_LED_COUNT, 'rgb-led-count')
     return resp[2] & 0xff
 }
 
-export function getIndicatorsConfigCmd (): Uint8Array {
-    return makeSubFrame( KC_ID.KEYCHRON_RGB, RGB_SUB.GET_INDICATORS_CONFIG )
+export function getIndicatorsConfigCmd(): Uint8Array {
+    return makeSubFrame(KC_ID.KEYCHRON_RGB, RGB_SUB.GET_INDICATORS_CONFIG)
 }
 
 export interface IndicatorsConfig {
     raw: Uint8Array
 }
 
-export function parseIndicatorsConfig ( resp: Uint8Array ): IndicatorsConfig {
+export function parseIndicatorsConfig(resp: Uint8Array): IndicatorsConfig {
     expectSub(
         resp,
         KC_ID.KEYCHRON_RGB,
@@ -425,11 +425,11 @@ export function parseIndicatorsConfig ( resp: Uint8Array ): IndicatorsConfig {
     )
     // Payload shape varies per board; expose raw bytes for now and
     // refine once we read a real K5 Max response.
-    return {raw: resp.slice( 2 )}
+    return { raw: resp.slice(2) }
 }
 
-export function setIndicatorsConfigCmd ( payload: Uint8Array ): Uint8Array {
-    if ( payload.length > KEYCHRON_PAYLOAD_SIZE - 2 ) {
+export function setIndicatorsConfigCmd(payload: Uint8Array): Uint8Array {
+    if (payload.length > KEYCHRON_PAYLOAD_SIZE - 2) {
         throw new ProtocolError(
             `indicators payload too large: ${payload.length}`,
         )
@@ -437,7 +437,7 @@ export function setIndicatorsConfigCmd ( payload: Uint8Array ): Uint8Array {
     return makeSubFrame(
         KC_ID.KEYCHRON_RGB,
         RGB_SUB.SET_INDICATORS_CONFIG,
-        Array.from( payload ),
+        Array.from(payload),
     )
 }
 
@@ -451,11 +451,11 @@ export interface HSV {
     v: number
 }
 
-export function getPerKeyTypeCmd (): Uint8Array {
-    return makeSubFrame( KC_ID.KEYCHRON_RGB, RGB_SUB.PER_KEY_GET_TYPE )
+export function getPerKeyTypeCmd(): Uint8Array {
+    return makeSubFrame(KC_ID.KEYCHRON_RGB, RGB_SUB.PER_KEY_GET_TYPE)
 }
 
-export function parsePerKeyType ( resp: Uint8Array ): number {
+export function parsePerKeyType(resp: Uint8Array): number {
     expectSub(
         resp,
         KC_ID.KEYCHRON_RGB,
@@ -465,27 +465,27 @@ export function parsePerKeyType ( resp: Uint8Array ): number {
     return resp[2] & 0xff
 }
 
-export function setPerKeyTypeCmd ( type: number ): Uint8Array {
-    return makeSubFrame( KC_ID.KEYCHRON_RGB, RGB_SUB.PER_KEY_SET_TYPE, [
+export function setPerKeyTypeCmd(type: number): Uint8Array {
+    return makeSubFrame(KC_ID.KEYCHRON_RGB, RGB_SUB.PER_KEY_SET_TYPE, [
         type & 0xff,
-    ] )
+    ])
 }
 
 export const PER_KEY_RGB_BATCH_MAX = 9
 
-export function getPerKeyColorCmd ( startLed: number, count: number ): Uint8Array {
-    if ( count <= 0 || count > PER_KEY_RGB_BATCH_MAX ) {
+export function getPerKeyColorCmd(startLed: number, count: number): Uint8Array {
+    if (count <= 0 || count > PER_KEY_RGB_BATCH_MAX) {
         throw new ProtocolError(
             `per-key RGB get count out of range: ${count} (max ${PER_KEY_RGB_BATCH_MAX})`,
         )
     }
-    return makeSubFrame( KC_ID.KEYCHRON_RGB, RGB_SUB.PER_KEY_GET_COLOR, [
+    return makeSubFrame(KC_ID.KEYCHRON_RGB, RGB_SUB.PER_KEY_GET_COLOR, [
         startLed & 0xff,
         count & 0xff,
-    ] )
+    ])
 }
 
-export function parsePerKeyColor ( resp: Uint8Array, count: number ): HSV[] {
+export function parsePerKeyColor(resp: Uint8Array, count: number): HSV[] {
     expectSub(
         resp,
         KC_ID.KEYCHRON_RGB,
@@ -493,46 +493,46 @@ export function parsePerKeyColor ( resp: Uint8Array, count: number ): HSV[] {
         'rgb-per-key-get-color',
     )
     const out: HSV[] = []
-    for ( let i = 0; i < count; i++ ) {
+    for (let i = 0; i < count; i++) {
         const off = 3 + i * 3
-        out.push( {
+        out.push({
             h: resp[off] & 0xff,
             s: resp[off + 1] & 0xff,
             v: resp[off + 2] & 0xff,
-        } )
+        })
     }
     return out
 }
 
-export function setPerKeyColorCmd ( startLed: number, colors: HSV[] ): Uint8Array {
-    if ( colors.length === 0 || colors.length > PER_KEY_RGB_BATCH_MAX ) {
+export function setPerKeyColorCmd(startLed: number, colors: HSV[]): Uint8Array {
+    if (colors.length === 0 || colors.length > PER_KEY_RGB_BATCH_MAX) {
         throw new ProtocolError(
             `per-key RGB set count out of range: ${colors.length} (max ${PER_KEY_RGB_BATCH_MAX})`,
         )
     }
     const body: number[] = [startLed & 0xff, colors.length & 0xff]
-    for ( const c of colors ) {
-        body.push( c.h & 0xff, c.s & 0xff, c.v & 0xff )
+    for (const c of colors) {
+        body.push(c.h & 0xff, c.s & 0xff, c.v & 0xff)
     }
-    return makeSubFrame( KC_ID.KEYCHRON_RGB, RGB_SUB.PER_KEY_SET_COLOR, body )
+    return makeSubFrame(KC_ID.KEYCHRON_RGB, RGB_SUB.PER_KEY_SET_COLOR, body)
 }
 
-export function getMixedRegionsCmd (): Uint8Array {
-    return makeSubFrame( KC_ID.KEYCHRON_RGB, RGB_SUB.MIXED_GET_REGION )
+export function getMixedRegionsCmd(): Uint8Array {
+    return makeSubFrame(KC_ID.KEYCHRON_RGB, RGB_SUB.MIXED_GET_REGION)
 }
 
-export function parseMixedRegions ( resp: Uint8Array ): Uint8Array {
+export function parseMixedRegions(resp: Uint8Array): Uint8Array {
     expectSub(
         resp,
         KC_ID.KEYCHRON_RGB,
         RGB_SUB.MIXED_GET_REGION,
         'rgb-mixed-get-regions',
     )
-    return resp.slice( 2 )
+    return resp.slice(2)
 }
 
-export function setMixedRegionsCmd ( payload: Uint8Array ): Uint8Array {
-    if ( payload.length > KEYCHRON_PAYLOAD_SIZE - 2 ) {
+export function setMixedRegionsCmd(payload: Uint8Array): Uint8Array {
+    if (payload.length > KEYCHRON_PAYLOAD_SIZE - 2) {
         throw new ProtocolError(
             `mixed regions payload too large: ${payload.length}`,
         )
@@ -540,26 +540,26 @@ export function setMixedRegionsCmd ( payload: Uint8Array ): Uint8Array {
     return makeSubFrame(
         KC_ID.KEYCHRON_RGB,
         RGB_SUB.MIXED_SET_REGION,
-        Array.from( payload ),
+        Array.from(payload),
     )
 }
 
-export function getMixedEffectCmd (): Uint8Array {
-    return makeSubFrame( KC_ID.KEYCHRON_RGB, RGB_SUB.MIXED_GET_EFFECT )
+export function getMixedEffectCmd(): Uint8Array {
+    return makeSubFrame(KC_ID.KEYCHRON_RGB, RGB_SUB.MIXED_GET_EFFECT)
 }
 
-export function parseMixedEffect ( resp: Uint8Array ): Uint8Array {
+export function parseMixedEffect(resp: Uint8Array): Uint8Array {
     expectSub(
         resp,
         KC_ID.KEYCHRON_RGB,
         RGB_SUB.MIXED_GET_EFFECT,
         'rgb-mixed-get-effect',
     )
-    return resp.slice( 2 )
+    return resp.slice(2)
 }
 
-export function setMixedEffectCmd ( payload: Uint8Array ): Uint8Array {
-    if ( payload.length > KEYCHRON_PAYLOAD_SIZE - 2 ) {
+export function setMixedEffectCmd(payload: Uint8Array): Uint8Array {
+    if (payload.length > KEYCHRON_PAYLOAD_SIZE - 2) {
         throw new ProtocolError(
             `mixed effect payload too large: ${payload.length}`,
         )
@@ -567,13 +567,13 @@ export function setMixedEffectCmd ( payload: Uint8Array ): Uint8Array {
     return makeSubFrame(
         KC_ID.KEYCHRON_RGB,
         RGB_SUB.MIXED_SET_EFFECT,
-        Array.from( payload ),
+        Array.from(payload),
     )
 }
 
 // ---------- 0xAA wireless DFU (stub) ----------
 
-export function isWirelessDfuFrame ( frame: Uint8Array ): boolean {
+export function isWirelessDfuFrame(frame: Uint8Array): boolean {
     return frame[0] === KC_ID.WIRELESS_DFU
 }
 
@@ -588,21 +588,21 @@ export type KeychronNotification =
 // Identify firmware-pushed frames by shape. State-notify always uses
 // well-known cmd-byte tuples; the report-rate push uses byte 4 = 0x7F as a
 // sentinel to distinguish from REPORT_RATE_GET responses.
-export function parseNotification ( frame: Uint8Array ): KeychronNotification {
-    if ( frame.length < KEYCHRON_PAYLOAD_SIZE ) {
-        return {kind: 'unknown', frame}
+export function parseNotification(frame: Uint8Array): KeychronNotification {
+    if (frame.length < KEYCHRON_PAYLOAD_SIZE) {
+        return { kind: 'unknown', frame }
     }
-    if ( frame[0] === KC_ID.GET_DEFAULT_LAYER ) {
-        return {kind: 'default-layer', layer: frame[1] & 0xff}
+    if (frame[0] === KC_ID.GET_DEFAULT_LAYER) {
+        return { kind: 'default-layer', layer: frame[1] & 0xff }
     }
-    if ( frame[0] === KC_ID.MISC_CMD_GROUP ) {
+    if (frame[0] === KC_ID.MISC_CMD_GROUP) {
         const sub = frame[1] & 0xff
-        if ( sub === MISC_SUB.FACTORY_RESET ) {
-            return {kind: 'factory-reset'}
+        if (sub === MISC_SUB.FACTORY_RESET) {
+            return { kind: 'factory-reset' }
         }
-        if ( sub === MISC_SUB.REPORT_RATE_GET && (frame[4] & 0xff) === 0x7f ) {
-            return {kind: 'report-rate', divisor: frame[3] & 0xff}
+        if (sub === MISC_SUB.REPORT_RATE_GET && (frame[4] & 0xff) === 0x7f) {
+            return { kind: 'report-rate', divisor: frame[3] & 0xff }
         }
     }
-    return {kind: 'unknown', frame}
+    return { kind: 'unknown', frame }
 }

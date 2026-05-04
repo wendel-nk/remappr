@@ -6,9 +6,9 @@ import alJson from './hid-pages/al.json'
 import mediaJson from './hid-pages/media.json'
 import contactJson from './hid-pages/contact.json'
 import overridesJson from './hid-pages/overrides.json'
-import {CANONICAL_ALIASES, resolveAlias} from './aliases'
+import { CANONICAL_ALIASES, resolveAlias } from './aliases'
 
-import type {CanonicalKeyId, CatalogEntry} from './types'
+import type { CanonicalKeyId, CatalogEntry } from './types'
 
 interface HidLabelOverride {
     short?: string
@@ -24,7 +24,7 @@ const OVERRIDES = overridesJson as Record<
 const lookupOverride = (
     page: number,
     id: number,
-): HidLabelOverride | undefined => OVERRIDES[String( page )]?.[String( id )]
+): HidLabelOverride | undefined => OVERRIDES[String(page)]?.[String(id)]
 
 interface RawHidEntry {
     Id: number
@@ -38,11 +38,11 @@ interface RawHidEntry {
     y?: number
 }
 
-const slugify = ( s: string ): string =>
+const slugify = (s: string): string =>
     s
         .toLowerCase()
-        .replace( /[^a-z0-9]+/g, '_' )
-        .replace( /^_+|_+$/g, '' )
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '')
 
 export interface HidUsage {
     page: number
@@ -61,11 +61,11 @@ const fromHidPage = (
 ): HidPageBuild => {
     const entries: CatalogEntry[] = []
     const usages = new Map<CanonicalKeyId, HidUsage>()
-    for ( const r of raw ) {
-        const slug = slugify( r.Name ) || `id_${r.Id}`
+    for (const r of raw) {
+        const slug = slugify(r.Name) || `id_${r.Id}`
         const id = `${idPrefix}.${slug}`
-        const ov = lookupOverride( pageHidNumber, r.Id )
-        entries.push( {
+        const ov = lookupOverride(pageHidNumber, r.Id)
+        entries.push({
             id,
             label: ov?.short ?? r.Label ?? r.Name,
             name: ov?.long ?? ov?.med ?? r.Name,
@@ -75,18 +75,18 @@ const fromHidPage = (
             w: r.w,
             h: r.h,
             kinds: ['hid'],
-        } )
-        usages.set( id, {page: pageHidNumber, usage: r.Id} )
+        })
+        usages.set(id, { page: pageHidNumber, usage: r.Id })
     }
-    return {entries, usages}
+    return { entries, usages }
 }
 
-const keyboardBuild = fromHidPage( keyboardJson as RawHidEntry[], 'key', 7 )
-const consumerBuild = fromHidPage( consumerJson as RawHidEntry[], 'consumer', 12 )
-const acBuild = fromHidPage( acJson as RawHidEntry[], 'ac', 12 )
-const alBuild = fromHidPage( alJson as RawHidEntry[], 'al', 12 )
-const mediaBuild = fromHidPage( mediaJson as RawHidEntry[], 'media', 12 )
-const contactBuild = fromHidPage( contactJson as RawHidEntry[], 'contact', 12 )
+const keyboardBuild = fromHidPage(keyboardJson as RawHidEntry[], 'key', 7)
+const consumerBuild = fromHidPage(consumerJson as RawHidEntry[], 'consumer', 12)
+const acBuild = fromHidPage(acJson as RawHidEntry[], 'ac', 12)
+const alBuild = fromHidPage(alJson as RawHidEntry[], 'al', 12)
+const mediaBuild = fromHidPage(mediaJson as RawHidEntry[], 'media', 12)
+const contactBuild = fromHidPage(contactJson as RawHidEntry[], 'contact', 12)
 
 export {
     AUDIO_ENTRIES,
@@ -106,15 +106,15 @@ export {
     SHIFTED_ENTRIES,
     WIRELESS_ENTRIES,
 } from './static-entries'
-import {STATIC_ENTRIES} from './static-entries'
+import { STATIC_ENTRIES } from './static-entries'
 
 // Treat single-non-alphanumeric or unicode-symbol labels (←, ↵, ⇪, ✶, ⌫…)
 // as icon labels. Used to prefer the icon-friendly variant when merging
 // duplicate canonical entries.
-const isIconLabel = ( s: string | undefined ): boolean => {
-    if ( !s ) return false
-    if ( s.length === 1 && !/[a-zA-Z0-9]/.test( s ) ) return true
-    return s.length <= 3 && /[←-⇿⌀-⏿✀-➿]/.test( s )
+const isIconLabel = (s: string | undefined): boolean => {
+    if (!s) return false
+    if (s.length === 1 && !/[a-zA-Z0-9]/.test(s)) return true
+    return s.length <= 3 && /[←-⇿⌀-⏿✀-➿]/.test(s)
 }
 
 // Pick the better label between primary and merged-secondary entries.
@@ -123,9 +123,9 @@ const selectMergedLabel = (
     primary: CatalogEntry,
     secondary: CatalogEntry,
 ): string => {
-    const primIcon = isIconLabel( primary.label )
-    const secIcon = isIconLabel( secondary.label )
-    if ( secIcon && !primIcon ) return secondary.label
+    const primIcon = isIconLabel(primary.label)
+    const secIcon = isIconLabel(secondary.label)
+    if (secIcon && !primIcon) return secondary.label
     return primary.label
 }
 
@@ -137,13 +137,13 @@ const mergePositioning = (
     primary: CatalogEntry,
     secondary: CatalogEntry,
 ): void => {
-    if ( primary.x === undefined && secondary.x !== undefined )
+    if (primary.x === undefined && secondary.x !== undefined)
         primary.x = secondary.x
-    if ( primary.y === undefined && secondary.y !== undefined )
+    if (primary.y === undefined && secondary.y !== undefined)
         primary.y = secondary.y
-    if ( primary.w === undefined && secondary.w !== undefined )
+    if (primary.w === undefined && secondary.w !== undefined)
         primary.w = secondary.w
-    if ( primary.h === undefined && secondary.h !== undefined )
+    if (primary.h === undefined && secondary.h !== undefined)
         primary.h = secondary.h
 }
 
@@ -158,39 +158,39 @@ const MEDIA_RAW = mediaBuild.entries
 const CONTACT_RAW = contactBuild.entries
 
 const ENTRY_BY_ID = new Map<CanonicalKeyId, CatalogEntry>()
-const indexEntries = ( es: CatalogEntry[] ): void => {
-    for ( const e of es ) ENTRY_BY_ID.set( e.id, e )
+const indexEntries = (es: CatalogEntry[]): void => {
+    for (const e of es) ENTRY_BY_ID.set(e.id, e)
 }
-indexEntries( KEYBOARD_RAW )
-indexEntries( CONSUMER_RAW )
-indexEntries( AC_RAW )
-indexEntries( AL_RAW )
-indexEntries( MEDIA_RAW )
-indexEntries( CONTACT_RAW )
-indexEntries( STATIC_ENTRIES )
+indexEntries(KEYBOARD_RAW)
+indexEntries(CONSUMER_RAW)
+indexEntries(AC_RAW)
+indexEntries(AL_RAW)
+indexEntries(MEDIA_RAW)
+indexEntries(CONTACT_RAW)
+indexEntries(STATIC_ENTRIES)
 
 // Merge each present secondary into its primary; record alias name for search.
-for ( const [secId, primId] of Object.entries( CANONICAL_ALIASES ) ) {
-    const sec = ENTRY_BY_ID.get( secId )
-    const prim = ENTRY_BY_ID.get( primId )
-    if ( !sec || !prim ) continue
-    prim.label = selectMergedLabel( prim, sec )
-    mergePositioning( prim, sec )
+for (const [secId, primId] of Object.entries(CANONICAL_ALIASES)) {
+    const sec = ENTRY_BY_ID.get(secId)
+    const prim = ENTRY_BY_ID.get(primId)
+    if (!sec || !prim) continue
+    prim.label = selectMergedLabel(prim, sec)
+    mergePositioning(prim, sec)
     const aliasNames = prim.aliases ?? []
-    if ( !aliasNames.includes( sec.name ) ) aliasNames.push( sec.name )
+    if (!aliasNames.includes(sec.name)) aliasNames.push(sec.name)
     prim.aliases = aliasNames
 }
 
 // Drop secondary entries from each exported array.
-const dropAliased = ( es: CatalogEntry[] ): CatalogEntry[] =>
-    es.filter( ( e ) => !(e.id in CANONICAL_ALIASES) )
+const dropAliased = (es: CatalogEntry[]): CatalogEntry[] =>
+    es.filter((e) => !(e.id in CANONICAL_ALIASES))
 
-export const KEYBOARD_ENTRIES = dropAliased( KEYBOARD_RAW )
-export const CONSUMER_ENTRIES = dropAliased( CONSUMER_RAW )
-export const AC_ENTRIES = dropAliased( AC_RAW )
-export const AL_ENTRIES = dropAliased( AL_RAW )
-export const MEDIA_ENTRIES = dropAliased( MEDIA_RAW )
-export const CONTACT_ENTRIES = dropAliased( CONTACT_RAW )
+export const KEYBOARD_ENTRIES = dropAliased(KEYBOARD_RAW)
+export const CONSUMER_ENTRIES = dropAliased(CONSUMER_RAW)
+export const AC_ENTRIES = dropAliased(AC_RAW)
+export const AL_ENTRIES = dropAliased(AL_RAW)
+export const MEDIA_ENTRIES = dropAliased(MEDIA_RAW)
+export const CONTACT_ENTRIES = dropAliased(CONTACT_RAW)
 
 export const CATALOG: CatalogEntry[] = [
     ...KEYBOARD_ENTRIES,
@@ -199,7 +199,7 @@ export const CATALOG: CatalogEntry[] = [
     ...AL_ENTRIES,
     ...MEDIA_ENTRIES,
     ...CONTACT_ENTRIES,
-    ...dropAliased( STATIC_ENTRIES ),
+    ...dropAliased(STATIC_ENTRIES),
 ]
 
 // Encoder side: primary canonical id → HID usage. Walks aliases so an
@@ -214,11 +214,11 @@ const allUsageBuilds = [
     mediaBuild,
     contactBuild,
 ]
-for ( const b of allUsageBuilds ) {
-    for ( const [id, u] of b.usages ) {
-        const primary = resolveAlias( id )
-        if ( !HID_USAGE_BY_CANONICAL.has( primary ) ) {
-            HID_USAGE_BY_CANONICAL.set( primary, u )
+for (const b of allUsageBuilds) {
+    for (const [id, u] of b.usages) {
+        const primary = resolveAlias(id)
+        if (!HID_USAGE_BY_CANONICAL.has(primary)) {
+            HID_USAGE_BY_CANONICAL.set(primary, u)
         }
     }
 }
@@ -226,10 +226,10 @@ for ( const b of allUsageBuilds ) {
 // Decoder side: every original (page, usage) → primary canonical id.
 // Lets ZMK decode incoming HID 7/187 (Keypad Backspace) as primary
 // key.keyboard_backspace, even though that secondary id no longer exists.
-const packUsage = ( page: number, usage: number ): number => (page << 16) | usage
+const packUsage = (page: number, usage: number): number => (page << 16) | usage
 export const HID_USAGE_DECODE: Map<number, CanonicalKeyId> = new Map()
-for ( const b of allUsageBuilds ) {
-    for ( const [id, u] of b.usages ) {
-        HID_USAGE_DECODE.set( packUsage( u.page, u.usage ), resolveAlias( id ) )
+for (const b of allUsageBuilds) {
+    for (const [id, u] of b.usages) {
+        HID_USAGE_DECODE.set(packUsage(u.page, u.usage), resolveAlias(id))
     }
 }

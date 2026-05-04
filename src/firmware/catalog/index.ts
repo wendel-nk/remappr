@@ -15,5 +15,5 @@ export {
     KEYBOARD_ENTRIES,
     MEDIA_ENTRIES,
 } from './entries'
-export type {HidUsage} from './entries'
-export {CATALOG_PAGES, groupForId} from './pages'
+export type { HidUsage } from './entries'
+export { CATALOG_PAGES, groupForId } from './pages'

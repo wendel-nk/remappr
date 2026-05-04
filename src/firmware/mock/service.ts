@@ -1,7 +1,7 @@
 // Pattern check: Adapter (Tier 1) — extended — backs src/firmware/service.ts KeyboardService Facade; in-memory keyboard implementation for dev/storybook/tests, mirrors ZmkKeyboardService surface.
 // pattern-check: skip — wire encoders/dynamic/macros sub-bundles defined in service.ts
-import {filterCatalogByCodec} from '@firmware/catalog/filter'
-import type {KeyCatalog} from '@firmware/catalog/types'
+import { filterCatalogByCodec } from '@firmware/catalog/filter'
+import type { KeyCatalog } from '@firmware/catalog/types'
 import type {
     Capabilities,
     DynamicEntriesApi,
@@ -30,7 +30,7 @@ import type {
     PhysicalLayout,
     TapDanceEntry,
 } from '@firmware/types'
-import {LockedError, ProtocolError} from '@firmware/errors'
+import { LockedError, ProtocolError } from '@firmware/errors'
 
 import {
     HID_KP,
@@ -40,8 +40,8 @@ import {
     buildMockKeyAction,
     relabelLayer,
 } from './actions'
-import {mockCodec} from './codec'
-import {MOCK_LAYOUTS, MOCK_KEY_COUNT, MOCK_CORNE_LAYOUT} from './layout'
+import { mockCodec } from './codec'
+import { MOCK_LAYOUTS, MOCK_KEY_COUNT, MOCK_CORNE_LAYOUT } from './layout'
 
 const MOCK_DYNAMIC_COUNTS: DynamicEntryCounts = {
     tapDance: 4,
@@ -64,7 +64,7 @@ const MOCK_CAPABILITIES: Capabilities = {
     maxLayers: 8,
     encoders: MOCK_ENCODER_COUNT,
     dynamicEntries: MOCK_DYNAMIC_COUNTS,
-    macros: {count: MOCK_MACRO_COUNT, bufferSize: MOCK_MACRO_BUFFER},
+    macros: { count: MOCK_MACRO_COUNT, bufferSize: MOCK_MACRO_BUFFER },
 }
 
 const ZERO_TAP_DANCE: TapDanceEntry = {
@@ -75,7 +75,7 @@ const ZERO_TAP_DANCE: TapDanceEntry = {
     tappingTerm: 200,
 }
 
-const ZERO_COMBO: ComboEntry = {keys: [0, 0, 0, 0], output: 0}
+const ZERO_COMBO: ComboEntry = { keys: [0, 0, 0, 0], output: 0 }
 
 const ZERO_KEY_OVERRIDE: KeyOverrideEntry = {
     trigger: 0,
@@ -107,10 +107,10 @@ const ZERO_ARK: AltRepeatKeyEntry = {
     },
 }
 
-type NotificationHandler = ( notification: AdapterNotification ) => void
-type LockStateHandler = ( state: LockState ) => void
-type PendingChangesHandler = ( pending: boolean ) => void
-type ClosedHandler = ( reason?: unknown ) => void
+type NotificationHandler = (notification: AdapterNotification) => void
+type LockStateHandler = (state: LockState) => void
+type PendingChangesHandler = (pending: boolean) => void
+type ClosedHandler = (reason?: unknown) => void
 
 interface MockServiceOptions {
     deviceInfo?: Partial<DeviceInfo>
@@ -127,31 +127,31 @@ export class MockKeyboardService implements KeyboardService {
     public readonly rgb: RgbApi
 
     private tapDances: TapDanceEntry[] = Array.from(
-        {length: MOCK_DYNAMIC_COUNTS.tapDance},
-        () => ({...ZERO_TAP_DANCE}),
+        { length: MOCK_DYNAMIC_COUNTS.tapDance },
+        () => ({ ...ZERO_TAP_DANCE }),
     )
     private combos: ComboEntry[] = Array.from(
-        {length: MOCK_DYNAMIC_COUNTS.combo},
-        () => ({...ZERO_COMBO, keys: [0, 0, 0, 0] as ComboEntry['keys']}),
+        { length: MOCK_DYNAMIC_COUNTS.combo },
+        () => ({ ...ZERO_COMBO, keys: [0, 0, 0, 0] as ComboEntry['keys'] }),
     )
     private keyOverrides: KeyOverrideEntry[] = Array.from(
-        {length: MOCK_DYNAMIC_COUNTS.keyOverride},
+        { length: MOCK_DYNAMIC_COUNTS.keyOverride },
         () => ({
             ...ZERO_KEY_OVERRIDE,
-            options: {...ZERO_KEY_OVERRIDE.options},
+            options: { ...ZERO_KEY_OVERRIDE.options },
         }),
     )
     private altRepeatKeys: AltRepeatKeyEntry[] = Array.from(
-        {length: 4},
-        () => ({...ZERO_ARK, options: {...ZERO_ARK.options}}),
+        { length: 4 },
+        () => ({ ...ZERO_ARK, options: { ...ZERO_ARK.options } }),
     )
     private macroBuffers: MacroAction[][] = Array.from(
-        {length: MOCK_MACRO_COUNT},
+        { length: MOCK_MACRO_COUNT },
         () => [] as MacroAction[],
     )
 
     private layers: Layer[] = []
-    private layouts: PhysicalLayout[] = MOCK_LAYOUTS.map( ( l ) => ({...l}) )
+    private layouts: PhysicalLayout[] = MOCK_LAYOUTS.map((l) => ({ ...l }))
     private activeLayoutId = 0
     private lockState: LockState
     private pendingChanges = false
@@ -165,21 +165,21 @@ export class MockKeyboardService implements KeyboardService {
     private nextLayerId = 0
 
     private perKeyColors: HsvColor[] = Array.from(
-        {length: MOCK_LED_COUNT},
-        ( _, i ) => ({
-            h: Math.round( ((i * 255) / MOCK_LED_COUNT) % 256 ),
+        { length: MOCK_LED_COUNT },
+        (_, i) => ({
+            h: Math.round(((i * 255) / MOCK_LED_COUNT) % 256),
             s: 220,
             v: 200,
         }),
     )
     private perKeyType: number = 0
-    private indicatorsRaw: Uint8Array = new Uint8Array( [
+    private indicatorsRaw: Uint8Array = new Uint8Array([
         0x01, 0x00, 0xff, 0x80, 0x80,
-    ] )
-    private mixedRegions: Uint8Array = new Uint8Array( [0x01, 0x02, 0x03, 0x04] )
-    private mixedEffect: Uint8Array = new Uint8Array( [0x05, 0x06, 0x07, 0x08] )
+    ])
+    private mixedRegions: Uint8Array = new Uint8Array([0x01, 0x02, 0x03, 0x04])
+    private mixedEffect: Uint8Array = new Uint8Array([0x05, 0x06, 0x07, 0x08])
 
-    constructor ( opts: MockServiceOptions = {} ) {
+    constructor(opts: MockServiceOptions = {}) {
         this.deviceInfo = {
             name: opts.deviceInfo?.name ?? 'Mock Corne',
             firmware: 'mock',
@@ -190,12 +190,12 @@ export class MockKeyboardService implements KeyboardService {
         this.seedDefaultLayers()
         // pattern-check: skip — inline closures over private state for sub-bundle stubs
         this.encoders = {
-            setEncoder: async ( layerId, encoderIdx, direction, action ) => {
+            setEncoder: async (layerId, encoderIdx, direction, action) => {
                 this.requireUnlocked()
-                const li = this.layerIndexById( layerId )
-                if ( li < 0 )
-                    throw new ProtocolError( `Unknown layer id: ${layerId}` )
-                if ( encoderIdx < 0 || encoderIdx >= MOCK_ENCODER_COUNT ) {
+                const li = this.layerIndexById(layerId)
+                if (li < 0)
+                    throw new ProtocolError(`Unknown layer id: ${layerId}`)
+                if (encoderIdx < 0 || encoderIdx >= MOCK_ENCODER_COUNT) {
                     throw new ProtocolError(
                         `Encoder index out of range: ${encoderIdx}`,
                     )
@@ -205,100 +205,100 @@ export class MockKeyboardService implements KeyboardService {
                 const cur = encs[encoderIdx]
                 encs[encoderIdx] =
                     direction === 0
-                        ? {cw: action, ccw: cur.ccw}
-                        : {cw: cur.cw, ccw: action}
-                this.layers[li] = {...layer, encoders: encs}
-                this.markPending( true )
+                        ? { cw: action, ccw: cur.ccw }
+                        : { cw: cur.cw, ccw: action }
+                this.layers[li] = { ...layer, encoders: encs }
+                this.markPending(true)
             },
         }
         this.dynamic = {
-            getCounts: () => ({...MOCK_DYNAMIC_COUNTS}),
-            getTapDance: async ( idx ) => ({...this.requireTapDance( idx )}),
-            setTapDance: async ( idx, entry ) => {
+            getCounts: () => ({ ...MOCK_DYNAMIC_COUNTS }),
+            getTapDance: async (idx) => ({ ...this.requireTapDance(idx) }),
+            setTapDance: async (idx, entry) => {
                 this.requireUnlocked()
-                this.requireTapDance( idx )
-                this.tapDances[idx] = {...entry}
-                this.markPending( true )
+                this.requireTapDance(idx)
+                this.tapDances[idx] = { ...entry }
+                this.markPending(true)
             },
-            getCombo: async ( idx ) => {
-                const c = this.requireCombo( idx )
-                return {...c, keys: [...c.keys] as ComboEntry['keys']}
+            getCombo: async (idx) => {
+                const c = this.requireCombo(idx)
+                return { ...c, keys: [...c.keys] as ComboEntry['keys'] }
             },
-            setCombo: async ( idx, entry ) => {
+            setCombo: async (idx, entry) => {
                 this.requireUnlocked()
-                this.requireCombo( idx )
+                this.requireCombo(idx)
                 this.combos[idx] = {
                     ...entry,
                     keys: [...entry.keys] as ComboEntry['keys'],
                 }
-                this.markPending( true )
+                this.markPending(true)
             },
-            getKeyOverride: async ( idx ) => {
-                const k = this.requireKeyOverride( idx )
-                return {...k, options: {...k.options}}
+            getKeyOverride: async (idx) => {
+                const k = this.requireKeyOverride(idx)
+                return { ...k, options: { ...k.options } }
             },
-            setKeyOverride: async ( idx, entry ) => {
+            setKeyOverride: async (idx, entry) => {
                 this.requireUnlocked()
-                this.requireKeyOverride( idx )
+                this.requireKeyOverride(idx)
                 this.keyOverrides[idx] = {
                     ...entry,
-                    options: {...entry.options},
+                    options: { ...entry.options },
                 }
-                this.markPending( true )
+                this.markPending(true)
             },
-            getAltRepeatKey: async ( idx ) => {
-                const a = this.requireAltRepeatKey( idx )
-                return {...a, options: {...a.options}}
+            getAltRepeatKey: async (idx) => {
+                const a = this.requireAltRepeatKey(idx)
+                return { ...a, options: { ...a.options } }
             },
-            setAltRepeatKey: async ( idx, entry ) => {
+            setAltRepeatKey: async (idx, entry) => {
                 this.requireUnlocked()
-                this.requireAltRepeatKey( idx )
+                this.requireAltRepeatKey(idx)
                 this.altRepeatKeys[idx] = {
                     ...entry,
-                    options: {...entry.options},
+                    options: { ...entry.options },
                 }
-                this.markPending( true )
+                this.markPending(true)
             },
         }
         this.macros = {
             getCount: () => MOCK_MACRO_COUNT,
-            getMacro: async ( idx ) => {
-                this.requireMacro( idx )
-                return this.macroBuffers[idx].map( ( a ) => ({...a}) )
+            getMacro: async (idx) => {
+                this.requireMacro(idx)
+                return this.macroBuffers[idx].map((a) => ({ ...a }))
             },
-            setMacro: async ( idx, actions ) => {
+            setMacro: async (idx, actions) => {
                 this.requireUnlocked()
-                this.requireMacro( idx )
-                this.macroBuffers[idx] = actions.map( ( a ) => ({...a}) )
-                this.markPending( true )
+                this.requireMacro(idx)
+                this.macroBuffers[idx] = actions.map((a) => ({ ...a }))
+                this.markPending(true)
             },
         }
         this.rgb = {
             getLedCount: async () => MOCK_LED_COUNT,
-            getIndicators: async () => ({raw: this.indicatorsRaw.slice()}),
-            setIndicators: async ( cfg ) => {
+            getIndicators: async () => ({ raw: this.indicatorsRaw.slice() }),
+            setIndicators: async (cfg) => {
                 this.indicatorsRaw = cfg.raw.slice()
-                this.markPending( true )
+                this.markPending(true)
             },
             save: async () => {
                 /* in-memory mock has no persistence */
             },
             getPerKeyType: async () => this.perKeyType,
-            setPerKeyType: async ( t ) => {
+            setPerKeyType: async (t) => {
                 this.perKeyType = t & 0xff
-                this.markPending( true )
+                this.markPending(true)
             },
-            getPerKeyColors: async ( start, count ) => {
-                if ( start < 0 || start + count > this.perKeyColors.length ) {
+            getPerKeyColors: async (start, count) => {
+                if (start < 0 || start + count > this.perKeyColors.length) {
                     throw new ProtocolError(
                         `Per-key range out of bounds: start=${start} count=${count}`,
                     )
                 }
                 return this.perKeyColors
-                    .slice( start, start + count )
-                    .map( ( c ) => ({...c}) )
+                    .slice(start, start + count)
+                    .map((c) => ({ ...c }))
             },
-            setPerKeyColors: async ( start, colors ) => {
+            setPerKeyColors: async (start, colors) => {
                 if (
                     start < 0 ||
                     start + colors.length > this.perKeyColors.length
@@ -307,90 +307,90 @@ export class MockKeyboardService implements KeyboardService {
                         `Per-key range out of bounds: start=${start} count=${colors.length}`,
                     )
                 }
-                for ( let i = 0; i < colors.length; i++ ) {
-                    this.perKeyColors[start + i] = {...colors[i]}
+                for (let i = 0; i < colors.length; i++) {
+                    this.perKeyColors[start + i] = { ...colors[i] }
                 }
-                this.markPending( true )
+                this.markPending(true)
             },
             getMixedRegions: async () => this.mixedRegions.slice(),
-            setMixedRegions: async ( b ) => {
+            setMixedRegions: async (b) => {
                 this.mixedRegions = b.slice()
-                this.markPending( true )
+                this.markPending(true)
             },
             getMixedEffect: async () => this.mixedEffect.slice(),
-            setMixedEffect: async ( b ) => {
+            setMixedEffect: async (b) => {
                 this.mixedEffect = b.slice()
-                this.markPending( true )
+                this.markPending(true)
             },
         }
     }
 
-    private defaultEncoders (): EncoderAction[] {
+    private defaultEncoders(): EncoderAction[] {
         const xparent: KeyAction = buildMockKeyAction(
             MOCK_KIND_TRANSPARENT,
             [],
             this.layerNames(),
         )
-        return Array.from( {length: MOCK_ENCODER_COUNT}, () => ({
+        return Array.from({ length: MOCK_ENCODER_COUNT }, () => ({
             cw: xparent,
             ccw: xparent,
-        }) )
+        }))
     }
 
-    private requireTapDance ( idx: number ): TapDanceEntry {
-        if ( idx < 0 || idx >= this.tapDances.length ) {
-            throw new ProtocolError( `Tap-dance index out of range: ${idx}` )
+    private requireTapDance(idx: number): TapDanceEntry {
+        if (idx < 0 || idx >= this.tapDances.length) {
+            throw new ProtocolError(`Tap-dance index out of range: ${idx}`)
         }
         return this.tapDances[idx]
     }
 
-    private requireCombo ( idx: number ): ComboEntry {
-        if ( idx < 0 || idx >= this.combos.length ) {
-            throw new ProtocolError( `Combo index out of range: ${idx}` )
+    private requireCombo(idx: number): ComboEntry {
+        if (idx < 0 || idx >= this.combos.length) {
+            throw new ProtocolError(`Combo index out of range: ${idx}`)
         }
         return this.combos[idx]
     }
 
-    private requireKeyOverride ( idx: number ): KeyOverrideEntry {
-        if ( idx < 0 || idx >= this.keyOverrides.length ) {
-            throw new ProtocolError( `Key-override index out of range: ${idx}` )
+    private requireKeyOverride(idx: number): KeyOverrideEntry {
+        if (idx < 0 || idx >= this.keyOverrides.length) {
+            throw new ProtocolError(`Key-override index out of range: ${idx}`)
         }
         return this.keyOverrides[idx]
     }
 
-    private requireAltRepeatKey ( idx: number ): AltRepeatKeyEntry {
-        if ( idx < 0 || idx >= this.altRepeatKeys.length ) {
-            throw new ProtocolError( `Alt-repeat-key index out of range: ${idx}` )
+    private requireAltRepeatKey(idx: number): AltRepeatKeyEntry {
+        if (idx < 0 || idx >= this.altRepeatKeys.length) {
+            throw new ProtocolError(`Alt-repeat-key index out of range: ${idx}`)
         }
         return this.altRepeatKeys[idx]
     }
 
-    private requireMacro ( idx: number ): void {
-        if ( idx < 0 || idx >= this.macroBuffers.length ) {
-            throw new ProtocolError( `Macro index out of range: ${idx}` )
+    private requireMacro(idx: number): void {
+        if (idx < 0 || idx >= this.macroBuffers.length) {
+            throw new ProtocolError(`Macro index out of range: ${idx}`)
         }
     }
 
-    private seedDefaultLayers (): void {
+    private seedDefaultLayers(): void {
         const baseKeys = this.makeQwertyBase()
-        const lowerKeys = this.makeFiller( MOCK_KIND_TRANSPARENT )
+        const lowerKeys = this.makeFiller(MOCK_KIND_TRANSPARENT)
         this.layers = [
-            {id: this.nextLayerId++, name: 'Base', keys: baseKeys},
-            {id: this.nextLayerId++, name: 'Lower', keys: lowerKeys},
+            { id: this.nextLayerId++, name: 'Base', keys: baseKeys },
+            { id: this.nextLayerId++, name: 'Lower', keys: lowerKeys },
         ]
     }
 
-    private layerNames (): string[] {
-        return this.layers.map( ( l ) => l.name )
+    private layerNames(): string[] {
+        return this.layers.map((l) => l.name)
     }
 
-    private makeFiller ( kind: string, params: number[] = [] ): KeyAction[] {
-        return Array.from( {length: MOCK_KEY_COUNT}, () =>
-            buildMockKeyAction( kind, params, this.layerNames() ),
+    private makeFiller(kind: string, params: number[] = []): KeyAction[] {
+        return Array.from({ length: MOCK_KEY_COUNT }, () =>
+            buildMockKeyAction(kind, params, this.layerNames()),
         )
     }
 
-    private makeQwertyBase (): KeyAction[] {
+    private makeQwertyBase(): KeyAction[] {
         // Top row: q w e r t  y u i o p
         // Home    : a s d f g  h j k l ;
         // Bottom  : z x c v b  n m , . /
@@ -430,35 +430,35 @@ export class MockKeyboardService implements KeyboardService {
             '/',
         ]
         // HID usage codes (encoded as page<<16|id to match renderer + picker)
-        const hidFor = ( ch: string ): number => {
-            if ( ch >= 'A' && ch <= 'Z' )
-                return HID_KP( 0x04 + (ch.charCodeAt( 0 ) - 65) )
-            if ( ch === ';' ) return HID_KP( 0x33 )
-            if ( ch === ',' ) return HID_KP( 0x36 )
-            if ( ch === '.' ) return HID_KP( 0x37 )
-            if ( ch === '/' ) return HID_KP( 0x38 )
+        const hidFor = (ch: string): number => {
+            if (ch >= 'A' && ch <= 'Z')
+                return HID_KP(0x04 + (ch.charCodeAt(0) - 65))
+            if (ch === ';') return HID_KP(0x33)
+            if (ch === ',') return HID_KP(0x36)
+            if (ch === '.') return HID_KP(0x37)
+            if (ch === '/') return HID_KP(0x38)
             return 0x00
         }
         const thumbs = [
-            HID_KP( 0x29 ), // Esc
-            HID_KP( 0x2c ), // Space
-            HID_KP( 0x2b ), // Tab
-            HID_KP( 0x28 ), // Enter
-            HID_KP( 0x2a ), // Backspace
-            HID_KP( 0x4c ), // Delete
+            HID_KP(0x29), // Esc
+            HID_KP(0x2c), // Space
+            HID_KP(0x2b), // Tab
+            HID_KP(0x28), // Enter
+            HID_KP(0x2a), // Backspace
+            HID_KP(0x4c), // Delete
         ]
         const codes: number[] = [
-            ...left.map( hidFor ),
-            ...thumbs.slice( 0, 3 ),
-            ...right.map( hidFor ),
-            ...thumbs.slice( 3 ),
+            ...left.map(hidFor),
+            ...thumbs.slice(0, 3),
+            ...right.map(hidFor),
+            ...thumbs.slice(3),
         ]
-        if ( codes.length !== MOCK_KEY_COUNT ) {
+        if (codes.length !== MOCK_KEY_COUNT) {
             throw new ProtocolError(
                 `Mock base layer key count mismatch: ${codes.length} vs ${MOCK_KEY_COUNT}`,
             )
         }
-        return codes.map( ( c ) =>
+        return codes.map((c) =>
             buildMockKeyAction(
                 c === 0 ? MOCK_KIND_TRANSPARENT : MOCK_KIND_KEYPRESS,
                 c === 0 ? [] : [c],
@@ -467,94 +467,94 @@ export class MockKeyboardService implements KeyboardService {
         )
     }
 
-    private requireUnlocked (): void {
-        if ( this.lockState !== 'unlocked' ) {
+    private requireUnlocked(): void {
+        if (this.lockState !== 'unlocked') {
             throw new LockedError()
         }
     }
 
-    private markPending ( pending: boolean ): void {
-        if ( this.pendingChanges === pending ) return
+    private markPending(pending: boolean): void {
+        if (this.pendingChanges === pending) return
         this.pendingChanges = pending
-        for ( const cb of this.pendingChangesListeners ) cb( pending )
+        for (const cb of this.pendingChangesListeners) cb(pending)
     }
 
-    private setLockState ( next: LockState ): void {
-        if ( this.lockState === next ) return
+    private setLockState(next: LockState): void {
+        if (this.lockState === next) return
         this.lockState = next
-        for ( const cb of this.lockStateListeners ) cb( next )
+        for (const cb of this.lockStateListeners) cb(next)
     }
 
-    private emitNotification ( topic: string, payload: unknown ): void {
-        for ( const cb of this.notificationListeners ) cb( {topic, payload} )
+    private emitNotification(topic: string, payload: unknown): void {
+        for (const cb of this.notificationListeners) cb({ topic, payload })
     }
 
-    async getLockState (): Promise<LockState> {
+    async getLockState(): Promise<LockState> {
         return this.lockState
     }
 
-    async unlock (): Promise<void> {
-        if ( this.lockState === 'unlocked' ) return
-        this.setLockState( 'unlocking' )
+    async unlock(): Promise<void> {
+        if (this.lockState === 'unlocked') return
+        this.setLockState('unlocking')
         // Mock: instant unlock; real device would wait for user.
-        this.setLockState( 'unlocked' )
+        this.setLockState('unlocked')
     }
 
-    onLockStateChanged ( cb: LockStateHandler ): () => void {
-        this.lockStateListeners.add( cb )
-        return () => this.lockStateListeners.delete( cb )
+    onLockStateChanged(cb: LockStateHandler): () => void {
+        this.lockStateListeners.add(cb)
+        return () => this.lockStateListeners.delete(cb)
     }
 
-    async listActionTypes (): Promise<ActionType[]> {
-        return buildMockActionTypes( this.capabilities.maxLayers ?? 8 )
+    async listActionTypes(): Promise<ActionType[]> {
+        return buildMockActionTypes(this.capabilities.maxLayers ?? 8)
     }
 
-    buildKeyAction ( kind: string, params: number[] ): KeyAction {
-        return buildMockKeyAction( kind, params, this.layerNames() )
+    buildKeyAction(kind: string, params: number[]): KeyAction {
+        return buildMockKeyAction(kind, params, this.layerNames())
     }
 
-    async listKeyCatalog (): Promise<KeyCatalog> {
-        return filterCatalogByCodec( this.codec )
+    async listKeyCatalog(): Promise<KeyCatalog> {
+        return filterCatalogByCodec(this.codec)
     }
 
-    async getKeymap (): Promise<Keymap> {
+    async getKeymap(): Promise<Keymap> {
         return {
-            layers: this.layers.map( ( l ) => ({
+            layers: this.layers.map((l) => ({
                 id: l.id,
                 name: l.name,
-                keys: relabelLayer( l.keys, this.layerNames() ),
-            }) ),
+                keys: relabelLayer(l.keys, this.layerNames()),
+            })),
             availableLayers:
                 (this.capabilities.maxLayers ?? 8) - this.layers.length,
             activeLayoutId: this.activeLayoutId,
-            layouts: this.layouts.map( ( l ) => ({...l}) ),
+            layouts: this.layouts.map((l) => ({ ...l })),
         }
     }
 
-    async getPhysicalLayouts (): Promise<{
+    async getPhysicalLayouts(): Promise<{
         layouts: PhysicalLayout[]
         activeLayoutId: number
     }> {
         return {
-            layouts: this.layouts.map( ( l ) => ({...l}) ),
+            layouts: this.layouts.map((l) => ({ ...l })),
             activeLayoutId: this.activeLayoutId,
         }
     }
 
-    private layerIndexById ( layerId: number ): number {
-        return this.layers.findIndex( ( l ) => l.id === layerId )
+    private layerIndexById(layerId: number): number {
+        return this.layers.findIndex((l) => l.id === layerId)
     }
 
-    async setKey (
+    async setKey(
         layerId: number,
         position: number,
         action: KeyAction,
     ): Promise<void> {
         this.requireUnlocked()
-        const idx = this.layerIndexById( layerId )
-        if ( idx < 0 ) throw new ProtocolError( `Unknown layer id: ${layerId}` )
-        if ( position < 0 || position >= MOCK_KEY_COUNT ) {
-            throw new ProtocolError( `Position out of range: ${position}` )
+        const idx = this.layerIndexById(layerId)
+        if (idx < 0) throw new ProtocolError(`Unknown layer id: ${layerId}`)
+        if (position < 0 || position >= MOCK_KEY_COUNT) {
+            throw new ProtocolError(`Position out of range: ${position}`)
         }
         const layer = this.layers[idx]
         const next = layer.keys.slice()
@@ -563,52 +563,52 @@ export class MockKeyboardService implements KeyboardService {
             action.params,
             this.layerNames(),
         )
-        this.layers[idx] = {...layer, keys: next}
-        this.markPending( true )
+        this.layers[idx] = { ...layer, keys: next }
+        this.markPending(true)
     }
 
-    async setKeys ( updates: KeyUpdate[] ): Promise<void> {
-        for ( const u of updates ) {
-            await this.setKey( u.layerId, u.position, u.action )
+    async setKeys(updates: KeyUpdate[]): Promise<void> {
+        for (const u of updates) {
+            await this.setKey(u.layerId, u.position, u.action)
         }
     }
 
-    async addLayer (): Promise<Layer> {
+    async addLayer(): Promise<Layer> {
         this.requireUnlocked()
         const max = this.capabilities.maxLayers ?? 8
-        if ( this.layers.length >= max ) {
-            throw new ProtocolError( 'Max layers reached' )
+        if (this.layers.length >= max) {
+            throw new ProtocolError('Max layers reached')
         }
         const layer: Layer = {
             id: this.nextLayerId++,
             name: `Layer ${this.layers.length}`,
-            keys: this.makeFiller( MOCK_KIND_TRANSPARENT ),
+            keys: this.makeFiller(MOCK_KIND_TRANSPARENT),
         }
-        this.layers.push( layer )
-        this.markPending( true )
-        return {...layer, keys: relabelLayer( layer.keys, this.layerNames() )}
+        this.layers.push(layer)
+        this.markPending(true)
+        return { ...layer, keys: relabelLayer(layer.keys, this.layerNames()) }
     }
 
-    async removeLayer ( layerId: number ): Promise<void> {
+    async removeLayer(layerId: number): Promise<void> {
         this.requireUnlocked()
-        const idx = this.layerIndexById( layerId )
-        if ( idx < 0 ) throw new ProtocolError( `Unknown layer id: ${layerId}` )
-        if ( this.layers.length <= 1 ) {
-            throw new ProtocolError( 'Cannot remove the only layer' )
+        const idx = this.layerIndexById(layerId)
+        if (idx < 0) throw new ProtocolError(`Unknown layer id: ${layerId}`)
+        if (this.layers.length <= 1) {
+            throw new ProtocolError('Cannot remove the only layer')
         }
-        this.layers.splice( idx, 1 )
-        this.markPending( true )
+        this.layers.splice(idx, 1)
+        this.markPending(true)
     }
 
-    async renameLayer ( layerId: number, name: string ): Promise<void> {
+    async renameLayer(layerId: number, name: string): Promise<void> {
         this.requireUnlocked()
-        const idx = this.layerIndexById( layerId )
-        if ( idx < 0 ) throw new ProtocolError( `Unknown layer id: ${layerId}` )
-        this.layers[idx] = {...this.layers[idx], name}
-        this.markPending( true )
+        const idx = this.layerIndexById(layerId)
+        if (idx < 0) throw new ProtocolError(`Unknown layer id: ${layerId}`)
+        this.layers[idx] = { ...this.layers[idx], name }
+        this.markPending(true)
     }
 
-    async moveLayer ( startIndex: number, destIndex: number ): Promise<void> {
+    async moveLayer(startIndex: number, destIndex: number): Promise<void> {
         this.requireUnlocked()
         if (
             startIndex < 0 ||
@@ -620,76 +620,76 @@ export class MockKeyboardService implements KeyboardService {
                 `moveLayer indices out of range: ${startIndex} -> ${destIndex}`,
             )
         }
-        const [moved] = this.layers.splice( startIndex, 1 )
-        this.layers.splice( destIndex, 0, moved )
-        this.markPending( true )
+        const [moved] = this.layers.splice(startIndex, 1)
+        this.layers.splice(destIndex, 0, moved)
+        this.markPending(true)
     }
 
-    async restoreLayer ( layerId: number, atIndex: number ): Promise<Layer> {
+    async restoreLayer(layerId: number, atIndex: number): Promise<Layer> {
         this.requireUnlocked()
         const layer: Layer = {
             id: layerId,
             name: `Restored ${layerId}`,
-            keys: this.makeFiller( MOCK_KIND_TRANSPARENT ),
+            keys: this.makeFiller(MOCK_KIND_TRANSPARENT),
         }
-        const clamped = Math.max( 0, Math.min( atIndex, this.layers.length ) )
-        this.layers.splice( clamped, 0, layer )
-        this.nextLayerId = Math.max( this.nextLayerId, layerId + 1 )
-        this.markPending( true )
-        return {...layer, keys: relabelLayer( layer.keys, this.layerNames() )}
+        const clamped = Math.max(0, Math.min(atIndex, this.layers.length))
+        this.layers.splice(clamped, 0, layer)
+        this.nextLayerId = Math.max(this.nextLayerId, layerId + 1)
+        this.markPending(true)
+        return { ...layer, keys: relabelLayer(layer.keys, this.layerNames()) }
     }
 
-    async setActivePhysicalLayout ( layoutId: number ): Promise<Keymap> {
+    async setActivePhysicalLayout(layoutId: number): Promise<Keymap> {
         this.requireUnlocked()
-        if ( !this.layouts.some( ( l ) => l.id === layoutId ) ) {
-            throw new ProtocolError( `Unknown layout id: ${layoutId}` )
+        if (!this.layouts.some((l) => l.id === layoutId)) {
+            throw new ProtocolError(`Unknown layout id: ${layoutId}`)
         }
         this.activeLayoutId = layoutId
         return this.getKeymap()
     }
 
-    async commit (): Promise<void> {
+    async commit(): Promise<void> {
         this.requireUnlocked()
-        this.markPending( false )
+        this.markPending(false)
     }
 
-    async discardChanges (): Promise<void> {
+    async discardChanges(): Promise<void> {
         this.requireUnlocked()
         this.seedDefaultLayers()
-        this.markPending( false )
+        this.markPending(false)
     }
 
-    async resetSettings (): Promise<void> {
+    async resetSettings(): Promise<void> {
         this.requireUnlocked()
         this.seedDefaultLayers()
         this.activeLayoutId = 0
-        this.markPending( false )
+        this.markPending(false)
     }
 
-    hasPendingChanges (): boolean {
+    hasPendingChanges(): boolean {
         return this.pendingChanges
     }
 
-    async refreshPendingChanges (): Promise<boolean> {
+    async refreshPendingChanges(): Promise<boolean> {
         return this.pendingChanges
     }
 
-    onPendingChangesChanged ( cb: PendingChangesHandler ): () => void {
-        this.pendingChangesListeners.add( cb )
-        return () => this.pendingChangesListeners.delete( cb )
+    onPendingChangesChanged(cb: PendingChangesHandler): () => void {
+        this.pendingChangesListeners.add(cb)
+        return () => this.pendingChangesListeners.delete(cb)
     }
 
-    subscribe ( cb: NotificationHandler ): () => void {
-        this.notificationListeners.add( cb )
-        return () => this.notificationListeners.delete( cb )
+    subscribe(cb: NotificationHandler): () => void {
+        this.notificationListeners.add(cb)
+        return () => this.notificationListeners.delete(cb)
     }
 
     /** Test/demo helper: synthesize an inbound notification. */
-    pushNotification ( topic: string, payload: unknown ): void {
-        this.emitNotification( topic, payload )
+    pushNotification(topic: string, payload: unknown): void {
+        this.emitNotification(topic, payload)
     }
 
-    async exportConfig (): Promise<ExportedFile[]> {
+    async exportConfig(): Promise<ExportedFile[]> {
         const km = await this.getKeymap()
         return [
             {
@@ -699,14 +699,14 @@ export class MockKeyboardService implements KeyboardService {
                     {
                         deviceInfo: this.deviceInfo,
                         keymap: {
-                            layers: km.layers.map( ( l ) => ({
+                            layers: km.layers.map((l) => ({
                                 id: l.id,
                                 name: l.name,
-                                keys: l.keys.map( ( k ) => ({
+                                keys: l.keys.map((k) => ({
                                     kind: k.kind,
                                     params: k.params,
-                                }) ),
-                            }) ),
+                                })),
+                            })),
                             activeLayoutId: km.activeLayoutId,
                         },
                     },
@@ -717,23 +717,23 @@ export class MockKeyboardService implements KeyboardService {
         ]
     }
 
-    onClosed ( cb: ClosedHandler ): () => void {
-        if ( this.closed ) {
+    onClosed(cb: ClosedHandler): () => void {
+        if (this.closed) {
             cb()
             return () => undefined
         }
-        this.closedListeners.add( cb )
-        return () => this.closedListeners.delete( cb )
+        this.closedListeners.add(cb)
+        return () => this.closedListeners.delete(cb)
     }
 
-    async disconnect (): Promise<void> {
-        if ( this.closed ) return
+    async disconnect(): Promise<void> {
+        if (this.closed) return
         this.closed = true
-        for ( const cb of this.closedListeners ) cb()
+        for (const cb of this.closedListeners) cb()
     }
 
     /** Used by layouts referencing MOCK_CORNE_LAYOUT for storybook fidelity. */
-    static get layoutForStory (): PhysicalLayout {
+    static get layoutForStory(): PhysicalLayout {
         return MOCK_CORNE_LAYOUT
     }
 }

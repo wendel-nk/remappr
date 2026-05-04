@@ -19,12 +19,12 @@ const BINDING_MAP: Record<string, string> = {
     Bootloader: '&bootloader',
 }
 
-export function displayNameToBinding ( displayName: string ): string {
-    if ( !displayName ) return ''
-    if ( BINDING_MAP[displayName] ) return BINDING_MAP[displayName]
+export function displayNameToBinding(displayName: string): string {
+    if (!displayName) return ''
+    if (BINDING_MAP[displayName]) return BINDING_MAP[displayName]
     const slug = displayName
         .toLowerCase()
-        .replace( /[^a-z0-9]+/g, '_' )
-        .replace( /^_+|_+$/g, '' )
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '')
     return slug ? `&${slug}` : ''
 }

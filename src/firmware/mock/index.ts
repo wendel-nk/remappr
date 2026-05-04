@@ -1,8 +1,8 @@
 // pattern-check: skip — barrel + side-effect registration of mock adapter
-import {registerAdapter} from '@firmware/registry'
-import {mockAdapter} from './adapter'
+import { registerAdapter } from '@firmware/registry'
+import { mockAdapter } from './adapter'
 
-registerAdapter( mockAdapter )
+registerAdapter(mockAdapter)
 
 export {
     mockAdapter,
@@ -10,7 +10,7 @@ export {
     createMockTransport,
     MOCK_TRANSPORT_LABEL,
 } from './adapter'
-export {MockKeyboardService} from './service'
+export { MockKeyboardService } from './service'
 export {
     MOCK_KIND_KEYPRESS,
     MOCK_KIND_TRANSPARENT,

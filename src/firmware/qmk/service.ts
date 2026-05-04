@@ -1,8 +1,7 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 // Pattern check: Adapter (Tier 1) — extended — extends src/firmware/qmk/service.ts QmkKeyboardService; HidClient-backed VIA implementation of the neutral KeyboardService facade.
-import {filterCatalogByCodec} from '@firmware/catalog/filter'
-import type {KeyCatalog} from '@firmware/catalog/types'
-import type {KeycodeCodec} from '@firmware/codec'
+import { filterCatalogByCodec } from '@firmware/catalog/filter'
+import type { KeyCatalog } from '@firmware/catalog/types'
+import type { KeycodeCodec } from '@firmware/codec'
 import type {
     Capabilities,
     KeyboardService,
@@ -15,28 +14,27 @@ import type {
     DeviceInfo,
     ExportedFile,
     KeyAction,
-    KeyUpdate,
     Keymap,
+    KeyUpdate,
     Layer,
     LockState,
     PhysicalLayout,
 } from '@firmware/types'
-import {ProtocolError, UnsupportedError} from '@firmware/errors'
-import type {ParsedKeyboardDef} from '@firmware/kle/parser'
+import { ProtocolError, UnsupportedError } from '@firmware/errors'
+import type { ParsedKeyboardDef } from '@firmware/kle/parser'
 
 import {
-    QMK_KIND,
     buildQmkKeyAction,
     decodeAsKeyAction,
     encodeKeycode,
+    QMK_KIND,
     relabelQmkLayer,
 } from './actions'
-import {qmkCodec} from './codec'
-import {QMK_ACTION_TYPES} from './actionTypes'
-import {exportKeymap} from './export'
-import type {HidClient} from './hidClient'
+import { qmkCodec } from './codec'
+import { QMK_ACTION_TYPES } from './actionTypes'
+import { exportKeymap } from './export'
+import type { HidClient } from './hidClient'
 import {
-    VIA_PAYLOAD_SIZE,
     getBufferCmd,
     getKeycodeCmd,
     getLayerCountCmd,
@@ -46,6 +44,7 @@ import {
     parseSetKeycodeEcho,
     resetKeymapCmd,
     setKeycodeCmd,
+    VIA_PAYLOAD_SIZE,
 } from './protocol'
 
 export const QMK_CAPABILITIES_BASE: Omit<Capabilities, 'maxLayers'> = {
@@ -57,10 +56,10 @@ export const QMK_CAPABILITIES_BASE: Omit<Capabilities, 'maxLayers'> = {
     exportFormats: ['keymap.c'],
 }
 
-type LockStateHandler = ( state: LockState ) => void
-type PendingChangesHandler = ( pending: boolean ) => void
-type NotificationHandler = ( notification: AdapterNotification ) => void
-type ClosedHandler = ( reason?: unknown ) => void
+type LockStateHandler = (state: LockState) => void
+type PendingChangesHandler = (pending: boolean) => void
+type NotificationHandler = (notification: AdapterNotification) => void
+type ClosedHandler = (reason?: unknown) => void
 
 // pattern-check: skip — extending existing config interface with optional fields, no new abstraction
 export interface QmkServiceConfig {
@@ -78,7 +77,7 @@ export interface QmkServiceConfig {
      * decode (e.g. Keychron BT_HST1 at 0x7E0C). Returns null to fall through
      * to qmk/actions.ts decodeAsKeyAction.
      */
-    decodeOverride?: ( keycode: number ) => KeyAction | null
+    decodeOverride?: (keycode: number) => KeyAction | null
     /** Extra ActionType entries appended to QMK_ACTION_TYPES in listActionTypes(). */
     extraActionTypes?: ActionType[]
     /** Codec strategy. Defaults to qmkCodec (HID page 7 only). Subclasses
@@ -90,30 +89,30 @@ export interface QmkServiceConfig {
     def?: ParsedKeyboardDef
 }
 
-function makeGridLayout ( rows: number, cols: number ): PhysicalLayout {
+function makeGridLayout(rows: number, cols: number): PhysicalLayout {
     // PhysicalLayoutKey x/y/w/h are stored in centi-units (1u = 100) —
     // see src/firmware/labels.ts:42-45 where the renderer divides by 100.
     const keys = []
-    for ( let r = 0; r < rows; r++ ) {
-        for ( let c = 0; c < cols; c++ ) {
-            keys.push( {x: c * 100, y: r * 100, w: 100, h: 100} )
+    for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+            keys.push({ x: c * 100, y: r * 100, w: 100, h: 100 })
         }
     }
-    return {id: 0, name: 'Default', keys}
+    return { id: 0, name: 'Default', keys }
 }
 
-function gridRowColMap (
+function gridRowColMap(
     rows: number,
     cols: number,
 ): { row: number; col: number }[] {
     const out: { row: number; col: number }[] = []
-    for ( let r = 0; r < rows; r++ ) {
-        for ( let c = 0; c < cols; c++ ) out.push( {row: r, col: c} )
+    for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) out.push({ row: r, col: c })
     }
     return out
 }
 
-function layoutFromDef ( def: ParsedKeyboardDef ): PhysicalLayout {
+function layoutFromDef(def: ParsedKeyboardDef): PhysicalLayout {
     return {
         id: 0,
         name: def.name || 'Default',
@@ -122,29 +121,29 @@ function layoutFromDef ( def: ParsedKeyboardDef ): PhysicalLayout {
     }
 }
 
-export async function readQmkLayerCount ( client: HidClient ): Promise<number> {
-    const resp = await client.send( getLayerCountCmd() )
-    const n = parseLayerCount( resp )
-    if ( n <= 0 || n > 32 ) {
-        throw new ProtocolError( `QMK reported invalid layer count: ${n}` )
+export async function readQmkLayerCount(client: HidClient): Promise<number> {
+    const resp = await client.send(getLayerCountCmd())
+    const n = parseLayerCount(resp)
+    if (n <= 0 || n > 32) {
+        throw new ProtocolError(`QMK reported invalid layer count: ${n}`)
     }
     return n
 }
 
 // pattern-check: skip — function signature refactor (rows/cols → rowColMap) to support sparse VIA defs
-async function readLayerKeycodes (
+async function readLayerKeycodes(
     client: HidClient,
     layer: number,
     rowColMap: { row: number; col: number }[],
-    decodeOverride?: ( kc: number ) => KeyAction | null,
+    decodeOverride?: (kc: number) => KeyAction | null,
     codec?: KeycodeCodec,
 ): Promise<KeyAction[]> {
     const out: KeyAction[] = []
-    for ( const {row, col} of rowColMap ) {
-        const resp = await client.send( getKeycodeCmd( layer, row, col ) )
-        const {keycode} = parseKeycode( resp )
-        const overridden = decodeOverride?.( keycode ) ?? null
-        out.push( overridden ?? decodeAsKeyAction( keycode, undefined, codec ) )
+    for (const { row, col } of rowColMap) {
+        const resp = await client.send(getKeycodeCmd(layer, row, col))
+        const { keycode } = parseKeycode(resp)
+        const overridden = decodeOverride?.(keycode) ?? null
+        out.push(overridden ?? decodeAsKeyAction(keycode, undefined, codec))
     }
     return out
 }
@@ -152,39 +151,39 @@ async function readLayerKeycodes (
 const BUFFER_FETCH_CHUNK = VIA_PAYLOAD_SIZE - 4
 
 // pattern-check: skip — bulk-buffer fetch port from qmk-vial/service.ts
-async function fetchKeymapBuffer (
+async function fetchKeymapBuffer(
     client: HidClient,
     layerCount: number,
     rows: number,
     cols: number,
 ): Promise<Uint8Array> {
     const total = layerCount * rows * cols * 2
-    const out = new Uint8Array( total )
+    const out = new Uint8Array(total)
     let offset = 0
-    while ( offset < total ) {
-        const size = Math.min( total - offset, BUFFER_FETCH_CHUNK )
-        const resp = await client.send( getBufferCmd( offset, size ) )
-        const {data} = parseBuffer( resp )
-        out.set( data.subarray( 0, size ), offset )
+    while (offset < total) {
+        const size = Math.min(total - offset, BUFFER_FETCH_CHUNK)
+        const resp = await client.send(getBufferCmd(offset, size))
+        const { data } = parseBuffer(resp)
+        out.set(data.subarray(0, size), offset)
         offset += size
     }
     return out
 }
 
-function readU16BEAt ( buf: Uint8Array, off: number ): number {
+function readU16BEAt(buf: Uint8Array, off: number): number {
     return ((buf[off] << 8) | buf[off + 1]) & 0xffff
 }
 
 // pattern-check: skip — function signature refactor (rows/cols → rowColMap) to support sparse VIA defs
-export async function loadInitialKeymap (
+export async function loadInitialKeymap(
     client: HidClient,
     rowColMap: { row: number; col: number }[],
     layerCount: number,
-    decodeOverride?: ( kc: number ) => KeyAction | null,
+    decodeOverride?: (kc: number) => KeyAction | null,
     codec?: KeycodeCodec,
     matrix?: { rows: number; cols: number },
 ): Promise<Layer[]> {
-    if ( matrix ) {
+    if (matrix) {
         // Bulk-read fast path: pull the entire keymap as one byte stream and
         // index per (row,col). 2-3 round trips total instead of N per layer.
         return loadKeymapBulk(
@@ -197,7 +196,7 @@ export async function loadInitialKeymap (
         )
     }
     const layers: Layer[] = []
-    for ( let i = 0; i < layerCount; i++ ) {
+    for (let i = 0; i < layerCount; i++) {
         const keys = await readLayerKeycodes(
             client,
             i,
@@ -205,18 +204,18 @@ export async function loadInitialKeymap (
             decodeOverride,
             codec,
         )
-        layers.push( {id: i, name: `Layer ${i}`, keys} )
+        layers.push({ id: i, name: `Layer ${i}`, keys })
     }
     return layers
 }
 
 // pattern-check: skip — bulk decoding helper, mirrors qmk-vial/service.ts
-async function loadKeymapBulk (
+async function loadKeymapBulk(
     client: HidClient,
     rowColMap: { row: number; col: number }[],
     layerCount: number,
     matrix: { rows: number; cols: number },
-    decodeOverride?: ( kc: number ) => KeyAction | null,
+    decodeOverride?: (kc: number) => KeyAction | null,
     codec?: KeycodeCodec,
 ): Promise<Layer[]> {
     const buffer = await fetchKeymapBuffer(
@@ -227,15 +226,15 @@ async function loadKeymapBulk (
     )
     const stride = matrix.rows * matrix.cols * 2
     const layers: Layer[] = []
-    for ( let l = 0; l < layerCount; l++ ) {
+    for (let l = 0; l < layerCount; l++) {
         const base = l * stride
-        const keys: KeyAction[] = rowColMap.map( ( {row, col} ) => {
+        const keys: KeyAction[] = rowColMap.map(({ row, col }) => {
             const off = base + row * matrix.cols * 2 + col * 2
-            const kc = readU16BEAt( buffer, off )
-            const overridden = decodeOverride?.( kc ) ?? null
-            return overridden ?? decodeAsKeyAction( kc, undefined, codec )
-        } )
-        layers.push( {id: l, name: `Layer ${l}`, keys} )
+            const kc = readU16BEAt(buffer, off)
+            const overridden = decodeOverride?.(kc) ?? null
+            return overridden ?? decodeAsKeyAction(kc, undefined, codec)
+        })
+        layers.push({ id: l, name: `Layer ${l}`, keys })
     }
     return layers
 }
@@ -261,19 +260,19 @@ export class QmkKeyboardService implements KeyboardService {
 
     protected readonly cfg: QmkServiceConfig
 
-    protected constructor ( cfg: QmkServiceConfig, layers: Layer[] ) {
+    protected constructor(cfg: QmkServiceConfig, layers: Layer[]) {
         this.cfg = cfg
         this.deviceInfo = cfg.deviceInfo
         this.client = cfg.client
-        if ( cfg.def ) {
-            this.layout = layoutFromDef( cfg.def )
+        if (cfg.def) {
+            this.layout = layoutFromDef(cfg.def)
             this.rowColMap = cfg.def.rowColMap
         } else {
-            this.layout = makeGridLayout( cfg.rows, cfg.cols )
-            this.rowColMap = gridRowColMap( cfg.rows, cfg.cols )
+            this.layout = makeGridLayout(cfg.rows, cfg.cols)
+            this.rowColMap = gridRowColMap(cfg.rows, cfg.cols)
         }
         this.layers = layers
-        this.layerNames = cfg.layerNames ?? layers.map( ( l ) => l.name )
+        this.layerNames = cfg.layerNames ?? layers.map((l) => l.name)
         this.capabilities = {
             ...QMK_CAPABILITIES_BASE,
             maxLayers: cfg.layerCount,
@@ -283,16 +282,16 @@ export class QmkKeyboardService implements KeyboardService {
         this.wireless = cfg.wireless
         this.rgb = cfg.rgb
         this.codec = cfg.codec ?? qmkCodec
-        cfg.client.onClosed( ( reason ) => this.handleClientClosed( reason ) )
+        cfg.client.onClosed((reason) => this.handleClientClosed(reason))
     }
 
-    static async create ( cfg: QmkServiceConfig ): Promise<QmkKeyboardService> {
+    static async create(cfg: QmkServiceConfig): Promise<QmkKeyboardService> {
         const map = cfg.def
             ? cfg.def.rowColMap
-            : gridRowColMap( cfg.rows, cfg.cols )
+            : gridRowColMap(cfg.rows, cfg.cols)
         const matrix = cfg.def
-            ? {rows: cfg.def.rows, cols: cfg.def.cols}
-            : {rows: cfg.rows, cols: cfg.cols}
+            ? { rows: cfg.def.rows, cols: cfg.def.cols }
+            : { rows: cfg.rows, cols: cfg.cols }
         const layers = await loadInitialKeymap(
             cfg.client,
             map,
@@ -301,23 +300,23 @@ export class QmkKeyboardService implements KeyboardService {
             cfg.codec ?? qmkCodec,
             matrix,
         )
-        return new QmkKeyboardService( cfg, layers )
+        return new QmkKeyboardService(cfg, layers)
     }
 
-    private handleClientClosed ( reason?: unknown ): void {
-        if ( this.closed ) return
+    private handleClientClosed(reason?: unknown): void {
+        if (this.closed) return
         this.closed = true
-        for ( const cb of this.closedListeners ) {
+        for (const cb of this.closedListeners) {
             try {
-                cb( reason )
+                cb(reason)
             } catch {
                 /* ignore */
             }
         }
     }
 
-    private positionToCoord ( position: number ): { row: number; col: number } {
-        if ( position < 0 || position >= this.rowColMap.length ) {
+    private positionToCoord(position: number): { row: number; col: number } {
+        if (position < 0 || position >= this.rowColMap.length) {
             throw new ProtocolError(
                 `QMK position out of range: ${position} (max ${this.rowColMap.length - 1})`,
             )
@@ -325,29 +324,29 @@ export class QmkKeyboardService implements KeyboardService {
         return this.rowColMap[position]
     }
 
-    private setPending ( next: boolean ): void {
-        if ( this.pendingChanges === next ) return
+    private setPending(next: boolean): void {
+        if (this.pendingChanges === next) return
         this.pendingChanges = next
-        for ( const cb of this.pendingChangesListeners ) cb( next )
+        for (const cb of this.pendingChangesListeners) cb(next)
     }
 
-    private layerIndexById ( layerId: number ): number {
-        return this.layers.findIndex( ( l ) => l.id === layerId )
+    private layerIndexById(layerId: number): number {
+        return this.layers.findIndex((l) => l.id === layerId)
     }
 
-    async getLockState (): Promise<LockState> {
+    async getLockState(): Promise<LockState> {
         return 'not-applicable'
     }
 
-    async unlock (): Promise<void> {
+    async unlock(): Promise<void> {
         // VIA: no lock semantics.
     }
 
-    onLockStateChanged ( _cb: LockStateHandler ): () => void {
+    onLockStateChanged(_cb: LockStateHandler): () => void {
         return () => undefined
     }
 
-    async listActionTypes (): Promise<ActionType[]> {
+    async listActionTypes(): Promise<ActionType[]> {
         if (
             !this.cfg.extraActionTypes ||
             this.cfg.extraActionTypes.length === 0
@@ -357,46 +356,46 @@ export class QmkKeyboardService implements KeyboardService {
         return [...QMK_ACTION_TYPES, ...this.cfg.extraActionTypes]
     }
 
-    buildKeyAction ( kind: string, params: number[] ): KeyAction {
-        return buildQmkKeyAction( kind, params, this.layerNames, this.codec )
+    buildKeyAction(kind: string, params: number[]): KeyAction {
+        return buildQmkKeyAction(kind, params, this.layerNames, this.codec)
     }
 
-    async listKeyCatalog (): Promise<KeyCatalog> {
-        return filterCatalogByCodec( this.codec )
+    async listKeyCatalog(): Promise<KeyCatalog> {
+        return filterCatalogByCodec(this.codec)
     }
 
-    async getKeymap (): Promise<Keymap> {
+    async getKeymap(): Promise<Keymap> {
         return {
-            layers: this.layers.map( ( l ) => ({
+            layers: this.layers.map((l) => ({
                 id: l.id,
                 name: l.name,
-                keys: relabelQmkLayer( l.keys, this.layerNames, this.codec ),
-            }) ),
+                keys: relabelQmkLayer(l.keys, this.layerNames, this.codec),
+            })),
             availableLayers: 0,
             activeLayoutId: this.layout.id,
             layouts: [this.layout],
         }
     }
 
-    async getPhysicalLayouts (): Promise<{
+    async getPhysicalLayouts(): Promise<{
         layouts: PhysicalLayout[]
         activeLayoutId: number
     }> {
-        return {layouts: [this.layout], activeLayoutId: this.layout.id}
+        return { layouts: [this.layout], activeLayoutId: this.layout.id }
     }
 
-    async setKey (
+    async setKey(
         layerId: number,
         position: number,
         action: KeyAction,
     ): Promise<void> {
-        if ( this.closed ) throw new UnsupportedError( 'setKey: connection closed' )
-        const idx = this.layerIndexById( layerId )
-        if ( idx < 0 ) throw new ProtocolError( `Unknown layer id: ${layerId}` )
-        const {row, col} = this.positionToCoord( position )
-        const kc = encodeKeycode( action )
-        const resp = await this.client.send( setKeycodeCmd( idx, row, col, kc ) )
-        const echo = parseSetKeycodeEcho( resp )
+        if (this.closed) throw new UnsupportedError('setKey: connection closed')
+        const idx = this.layerIndexById(layerId)
+        if (idx < 0) throw new ProtocolError(`Unknown layer id: ${layerId}`)
+        const { row, col } = this.positionToCoord(position)
+        const kc = encodeKeycode(action)
+        const resp = await this.client.send(setKeycodeCmd(idx, row, col, kc))
+        const echo = parseSetKeycodeEcho(resp)
         if (
             echo.layer !== idx ||
             echo.row !== row ||
@@ -404,7 +403,7 @@ export class QmkKeyboardService implements KeyboardService {
             echo.keycode !== kc
         ) {
             throw new ProtocolError(
-                `setKey echo mismatch: sent (${idx},${row},${col},0x${kc.toString( 16 )}) got (${echo.layer},${echo.row},${echo.col},0x${echo.keycode.toString( 16 )})`,
+                `setKey echo mismatch: sent (${idx},${row},${col},0x${kc.toString(16)}) got (${echo.layer},${echo.row},${echo.col},0x${echo.keycode.toString(16)})`,
             )
         }
         const next = this.layers[idx].keys.slice()
@@ -413,44 +412,44 @@ export class QmkKeyboardService implements KeyboardService {
             action.params,
             this.layerNames,
         )
-        this.layers[idx] = {...this.layers[idx], keys: next}
-        this.setPending( true )
+        this.layers[idx] = { ...this.layers[idx], keys: next }
+        this.setPending(true)
     }
 
-    async setKeys ( updates: KeyUpdate[] ): Promise<void> {
-        for ( const u of updates ) {
-            await this.setKey( u.layerId, u.position, u.action )
+    async setKeys(updates: KeyUpdate[]): Promise<void> {
+        for (const u of updates) {
+            await this.setKey(u.layerId, u.position, u.action)
         }
     }
 
-    async addLayer (): Promise<Layer> {
+    async addLayer(): Promise<Layer> {
         throw new UnsupportedError(
             'addLayer: VIA layer count is fixed by firmware',
         )
     }
 
-    async removeLayer ( _layerId: number ): Promise<void> {
+    async removeLayer(_layerId: number): Promise<void> {
         throw new UnsupportedError(
             'removeLayer: VIA layer count is fixed by firmware',
         )
     }
 
-    async renameLayer ( _layerId: number, _name: string ): Promise<void> {
-        throw new UnsupportedError( 'renameLayer: VIA does not support rename' )
+    async renameLayer(_layerId: number, _name: string): Promise<void> {
+        throw new UnsupportedError('renameLayer: VIA does not support rename')
     }
 
-    async moveLayer ( _startIndex: number, _destIndex: number ): Promise<void> {
-        throw new UnsupportedError( 'moveLayer: VIA does not support reordering' )
+    async moveLayer(_startIndex: number, _destIndex: number): Promise<void> {
+        throw new UnsupportedError('moveLayer: VIA does not support reordering')
     }
 
-    async restoreLayer ( _layerId: number, _atIndex: number ): Promise<Layer> {
+    async restoreLayer(_layerId: number, _atIndex: number): Promise<Layer> {
         throw new UnsupportedError(
             'restoreLayer: VIA does not retain prior layers',
         )
     }
 
-    async setActivePhysicalLayout ( layoutId: number ): Promise<Keymap> {
-        if ( layoutId !== this.layout.id ) {
+    async setActivePhysicalLayout(layoutId: number): Promise<Keymap> {
+        if (layoutId !== this.layout.id) {
             throw new UnsupportedError(
                 'setActivePhysicalLayout: VIA exposes a single fixed layout',
             )
@@ -459,11 +458,11 @@ export class QmkKeyboardService implements KeyboardService {
     }
 
     // pattern-check: skip — atomic swap-and-reload on existing Adapter
-    async applyLayout ( def: ParsedKeyboardDef ): Promise<void> {
-        if ( this.closed ) {
-            throw new UnsupportedError( 'applyLayout: connection closed' )
+    async applyLayout(def: ParsedKeyboardDef): Promise<void> {
+        if (this.closed) {
+            throw new UnsupportedError('applyLayout: connection closed')
         }
-        if ( this.pendingChanges ) {
+        if (this.pendingChanges) {
             throw new UnsupportedError(
                 'applyLayout: commit or discard pending changes first',
             )
@@ -476,37 +475,37 @@ export class QmkKeyboardService implements KeyboardService {
             this.capabilities.maxLayers ?? this.layers.length,
             this.cfg.decodeOverride,
             this.codec,
-            {rows: def.rows, cols: def.cols},
+            { rows: def.rows, cols: def.cols },
         )
         this.rowColMap = def.rowColMap
-        this.layout = layoutFromDef( def )
+        this.layout = layoutFromDef(def)
         this.layers = nextLayers
-        for ( const cb of this.notificationListeners ) {
+        for (const cb of this.notificationListeners) {
             try {
-                cb( {topic: 'layout-changed', payload: null} )
+                cb({ topic: 'layout-changed', payload: null })
             } catch {
                 /* ignore */
             }
         }
     }
 
-    async commit (): Promise<void> {
+    async commit(): Promise<void> {
         // VIA writes immediately on setKey; commit() resets the UI's
         // pending-changes flag so the user can re-export from a stable state.
-        this.setPending( false )
+        this.setPending(false)
     }
 
-    async discardChanges (): Promise<void> {
+    async discardChanges(): Promise<void> {
         throw new UnsupportedError(
             'discardChanges: VIA writes immediately — no pending buffer to discard',
         )
     }
 
-    async resetSettings (): Promise<void> {
-        await this.client.send( resetKeymapCmd() )
+    async resetSettings(): Promise<void> {
+        await this.client.send(resetKeymapCmd())
         const matrix = this.cfg.def
-            ? {rows: this.cfg.def.rows, cols: this.cfg.def.cols}
-            : {rows: this.cfg.rows, cols: this.cfg.cols}
+            ? { rows: this.cfg.def.rows, cols: this.cfg.def.cols }
+            : { rows: this.cfg.rows, cols: this.cfg.cols }
         this.layers = await loadInitialKeymap(
             this.client,
             this.rowColMap,
@@ -515,52 +514,52 @@ export class QmkKeyboardService implements KeyboardService {
             this.codec,
             matrix,
         )
-        this.setPending( false )
+        this.setPending(false)
     }
 
-    hasPendingChanges (): boolean {
+    hasPendingChanges(): boolean {
         return this.pendingChanges
     }
 
-    async refreshPendingChanges (): Promise<boolean> {
+    async refreshPendingChanges(): Promise<boolean> {
         return this.pendingChanges
     }
 
-    onPendingChangesChanged ( cb: PendingChangesHandler ): () => void {
-        this.pendingChangesListeners.add( cb )
-        return () => this.pendingChangesListeners.delete( cb )
+    onPendingChangesChanged(cb: PendingChangesHandler): () => void {
+        this.pendingChangesListeners.add(cb)
+        return () => this.pendingChangesListeners.delete(cb)
     }
 
-    subscribe ( cb: NotificationHandler ): () => void {
+    subscribe(cb: NotificationHandler): () => void {
         // VIA has no firmware-pushed notifications; expose the registration
         // surface so UI code is uniform with ZMK/mock adapters.
-        this.notificationListeners.add( cb )
-        return () => this.notificationListeners.delete( cb )
+        this.notificationListeners.add(cb)
+        return () => this.notificationListeners.delete(cb)
     }
 
-    async exportConfig (): Promise<ExportedFile[]> {
+    async exportConfig(): Promise<ExportedFile[]> {
         const km = await this.getKeymap()
-        return exportKeymap( km, this.deviceInfo.name )
+        return exportKeymap(km, this.deviceInfo.name)
     }
 
-    onClosed ( cb: ClosedHandler ): () => void {
-        if ( this.closed ) {
+    onClosed(cb: ClosedHandler): () => void {
+        if (this.closed) {
             cb()
             return () => undefined
         }
-        this.closedListeners.add( cb )
-        return () => this.closedListeners.delete( cb )
+        this.closedListeners.add(cb)
+        return () => this.closedListeners.delete(cb)
     }
 
-    async disconnect (): Promise<void> {
-        if ( this.closed ) return
-        await this.client.close( {abortTransport: true} )
-        this.handleClientClosed( 'disconnect' )
+    async disconnect(): Promise<void> {
+        if (this.closed) return
+        await this.client.close({ abortTransport: true })
+        this.handleClientClosed('disconnect')
     }
 }
 
 // Helper exposed for the contract test + tests that need to bypass the
 // async create() — useful when seeding a fake transport/keymap.
-export function buildBasicAction ( code: number ): KeyAction {
-    return buildQmkKeyAction( QMK_KIND.BASIC, [code] )
+export function buildBasicAction(code: number): KeyAction {
+    return buildQmkKeyAction(QMK_KIND.BASIC, [code])
 }

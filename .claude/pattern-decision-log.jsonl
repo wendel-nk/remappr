@@ -393,3 +393,234 @@
 {"id":"626aa0dd57aa","ts":"2026-04-28T19:17:22.995Z","session":"e789878e-200a-4e4b-903c-cb8932ff481f","file":"/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/renderer/src/features/keymap/keyboard/KeyButton.tsx","tool":"Edit","pattern":"no GoF pattern","tier":null,"decision":"rejected","reason":"header font/radius sizing tweaks, no abstraction"}
 {"id":"c8caf6488d80","ts":"2026-04-28T19:40:32.686Z","session":"e789878e-200a-4e4b-903c-cb8932ff481f","file":"/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/renderer/src/features/keymap/keyboard/PhysicalLayoutCanvas.tsx","tool":"Edit","pattern":"no GoF pattern","tier":null,"decision":"rejected","reason":"CSS transform crisp-text fix, no abstraction"}
 {"id":"d77f9d504aac","ts":"2026-04-28T19:45:01.200Z","session":"e789878e-200a-4e4b-903c-cb8932ff481f","file":"/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/renderer/src/features/keymap/keyboard/PhysicalLayoutCanvas.tsx","tool":"Edit","pattern":"no GoF pattern","tier":null,"decision":"rejected","reason":"observation logic for autoresize, no abstraction"}
+{
+    "id": "4e1e4ac5643f",
+    "ts": "2026-05-04T23:26:37.420Z",
+    "session": "647f38bf-f9bb-478f-a266-b465b67ae5b9",
+    "file": "/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/main/ble-manager.ts",
+    "tool": "Edit",
+    "pattern": "no GoF pattern",
+    "tier": null,
+    "decision": "rejected",
+    "reason": "bulk console→logger swap, mechanical codemod no new symbols"
+}
+{
+    "id": "e0293ce5d948",
+    "ts": "2026-05-04T23:26:44.709Z",
+    "session": "647f38bf-f9bb-478f-a266-b465b67ae5b9",
+    "file": "/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/main/ble-manager.ts",
+    "tool": "Edit",
+    "pattern": "no GoF pattern",
+    "tier": null,
+    "decision": "rejected",
+    "reason": "bulk console→logger swap, mechanical codemod no new symbols"
+}
+{
+    "id": "f35ae772b707",
+    "ts": "2026-05-04T23:26:46.231Z",
+    "session": "647f38bf-f9bb-478f-a266-b465b67ae5b9",
+    "file": "/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/main/ble-manager.ts",
+    "tool": "Edit",
+    "pattern": "no GoF pattern",
+    "tier": null,
+    "decision": "rejected",
+    "reason": "bulk console→logger swap, mechanical codemod no new symbols"
+}
+{
+    "id": "51fbce58574e",
+    "ts": "2026-05-04T23:26:50.769Z",
+    "session": "647f38bf-f9bb-478f-a266-b465b67ae5b9",
+    "file": "/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/main/bluez.ts",
+    "tool": "Edit",
+    "pattern": "no GoF pattern",
+    "tier": null,
+    "decision": "rejected",
+    "reason": "bulk console→logger swap, mechanical codemod no new symbols"
+}
+{
+    "id": "0602ca82b821",
+    "ts": "2026-05-04T23:27:01.112Z",
+    "session": "647f38bf-f9bb-478f-a266-b465b67ae5b9",
+    "file": "/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/main/bluez.ts",
+    "tool": "Edit",
+    "pattern": "no GoF pattern",
+    "tier": null,
+    "decision": "rejected",
+    "reason": "bulk console→logger swap, mechanical codemod no new symbols"
+}
+{
+    "id": "e62fdc8f586b",
+    "ts": "2026-05-04T23:27:03.855Z",
+    "session": "647f38bf-f9bb-478f-a266-b465b67ae5b9",
+    "file": "/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/main/bluez.ts",
+    "tool": "Edit",
+    "pattern": "no GoF pattern",
+    "tier": null,
+    "decision": "rejected",
+    "reason": "bulk console→logger swap, mechanical codemod no new symbols"
+}
+{
+    "id": "805c851953f5",
+    "ts": "2026-05-04T23:27:04.139Z",
+    "session": "647f38bf-f9bb-478f-a266-b465b67ae5b9",
+    "file": "/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/main/bluez.ts",
+    "tool": "Edit",
+    "pattern": "no GoF pattern",
+    "tier": null,
+    "decision": "rejected",
+    "reason": "bulk console→logger swap, mechanical codemod no new symbols"
+}
+{
+    "id": "d005378ab2fa",
+    "ts": "2026-05-04T23:27:05.694Z",
+    "session": "647f38bf-f9bb-478f-a266-b465b67ae5b9",
+    "file": "/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/main/bluez.ts",
+    "tool": "Edit",
+    "pattern": "no GoF pattern",
+    "tier": null,
+    "decision": "rejected",
+    "reason": "bulk console→logger swap, mechanical codemod no new symbols"
+}
+{
+    "id": "f3cd057c24b6",
+    "ts": "2026-05-04T23:27:10.118Z",
+    "session": "647f38bf-f9bb-478f-a266-b465b67ae5b9",
+    "file": "/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/main/bluez.ts",
+    "tool": "Edit",
+    "pattern": "no GoF pattern",
+    "tier": null,
+    "decision": "rejected",
+    "reason": "bulk console→logger swap, mechanical codemod no new symbols"
+}
+{
+    "id": "e8509e0f805c",
+    "ts": "2026-05-04T23:27:12.026Z",
+    "session": "647f38bf-f9bb-478f-a266-b465b67ae5b9",
+    "file": "/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/main/bluez.ts",
+    "tool": "Edit",
+    "pattern": "no GoF pattern",
+    "tier": null,
+    "decision": "rejected",
+    "reason": "bulk console→logger swap, mechanical codemod no new symbols"
+}
+{
+    "id": "25072d9b7550",
+    "ts": "2026-05-04T23:42:27.980Z",
+    "session": "9479af2a-ae52-4dd6-a993-3e7ac6df880e",
+    "file": "/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/renderer/src/transport/web-serial.ts",
+    "tool": "Edit",
+    "pattern": "no GoF pattern",
+    "tier": null,
+    "decision": "rejected",
+    "reason": "adding optional capability methods to existing factory type, no abstraction layer"
+}
+{
+    "id": "3d86b8a7ba55",
+    "ts": "2026-05-04T23:42:37.035Z",
+    "session": "9479af2a-ae52-4dd6-a993-3e7ac6df880e",
+    "file": "/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/renderer/src/transport/web-serial.ts",
+    "tool": "Edit",
+    "pattern": "no GoF pattern",
+    "tier": null,
+    "decision": "rejected",
+    "reason": "sibling utility mirrors existing setUserDeviceName, no abstraction added"
+}
+{
+    "id": "471e7b976587",
+    "ts": "2026-05-04T23:42:45.807Z",
+    "session": "9479af2a-ae52-4dd6-a993-3e7ac6df880e",
+    "file": "/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/renderer/src/transport/web-ble.ts",
+    "tool": "Edit",
+    "pattern": "no GoF pattern",
+    "tier": null,
+    "decision": "rejected",
+    "reason": "sibling utility mirrors existing setUserDeviceName, no abstraction added"
+}
+{
+    "id": "df408c1c01e5",
+    "ts": "2026-05-04T23:42:55.887Z",
+    "session": "9479af2a-ae52-4dd6-a993-3e7ac6df880e",
+    "file": "/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/renderer/src/lib/transports.ts",
+    "tool": "Edit",
+    "pattern": "no GoF pattern",
+    "tier": null,
+    "decision": "rejected",
+    "reason": "sibling capability utility, no abstraction"
+}
+{
+    "id": "2a2ab0d43966",
+    "ts": "2026-05-04T23:43:04.968Z",
+    "session": "9479af2a-ae52-4dd6-a993-3e7ac6df880e",
+    "file": "/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/renderer/src/lib/transports.ts",
+    "tool": "Edit",
+    "pattern": "Adapter",
+    "tier": 1,
+    "decision": "applied",
+    "reason": "unifies serial/BLE change events behind one subscribe signature; rename + forget capability wiring"
+}
+{
+    "id": "980d3444726e",
+    "ts": "2026-05-04T23:43:11.333Z",
+    "session": "9479af2a-ae52-4dd6-a993-3e7ac6df880e",
+    "file": "/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/renderer/src/lib/transports.ts",
+    "tool": "Edit",
+    "pattern": "Adapter",
+    "tier": 1,
+    "decision": "applied",
+    "reason": "unifies serial/BLE change events behind one subscribe signature; rename + forget capability wiring"
+}
+{
+    "id": "52ffdab5c4f6",
+    "ts": "2026-05-04T23:43:50.211Z",
+    "session": "9479af2a-ae52-4dd6-a993-3e7ac6df880e",
+    "file": "/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/renderer/src/features/connection/start-page/transport-section/PairNewButton.tsx",
+    "tool": "Edit",
+    "pattern": "no GoF pattern",
+    "tier": null,
+    "decision": "rejected",
+    "reason": "narrowing communication union, no abstraction"
+}
+{
+    "id": "e02ab341bc7f",
+    "ts": "2026-05-04T23:43:57.520Z",
+    "session": "9479af2a-ae52-4dd6-a993-3e7ac6df880e",
+    "file": "/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/renderer/src/features/connection/start-page/transport-section/PairNewButton.tsx",
+    "tool": "Edit",
+    "pattern": "no GoF pattern",
+    "tier": null,
+    "decision": "rejected",
+    "reason": "drop unreachable branch from communication union v2"
+}
+{
+    "id": "1a574695c046",
+    "ts": "2026-05-04T23:44:18.135Z",
+    "session": "9479af2a-ae52-4dd6-a993-3e7ac6df880e",
+    "file": "/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/renderer/src/features/connection/start-page/StartPage.tsx",
+    "tool": "Write",
+    "pattern": "no GoF pattern",
+    "tier": null,
+    "decision": "rejected",
+    "reason": "drop unreachable branch from communication union v2"
+}
+{
+    "id": "9cc35d3e3d39",
+    "ts": "2026-05-04T23:44:44.304Z",
+    "session": "9479af2a-ae52-4dd6-a993-3e7ac6df880e",
+    "file": "/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/renderer/src/features/connection/device-menu/DeviceMenu.tsx",
+    "tool": "Write",
+    "pattern": "no GoF pattern",
+    "tier": null,
+    "decision": "rejected",
+    "reason": "small UI; v2 store has only disconnect"
+}
+{
+    "id": "e7049419f975",
+    "ts": "2026-05-04T23:45:54.172Z",
+    "session": "9479af2a-ae52-4dd6-a993-3e7ac6df880e",
+    "file": "/run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original/src/renderer/src/features/connection/start-page/TransportSection.tsx",
+    "tool": "Write",
+    "pattern": "no GoF pattern",
+    "tier": null,
+    "decision": "rejected",
+    "reason": "capability dispatch via prop, simple component update"
+}

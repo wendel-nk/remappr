@@ -1,5 +1,5 @@
 // Pattern check: Template Method (Tier 1) — applied — base class owns AbortController + label state; subclasses implement connect()
-import type {Transport} from '@firmware'
+import type { Transport } from '@firmware'
 
 /**
  * Common base for any adapter that produces a {@link Transport}. Holds the
@@ -12,5 +12,5 @@ export abstract class TransportAdapter {
     protected readonly abortController = new AbortController()
     protected label = 'Unknown Device'
 
-    abstract connect (): Promise<Transport>
+    abstract connect(): Promise<Transport>
 }

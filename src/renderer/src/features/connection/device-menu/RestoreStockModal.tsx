@@ -1,32 +1,32 @@
-import {useState} from 'react'
-import {Modal} from '@/ui/modal'
-import {DropdownMenuItem} from '@/ui/dropdown-menu'
-import {RotateCcw} from 'lucide-react'
+import { useState } from 'react'
+import { Modal } from '@/ui/modal'
+import { DropdownMenuItem } from '@/ui/dropdown-menu'
+import { RotateCcw } from 'lucide-react'
 
 interface RestoreStockModalProps {
     onOk: () => void
 }
 
-export function RestoreStockModal ( props: RestoreStockModalProps ): JSX.Element {
-    const [showModal, setShowModal] = useState( false )
+export function RestoreStockModal(props: RestoreStockModalProps): JSX.Element {
+    const [showModal, setShowModal] = useState(false)
 
     const handleClick = (): void => {
-        setShowModal( true )
+        setShowModal(true)
     }
 
     const handleOk = (): void => {
         props.onOk()
-        setShowModal( false )
+        setShowModal(false)
     }
 
     const handleClose = (): void => {
-        setShowModal( false )
+        setShowModal(false)
     }
 
     return (
         <>
             <DropdownMenuItem
-                onSelect={( e ): void => e.preventDefault()}
+                onSelect={(e): void => e.preventDefault()}
                 onClick={handleClick}
             >
                 <RotateCcw className="mr-2 h-4 w-4" />

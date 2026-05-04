@@ -1,9 +1,9 @@
-import {DarkModeToggle} from '@/components/DarkModeToggle'
-import {ThemePicker} from '@/components/ThemePicker'
-import {KeyDisplayModePicker} from '@/components/KeyDisplayModePicker'
-import {Label} from '@/ui/label'
+import { DarkModeToggle } from '@/components/DarkModeToggle'
+import { ThemePicker } from '@/components/ThemePicker'
+import { KeyDisplayModePicker } from '@/components/KeyDisplayModePicker'
+import { Label } from '@/ui/label'
 
-export function GeneralSection (): JSX.Element {
+export function GeneralSection(): JSX.Element {
     return (
         <div className="space-y-6">
             <div className="space-y-4">

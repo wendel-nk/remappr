@@ -1,18 +1,18 @@
 // Pattern check: no GoF pattern (-) — rejected — slot dispatcher routes on activeSlotIndex; no abstraction warranted.
-import type {ActionSlot} from '@firmware/types'
-import {SlotValuePicker} from './SlotValuePicker'
+import type { ActionSlot } from '@firmware/types'
+import { SlotValuePicker } from './SlotValuePicker'
 
 export interface ActionSlotsPickerProps {
     slots: ActionSlot[]
     values: number[]
     layers: { id: number; name: string }[]
     activeSlotIndex: number
-    onSlotChanged: ( slotIndex: number, value?: number ) => void
+    onSlotChanged: (slotIndex: number, value?: number) => void
     highlightedKeys?: number[]
     holdInvalidHint?: string
 }
 
-export const ActionSlotsPicker = ( {
+export const ActionSlotsPicker = ({
     slots,
     values,
     layers,
@@ -20,15 +20,15 @@ export const ActionSlotsPicker = ( {
     onSlotChanged,
     highlightedKeys,
     holdInvalidHint,
-}: ActionSlotsPickerProps ): JSX.Element | null => {
-    if ( slots.length === 0 ) return null
+}: ActionSlotsPickerProps): JSX.Element | null => {
+    if (slots.length === 0) return null
 
     const isHoldTap = slots.length > 1
-    const safeIndex = Math.min( Math.max( activeSlotIndex, 0 ), slots.length - 1 )
+    const safeIndex = Math.min(Math.max(activeSlotIndex, 0), slots.length - 1)
     const activeSlot = slots[safeIndex]
     const activeValue = values[safeIndex]
 
-    if ( !isHoldTap ) {
+    if (!isHoldTap) {
         return (
             <div className="flex flex-row flex-wrap items-center gap-2 mt-3">
                 <SlotValuePicker
@@ -36,7 +36,7 @@ export const ActionSlotsPicker = ( {
                     value={activeValue}
                     layers={layers}
                     highlightedKeys={highlightedKeys}
-                    onChange={( v ) => onSlotChanged( safeIndex, v )}
+                    onChange={(v) => onSlotChanged(safeIndex, v)}
                 />
             </div>
         )
@@ -56,7 +56,7 @@ export const ActionSlotsPicker = ( {
                     value={activeValue}
                     layers={layers}
                     highlightedKeys={highlightedKeys}
-                    onChange={( v ) => onSlotChanged( safeIndex, v )}
+                    onChange={(v) => onSlotChanged(safeIndex, v)}
                 />
             </div>
         </div>

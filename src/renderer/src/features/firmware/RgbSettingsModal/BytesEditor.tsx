@@ -1,44 +1,44 @@
 // pattern-check: skip — generic hex-bytes textarea editor
-import {useEffect, useMemo, useState} from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
-import {Button} from '@/ui/button'
+import { Button } from '@/ui/button'
 
-import {bytesToHex, hexToBytes} from './hsv'
+import { bytesToHex, hexToBytes } from './hsv'
 
 interface Props {
     label: string
     bytes: Uint8Array
-    onChange: ( next: Uint8Array ) => void
+    onChange: (next: Uint8Array) => void
     onWrite: () => void | Promise<void>
     onReload: () => void | Promise<void>
 }
 
-export function BytesEditor ( {
+export function BytesEditor({
     label,
     bytes,
     onChange,
     onWrite,
     onReload,
-}: Props ): JSX.Element {
-    const hexText = useMemo( () => bytesToHex( bytes ), [bytes] )
-    const [draft, setDraft] = useState( hexText )
-    const [error, setError] = useState<string | null>( null )
+}: Props): JSX.Element {
+    const hexText = useMemo(() => bytesToHex(bytes), [bytes])
+    const [draft, setDraft] = useState(hexText)
+    const [error, setError] = useState<string | null>(null)
 
-    useEffect( () => {
+    useEffect(() => {
         /* eslint-disable react-hooks/set-state-in-effect */
-        setDraft( hexText )
-        setError( null )
+        setDraft(hexText)
+        setError(null)
         /* eslint-enable react-hooks/set-state-in-effect */
-    }, [hexText] )
+    }, [hexText])
 
     const apply = (): boolean => {
-        const parsed = hexToBytes( draft )
-        if ( !parsed ) {
-            setError( 'Invalid hex bytes (use space-separated 00..ff)' )
+        const parsed = hexToBytes(draft)
+        if (!parsed) {
+            setError('Invalid hex bytes (use space-separated 00..ff)')
             return false
         }
-        setError( null )
-        onChange( parsed )
+        setError(null)
+        onChange(parsed)
         return true
     }
 
@@ -51,7 +51,7 @@ export function BytesEditor ( {
             </div>
             <textarea
                 value={draft}
-                onChange={( e ): void => setDraft( e.currentTarget.value )}
+                onChange={(e): void => setDraft(e.currentTarget.value)}
                 onBlur={apply}
                 aria-invalid={error !== null}
                 aria-describedby={error ? `${label}-err` : undefined}
@@ -76,7 +76,7 @@ export function BytesEditor ( {
                 <Button
                     size="sm"
                     onClick={(): void => {
-                        if ( apply() ) void onWrite()
+                        if (apply()) void onWrite()
                     }}
                 >
                     Write

@@ -165,14 +165,14 @@ export const KEYCHRON_BOARDS: KeychronBoardPreset[] = [
     },
 ]
 
-export function matchBoard ( label: string ): KeychronBoardPreset | null {
+export function matchBoard(label: string): KeychronBoardPreset | null {
     const lc = label.toLowerCase()
     let best: KeychronBoardPreset | null = null
     let bestPriority = -Infinity
-    for ( const board of KEYCHRON_BOARDS ) {
-        if ( !board.matchSubstrings.some( ( sub ) => lc.includes( sub ) ) ) continue
+    for (const board of KEYCHRON_BOARDS) {
+        if (!board.matchSubstrings.some((sub) => lc.includes(sub))) continue
         const p = board.priority ?? 0
-        if ( p > bestPriority ) {
+        if (p > bestPriority) {
             best = board
             bestPriority = p
         }
@@ -180,6 +180,6 @@ export function matchBoard ( label: string ): KeychronBoardPreset | null {
     return best
 }
 
-export function getBoardById ( id: string ): KeychronBoardPreset | null {
-    return KEYCHRON_BOARDS.find( ( b ) => b.id === id ) ?? null
+export function getBoardById(id: string): KeychronBoardPreset | null {
+    return KEYCHRON_BOARDS.find((b) => b.id === id) ?? null
 }

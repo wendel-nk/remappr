@@ -1,22 +1,22 @@
 // pattern-check: skip — branch extraction from TransportSection
-import {Monitor, RefreshCw} from 'lucide-react'
-import {Button} from '@/ui/button'
-import type {TransportFactory} from '@/transport/types'
-import {PairNewButton} from './PairNewButton'
+import { Monitor, RefreshCw } from 'lucide-react'
+import { Button } from '@/ui/button'
+import type { TransportFactory } from '@/transport/types'
+import { PairNewButton } from './PairNewButton'
 
 interface EmptyStateProps {
     pairableTransports: TransportFactory[]
     refreshing: boolean
     onRefresh: () => void
-    onRequestNew: ( t: TransportFactory ) => void
+    onRequestNew: (t: TransportFactory) => void
 }
 
-export function EmptyState ( {
+export function EmptyState({
     pairableTransports,
     refreshing,
     onRefresh,
     onRequestNew,
-}: EmptyStateProps ): JSX.Element {
+}: EmptyStateProps): JSX.Element {
     const hasPairable = pairableTransports.length > 0
 
     return (

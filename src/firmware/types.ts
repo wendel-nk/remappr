@@ -110,7 +110,7 @@ export interface DeviceInfo {
 export type LockState = 'locked' | 'unlocking' | 'unlocked' | 'not-applicable'
 
 // Treats 'not-applicable' (firmware without lock semantics, e.g. VIA) as unlocked.
-export const isUnlocked = ( s: LockState ): boolean =>
+export const isUnlocked = (s: LockState): boolean =>
     s === 'unlocked' || s === 'not-applicable'
 
 export interface AdapterNotification {

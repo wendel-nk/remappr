@@ -1,5 +1,5 @@
 // Pattern check: no GoF pattern (-) — rejected — pure data map for canonical-id dedup, no abstraction.
-import type {CanonicalKeyId} from './types'
+import type { CanonicalKeyId } from './types'
 
 // Maps a duplicate (secondary) canonical id to its primary canonical id.
 // Used at CATALOG build time to collapse functional duplicates (HID Keyboard
@@ -49,11 +49,11 @@ export const CANONICAL_ALIASES: Record<CanonicalKeyId, CanonicalKeyId> = {
 
 // Resolve a (possibly aliased) id to its primary canonical id. Walks
 // alias chain defensively in case secondary points to another secondary.
-export const resolveAlias = ( id: CanonicalKeyId ): CanonicalKeyId => {
+export const resolveAlias = (id: CanonicalKeyId): CanonicalKeyId => {
     let cur = id
-    for ( let i = 0; i < 8; i++ ) {
+    for (let i = 0; i < 8; i++) {
         const next = CANONICAL_ALIASES[cur]
-        if ( !next || next === cur ) return cur
+        if (!next || next === cur) return cur
         cur = next
     }
     return cur

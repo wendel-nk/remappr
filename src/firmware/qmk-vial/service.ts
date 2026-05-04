@@ -1,11 +1,9 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 // Pattern check: Adapter (Tier 1) — extended — extends src/firmware/qmk/service.ts QmkKeyboardService; HidClient-backed Vial implementation of KeyboardService with on-device matrix, encoder, and lock support.
-import {filterCatalogByCodec} from '@firmware/catalog/filter'
-import type {KeyCatalog} from '@firmware/catalog/types'
-import {ProtocolError, UnsupportedError} from '@firmware/errors'
-import type {HidClient} from '@firmware/qmk/hidClient'
+import { filterCatalogByCodec } from '@firmware/catalog/filter'
+import type { KeyCatalog } from '@firmware/catalog/types'
+import { ProtocolError, UnsupportedError } from '@firmware/errors'
+import type { HidClient } from '@firmware/qmk/hidClient'
 import {
-    VIA_PAYLOAD_SIZE,
     getBufferCmd,
     getKeycodeCmd,
     parseBuffer,
@@ -13,9 +11,8 @@ import {
     parseSetKeycodeEcho,
     resetKeymapCmd,
     setKeycodeCmd,
+    VIA_PAYLOAD_SIZE,
 } from '@firmware/qmk/protocol'
-
-const BUFFER_FETCH_CHUNK = VIA_PAYLOAD_SIZE - 4
 import type {
     Capabilities,
     DynamicEntriesApi,
@@ -30,16 +27,16 @@ import type {
     EncoderAction,
     ExportedFile,
     KeyAction,
-    KeyUpdate,
     Keymap,
+    KeyUpdate,
     Layer,
     LockState,
     MacroAction,
     PhysicalLayout,
 } from '@firmware/types'
 
-import {vialCodec} from './codec'
-import {decodeMacro, encodeMacro} from './macroCodec'
+import { vialCodec } from './codec'
+import { decodeMacro, encodeMacro } from './macroCodec'
 
 import {
     decodeVialAsKeyAction,
@@ -47,25 +44,25 @@ import {
     ensureEncodable,
     relabelVialLayer,
 } from './actions'
-import {buildVialActionTypes} from './actionTypes'
-import {type DynamicEntryCount} from './protocol'
+import { buildVialActionTypes } from './actionTypes'
+import { type DynamicEntryCount } from './protocol'
 import {
     type AltRepeatKeyEntry,
     type ComboEntry,
-    type KeyOverrideEntry,
-    type TapDanceEntry,
     getAltRepeatKey,
     getCombo,
     getDynamicCounts,
     getKeyOverride,
     getTapDance,
+    type KeyOverrideEntry,
     setAltRepeatKey,
     setCombo,
     setKeyOverride,
     setTapDance,
+    type TapDanceEntry,
 } from './dynamic'
-import {readEncoder, writeEncoder} from './encoder'
-import {type ParsedKeyboardDef, type VialCustomKeycode} from './keyboardDef'
+import { readEncoder, writeEncoder } from './encoder'
+import { type ParsedKeyboardDef, type VialCustomKeycode } from './keyboardDef'
 import {
     getMacroBufferSize,
     getMacroCount,
@@ -75,7 +72,9 @@ import {
     writeMacro,
     writeMacroBuffer,
 } from './macros'
-import {lockDevice, readUnlockStatus, runUnlockFlow} from './unlock'
+import { lockDevice, readUnlockStatus, runUnlockFlow } from './unlock'
+
+const BUFFER_FETCH_CHUNK = VIA_PAYLOAD_SIZE - 4
 
 const VIAL_CAPABILITIES_BASE: Omit<Capabilities, 'maxLayers'> = {
     lock: true,
@@ -86,10 +85,10 @@ const VIAL_CAPABILITIES_BASE: Omit<Capabilities, 'maxLayers'> = {
     exportFormats: ['vial.json', 'keymap.c'],
 }
 
-type LockStateHandler = ( state: LockState ) => void
-type PendingChangesHandler = ( pending: boolean ) => void
-type NotificationHandler = ( n: AdapterNotification ) => void
-type ClosedHandler = ( reason?: unknown ) => void
+type LockStateHandler = (state: LockState) => void
+type PendingChangesHandler = (pending: boolean) => void
+type NotificationHandler = (n: AdapterNotification) => void
+type ClosedHandler = (reason?: unknown) => void
 
 export interface VialServiceConfig {
     deviceInfo: DeviceInfo
@@ -101,30 +100,30 @@ export interface VialServiceConfig {
     layerNames?: string[]
 }
 
-function readU16BEAt ( buf: Uint8Array, off: number ): number {
+function readU16BEAt(buf: Uint8Array, off: number): number {
     return ((buf[off] << 8) | buf[off + 1]) & 0xffff
 }
 
-async function fetchKeymapBuffer (
+async function fetchKeymapBuffer(
     client: HidClient,
     layerCount: number,
     rows: number,
     cols: number,
 ): Promise<Uint8Array> {
     const total = layerCount * rows * cols * 2
-    const out = new Uint8Array( total )
+    const out = new Uint8Array(total)
     let offset = 0
-    while ( offset < total ) {
-        const size = Math.min( total - offset, BUFFER_FETCH_CHUNK )
-        const resp = await client.send( getBufferCmd( offset, size ) )
-        const {data} = parseBuffer( resp )
-        out.set( data.subarray( 0, size ), offset )
+    while (offset < total) {
+        const size = Math.min(total - offset, BUFFER_FETCH_CHUNK)
+        const resp = await client.send(getBufferCmd(offset, size))
+        const { data } = parseBuffer(resp)
+        out.set(data.subarray(0, size), offset)
         offset += size
     }
     return out
 }
 
-function bufferOffsetFor (
+function bufferOffsetFor(
     layer: number,
     row: number,
     col: number,
@@ -134,7 +133,7 @@ function bufferOffsetFor (
     return layer * rows * cols * 2 + row * cols * 2 + col * 2
 }
 
-async function loadLayers (
+async function loadLayers(
     client: HidClient,
     def: ParsedKeyboardDef,
     layerCount: number,
@@ -148,23 +147,23 @@ async function loadLayers (
         def.cols,
     )
     const layers: Layer[] = []
-    for ( let l = 0; l < layerCount; l++ ) {
-        const keys: KeyAction[] = def.rowColMap.map( ( {row, col} ) => {
-            const off = bufferOffsetFor( l, row, col, def.rows, def.cols )
-            const kc = readU16BEAt( buffer, off )
-            return decodeVialAsKeyAction( kc, layerNames, customNames )
-        } )
+    for (let l = 0; l < layerCount; l++) {
+        const keys: KeyAction[] = def.rowColMap.map(({ row, col }) => {
+            const off = bufferOffsetFor(l, row, col, def.rows, def.cols)
+            const kc = readU16BEAt(buffer, off)
+            return decodeVialAsKeyAction(kc, layerNames, customNames)
+        })
         const encoders: EncoderAction[] = []
-        for ( const idx of def.encoderIndices ) {
-            const e = await readEncoder( client, l, idx, layerNames )
-            encoders.push( e )
+        for (const idx of def.encoderIndices) {
+            const e = await readEncoder(client, l, idx, layerNames)
+            encoders.push(e)
         }
-        layers.push( {
+        layers.push({
             id: l,
             name: layerNames[l] ?? `Layer ${l}`,
             keys,
             encoders: encoders.length ? encoders : undefined,
-        } )
+        })
     }
     return layers
 }
@@ -175,7 +174,7 @@ interface VialDeviceProfile {
     macroBufferSize: number
 }
 
-async function loadDeviceProfile (
+async function loadDeviceProfile(
     client: HidClient,
 ): Promise<VialDeviceProfile> {
     let dynamicCounts: DynamicEntryCount = {
@@ -184,19 +183,19 @@ async function loadDeviceProfile (
         keyOverride: 0,
     }
     try {
-        dynamicCounts = await getDynamicCounts( client )
+        dynamicCounts = await getDynamicCounts(client)
     } catch {
         // Older Vial protocols (< 4) lack DYNAMIC_ENTRY_OP — leave zeroed.
     }
     let macroCount = 0
     let macroBufferSize = 0
     try {
-        macroCount = await getMacroCount( client )
-        macroBufferSize = await getMacroBufferSize( client )
+        macroCount = await getMacroCount(client)
+        macroBufferSize = await getMacroBufferSize(client)
     } catch {
         // Tolerate boards without macro support.
     }
-    return {dynamicCounts, macroCount, macroBufferSize}
+    return { dynamicCounts, macroCount, macroBufferSize }
 }
 
 // pattern-check: skip — wires sub-bundles required by service.ts Facade refactor
@@ -228,7 +227,7 @@ export class VialKeyboardService implements KeyboardService {
     private readonly customNames: string[]
     private readonly profile: VialDeviceProfile
 
-    private constructor (
+    private constructor(
         cfg: VialServiceConfig,
         layers: Layer[],
         lock: LockState,
@@ -240,9 +239,9 @@ export class VialKeyboardService implements KeyboardService {
         this.vialProtocol = cfg.vialProtocol
         this.keyboardId = cfg.keyboardId
         this.layers = layers
-        this.layerNames = cfg.layerNames ?? layers.map( ( l ) => l.name )
+        this.layerNames = cfg.layerNames ?? layers.map((l) => l.name)
         this.customNames = cfg.def.customKeycodes.map(
-            ( k ) => k.shortName || k.name,
+            (k) => k.shortName || k.name,
         )
         this.profile = profile
         this.physicalLayout = {
@@ -259,55 +258,55 @@ export class VialKeyboardService implements KeyboardService {
             encoders: cfg.def.encoderIndices.length || undefined,
             dynamicEntries:
                 profile.dynamicCounts.tapDance +
-                profile.dynamicCounts.combo +
-                profile.dynamicCounts.keyOverride >
+                    profile.dynamicCounts.combo +
+                    profile.dynamicCounts.keyOverride >
                 0
                     ? profile.dynamicCounts
                     : undefined,
             macros:
                 profile.macroCount > 0
                     ? {
-                        count: profile.macroCount,
-                        bufferSize: profile.macroBufferSize,
-                    }
+                          count: profile.macroCount,
+                          bufferSize: profile.macroBufferSize,
+                      }
                     : undefined,
         }
         this.lockState = lock
-        if ( this.capabilities.encoders ) {
+        if (this.capabilities.encoders) {
             this.encoders = {
-                setEncoder: ( layerId, encoderIdx, direction, action ) =>
-                    this.setEncoder( layerId, encoderIdx, direction, action ),
+                setEncoder: (layerId, encoderIdx, direction, action) =>
+                    this.setEncoder(layerId, encoderIdx, direction, action),
             }
         }
-        if ( this.capabilities.dynamicEntries ) {
+        if (this.capabilities.dynamicEntries) {
             this.dynamic = {
                 getCounts: () => this.getDynamicEntryCounts(),
-                getTapDance: ( idx ) => this.getTapDance( idx ),
-                setTapDance: ( idx, e ) => this.setTapDance( idx, e ),
-                getCombo: ( idx ) => this.getCombo( idx ),
-                setCombo: ( idx, e ) => this.setCombo( idx, e ),
-                getKeyOverride: ( idx ) => this.getKeyOverride( idx ),
-                setKeyOverride: ( idx, e ) => this.setKeyOverride( idx, e ),
-                getAltRepeatKey: ( idx ) => this.getAltRepeatKey( idx ),
-                setAltRepeatKey: ( idx, e ) => this.setAltRepeatKey( idx, e ),
+                getTapDance: (idx) => this.getTapDance(idx),
+                setTapDance: (idx, e) => this.setTapDance(idx, e),
+                getCombo: (idx) => this.getCombo(idx),
+                setCombo: (idx, e) => this.setCombo(idx, e),
+                getKeyOverride: (idx) => this.getKeyOverride(idx),
+                setKeyOverride: (idx, e) => this.setKeyOverride(idx, e),
+                getAltRepeatKey: (idx) => this.getAltRepeatKey(idx),
+                setAltRepeatKey: (idx, e) => this.setAltRepeatKey(idx, e),
             }
         }
-        if ( this.capabilities.macros ) {
+        if (this.capabilities.macros) {
             this.macros = {
                 getCount: () => this.getMacroCount(),
-                getMacro: ( idx ) => this.getMacro( idx ),
-                setMacro: ( idx, actions ) => this.setMacro( idx, actions ),
+                getMacro: (idx) => this.getMacro(idx),
+                setMacro: (idx, actions) => this.setMacro(idx, actions),
             }
         }
-        cfg.client.onClosed( ( reason ) => this.handleClientClosed( reason ) )
+        cfg.client.onClosed((reason) => this.handleClientClosed(reason))
     }
 
-    static async create ( cfg: VialServiceConfig ): Promise<VialKeyboardService> {
+    static async create(cfg: VialServiceConfig): Promise<VialKeyboardService> {
         const layerNames =
             cfg.layerNames ??
-            Array.from( {length: cfg.layerCount}, ( _, i ) => `Layer ${i}` )
+            Array.from({ length: cfg.layerCount }, (_, i) => `Layer ${i}`)
         const customNames = cfg.def.customKeycodes.map(
-            ( k ) => k.shortName || k.name,
+            (k) => k.shortName || k.name,
         )
         const layers = await loadLayers(
             cfg.client,
@@ -316,42 +315,42 @@ export class VialKeyboardService implements KeyboardService {
             layerNames,
             customNames,
         )
-        const profile = await loadDeviceProfile( cfg.client )
-        const initialLock = await readUnlockStatus( cfg.client )
+        const profile = await loadDeviceProfile(cfg.client)
+        const initialLock = await readUnlockStatus(cfg.client)
         const lockState: LockState = initialLock.locked ? 'locked' : 'unlocked'
-        return new VialKeyboardService( cfg, layers, lockState, profile )
+        return new VialKeyboardService(cfg, layers, lockState, profile)
     }
 
-    private handleClientClosed ( reason?: unknown ): void {
-        if ( this.closed ) return
+    private handleClientClosed(reason?: unknown): void {
+        if (this.closed) return
         this.closed = true
-        for ( const cb of this.closedListeners ) {
+        for (const cb of this.closedListeners) {
             try {
-                cb( reason )
+                cb(reason)
             } catch {
                 /* ignore */
             }
         }
     }
 
-    private setPending ( next: boolean ): void {
-        if ( this.pendingChanges === next ) return
+    private setPending(next: boolean): void {
+        if (this.pendingChanges === next) return
         this.pendingChanges = next
-        for ( const cb of this.pendingChangesListeners ) cb( next )
+        for (const cb of this.pendingChangesListeners) cb(next)
     }
 
-    private setLockState ( next: LockState ): void {
-        if ( this.lockState === next ) return
+    private setLockState(next: LockState): void {
+        if (this.lockState === next) return
         this.lockState = next
-        for ( const cb of this.lockListeners ) cb( next )
+        for (const cb of this.lockListeners) cb(next)
     }
 
-    private layerIndexById ( layerId: number ): number {
-        return this.layers.findIndex( ( l ) => l.id === layerId )
+    private layerIndexById(layerId: number): number {
+        return this.layers.findIndex((l) => l.id === layerId)
     }
 
-    private positionToCoord ( position: number ): { row: number; col: number } {
-        if ( position < 0 || position >= this.def.rowColMap.length ) {
+    private positionToCoord(position: number): { row: number; col: number } {
+        if (position < 0 || position >= this.def.rowColMap.length) {
             throw new ProtocolError(
                 `Vial position out of range: ${position} (max ${this.def.rowColMap.length - 1})`,
             )
@@ -359,58 +358,58 @@ export class VialKeyboardService implements KeyboardService {
         return this.def.rowColMap[position]
     }
 
-    async getLockState (): Promise<LockState> {
-        if ( this.closed ) return 'not-applicable'
-        const status = await readUnlockStatus( this.client )
+    async getLockState(): Promise<LockState> {
+        if (this.closed) return 'not-applicable'
+        const status = await readUnlockStatus(this.client)
         const next: LockState = status.inProgress
             ? 'unlocking'
             : status.locked
-                ? 'locked'
-                : 'unlocked'
-        this.setLockState( next )
+              ? 'locked'
+              : 'unlocked'
+        this.setLockState(next)
         return next
     }
 
-    async unlock (): Promise<void> {
-        this.setLockState( 'unlocking' )
+    async unlock(): Promise<void> {
+        this.setLockState('unlocking')
         try {
-            await runUnlockFlow( this.client )
-            this.setLockState( 'unlocked' )
-        } catch ( err ) {
-            this.setLockState( 'locked' )
+            await runUnlockFlow(this.client)
+            this.setLockState('unlocked')
+        } catch (err) {
+            this.setLockState('locked')
             throw err
         }
     }
 
-    async lock (): Promise<void> {
-        await lockDevice( this.client )
-        this.setLockState( 'locked' )
+    async lock(): Promise<void> {
+        await lockDevice(this.client)
+        this.setLockState('locked')
     }
 
-    onLockStateChanged ( cb: LockStateHandler ): () => void {
-        this.lockListeners.add( cb )
-        return () => this.lockListeners.delete( cb )
+    onLockStateChanged(cb: LockStateHandler): () => void {
+        this.lockListeners.add(cb)
+        return () => this.lockListeners.delete(cb)
     }
 
-    async listActionTypes (): Promise<ActionType[]> {
-        return buildVialActionTypes( this.def.customKeycodes )
+    async listActionTypes(): Promise<ActionType[]> {
+        return buildVialActionTypes(this.def.customKeycodes)
     }
 
-    buildKeyAction ( kind: string, params: number[] ): KeyAction {
+    buildKeyAction(kind: string, params: number[]): KeyAction {
         return decodeVialAsKeyAction(
-            encodeVialKeycode( {kind, params, label: {primary: ''}} ),
+            encodeVialKeycode({ kind, params, label: { primary: '' } }),
             this.layerNames,
             this.customNames,
         )
     }
 
-    async listKeyCatalog (): Promise<KeyCatalog> {
-        return filterCatalogByCodec( this.codec )
+    async listKeyCatalog(): Promise<KeyCatalog> {
+        return filterCatalogByCodec(this.codec)
     }
 
-    async getKeymap (): Promise<Keymap> {
+    async getKeymap(): Promise<Keymap> {
         return {
-            layers: this.layers.map( ( l ) => ({
+            layers: this.layers.map((l) => ({
                 id: l.id,
                 name: l.name,
                 keys: relabelVialLayer(
@@ -419,14 +418,14 @@ export class VialKeyboardService implements KeyboardService {
                     this.customNames,
                 ),
                 encoders: l.encoders,
-            }) ),
+            })),
             availableLayers: 0,
             activeLayoutId: this.physicalLayout.id,
             layouts: [this.physicalLayout],
         }
     }
 
-    async getPhysicalLayouts (): Promise<{
+    async getPhysicalLayouts(): Promise<{
         layouts: PhysicalLayout[]
         activeLayoutId: number
     }> {
@@ -436,19 +435,19 @@ export class VialKeyboardService implements KeyboardService {
         }
     }
 
-    async setKey (
+    async setKey(
         layerId: number,
         position: number,
         action: KeyAction,
     ): Promise<void> {
-        if ( this.closed ) throw new UnsupportedError( 'setKey: connection closed' )
-        ensureEncodable( action )
-        const idx = this.layerIndexById( layerId )
-        if ( idx < 0 ) throw new ProtocolError( `Unknown layer id: ${layerId}` )
-        const {row, col} = this.positionToCoord( position )
-        const kc = encodeVialKeycode( action )
-        const resp = await this.client.send( setKeycodeCmd( idx, row, col, kc ) )
-        const echo = parseSetKeycodeEcho( resp )
+        if (this.closed) throw new UnsupportedError('setKey: connection closed')
+        ensureEncodable(action)
+        const idx = this.layerIndexById(layerId)
+        if (idx < 0) throw new ProtocolError(`Unknown layer id: ${layerId}`)
+        const { row, col } = this.positionToCoord(position)
+        const kc = encodeVialKeycode(action)
+        const resp = await this.client.send(setKeycodeCmd(idx, row, col, kc))
+        const echo = parseSetKeycodeEcho(resp)
         if (
             echo.layer !== idx ||
             echo.row !== row ||
@@ -456,7 +455,7 @@ export class VialKeyboardService implements KeyboardService {
             echo.keycode !== kc
         ) {
             throw new ProtocolError(
-                `Vial setKey echo mismatch: sent (${idx},${row},${col},0x${kc.toString( 16 )}) got (${echo.layer},${echo.row},${echo.col},0x${echo.keycode.toString( 16 )})`,
+                `Vial setKey echo mismatch: sent (${idx},${row},${col},0x${kc.toString(16)}) got (${echo.layer},${echo.row},${echo.col},0x${echo.keycode.toString(16)})`,
             )
         }
         const next = this.layers[idx].keys.slice()
@@ -465,31 +464,31 @@ export class VialKeyboardService implements KeyboardService {
             this.layerNames,
             this.customNames,
         )
-        this.layers[idx] = {...this.layers[idx], keys: next}
-        this.setPending( true )
+        this.layers[idx] = { ...this.layers[idx], keys: next }
+        this.setPending(true)
     }
 
-    async setKeys ( updates: KeyUpdate[] ): Promise<void> {
-        for ( const u of updates ) {
-            await this.setKey( u.layerId, u.position, u.action )
+    async setKeys(updates: KeyUpdate[]): Promise<void> {
+        for (const u of updates) {
+            await this.setKey(u.layerId, u.position, u.action)
         }
     }
 
-    async setEncoder (
+    async setEncoder(
         layerId: number,
         encoderIdx: number,
         direction: 0 | 1,
         action: KeyAction,
     ): Promise<void> {
-        if ( this.closed ) throw new UnsupportedError( 'setEncoder: closed' )
-        ensureEncodable( action )
-        const idx = this.layerIndexById( layerId )
-        if ( idx < 0 ) throw new ProtocolError( `Unknown layer id: ${layerId}` )
-        const slot = this.def.encoderIndices.indexOf( encoderIdx )
-        if ( slot < 0 ) {
-            throw new ProtocolError( `Unknown encoder index: ${encoderIdx}` )
+        if (this.closed) throw new UnsupportedError('setEncoder: closed')
+        ensureEncodable(action)
+        const idx = this.layerIndexById(layerId)
+        if (idx < 0) throw new ProtocolError(`Unknown layer id: ${layerId}`)
+        const slot = this.def.encoderIndices.indexOf(encoderIdx)
+        if (slot < 0) {
+            throw new ProtocolError(`Unknown encoder index: ${encoderIdx}`)
         }
-        await writeEncoder( this.client, idx, encoderIdx, direction, action )
+        await writeEncoder(this.client, idx, encoderIdx, direction, action)
         const layer = this.layers[idx]
         const encs = (layer.encoders ?? []).slice()
         const current =
@@ -500,40 +499,40 @@ export class VialKeyboardService implements KeyboardService {
             } as EncoderAction)
         encs[slot] =
             direction === 0
-                ? {cw: action, ccw: current.ccw}
-                : {cw: current.cw, ccw: action}
-        this.layers[idx] = {...layer, encoders: encs}
-        this.setPending( true )
+                ? { cw: action, ccw: current.ccw }
+                : { cw: current.cw, ccw: action }
+        this.layers[idx] = { ...layer, encoders: encs }
+        this.setPending(true)
     }
 
-    async addLayer (): Promise<Layer> {
-        throw new UnsupportedError( 'addLayer: Vial layer count is fixed' )
+    async addLayer(): Promise<Layer> {
+        throw new UnsupportedError('addLayer: Vial layer count is fixed')
     }
 
-    async removeLayer ( _layerId: number ): Promise<void> {
-        throw new UnsupportedError( 'removeLayer: Vial layer count is fixed' )
+    async removeLayer(_layerId: number): Promise<void> {
+        throw new UnsupportedError('removeLayer: Vial layer count is fixed')
     }
 
-    async renameLayer ( _layerId: number, _name: string ): Promise<void> {
+    async renameLayer(_layerId: number, _name: string): Promise<void> {
         throw new UnsupportedError(
             'renameLayer: Vial does not persist layer names',
         )
     }
 
-    async moveLayer ( _startIndex: number, _destIndex: number ): Promise<void> {
+    async moveLayer(_startIndex: number, _destIndex: number): Promise<void> {
         throw new UnsupportedError(
             'moveLayer: Vial does not support reordering',
         )
     }
 
-    async restoreLayer ( _layerId: number, _atIndex: number ): Promise<Layer> {
+    async restoreLayer(_layerId: number, _atIndex: number): Promise<Layer> {
         throw new UnsupportedError(
             'restoreLayer: Vial does not retain prior layers',
         )
     }
 
-    async setActivePhysicalLayout ( layoutId: number ): Promise<Keymap> {
-        if ( layoutId !== this.physicalLayout.id ) {
+    async setActivePhysicalLayout(layoutId: number): Promise<Keymap> {
+        if (layoutId !== this.physicalLayout.id) {
             throw new UnsupportedError(
                 'setActivePhysicalLayout: Vial exposes a single fixed layout',
             )
@@ -541,17 +540,17 @@ export class VialKeyboardService implements KeyboardService {
         return this.getKeymap()
     }
 
-    async commit (): Promise<void> {
+    async commit(): Promise<void> {
         // Vial writes immediately; clearing the pending flag matches VIA semantics.
-        this.setPending( false )
+        this.setPending(false)
     }
 
-    async discardChanges (): Promise<void> {
-        throw new UnsupportedError( 'discardChanges: Vial writes immediately' )
+    async discardChanges(): Promise<void> {
+        throw new UnsupportedError('discardChanges: Vial writes immediately')
     }
 
-    async resetSettings (): Promise<void> {
-        await this.client.send( resetKeymapCmd() )
+    async resetSettings(): Promise<void> {
+        await this.client.send(resetKeymapCmd())
         this.layers = await loadLayers(
             this.client,
             this.def,
@@ -559,77 +558,77 @@ export class VialKeyboardService implements KeyboardService {
             this.layerNames,
             this.customNames,
         )
-        this.setPending( false )
+        this.setPending(false)
     }
 
-    async refreshKeymap (): Promise<Keymap> {
+    async refreshKeymap(): Promise<Keymap> {
         // Re-read a single key's keycode round-trip path, used by the contract suite
         // when verifying the device echoed our writes — uses qmk get-keycode.
         const layer = this.layers[0]
-        if ( !layer || !this.def.rowColMap[0] ) return this.getKeymap()
-        const {row, col} = this.def.rowColMap[0]
-        const resp = await this.client.send( getKeycodeCmd( 0, row, col ) )
-        parseKeycode( resp )
+        if (!layer || !this.def.rowColMap[0]) return this.getKeymap()
+        const { row, col } = this.def.rowColMap[0]
+        const resp = await this.client.send(getKeycodeCmd(0, row, col))
+        parseKeycode(resp)
         return this.getKeymap()
     }
 
-    hasPendingChanges (): boolean {
+    hasPendingChanges(): boolean {
         return this.pendingChanges
     }
 
-    async refreshPendingChanges (): Promise<boolean> {
+    async refreshPendingChanges(): Promise<boolean> {
         return this.pendingChanges
     }
 
-    onPendingChangesChanged ( cb: PendingChangesHandler ): () => void {
-        this.pendingChangesListeners.add( cb )
-        return () => this.pendingChangesListeners.delete( cb )
+    onPendingChangesChanged(cb: PendingChangesHandler): () => void {
+        this.pendingChangesListeners.add(cb)
+        return () => this.pendingChangesListeners.delete(cb)
     }
 
-    subscribe ( cb: NotificationHandler ): () => void {
-        this.notificationListeners.add( cb )
-        return () => this.notificationListeners.delete( cb )
+    subscribe(cb: NotificationHandler): () => void {
+        this.notificationListeners.add(cb)
+        return () => this.notificationListeners.delete(cb)
     }
 
-    async exportConfig (): Promise<ExportedFile[]> {
+    async exportConfig(): Promise<ExportedFile[]> {
         const payload = this.buildVialJson()
         return [
             {
                 filename: `${this.deviceInfo.name || 'vial'}.vil`,
                 mime: 'application/json',
-                content: JSON.stringify( payload, null, 2 ),
+                content: JSON.stringify(payload, null, 2),
             },
         ]
     }
 
-    private buildVialJson (): Record<string, unknown> {
+    private buildVialJson(): Record<string, unknown> {
         const layout: number[][][] = []
-        for ( let l = 0; l < this.layers.length; l++ ) {
+        for (let l = 0; l < this.layers.length; l++) {
             const layer: number[][] = []
-            for ( let r = 0; r < this.def.rows; r++ ) {
+            for (let r = 0; r < this.def.rows; r++) {
                 const row: number[] = []
-                for ( let c = 0; c < this.def.cols; c++ ) {
-                    row.push( -1 )
+                for (let c = 0; c < this.def.cols; c++) {
+                    row.push(-1)
                 }
-                layer.push( row )
+                layer.push(row)
             }
-            layout.push( layer )
+            layout.push(layer)
         }
-        for ( let l = 0; l < this.layers.length; l++ ) {
+        for (let l = 0; l < this.layers.length; l++) {
             const keys = this.layers[l].keys
-            for ( let p = 0; p < keys.length; p++ ) {
-                const {row, col} = this.def.rowColMap[p]
-                layout[l][row][col] = encodeVialKeycode( keys[p] )
+            for (let p = 0; p < keys.length; p++) {
+                const { row, col } = this.def.rowColMap[p]
+                layout[l][row][col] = encodeVialKeycode(keys[p])
             }
         }
         const encoderLayout: [number, number][][] = []
-        for ( let l = 0; l < this.layers.length; l++ ) {
+        for (let l = 0; l < this.layers.length; l++) {
             const layer: [number, number][] = []
             const encs = this.layers[l].encoders ?? []
-            for ( const e of encs ) {
-                layer.push( [encodeVialKeycode( e.cw ), encodeVialKeycode( e.ccw )] )
+            for (const e of encs) {
+                layer.push([encodeVialKeycode(e.cw), encodeVialKeycode(e.ccw)])
             }
-            encoderLayout.push( layer )
+            encoderLayout.push(layer)
         }
         return {
             version: 1,
@@ -644,104 +643,104 @@ export class VialKeyboardService implements KeyboardService {
 
     // --- Vial-specific facade: custom keycodes + dynamic entries + macros ----
 
-    getCustomKeycodes (): VialCustomKeycode[] {
+    getCustomKeycodes(): VialCustomKeycode[] {
         return this.def.customKeycodes
     }
 
-    getDynamicEntryCounts (): DynamicEntryCount {
+    getDynamicEntryCounts(): DynamicEntryCount {
         return this.profile.dynamicCounts
     }
 
-    async getTapDance ( idx: number ): Promise<TapDanceEntry> {
-        return getTapDance( this.client, idx )
+    async getTapDance(idx: number): Promise<TapDanceEntry> {
+        return getTapDance(this.client, idx)
     }
 
-    async setTapDance ( idx: number, entry: TapDanceEntry ): Promise<void> {
-        await setTapDance( this.client, idx, entry )
-        this.setPending( true )
+    async setTapDance(idx: number, entry: TapDanceEntry): Promise<void> {
+        await setTapDance(this.client, idx, entry)
+        this.setPending(true)
     }
 
-    async getCombo ( idx: number ): Promise<ComboEntry> {
-        return getCombo( this.client, idx )
+    async getCombo(idx: number): Promise<ComboEntry> {
+        return getCombo(this.client, idx)
     }
 
-    async setCombo ( idx: number, entry: ComboEntry ): Promise<void> {
-        await setCombo( this.client, idx, entry )
-        this.setPending( true )
+    async setCombo(idx: number, entry: ComboEntry): Promise<void> {
+        await setCombo(this.client, idx, entry)
+        this.setPending(true)
     }
 
-    async getKeyOverride ( idx: number ): Promise<KeyOverrideEntry> {
-        return getKeyOverride( this.client, idx )
+    async getKeyOverride(idx: number): Promise<KeyOverrideEntry> {
+        return getKeyOverride(this.client, idx)
     }
 
-    async setKeyOverride ( idx: number, entry: KeyOverrideEntry ): Promise<void> {
-        await setKeyOverride( this.client, idx, entry )
-        this.setPending( true )
+    async setKeyOverride(idx: number, entry: KeyOverrideEntry): Promise<void> {
+        await setKeyOverride(this.client, idx, entry)
+        this.setPending(true)
     }
 
-    async getAltRepeatKey ( idx: number ): Promise<AltRepeatKeyEntry> {
-        return getAltRepeatKey( this.client, idx )
+    async getAltRepeatKey(idx: number): Promise<AltRepeatKeyEntry> {
+        return getAltRepeatKey(this.client, idx)
     }
 
-    async setAltRepeatKey (
+    async setAltRepeatKey(
         idx: number,
         entry: AltRepeatKeyEntry,
     ): Promise<void> {
-        await setAltRepeatKey( this.client, idx, entry )
-        this.setPending( true )
+        await setAltRepeatKey(this.client, idx, entry)
+        this.setPending(true)
     }
 
-    getMacroCount (): number {
+    getMacroCount(): number {
         return this.profile.macroCount
     }
 
-    getMacroBufferSize (): number {
+    getMacroBufferSize(): number {
         return this.profile.macroBufferSize
     }
 
-    async getMacroBytes ( idx: number ): Promise<Uint8Array> {
-        return readMacro( this.client, idx )
+    async getMacroBytes(idx: number): Promise<Uint8Array> {
+        return readMacro(this.client, idx)
     }
 
-    async setMacroBytes ( idx: number, bytes: Uint8Array ): Promise<void> {
-        await writeMacro( this.client, idx, bytes )
-        this.setPending( true )
+    async setMacroBytes(idx: number, bytes: Uint8Array): Promise<void> {
+        await writeMacro(this.client, idx, bytes)
+        this.setPending(true)
     }
 
-    async getMacro ( idx: number ): Promise<MacroAction[]> {
-        const bytes = await readMacro( this.client, idx )
-        return decodeMacro( bytes )
+    async getMacro(idx: number): Promise<MacroAction[]> {
+        const bytes = await readMacro(this.client, idx)
+        return decodeMacro(bytes)
     }
 
-    async setMacro ( idx: number, actions: MacroAction[] ): Promise<void> {
-        const bytes = encodeMacro( actions )
-        await writeMacro( this.client, idx, bytes )
-        this.setPending( true )
+    async setMacro(idx: number, actions: MacroAction[]): Promise<void> {
+        const bytes = encodeMacro(actions)
+        await writeMacro(this.client, idx, bytes)
+        this.setPending(true)
     }
 
-    async getAllMacros (): Promise<Uint8Array[]> {
-        if ( this.profile.macroCount === 0 ) return []
-        const buffer = await readMacroBuffer( this.client )
-        return splitMacros( buffer, this.profile.macroCount )
+    async getAllMacros(): Promise<Uint8Array[]> {
+        if (this.profile.macroCount === 0) return []
+        const buffer = await readMacroBuffer(this.client)
+        return splitMacros(buffer, this.profile.macroCount)
     }
 
-    async setMacroBuffer ( buffer: Uint8Array ): Promise<void> {
-        await writeMacroBuffer( this.client, buffer )
-        this.setPending( true )
+    async setMacroBuffer(buffer: Uint8Array): Promise<void> {
+        await writeMacroBuffer(this.client, buffer)
+        this.setPending(true)
     }
 
-    onClosed ( cb: ClosedHandler ): () => void {
-        if ( this.closed ) {
+    onClosed(cb: ClosedHandler): () => void {
+        if (this.closed) {
             cb()
             return () => undefined
         }
-        this.closedListeners.add( cb )
-        return () => this.closedListeners.delete( cb )
+        this.closedListeners.add(cb)
+        return () => this.closedListeners.delete(cb)
     }
 
-    async disconnect (): Promise<void> {
-        if ( this.closed ) return
-        await this.client.close( {abortTransport: true} )
-        this.handleClientClosed( 'disconnect' )
+    async disconnect(): Promise<void> {
+        if (this.closed) return
+        await this.client.close({ abortTransport: true })
+        this.handleClientClosed('disconnect')
     }
 }

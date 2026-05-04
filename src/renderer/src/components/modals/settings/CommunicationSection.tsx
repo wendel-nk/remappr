@@ -1,5 +1,5 @@
-import {Label} from '@/ui/label'
-import {Switch} from '@/ui/switch'
+import { Label } from '@/ui/label'
+import { Switch } from '@/ui/switch'
 import {
     Select,
     SelectContent,
@@ -18,35 +18,35 @@ import {
 import useUserSettingsStore, {
     type AdapterCategory,
 } from '@/stores/userSettingsStore'
-import {getAdapters} from '@firmware'
+import { getAdapters } from '@firmware'
 
 const CATEGORY_LABEL: Record<AdapterCategory, string> = {
     zmk: 'ZMK',
     qmk: 'QMK',
 }
 
-function adaptersInCategory (
+function adaptersInCategory(
     category: AdapterCategory,
 ): { id: string; displayName: string }[] {
     const all = getAdapters()
-    if ( category === 'zmk' ) {
+    if (category === 'zmk') {
         return all
-            .filter( ( a ) => a.id === 'zmk' )
-            .map( ( a ) => ({id: a.id, displayName: a.displayName}) )
+            .filter((a) => a.id === 'zmk')
+            .map((a) => ({ id: a.id, displayName: a.displayName }))
     }
     return all
-        .filter( ( a ) => /^(qmk-|keychron-)/.test( a.id ) )
-        .map( ( a ) => ({id: a.id, displayName: a.displayName}) )
+        .filter((a) => /^(qmk-|keychron-)/.test(a.id))
+        .map((a) => ({ id: a.id, displayName: a.displayName }))
 }
 
-export function CommunicationSection (): JSX.Element {
-    const category = useUserSettingsStore( ( s ) => s.preferredAdapterCategory )
+export function CommunicationSection(): JSX.Element {
+    const category = useUserSettingsStore((s) => s.preferredAdapterCategory)
     const setCategory = useUserSettingsStore(
-        ( s ) => s.setPreferredAdapterCategory,
+        (s) => s.setPreferredAdapterCategory,
     )
-    const autoLoadLayout = useUserSettingsStore( ( s ) => s.autoLoadLayout )
-    const setAutoLoadLayout = useUserSettingsStore( ( s ) => s.setAutoLoadLayout )
-    const adapters = adaptersInCategory( category )
+    const autoLoadLayout = useUserSettingsStore((s) => s.autoLoadLayout)
+    const setAutoLoadLayout = useUserSettingsStore((s) => s.setAutoLoadLayout)
+    const adapters = adaptersInCategory(category)
 
     return (
         <div className="space-y-6">
@@ -64,7 +64,7 @@ export function CommunicationSection (): JSX.Element {
                     </div>
                     <Select
                         value={category}
-                        onValueChange={( v ) => setCategory( v as AdapterCategory )}
+                        onValueChange={(v) => setCategory(v as AdapterCategory)}
                     >
                         <SelectTrigger id="adapter-category" className="w-48">
                             <SelectValue />
@@ -81,14 +81,14 @@ export function CommunicationSection (): JSX.Element {
                 </div>
                 {adapters.length > 0 && (
                     <div className="flex flex-wrap gap-1.5">
-                        {adapters.map( ( a ) => (
+                        {adapters.map((a) => (
                             <span
                                 key={a.id}
                                 className="rounded-md border px-2 py-0.5 text-xs text-muted-foreground"
                             >
                                 {a.displayName}
                             </span>
-                        ) )}
+                        ))}
                     </div>
                 )}
             </div>
