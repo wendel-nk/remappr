@@ -19,6 +19,9 @@
 
 import dbus from 'dbus-next'
 import type { AvailableDevice } from '../shared/ipc-types'
+import { createLogger } from '../shared/logger'
+
+const log = createLogger('bluez')
 
 const BLUEZ_BUS = 'org.bluez'
 const IFACE_OBJECT_MANAGER = 'org.freedesktop.DBus.ObjectManager'
@@ -103,7 +106,7 @@ export async function listGattDevices(
         }
         return out
     } catch (e) {
-        console.error('[bluez] listGattDevices failed:', e)
+        log.error('listGattDevices failed:', e)
         return []
     }
 }
@@ -198,12 +201,12 @@ export async function connectGattDevice(
     )) as dbus.Variant
     const alreadyConnected = (connectedV.value as boolean) === true
 
-    console.log(
-        `[bluez] connectGattDevice path=${devicePath} alreadyConnected=${alreadyConnected}`,
+    log.info(
+        `connectGattDevice path=${devicePath} alreadyConnected=${alreadyConnected}`,
     )
     if (!alreadyConnected) {
         await device.Connect()
-        console.log('[bluez] Device1.Connect() returned')
+        log.info('Device1.Connect() returned')
     }
 
     // Wait for ServicesResolved before walking GATT objects. BlueZ exposes
@@ -217,7 +220,7 @@ export async function connectGattDevice(
         if (sr.value === true) break
         await new Promise((r) => setTimeout(r, 200))
     }
-    console.log('[bluez] ServicesResolved=true (or timed out)')
+    log.info('ServicesResolved=true (or timed out)')
 
     // Find characteristic. Even if already connected, BlueZ may need a
     // moment to expose GATT child objects.
@@ -233,7 +236,7 @@ export async function connectGattDevice(
             `[bluez] characteristic ${charUuid} not found under ${devicePath}`,
         )
     }
-    console.log(`[bluez] resolved char path=${charPath}`)
+    log.info(`resolved char path=${charPath}`)
 
     const charObj = await bus.getProxyObject(BLUEZ_BUS, charPath)
     const char = charObj.getInterface(IFACE_GATT_CHAR)
@@ -242,9 +245,9 @@ export async function connectGattDevice(
     try {
         const cp = charObj.getInterface(IFACE_PROPERTIES)
         const flagsV = (await cp.Get(IFACE_GATT_CHAR, 'Flags')) as dbus.Variant
-        console.log('[bluez] char Flags:', flagsV.value)
+        log.info('char Flags:', flagsV.value)
     } catch (e) {
-        console.warn('[bluez] could not read char Flags:', e)
+        log.warn('could not read char Flags:', e)
     }
 
     // Subscribe to PropertiesChanged via raw bus signal mechanism. dbus-next
@@ -285,8 +288,8 @@ export async function connectGattDevice(
         const value = changed['Value']
         if (!value) return
         const buf = value.value as Buffer
-        console.log(
-            `[bluez] notify ${buf.length} bytes:`,
+        log.info(
+            `notify ${buf.length} bytes:`,
             Array.from(buf.subarray(0, Math.min(16, buf.length))),
         )
         callbacks.onData(Array.from(new Uint8Array(buf)))
@@ -311,8 +314,8 @@ export async function connectGattDevice(
         deviceSignalKey,
         onDeviceProps as (msg: unknown) => void,
     )
-    console.log('[bluez] subscribed PropertiesChanged via raw match rule')
-    console.log('[bluez] charSignalKey:', charSignalKey)
+    log.info('subscribed PropertiesChanged via raw match rule')
+    log.info('charSignalKey:', charSignalKey)
 
     // Diagnostic: log EVERY signal emitted on the bus to see if BlueZ is
     // sending PropertiesChanged at all.
@@ -323,8 +326,8 @@ export async function connectGattDevice(
     sigEmitter.emit = (k: string, msg: unknown): boolean => {
         const m = msg as { path?: string; interface?: string; member?: string }
         if (m.path?.startsWith('/org/bluez/hci0/dev_')) {
-            console.log(
-                '[bluez:diag] signal',
+            log.info(
+                'diag signal',
                 m.member,
                 'on',
                 m.interface,
@@ -347,15 +350,10 @@ export async function connectGattDevice(
             if (!p.startsWith(charPath + '/')) continue
             const desc = ifaces['org.bluez.GattDescriptor1']
             if (!desc) continue
-            console.log(
-                '[bluez] descriptor at',
-                p,
-                'UUID=',
-                variantValue(desc['UUID']),
-            )
+            log.info('descriptor at', p, 'UUID=', variantValue(desc['UUID']))
         }
     } catch (e) {
-        console.warn('[bluez] descriptor enumeration failed:', e)
+        log.warn('descriptor enumeration failed:', e)
     }
 
     // Force CCCD transition 0→2: stop any stale subscription first.
@@ -363,12 +361,12 @@ export async function connectGattDevice(
     // value transitions, not on bonded reconnect with cached CCCD=2.
     try {
         await char.StopNotify()
-        console.log('[bluez] StopNotify ok')
+        log.info('StopNotify ok')
     } catch {
         /* no prior subscription */
     }
     await char.StartNotify()
-    console.log('[bluez] StartNotify ok')
+    log.info('StartNotify ok')
 
     // Read Notifying + CCCD value to verify BlueZ wrote 0x0002 (indicate)
     // and not 0x0001 (notify). Some BlueZ builds write the wrong value on
@@ -376,7 +374,7 @@ export async function connectGattDevice(
     try {
         const cp = charObj.getInterface(IFACE_PROPERTIES)
         const nv = (await cp.Get(IFACE_GATT_CHAR, 'Notifying')) as dbus.Variant
-        console.log('[bluez] Notifying =', nv.value)
+        log.info('Notifying =', nv.value)
 
         // Find CCCD descriptor path + read its value.
         const root = await bus.getProxyObject(BLUEZ_BUS, '/')
@@ -400,31 +398,31 @@ export async function connectGattDevice(
             const cccdObj = await bus.getProxyObject(BLUEZ_BUS, cccdPath)
             const cccd = cccdObj.getInterface('org.bluez.GattDescriptor1')
             const val = (await cccd.ReadValue({})) as Buffer
-            console.log('[bluez] CCCD value =', Array.from(new Uint8Array(val)))
+            log.info('CCCD value =', Array.from(new Uint8Array(val)))
             // firmware indicate-only char needs CCCD=0x0002. If BlueZ wrote
             // 0x0001 (notify), device ignores — manually write 0x0002.
             if (val.length >= 1 && val[0] !== 0x02) {
-                console.log('[bluez] forcing CCCD = 0x0002 (indicate)')
+                log.info('forcing CCCD = 0x0002 (indicate)')
                 await cccd.WriteValue([0x02, 0x00], {})
-                console.log('[bluez] CCCD rewritten')
+                log.info('CCCD rewritten')
             }
         } else {
-            console.warn('[bluez] CCCD path not found')
+            log.warn('CCCD path not found')
         }
     } catch (e) {
-        console.warn('[bluez] CCCD inspection failed:', e)
+        log.warn('CCCD inspection failed:', e)
     }
 
     // Diagnostic: read char to confirm GATT R/W path works at all.
     try {
         const readVal = (await char.ReadValue({})) as Buffer
-        console.log(
-            '[bluez] ReadValue ok, bytes=',
+        log.info(
+            'ReadValue ok, bytes=',
             readVal.length,
             Array.from(readVal.subarray(0, Math.min(16, readVal.length))),
         )
     } catch (e) {
-        console.warn('[bluez] ReadValue failed:', e)
+        log.warn('ReadValue failed:', e)
     }
 
     const devObj2 = await bus.getProxyObject(BLUEZ_BUS, devicePath)
@@ -452,16 +450,16 @@ export async function connectGattDevice(
 export async function writeGatt(data: Uint8Array): Promise<void> {
     if (!active) throw new Error('[bluez] no active connection')
     const char = active.char.getInterface(IFACE_GATT_CHAR)
-    console.log(
-        `[bluez] write ${data.length} bytes:`,
+    log.info(
+        `write ${data.length} bytes:`,
         Array.from(data.subarray(0, Math.min(16, data.length))),
     )
     // Empty options → BlueZ picks based on char Flags.
     try {
         await char.WriteValue(Array.from(data), {})
-        console.log('[bluez] write ok')
+        log.info('write ok')
     } catch (e) {
-        console.error('[bluez] WriteValue threw:', e)
+        log.error('WriteValue threw:', e)
         throw e
     }
 }

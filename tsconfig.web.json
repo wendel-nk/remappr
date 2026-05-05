@@ -25,12 +25,24 @@
     "baseUrl": ".",
     "allowImportingTsExtensions": true,
     "paths": {
-      "@renderer/*": ["src/renderer/src/*"],
-      "@/*": ["src/renderer/src/*"],
-      "@firmware": ["src/firmware"],
-      "@firmware/*": ["src/firmware/*"],
-      "@shared/*": ["src/shared/*"],
-      "lzma1": ["src/firmware/qmk-vial/lzma1.d.ts"]
+      "@renderer/*": [
+        "src/renderer/src/*"
+      ],
+      "@/*": [
+        "src/renderer/src/*"
+      ],
+      "@firmware": [
+        "src/firmware"
+      ],
+      "@firmware/*": [
+        "src/firmware/*"
+      ],
+      "@shared/*": [
+        "src/shared/*"
+      ],
+      "lzma1": [
+        "src/firmware/qmk-vial/lzma1.d.ts"
+      ]
     }
   }
 }

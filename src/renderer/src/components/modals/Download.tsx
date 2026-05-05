@@ -1,6 +1,6 @@
 // pattern-check: skip refactor — Download modal calls service.exportConfig() instead of importing ZMK generators directly
 import { useEffect, useState } from 'react'
-import { Download as DownloadIcon, Copy, FileText } from 'lucide-react'
+import { Copy, Download as DownloadIcon, FileText } from 'lucide-react'
 import { Modal } from '@/ui/modal'
 import { Button } from '@/ui/button'
 import { Separator } from '@/ui/separator'
@@ -8,6 +8,9 @@ import { toast } from 'sonner'
 import useConnectionStore from '@/stores/connectionStore'
 import { downloadExports, exportedContentToString } from '@/lib/blob'
 import type { Keymap } from '@firmware/types'
+import { createLogger } from '@shared/logger'
+
+const log = createLogger('Download')
 
 interface DownloadProps {
     opened?: boolean
@@ -30,7 +33,7 @@ export function Download({ opened, onClose }: DownloadProps): JSX.Element {
                 const km = await service.getKeymap()
                 if (!cancelled) setKeymap(km)
             } catch (e) {
-                console.error('Failed to fetch keymap for download', e)
+                log.error('Failed to fetch keymap for download', e)
             }
         })()
         return (): void => {
@@ -55,7 +58,7 @@ export function Download({ opened, onClose }: DownloadProps): JSX.Element {
             downloadExports(files)
             toast.success('Configuration files downloaded successfully!')
         } catch (error) {
-            console.error('Error generating config:', error)
+            log.error('Error generating config:', error)
             toast.error('Failed to generate configuration files')
         }
     }
@@ -74,7 +77,7 @@ export function Download({ opened, onClose }: DownloadProps): JSX.Element {
             )
             toast.success(`${primary.filename} copied to clipboard!`)
         } catch (error) {
-            console.error('Error copying to clipboard:', error)
+            log.error('Error copying to clipboard:', error)
             toast.error('Failed to copy to clipboard')
         }
     }

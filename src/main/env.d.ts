@@ -25,9 +25,12 @@ declare module 'node-hid' {
 
     export class HID {
         constructor(path: string)
+
         on(event: 'data', cb: (data: Buffer) => void): void
         on(event: 'error', cb: (err: Error) => void): void
+
         write(data: number[]): number
+
         close(): void
     }
 

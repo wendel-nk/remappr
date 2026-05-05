@@ -15,8 +15,11 @@ export type Unlisten = () => void
  */
 export interface PlatformIpc {
     sendData(data: Uint8Array): Promise<void>
+
     close(): Promise<void>
+
     onConnectionData(cb: (bytes: Uint8Array) => void): Promise<Unlisten>
+
     onConnectionDisconnected(cb: () => void): Promise<Unlisten>
 }
 

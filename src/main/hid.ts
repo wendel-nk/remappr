@@ -3,6 +3,10 @@
 // Uses node-hid; loaded lazily so packaging without the native module
 // (e.g. browser-only Vite preview) doesn't blow up at import time.
 
+import { createLogger } from '../shared/logger'
+
+const log = createLogger('hid')
+
 export interface HidDeviceInfo {
     id: string
     label: string
@@ -33,8 +37,11 @@ interface NodeHidDevice {
 
 interface HidLike {
     on(event: 'data', cb: (data: Buffer) => void): void
+
     on(event: 'error', cb: (err: Error) => void): void
+
     write(data: number[]): number
+
     close(): void
 }
 
@@ -44,6 +51,7 @@ interface NodeHidModule {
 }
 
 let cachedModule: NodeHidModule | null = null
+
 async function loadNodeHid(): Promise<NodeHidModule | null> {
     if (cachedModule) return cachedModule
     try {
@@ -56,7 +64,7 @@ async function loadNodeHid(): Promise<NodeHidModule | null> {
                 : (mod as { default: NodeHidModule }).default
         return cachedModule
     } catch (err) {
-        console.warn('[hid] node-hid unavailable:', err)
+        log.warn('node-hid unavailable:', err)
         return null
     }
 }
@@ -113,7 +121,7 @@ export async function listHidDevices(
             .filter((d): d is NodeHidDevice & { path: string } => !!d.path)
             .map((d) => ({ id: d.path, label: buildLabel(d) }))
     } catch (err) {
-        console.error('[hid] list failed:', err)
+        log.error('list failed:', err)
         return []
     }
 }
@@ -136,7 +144,7 @@ export async function connectHidDevice(
         callbacks.onData(Array.from(new Uint8Array(data)))
     })
     device.on('error', (err: Error) => {
-        console.error('[hid] device error:', err)
+        log.error('device error:', err)
         if (activeConnection?.path === devicePath) {
             activeConnection = null
             callbacks.onDisconnected()
@@ -164,7 +172,7 @@ export async function disconnectHidDevice(): Promise<void> {
     try {
         activeConnection.device.close()
     } catch (err) {
-        console.warn('[hid] close failed:', err)
+        log.warn('close failed:', err)
     }
     activeConnection = null
 }

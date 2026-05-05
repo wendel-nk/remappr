@@ -31,6 +31,8 @@ export interface FirmwareAdapter {
     readonly id: string
     readonly displayName: string
     readonly discovery: Discovery
+
     canHandle(transport: Transport, hint?: ProbeHint): Promise<Probe>
+
     connect(transport: Transport, signal: AbortSignal): Promise<KeyboardService>
 }

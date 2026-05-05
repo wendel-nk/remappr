@@ -14,9 +14,9 @@ import type { Transport } from '@firmware'
 import type { AvailableDevice } from '@/transport'
 import { TransportAdapter } from '../transport/adapter/base'
 import {
-    IpcTransportAdapter,
     electronIpc,
     type IpcConnectResult,
+    IpcTransportAdapter,
 } from '../transport/adapter/ipc-adapter'
 import { registerTransport } from '../transport/adapter/registry'
 
@@ -27,7 +27,16 @@ const SCAN_COLLECTION_MS = 5000
 let scanToken = 0
 let lastSelectedDeviceId: string | null = null
 
+/**
+ * Shared promise for an in-flight Web Bluetooth scan. React StrictMode
+ * + the main-process auto-scan kick can fire 3 concurrent listDevices()
+ * calls on initial mount. Returning the same promise dedupes them into a
+ * single scan window.
+ */
+let inFlightScan: Promise<AvailableDevice[]> | null = null
+
 let cachedPlatform: string | null = null
+
 async function getPlatform(): Promise<string> {
     if (cachedPlatform) return cachedPlatform
     cachedPlatform = (await window.api.invoke(
@@ -62,6 +71,27 @@ async function listWebBluetoothDevices(
         return []
     }
 
+    // Skip the scan entirely without a transient user activation —
+    // requestDevice would reject with SecurityError and we'd waste a
+    // BLE_START_SCAN IPC roundtrip. Mount-time loadDevices() has no
+    // gesture; the main-process auto-scan event (executeJavaScript with
+    // userGesture: true) is the only entry that will actually scan.
+    if (
+        typeof navigator.userActivation !== 'undefined' &&
+        !navigator.userActivation.isActive
+    ) {
+        return []
+    }
+
+    // Dedupe concurrent callers within the same gesture window.
+    if (inFlightScan) return inFlightScan
+    inFlightScan = runScan(serviceUuid).finally(() => {
+        inFlightScan = null
+    })
+    return inFlightScan
+}
+
+async function runScan(serviceUuid: string): Promise<AvailableDevice[]> {
     const myToken = ++scanToken
 
     if (pendingDevicePromise) {
@@ -75,7 +105,13 @@ async function listWebBluetoothDevices(
         console.error('[electron/ble] BLE_START_SCAN failed:', e)
     })
 
-    // pattern-check: skip — bug fix: bail fast on requestDevice rejection
+    // pattern-check: skip — bug fix: bail fast on requestDevice rejection.
+    // Web Bluetooth `filters: [{ services }]` matches the BLE *advertisement*
+    // payload, not GATT services exposed after connect. ZMK firmware does not
+    // advertise its Studio service UUID, so a service-UUID filter would yield
+    // an empty chooser. Tauri's bluest::discover_devices works on Windows via
+    // WinRT enumeration of paired devices and isn't an analogue. Use
+    // acceptAllDevices + optionalServices and let the renderer pick.
     try {
         pendingDevicePromise = navigator.bluetooth.requestDevice({
             acceptAllDevices: true,
@@ -277,8 +313,16 @@ export class ElectronWebBluetoothAdapter extends TransportAdapter {
 
         device.addEventListener('gattserverdisconnected', onDisconnected)
 
-        const onAbort = (): void => {
+        const onAbort = async (): Promise<void> => {
             cleanup()
+            // Stop CCCD notifications before disconnecting. Skipping this on
+            // Windows can keep the OS BLE stack holding the GATT handle, which
+            // makes the next connect attempt fail with NetworkError.
+            try {
+                await characteristic.stopNotifications()
+            } catch {
+                /* already torn down */
+            }
             responseWriter.close().catch(() => {})
             if (device.gatt?.connected) device.gatt.disconnect()
             this.abortController.signal.removeEventListener('abort', onAbort)

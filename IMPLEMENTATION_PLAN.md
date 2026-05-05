@@ -1,13 +1,18 @@
 # Implementation Plan (AI execution unavailable)
 
 ## Task
+
 Detect and parse hold-tap bindings
 
 ## Description
+
 ## Summary
-Create utility functions to identify and parse hold-tap behavior bindings (Layer-Tap, Mod-Tap, Sticky Key) and extract their tap/hold parameters.
+
+Create utility functions to identify and parse hold-tap behavior bindings (Layer-Tap, Mod-Tap, Sticky Key) and extract
+their tap/hold parameters.
 
 ## Acceptance Criteria
+
 - [ ] Create helper function to detect if a binding is a hold-tap type (`&lt`, `&mt`, `&sk`, custom hold-tap)
 - [ ] Create parser to extract tap action parameter from binding
 - [ ] Create parser to extract hold action parameter from binding
@@ -15,22 +20,29 @@ Create utility functions to identify and parse hold-tap behavior bindings (Layer
 - [ ] Unit tests for parsing various hold-tap binding formats
 
 ## Files to Modify
+
 - `src/renderer/src/helpers/Behaviors.ts` - Add detection and parsing utilities
 
 Parent issue: #29 Show Layer-Tap/Mod-Tap on keys
 https://github.com/Wolffyx/remappr/issues/29
 
 ## Plan
+
 # Task: Implement the following issue
 
 ## Issue Title
+
 Detect and parse hold-tap bindings
 
 ## Issue Description
+
 ## Summary
-Create utility functions to identify and parse hold-tap behavior bindings (Layer-Tap, Mod-Tap, Sticky Key) and extract their tap/hold parameters.
+
+Create utility functions to identify and parse hold-tap behavior bindings (Layer-Tap, Mod-Tap, Sticky Key) and extract
+their tap/hold parameters.
 
 ## Acceptance Criteria
+
 - [ ] Create helper function to detect if a binding is a hold-tap type (`&lt`, `&mt`, `&sk`, custom hold-tap)
 - [ ] Create parser to extract tap action parameter from binding
 - [ ] Create parser to extract hold action parameter from binding
@@ -38,22 +50,29 @@ Create utility functions to identify and parse hold-tap behavior bindings (Layer
 - [ ] Unit tests for parsing various hold-tap binding formats
 
 ## Files to Modify
+
 - `src/renderer/src/helpers/Behaviors.ts` - Add detection and parsing utilities
 
 Parent issue: #29 Show Layer-Tap/Mod-Tap on keys
 https://github.com/Wolffyx/remappr/issues/29
 
 ## Implementation Plan
+
 # Implementation Plan (Lite)
 
 ## Task
+
 Detect and parse hold-tap bindings
 
 ## Description
+
 ## Summary
-Create utility functions to identify and parse hold-tap behavior bindings (Layer-Tap, Mod-Tap, Sticky Key) and extract their tap/hold parameters.
+
+Create utility functions to identify and parse hold-tap behavior bindings (Layer-Tap, Mod-Tap, Sticky Key) and extract
+their tap/hold parameters.
 
 ## Acceptance Criteria
+
 - [ ] Create helper function to detect if a binding is a hold-tap type (`&lt`, `&mt`, `&sk`, custom hold-tap)
 - [ ] Create parser to extract tap action parameter from binding
 - [ ] Create parser to extract hold action parameter from binding
@@ -61,12 +80,14 @@ Create utility functions to identify and parse hold-tap behavior bindings (Layer
 - [ ] Unit tests for parsing various hold-tap binding formats
 
 ## Files to Modify
+
 - `src/renderer/src/helpers/Behaviors.ts` - Add detection and parsing utilities
 
 Parent issue: #29 Show Layer-Tap/Mod-Tap on keys
 https://github.com/Wolffyx/remappr/issues/29
 
 ## Approach
+
 1. Analyze the requirements
 2. Identify files to modify
 3. Implement changes
@@ -74,25 +95,31 @@ https://github.com/Wolffyx/remappr/issues/29
 5. Commit and push
 
 ## Commands to Run
+
 - pnpm install
 - pnpm lint
 - pnpm test
 - pnpm build
 
 ## Important Constraints
+
 - Only use these commands: pnpm install, pnpm lint, pnpm test, pnpm build
 - Do NOT modify these paths: .github/workflows/, .gitlab-ci.yml
-- Working directory: /run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original-worktrees/github-30-detect-and-parse-hold-tap-bindings
+- Working directory:
+  /run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original-worktrees/github-30-detect-and-parse-hold-tap-bindings
 - Repo root: /run/media/wolffyx/Work/Projects/Typescript/React/zmk-studio-original
 - After implementation, run the verification commands if they exist
 
 ## Verification Commands
+
 - Lint: pnpm lint
 - Test: pnpm test
 - Build: pnpm build
 
 ## Project Memory (from .flowpatch)
+
 ### AGENTS.md (top)
+
 # FlowPatch Agent Notes
 
 - Where things live:
@@ -100,6 +127,7 @@ https://github.com/Wolffyx/remappr/issues/29
 - When asked X check Y:
 
 <!-- FLOWPATCH:BEGIN generated -->
+
 ## Index Summary (generated)
 
 - Files indexed: 12862
@@ -107,15 +135,19 @@ https://github.com/Wolffyx/remappr/issues/29
 - Symbols: 448
 - Last indexed: 2026-01-16T21:30:24.757Z
 - SHA: 279b0be269ff29650a01a9ea9bf9492f4261feab
+
 <!-- FLOWPATCH:END generated -->
 
 ### ARCHITECTURE.md (top)
+
 # Architecture
 
 ### PLAN.md (top)
+
 # Implementation Plan
 
 ## Task Description
+
 <!--
 Provide a clear, concise summary of what needs to be built or fixed.
 Include:
@@ -128,8 +160,8 @@ Example:
 to localStorage and applies the theme across all components."
 -->
 
-
 ## Context & Background
+
 <!--
 Explain WHY this task exists and provide relevant context:
 - Link to related issues, PRs, or discussions
@@ -143,8 +175,8 @@ support (Issue #123). The design team has provided mockups in Figma [link].
 We use Tailwind CSS which has built-in dark mode support via the 'dark:' prefix."
 -->
 
-
 ## Technical Analysis
+
 <!--
 Document your understanding of the codebase relevant to this task:
 - Key files and their responsibilities
@@ -158,8 +190,8 @@ All color classes need dark: variants. The Header, Sidebar, and Card
 components are the main surfaces that need theme support."
 -->
 
-
 ## Implementation Steps
+
 <!--
 Break down the work into discrete, actionable steps.
 Each step should be:
@@ -174,45 +206,53 @@ Mark steps as you complete them: [ ] -> [x]
 2. [ ] **Step 2 title**: Description of what to do and expected outcome
 3. [ ] **Step 3 title**: Description of what to do and expected outcome
 
-
 ## Files to Modify
+
 <!--
 List all files that will be created, modified, or deleted.
 This helps track scope and ensures nothing is missed.
 -->
 
-| File | Action | Description |
-|------|--------|-------------|
-| `src/path/to/file.ts` | modify | Brief description of changes |
-| `src/path/to/new-file.ts` | create | Purpose of new file |
-| `src/path/to/old-file.ts` | delete | Why it's being removed |
-
+| File                      | Action | Description                  |
+| ------------------------- | ------ | ---------------------------- |
+| `src/path/to/file.ts`     | modify | Brief description of changes |
+| `src/path/to/new-file.ts` | create | Purpose of new file          |
+| `src/path/to/old-file.ts` | delete | Why it's being removed       |
 
 ## Testing Strategy
+
 <!--
 Define how to verify the implementation works correctly:
 -->
 
 ### Unit Tests
+
 <!-- Test individual functions/components in isolation -->
+
 - [ ] Test case 1: Description and expected result
 - [ ] Test case 2: Description and expected result
 
 ### Integration Tests
+
 <!-- Test how components work together -->
+
 - [ ] Test case 1: Description and expected result
 
 ### Manual Testing
+
 <!-- Steps to manually verify the feature -->
+
 - [ ] Step 1: Action to take and what to verify
 - [ ] Step 2: Action to take and what to verify
 
 ### Edge Cases
+
 <!-- Unusual scenarios to test -->
+
 - [ ] Edge case 1: What could go wrong and how to test it
 
-
 ## Acceptance Criteria
+
 <!--
 Define the specific, measurable condit
 …

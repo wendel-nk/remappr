@@ -30,7 +30,9 @@ export interface TransportContext {
 export interface TransportDescriptor {
     id: string
     envs: Env | Env[]
+
     create(ctx: TransportContext): TransportFactory | null
+
     subscribeChanges?(ctx: TransportContext, cb: () => void): () => void
 }
 

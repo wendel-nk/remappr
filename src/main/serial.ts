@@ -6,6 +6,9 @@ import { promisify } from 'util'
 import * as fs from 'fs'
 import * as path from 'path'
 import { IpcEvents } from '../shared/ipc-types'
+import { createLogger } from '../shared/logger'
+
+const log = createLogger('serial')
 
 const execAsync = promisify(exec)
 
@@ -92,7 +95,7 @@ async function loadMacIoregMap(): Promise<Map<string, string>> {
             }
         }
     } catch (e) {
-        console.warn('[serial] ioreg lookup failed:', e)
+        log.warn('ioreg lookup failed:', e)
     }
     macIoregCache = { ts: now, byCallout: map }
     return map
@@ -179,7 +182,7 @@ export async function listSerialDevices(): Promise<SerialDeviceInfo[]> {
         )
         return enriched
     } catch (error) {
-        console.error('Failed to list serial devices:', error)
+        log.error('Failed to list serial devices:', error)
         return []
     }
 }
@@ -203,7 +206,7 @@ export async function connectSerial(
         return new Promise((resolve, reject) => {
             port.open((err) => {
                 if (err) {
-                    console.error('Failed to open serial port:', err)
+                    log.error('Failed to open serial port:', err)
                     reject(err)
                     return
                 }
@@ -215,7 +218,7 @@ export async function connectSerial(
                 })
 
                 port.on('error', (err: Error) => {
-                    console.error('Serial port error:', err)
+                    log.error('Serial port error:', err)
                 })
 
                 port.on('close', () => {
@@ -227,7 +230,7 @@ export async function connectSerial(
             })
         })
     } catch (error) {
-        console.error('Failed to connect to serial port:', error)
+        log.error('Failed to connect to serial port:', error)
         throw error
     }
 }
@@ -240,7 +243,7 @@ export async function disconnectSerial(): Promise<void> {
     return new Promise((resolve) => {
         activeConnection!.port.close((err) => {
             if (err) {
-                console.error('Error closing serial port:', err)
+                log.error('Error closing serial port:', err)
             }
             activeConnection = null
             resolve()

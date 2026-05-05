@@ -1,10 +1,10 @@
 // pattern-check: skip — merge conflict resolution, no new logic
-import { app, shell, BrowserWindow } from 'electron'
+import { app, BrowserWindow, shell } from 'electron'
 import { join } from 'path'
-import { electronApp, optimizer, is } from '@electron-toolkit/utils'
+import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { registerIpcHandlers } from './ipc-handlers'
-import { setupBleDeviceSelection, registerBleIpcHandlers } from './ble-manager'
+import { registerBleIpcHandlers, setupBleDeviceSelection } from './ble-manager'
 import { setupSerialDeviceSelection } from './serial-picker'
 import { startSerialDevicePolling } from './serial'
 import { silenceConsoleInProduction } from '../shared/logger'
@@ -74,6 +74,16 @@ function createWindow(): void {
         return t === 'serial' || t === 'usb' || t === 'hid'
     })
 
+    // ZMK Studio's BLE profile uses Just Works / no-input pairing. Auto-confirm
+    // the simple-confirm path so paired-on-demand keyboards don't hang for 30s
+    // waiting on a UI we don't render. confirmPin / providePin paths fall
+    // through to deny so users see an explicit failure rather than a silent
+    // stall — those flows would need a real PIN dialog.
+    sess.setBluetoothPairingHandler((details, cb) => {
+        if (details.pairingKind === 'confirm') return cb({ confirmed: true })
+        cb({ confirmed: false })
+    })
+
     // Safety-net handler for any stray navigator.serial.requestPort() calls.
     setupSerialDeviceSelection(mainWindow)
 
@@ -86,6 +96,24 @@ function createWindow(): void {
 
     mainWindow.webContents.once('did-finish-load', (): void => {
         void checkForUpdates(mainWindow)
+    })
+
+    // Bestow a synthetic user gesture each time the renderer finishes loading
+    // so the initial BLE scan (navigator.bluetooth.requestDevice) doesn't
+    // bounce with SecurityError. The event fires inside an executeJavaScript
+    // call with userGesture=true, giving Web Bluetooth a transient activation.
+    // The renderer's useConnection hook listens and re-runs loadDevices. Uses
+    // .on() (not .once()) so HMR refreshes / in-renderer reloads also trigger
+    // the auto-scan — the renderer's userActivation guard de-dupes.
+    mainWindow.webContents.on('did-finish-load', (): void => {
+        setTimeout(() => {
+            mainWindow.webContents
+                .executeJavaScript(
+                    `window.dispatchEvent(new CustomEvent('electron-auto-scan'))`,
+                    true,
+                )
+                .catch(() => undefined)
+        }, 500)
     })
 
     mainWindow.webContents.setWindowOpenHandler(

@@ -19,21 +19,27 @@ const sampleJson = JSON.stringify({
 
 class MemStorage {
     private data = new Map<string, string>()
+
     getItem(k: string): string | null {
         return this.data.get(k) ?? null
     }
+
     setItem(k: string, v: string): void {
         this.data.set(k, v)
     }
+
     removeItem(k: string): void {
         this.data.delete(k)
     }
+
     clear(): void {
         this.data.clear()
     }
+
     key(): string | null {
         return null
     }
+
     get length(): number {
         return this.data.size
     }

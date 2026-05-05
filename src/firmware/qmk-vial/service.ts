@@ -655,6 +655,7 @@ export class VialKeyboardService implements KeyboardService {
     async getTapDance(idx: number): Promise<TapDanceEntry> {
         return getTapDance(this.client, idx)
     }
+
     async setTapDance(idx: number, entry: TapDanceEntry): Promise<void> {
         await setTapDance(this.client, idx, entry)
         this.setPending(true)
@@ -663,6 +664,7 @@ export class VialKeyboardService implements KeyboardService {
     async getCombo(idx: number): Promise<ComboEntry> {
         return getCombo(this.client, idx)
     }
+
     async setCombo(idx: number, entry: ComboEntry): Promise<void> {
         await setCombo(this.client, idx, entry)
         this.setPending(true)
@@ -671,6 +673,7 @@ export class VialKeyboardService implements KeyboardService {
     async getKeyOverride(idx: number): Promise<KeyOverrideEntry> {
         return getKeyOverride(this.client, idx)
     }
+
     async setKeyOverride(idx: number, entry: KeyOverrideEntry): Promise<void> {
         await setKeyOverride(this.client, idx, entry)
         this.setPending(true)
@@ -679,6 +682,7 @@ export class VialKeyboardService implements KeyboardService {
     async getAltRepeatKey(idx: number): Promise<AltRepeatKeyEntry> {
         return getAltRepeatKey(this.client, idx)
     }
+
     async setAltRepeatKey(
         idx: number,
         entry: AltRepeatKeyEntry,

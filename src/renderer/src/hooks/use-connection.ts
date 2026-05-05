@@ -108,6 +108,20 @@ export function useConnection(
         })
     }, [hasListableTransports, loadDevices])
 
+    // Electron main fires this on did-finish-load with userGesture=true so
+    // navigator.bluetooth.requestDevice doesn't bounce on SecurityError
+    // during the initial transport scan. Refresh button uses the same code
+    // path; this just bypasses the no-gesture mount-time failure.
+    useEffect(() => {
+        if (!hasListableTransports) return
+        const handler = (): void => {
+            if (connectingDeviceIdRef.current === null) void loadDevices()
+        }
+        window.addEventListener('electron-auto-scan', handler)
+        return (): void =>
+            window.removeEventListener('electron-auto-scan', handler)
+    }, [hasListableTransports, loadDevices])
+
     const refresh = useCallback((): void => {
         loadDevices()
     }, [loadDevices])

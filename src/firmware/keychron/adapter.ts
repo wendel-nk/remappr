@@ -47,6 +47,7 @@ function readTransportIds(transport: Transport): {
     if (!m) return {}
     return { vid: Number.parseInt(m[1], 16), pid: Number.parseInt(m[2], 16) }
 }
+
 import { createRgbFacade } from './rgb'
 import { createWirelessFacade } from './wireless'
 import { getBoardById, matchBoard, type KeychronBoardPreset } from './boards'

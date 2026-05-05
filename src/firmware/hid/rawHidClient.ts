@@ -10,8 +10,11 @@ export type UnsolicitedListener = (frame: Uint8Array) => void
 
 export interface HidClient {
     send(frame: Uint8Array, timeoutMs?: number): Promise<Uint8Array>
+
     close(opts?: { abortTransport?: boolean }): Promise<void>
+
     onClosed(cb: (reason?: unknown) => void): () => void
+
     /**
      * Register an unsolicited-frame listener. The first call also starts the
      * background read pump that demuxes responses from pushes by command

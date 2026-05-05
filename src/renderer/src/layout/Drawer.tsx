@@ -50,6 +50,7 @@ export function Drawer(): JSX.Element {
         }
 
         let ignore = false
+
         async function fetchKeymap(): Promise<void> {
             if (!service) return
             try {

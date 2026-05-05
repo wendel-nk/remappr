@@ -15,12 +15,15 @@
  * 7. Renderer proceeds with GATT connection using the resolved BluetoothDevice
  */
 
-import { ipcMain, type BrowserWindow } from 'electron'
+import { type BrowserWindow, ipcMain } from 'electron'
 import {
+    type AvailableDevice,
     IpcChannels,
     IpcEvents,
-    type AvailableDevice,
 } from '../shared/ipc-types'
+import { createLogger } from '../shared/logger'
+
+const log = createLogger('ble-manager')
 
 /** Pending device selection callback from Electron's select-bluetooth-device event */
 let pendingDeviceCallback: ((deviceId: string) => void) | null = null
@@ -39,8 +42,8 @@ export function setupBleDeviceSelection(window: BrowserWindow): void {
         (event, devices, callback) => {
             event.preventDefault()
 
-            console.log(
-                '[ble-manager] select-bluetooth-device fired, devices:',
+            log.info(
+                'select-bluetooth-device fired, devices:',
                 devices.length,
                 devices.map(
                     (d) => `${d.deviceName || '(no-name)'}@${d.deviceId}`,
@@ -51,27 +54,20 @@ export function setupBleDeviceSelection(window: BrowserWindow): void {
             pendingDeviceCallback = callback
 
             // ZMK keyboards don't always include a friendly name in the BLE
-            // advertising payload — when already paired to the OS, the name
-            // resolution may not surface. Keep "Unknown or Unsupported"
-            // devices and label them by MAC so the user can still pick.
-            // Chromium uses the format "Unknown or Unsupported Device (MAC)";
-            // strip the prefix so the label is just "BLE C0:60:61:96:8F:1C".
-            const availableDevices: AvailableDevice[] = devices
-                .filter((d) => {
-                    const n = (d.deviceName || '').trim()
-                    return n.length > 0
-                })
-                .map((d) => {
-                    const raw = d.deviceName.trim()
-                    const isUnknown = /^Unknown or Unsupported/i.test(raw)
-                    const label = isUnknown ? `BLE ${d.deviceId}` : raw
-                    return { label, id: d.deviceId }
-                })
+            // advertising payload — when already paired+connected to the OS,
+            // Chromium can fire `select-bluetooth-device` once with an empty
+            // name and never re-fire (no fresh advertisement). Keep every
+            // device and label name-less / "Unknown or Unsupported" entries
+            // by id so the user can still pick. Chromium uses the format
+            // "Unknown or Unsupported Device (MAC)"; surface as "BLE <id>".
+            const availableDevices: AvailableDevice[] = devices.map((d) => {
+                const raw = (d.deviceName || '').trim()
+                const isUnknown = !raw || /^Unknown or Unsupported/i.test(raw)
+                const label = isUnknown ? `BLE ${d.deviceId}` : raw
+                return { label, id: d.deviceId }
+            })
 
-            console.log(
-                '[ble-manager] forwarding to renderer, kept:',
-                availableDevices.length,
-            )
+            log.info('forwarding to renderer, kept:', availableDevices.length)
 
             // Send discovered devices to the renderer
             if (!window.isDestroyed()) {
@@ -90,12 +86,12 @@ export function setupBleDeviceSelection(window: BrowserWindow): void {
  */
 export function registerBleIpcHandlers(): void {
     ipcMain.handle(IpcChannels.BLE_START_SCAN, async () => {
-        console.log('[ble-manager] BLE_START_SCAN received')
+        log.info('BLE_START_SCAN received')
         pendingDeviceCallback = null
     })
 
     ipcMain.handle(IpcChannels.BLE_STOP_SCAN, async () => {
-        console.log('[ble-manager] BLE_STOP_SCAN received')
+        log.info('BLE_STOP_SCAN received')
         // Cancel any pending device request
         if (pendingDeviceCallback) {
             pendingDeviceCallback('')

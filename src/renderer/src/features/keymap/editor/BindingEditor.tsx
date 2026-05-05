@@ -1,8 +1,8 @@
 // pattern-check: skip mechanical port — bridges neutral KeyAction store with KeyActionPicker via service.listActionTypes/buildKeyAction
 import { X } from 'lucide-react'
 import {
-    KeyActionPicker,
     type KeyActionDraft,
+    KeyActionPicker,
 } from '@/features/actions/KeyActionPicker'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import undoRedoStore from '@/stores/undoRedoStore'
@@ -140,13 +140,6 @@ export function BindingEditor({
             doIt?.(async (): Promise<() => Promise<void>> => {
                 try {
                     await service.setKey(layerId, keyPosition, newAction)
-                    // console.log('[BindingEditor] setKey ok', {
-                    //     layerId,
-                    //     keyPosition,
-                    //     kind: draft.kind,
-                    //     params: draft.params,
-                    //     canonicalId: newAction.canonicalId,
-                    // })
                     setKeymap(
                         (prev: Keymap | undefined): Keymap | undefined => {
                             if (!prev) return prev

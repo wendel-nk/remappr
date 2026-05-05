@@ -7,30 +7,33 @@
  * This file provides the handler registration pattern and placeholder implementations.
  */
 
-import { ipcMain, type BrowserWindow } from 'electron'
+import { type BrowserWindow, ipcMain } from 'electron'
 import { IpcChannels, IpcEvents } from '../shared/ipc-types'
+import { createLogger } from '../shared/logger'
 import { validateAvailableDevice, validateUint8Array } from './ipc-validation'
 import {
-    listSerialDevices,
     connectSerial,
     disconnectSerial,
+    listSerialDevices,
     writeSerial,
 } from './serial'
 import {
-    listGattDevices,
     connectGattDevice,
-    writeGatt,
     disconnectGattDevice,
     hasActiveBluezConnection,
+    listGattDevices,
+    writeGatt,
 } from './bluez'
 import {
-    listHidDevices,
     connectHidDevice,
-    writeHid,
     disconnectHidDevice,
     hasActiveHidConnection,
     type HidDiscoveryFilter,
+    listHidDevices,
+    writeHid,
 } from './hid'
+
+const log = createLogger('ipc')
 
 // pattern-check: skip — local IPC payload validator, no abstraction.
 interface DiscoveryPayload {
@@ -115,20 +118,6 @@ export function registerIpcHandlers(getWindows: () => BrowserWindow[]): void {
     // --- BLE Device Handlers ---
     // BLE scan coordination (start-scan, stop-scan, select-device) is
     // registered in ble-manager.ts via registerBleIpcHandlers().
-    // These handlers are retained for API completeness.
-
-    ipcMain.handle(IpcChannels.BLE_LIST_DEVICES, async () => {
-        // Device discovery happens via Web Bluetooth + select-bluetooth-device event.
-        // The renderer uses BLE_START_SCAN + BLE_DEVICES_DISCOVERED instead.
-        return []
-    })
-
-    ipcMain.handle(IpcChannels.BLE_CONNECT, async (_, device: unknown) => {
-        const validDevice = validateAvailableDevice(device)
-        // BLE connection happens via Web Bluetooth in the renderer.
-        console.log(`BLE connect (Web Bluetooth): ${validDevice.label}`)
-        return true
-    })
 
     // --- BlueZ direct handlers (Linux) ---
 
@@ -166,7 +155,7 @@ export function registerIpcHandlers(getWindows: () => BrowserWindow[]): void {
             return { ok: true, label }
         } catch (e) {
             const msg = e instanceof Error ? e.message : String(e)
-            console.error('[ipc] BLUEZ_CONNECT failed:', msg)
+            log.error('BLUEZ_CONNECT failed:', msg)
             return { ok: false, error: msg }
         }
     })
@@ -197,7 +186,7 @@ export function registerIpcHandlers(getWindows: () => BrowserWindow[]): void {
             return { ok: true, label }
         } catch (e) {
             const msg = e instanceof Error ? e.message : String(e)
-            console.error('[ipc] HID_CONNECT failed:', msg)
+            log.error('HID_CONNECT failed:', msg)
             return { ok: false, error: msg }
         }
     })

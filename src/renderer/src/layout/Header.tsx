@@ -29,6 +29,7 @@ import { toast } from 'sonner'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/ui/tooltip'
 import { FeatureGate } from '@/features/firmware/FeatureGate'
 import { LayoutSideloadAction } from '@/features/firmware/LayoutSideloadAction'
+
 // pattern-check: skip — wrap toolbar buttons in capability gate, no abstraction
 export function Header(): JSX.Element {
     const { service, setService, communication } = useConnectionStore()

@@ -35,9 +35,8 @@ export const IpcChannels = {
     SERIAL_CONNECT: 'serial:connect',
     SERIAL_DISCONNECT: 'serial:disconnect',
 
-    // BLE device operations
-    BLE_LIST_DEVICES: 'ble:list-devices',
-    BLE_CONNECT: 'ble:connect',
+    // BLE device operations (Web Bluetooth flow — discovery + connect happen
+    // in the renderer; main only coordinates scan lifecycle and chooser).
     BLE_START_SCAN: 'ble:start-scan',
     BLE_STOP_SCAN: 'ble:stop-scan',
     BLE_SELECT_DEVICE: 'ble:select-device',
@@ -109,14 +108,6 @@ export interface IpcInvokeMap {
     [IpcChannels.SERIAL_DISCONNECT]: {
         params: void
         result: void
-    }
-    [IpcChannels.BLE_LIST_DEVICES]: {
-        params: BleDiscoveryPayload
-        result: AvailableDevice[]
-    }
-    [IpcChannels.BLE_CONNECT]: {
-        params: { device: AvailableDevice } & BleDiscoveryPayload
-        result: boolean
     }
     [IpcChannels.BLE_START_SCAN]: {
         params: void
@@ -197,5 +188,6 @@ export interface IpcEventMap {
  */
 export interface ElectronIpcApi {
     invoke(channel: string, ...args: unknown[]): Promise<unknown>
+
     on(event: string, callback: (...args: unknown[]) => void): () => void
 }

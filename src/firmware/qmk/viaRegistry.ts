@@ -12,10 +12,13 @@
 //   4. Parses through the shared KLE parser. Result cached in localStorage.
 
 import {
+    type ParsedKeyboardDef,
     parseKeyboardDef,
     validateDef,
-    type ParsedKeyboardDef,
 } from '@firmware/kle/parser'
+import { createLogger } from '@shared/logger'
+
+const log = createLogger('viaRegistry')
 
 // pattern-check: skip — config DTO with predicate fn, plain data
 interface Source {
@@ -148,12 +151,12 @@ async function fetchWithTimeout(
 async function listSourcePaths(src: Source): Promise<string[]> {
     const cached = readTreeCache(src.repo, src.branch)
     if (cached) {
-        console.log(
-            `[viaRegistry] tree cache hit ${src.repo}@${src.branch}: ${cached.length} paths`,
+        log.info(
+            `tree cache hit ${src.repo}@${src.branch}: ${cached.length} paths`,
         )
         return cached
     }
-    console.log(`[viaRegistry] fetching tree ${src.repo}@${src.branch}…`)
+    log.info(`fetching tree ${src.repo}@${src.branch}…`)
     const res = await fetchWithTimeout(TREE_API(src.repo, src.branch), {
         headers: { Accept: 'application/vnd.github+json' },
     })
@@ -164,9 +167,7 @@ async function listSourcePaths(src: Source): Promise<string[]> {
     const paths = (body.tree ?? [])
         .filter((n) => n.type === 'blob' && src.keep(n.path))
         .map((n) => n.path)
-    console.log(
-        `[viaRegistry] tree ${src.repo}@${src.branch}: ${paths.length} candidate paths`,
-    )
+    log.info(`tree ${src.repo}@${src.branch}: ${paths.length} candidate paths`)
     writeTreeCache(src.repo, src.branch, paths)
     return paths
 }
@@ -292,8 +293,8 @@ async function scanSource(
         ? narrowV3ByVendorHint(allPaths, vid)
         : allPaths
     const candidates = narrowByProductTokens(vendorNarrowed, productName)
-    console.log(
-        `[viaRegistry] ${src.repo}@${src.branch}: ${vendorNarrowed.length} vendor-narrowed → ${candidates.length} after product tokens`,
+    log.info(
+        `${src.repo}@${src.branch}: ${vendorNarrowed.length} vendor-narrowed → ${candidates.length} after product tokens`,
     )
     if (candidates.length === 0) {
         // Surface the empty-scan so the banner moves off 'listing' immediately.
