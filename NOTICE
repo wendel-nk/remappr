@@ -1,8 +1,23 @@
 Remappr
-Copyright 2026 The ZMK Contributors
+Copyright 2025-2026 Wolffyx <wolffyx-claude@wolffyx.com>
 
-This product includes software developed by the ZMK Project (https://zmk.dev/),
-licensed under the Apache License, Version 2.0 (the "License").
+Originally derived from ZMK Studio (https://github.com/zmkfirmware/zmk-studio).
+The application code (TypeScript/React renderer, Electron main process,
+preload bridge, firmware adapters, shared types) has been fully rewritten
+and shares no source with the original project.
+
+The Tauri shell under src-tauri/ is retained from the original ZMK Studio
+fork and remains a derivative work of:
+
+    ZMK Studio
+    Copyright 2024 The ZMK Contributors
+    https://github.com/zmkfirmware/zmk-studio
+    Licensed under the Apache License, Version 2.0
+
+Modifications to src-tauri/ carry their own copyright above and remain
+distributed under the same Apache License, Version 2.0.
+
+Licensed under the Apache License, Version 2.0 (the "License").
 You may obtain a copy of the License at
 
     http://www.apache.org/licenses/LICENSE-2.0

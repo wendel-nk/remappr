@@ -9,15 +9,21 @@ import type { DeviceInfo } from '@firmware/types'
 import { ProtocolError } from '@firmware/errors'
 
 const CACHE_PREFIX = 'qmk-via-layout:v1:'
+// User-supplied layout JSON. Real VIA/QMK definitions are tens of KB; cap
+// at 5 MB to bound parser memory and reject obviously hostile inputs early.
+const MAX_LAYOUT_JSON_BYTES = 5 * 1024 * 1024
 
 export function parseSideloadJson(text: string): ParsedKeyboardDef {
+    if (text.length > MAX_LAYOUT_JSON_BYTES) {
+        throw new ProtocolError('Layout JSON too large')
+    }
     let json: unknown
     try {
         json = JSON.parse(text)
-    } catch (err) {
-        throw new ProtocolError(
-            `Layout JSON parse failed: ${(err as Error).message}`,
-        )
+    } catch {
+        // Don't leak the raw parser message into UI/log surfaces — the input
+        // came from a user-supplied file and may contain attacker text.
+        throw new ProtocolError('Invalid layout JSON')
     }
     return parseKeyboardDef(validateDef(json))
 }

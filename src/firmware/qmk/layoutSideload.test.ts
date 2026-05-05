@@ -60,7 +60,12 @@ describe('layoutSideload', () => {
     })
 
     it('rejects malformed JSON', () => {
-        expect(() => parseSideloadJson('{')).toThrow(/Layout JSON parse failed/)
+        expect(() => parseSideloadJson('{')).toThrow(/Invalid layout JSON/)
+    })
+
+    it('rejects oversized JSON input', () => {
+        const huge = '"' + 'a'.repeat(6 * 1024 * 1024) + '"'
+        expect(() => parseSideloadJson(huge)).toThrow(/Layout JSON too large/)
     })
 
     it('rejects schema mismatch', () => {

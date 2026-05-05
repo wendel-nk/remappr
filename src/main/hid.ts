@@ -77,6 +77,12 @@ interface ActiveHidConnection {
 
 let activeConnection: ActiveHidConnection | null = null
 
+// Last successful enumeration's device-path set. connectHidDevice() rejects
+// any path that wasn't surfaced by listHidDevices() — a compromised renderer
+// can't pass an arbitrary OS path (e.g. /dev/hidraw* a non-keyboard device,
+// or platform-specific raw device handles) into node-hid.
+let knownDevicePaths = new Set<string>()
+
 function matchesFilter(d: NodeHidDevice, filter: HidDiscoveryFilter): boolean {
     if (filter.vendorIds && filter.vendorIds.length > 0) {
         if (!filter.vendorIds.includes(d.vendorId)) return false
@@ -117,9 +123,11 @@ export async function listHidDevices(
     try {
         const all = mod.devices()
         const matched = all.filter((d) => matchesFilter(d, filter))
-        return matched
+        const devices = matched
             .filter((d): d is NodeHidDevice & { path: string } => !!d.path)
             .map((d) => ({ id: d.path, label: buildLabel(d) }))
+        knownDevicePaths = new Set(devices.map((d) => d.id))
+        return devices
     } catch (err) {
         log.error('list failed:', err)
         return []
@@ -132,6 +140,9 @@ export async function connectHidDevice(
 ): Promise<string> {
     if (activeConnection) {
         await disconnectHidDevice()
+    }
+    if (!knownDevicePaths.has(devicePath)) {
+        throw new Error('Unknown HID device path; call listHidDevices first')
     }
     const mod = await loadNodeHid()
     if (!mod) {

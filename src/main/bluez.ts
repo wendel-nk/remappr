@@ -50,6 +50,11 @@ interface ActiveBluezConnection {
 }
 
 let active: ActiveBluezConnection | null = null
+
+// Last successful enumeration's D-Bus path set. connectGattDevice() rejects
+// any path not surfaced by listGattDevices() so a compromised renderer
+// cannot pass arbitrary D-Bus paths into BlueZ proxy lookups.
+let knownDevicePaths = new Set<string>()
 let sharedBus: dbus.MessageBus | null = null
 
 function getBus(): dbus.MessageBus {
@@ -104,6 +109,7 @@ export async function listGattDevices(
 
             out.push({ id: path, label: name })
         }
+        knownDevicePaths = new Set(out.map((d) => d.id))
         return out
     } catch (e) {
         log.error('listGattDevices failed:', e)
@@ -187,6 +193,10 @@ export async function connectGattDevice(
 ): Promise<string> {
     if (active) {
         await disconnectGattDevice()
+    }
+
+    if (!knownDevicePaths.has(devicePath)) {
+        throw new Error('Unknown BlueZ device path; call listGattDevices first')
     }
 
     const bus = getBus()

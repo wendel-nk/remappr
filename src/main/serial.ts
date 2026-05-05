@@ -30,6 +30,12 @@ interface ActiveConnection {
 
 let activeConnection: ActiveConnection | null = null
 
+// Last successful enumeration's path set. connectSerial() rejects any path
+// that wasn't surfaced by listSerialDevices() so a compromised renderer
+// cannot pass an arbitrary OS path (e.g. /etc/shadow, \\.\pipe\foo, an
+// unrelated COM device) into SerialPort.
+let knownSerialPaths = new Set<string>()
+
 const GENERIC_MANUFACTURERS = new Set(['microsoft', 'unknown', ''])
 
 function isPnpFragment(s: string): boolean {
@@ -107,10 +113,21 @@ async function getMacProductName(devPath: string): Promise<string | undefined> {
     return map.get(devPath)
 }
 
+// Windows PnP InstanceId charset: alnum, `\\` (path), `&`, `_`, `-`,
+// `.`, `#`, `{`, `}` (rare class GUIDs). Anything else is rejected before
+// it can land inside a PowerShell -Command string. Defense-in-depth on top
+// of the single-quote escape — a malicious USB descriptor cannot inject
+// PowerShell metacharacters such as backticks, `$(...)`, or `;`.
+const PNP_ID_RE = /^[A-Za-z0-9\\&_\-.#{}]{1,256}$/
+
 async function getWindowsProductName(
     pnpId: string | undefined,
 ): Promise<string | undefined> {
     if (process.platform !== 'win32' || !pnpId) return undefined
+    if (!PNP_ID_RE.test(pnpId)) {
+        log.warn(`pnpId rejected by allowlist: ${JSON.stringify(pnpId)}`)
+        return undefined
+    }
     if (winProductCache.has(pnpId)) {
         return winProductCache.get(pnpId) ?? undefined
     }
@@ -180,6 +197,7 @@ export async function listSerialDevices(): Promise<SerialDeviceInfo[]> {
                 return { id: port.path, label }
             }),
         )
+        knownSerialPaths = new Set(enriched.map((d) => d.id))
         return enriched
     } catch (error) {
         log.error('Failed to list serial devices:', error)
@@ -194,6 +212,12 @@ export async function connectSerial(
 ): Promise<boolean> {
     if (activeConnection) {
         await disconnectSerial()
+    }
+
+    if (!knownSerialPaths.has(deviceId)) {
+        throw new Error(
+            'Unknown serial device path; call listSerialDevices first',
+        )
     }
 
     try {

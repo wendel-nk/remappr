@@ -31,6 +31,12 @@ export interface HidClientOpts {
 }
 
 const DEFAULT_TIMEOUT_MS = 1500
+// Hard cap on the partial-frame accumulator. A misbehaving or malicious
+// device that streams undersized fragments could otherwise grow `acc`
+// without bound and OOM the main process. ZMK Studio's largest single
+// frame is the 32-byte raw-HID payload, so 1 MiB is several orders of
+// magnitude of safety.
+const MAX_ACC_BYTES = 1024 * 1024
 
 export function createHidClientFromTransport(
     transport: Transport,
@@ -121,6 +127,12 @@ export function createHidClientFromTransport(
                 throw new TransportError('Raw HID stream ended')
             }
             if (value && value.length > 0) {
+                if (acc.length + value.length > MAX_ACC_BYTES) {
+                    fireClosed('acc-overflow')
+                    throw new TransportError(
+                        `Raw HID accumulator overflow (>${MAX_ACC_BYTES} bytes)`,
+                    )
+                }
                 const merged = new Uint8Array(acc.length + value.length)
                 merged.set(acc, 0)
                 merged.set(value, acc.length)
@@ -161,6 +173,17 @@ export function createHidClientFromTransport(
                     return
                 }
                 if (value && value.length > 0) {
+                    if (acc.length + value.length > MAX_ACC_BYTES) {
+                        const overflow = new TransportError(
+                            `Raw HID accumulator overflow (>${MAX_ACC_BYTES} bytes)`,
+                        )
+                        fireClosed('acc-overflow')
+                        if (pending) {
+                            pending.reject(overflow)
+                            pending = null
+                        }
+                        return
+                    }
                     const merged = new Uint8Array(acc.length + value.length)
                     merged.set(acc, 0)
                     merged.set(value, acc.length)

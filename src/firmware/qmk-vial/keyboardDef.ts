@@ -45,12 +45,25 @@ export async function fetchKeyboardDefBytes(
     return out
 }
 
+// Cap on the LZMA-decompressed payload. The compressed wire frame is already
+// limited to 1 MiB (see fetchKeyboardDefBytes); LZMA1 can blow that up
+// 100×+, so without a post-decode cap a hostile firmware blob could OOM
+// the renderer. Real Vial defs are tens of KB; 5 MiB is comfortable safety.
+const MAX_DECOMPRESSED_DEF_BYTES = 5 * 1024 * 1024
+
 export function decompressDef(bytes: Uint8Array): RawKeyboardDef {
     const decoded = lzmaDecompress(bytes)
-    const u8 =
+    const decodedLen =
         decoded instanceof Uint8Array
-            ? decoded
-            : new Uint8Array((decoded as ArrayLike<number>).length)
+            ? decoded.length
+            : (decoded as ArrayLike<number>).length
+    if (decodedLen > MAX_DECOMPRESSED_DEF_BYTES) {
+        throw new ProtocolError(
+            `Vial def: decompressed ${decodedLen} bytes exceeds ${MAX_DECOMPRESSED_DEF_BYTES}-byte cap`,
+        )
+    }
+    const u8 =
+        decoded instanceof Uint8Array ? decoded : new Uint8Array(decodedLen)
     if (!(decoded instanceof Uint8Array)) {
         for (let i = 0; i < u8.length; i++) {
             u8[i] = (decoded as ArrayLike<number>)[i] & 0xff
@@ -60,10 +73,8 @@ export function decompressDef(bytes: Uint8Array): RawKeyboardDef {
     let json: unknown
     try {
         json = JSON.parse(text)
-    } catch (err) {
-        throw new ProtocolError(
-            `Vial def: JSON parse failed: ${(err as Error).message}`,
-        )
+    } catch {
+        throw new ProtocolError('Vial def: invalid JSON')
     }
     return validateDef(json)
 }
