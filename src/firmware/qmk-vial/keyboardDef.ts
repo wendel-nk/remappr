@@ -6,10 +6,10 @@ import { decompress as lzmaDecompress } from 'lzma1'
 
 import { ProtocolError } from '@firmware/errors'
 import {
-    parseKeyboardDef,
-    validateDef,
     type ParsedKeyboardDef,
+    parseKeyboardDef,
     type RawKeyboardDef,
+    validateDef,
 } from '@firmware/kle/parser'
 import type { HidClient } from '@firmware/qmk/hidClient'
 import { VIA_PAYLOAD_SIZE } from '@firmware/qmk/protocol'

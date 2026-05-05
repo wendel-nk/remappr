@@ -11,7 +11,7 @@ import type {
     PhysicalLayout,
     PhysicalLayoutKey,
 } from '@firmware/types'
-import { bindingToKeyAction, type BehaviorMap } from './actions'
+import { type BehaviorMap, bindingToKeyAction } from './actions'
 
 function zmkLayerToNeutral(
     layer: ZmkLayer,

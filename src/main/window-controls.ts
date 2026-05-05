@@ -1,5 +1,5 @@
 // pattern-check: skip — small ipcMain handlers for window min/max/close, no abstraction
-import { ipcMain, BrowserWindow } from 'electron'
+import { BrowserWindow, ipcMain } from 'electron'
 import { IpcChannels } from '../shared/ipc-types'
 
 export function registerWindowControlsIpc(

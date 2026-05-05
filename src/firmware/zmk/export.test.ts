@@ -1,6 +1,6 @@
 // pattern-check: skip mechanical fixture rewrite for neutral Keymap with KeyAction.params
-import { describe, it, expect } from 'vitest'
-import { generateZMKKeymapFile, generateZMKConfigFile } from './export'
+import { describe, expect, it } from 'vitest'
+import { generateZMKConfigFile, generateZMKKeymapFile } from './export'
 import type { KeyAction, Keymap, Layer } from '@firmware/types'
 
 const keyPress = { displayName: 'Key Press' }

@@ -4,9 +4,9 @@
 
 import { ProtocolError } from '@firmware/errors'
 import {
-    VIA_PAYLOAD_SIZE,
     makeFrame,
     readU16BE,
+    VIA_PAYLOAD_SIZE,
     writeU16BE,
 } from '@firmware/qmk/protocol'
 

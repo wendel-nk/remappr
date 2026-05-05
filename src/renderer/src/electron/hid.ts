@@ -1,11 +1,11 @@
 // Pattern check: Adapter (Tier 1) — extended — bridges Electron HID_CONNECT IPC into IpcTransportAdapter contract
-import { IpcChannels } from '../../../shared/ipc-types'
 import type { HidDiscoveryPayload } from '../../../shared/ipc-types'
+import { IpcChannels } from '../../../shared/ipc-types'
 import type { AvailableDevice } from '../transport/types'
 import {
-    IpcTransportAdapter,
     electronIpc,
     type IpcConnectResult,
+    IpcTransportAdapter,
 } from '../transport/adapter/ipc-adapter'
 import { registerTransport } from '../transport/adapter/registry'
 

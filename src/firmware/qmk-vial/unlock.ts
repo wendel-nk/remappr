@@ -12,9 +12,9 @@ import {
     getUnlockStatusCmd,
     lockCmd,
     parseUnlockStatus,
-    type UnlockStatusResponse,
     unlockPollCmd,
     unlockStartCmd,
+    type UnlockStatusResponse,
 } from './protocol'
 
 export async function readUnlockStatus(

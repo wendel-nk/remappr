@@ -1,9 +1,9 @@
 // Pattern check: no GoF pattern (-) — rejected — pure parse + localStorage cache helpers around shared KLE parser.
 import {
-    parseKeyboardDef,
-    validateDef,
     type ParsedKeyboardDef,
+    parseKeyboardDef,
     type RawKeyboardDef,
+    validateDef,
 } from '@firmware/kle/parser'
 import type { DeviceInfo } from '@firmware/types'
 import { ProtocolError } from '@firmware/errors'

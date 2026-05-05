@@ -1,6 +1,6 @@
 // pattern-check: skip — test wiring: drives the shared contract suite for the mock adapter.
 import { runContractSuite } from '@firmware/__tests__/contract'
-import { mockAdapter, createMockTransport } from './adapter'
+import { createMockTransport, mockAdapter } from './adapter'
 
 runContractSuite('mock', {
     makeAdapter: () => mockAdapter,

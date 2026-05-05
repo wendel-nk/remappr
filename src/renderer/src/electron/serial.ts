@@ -2,9 +2,9 @@
 import { IpcChannels, IpcEvents } from '../../../shared/ipc-types'
 import type { AvailableDevice } from '../transport/types'
 import {
-    IpcTransportAdapter,
     electronIpc,
     type IpcConnectResult,
+    IpcTransportAdapter,
 } from '../transport/adapter/ipc-adapter'
 import { registerTransport } from '../transport/adapter/registry'
 

@@ -1,9 +1,9 @@
 // Pattern check: no GoF pattern (-) — rejected — unit tests for the keymap.c emitter; string-shape assertions.
-import { describe, it, expect } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 import type { Keymap } from '@firmware/types'
 
-import { QMK_KIND, buildQmkKeyAction } from './actions'
+import { buildQmkKeyAction, QMK_KIND } from './actions'
 import { emitKeymapC } from './export'
 
 function makeKeymap(): Keymap {

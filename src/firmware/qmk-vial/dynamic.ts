@@ -15,11 +15,11 @@ import type {
 
 import {
     DYNAMIC_OP,
+    type DynamicEntryCount,
     dynamicGetCmd,
     dynamicGetEntryCountCmd,
     dynamicSetCmd,
     parseDynamicEntryCount,
-    type DynamicEntryCount,
 } from './protocol'
 
 export type {

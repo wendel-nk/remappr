@@ -1,5 +1,5 @@
 // pattern-check: skip — small UI component, single caller branches by transport count
-import { Plus, Bluetooth, Usb, Cable } from 'lucide-react'
+import { Bluetooth, Cable, Plus, Usb } from 'lucide-react'
 import type { JSX } from 'react'
 import { Button } from '@/ui/button'
 import {

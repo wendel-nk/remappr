@@ -5,8 +5,8 @@ import { Button } from '@/ui/button'
 import { DownloadLatestButton } from '@/components/DownloadLatestButton'
 import { APP_VERSION } from '@/lib/constants'
 import { isElectron as isElectronEnv } from '@/transport'
-import { IpcChannels } from '../../../../../shared/ipc-types'
 import type { UpdateCheckResultPayload } from '../../../../../shared/ipc-types'
+import { IpcChannels } from '../../../../../shared/ipc-types'
 
 interface ElectronWindow {
     api?: {

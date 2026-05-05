@@ -4,11 +4,11 @@
 
 import { ProtocolError } from '@firmware/errors'
 import {
-    QMK_KIND,
     buildLabel as buildQmkLabel,
     buildQmkKeyAction,
     decodeKeycode as decodeQmkKeycode,
     encodeKeycode as encodeQmkKeycode,
+    QMK_KIND,
 } from '@firmware/qmk/actions'
 import type { KeyAction, KeyLabel } from '@firmware/types'
 

@@ -15,8 +15,8 @@ import type {
     DeviceInfo,
     ExportedFile,
     KeyAction,
-    KeyUpdate,
     Keymap,
+    KeyUpdate,
     Layer,
     LockState,
     PhysicalLayout,
@@ -25,10 +25,10 @@ import { ProtocolError, UnsupportedError } from '@firmware/errors'
 import type { ParsedKeyboardDef } from '@firmware/kle/parser'
 
 import {
-    QMK_KIND,
     buildQmkKeyAction,
     decodeAsKeyAction,
     encodeKeycode,
+    QMK_KIND,
     relabelQmkLayer,
 } from './actions'
 import { qmkCodec } from './codec'
@@ -36,7 +36,6 @@ import { QMK_ACTION_TYPES } from './actionTypes'
 import { exportKeymap } from './export'
 import type { HidClient } from './hidClient'
 import {
-    VIA_PAYLOAD_SIZE,
     getBufferCmd,
     getKeycodeCmd,
     getLayerCountCmd,
@@ -46,6 +45,7 @@ import {
     parseSetKeycodeEcho,
     resetKeymapCmd,
     setKeycodeCmd,
+    VIA_PAYLOAD_SIZE,
 } from './protocol'
 
 export const QMK_CAPABILITIES_BASE: Omit<Capabilities, 'maxLayers'> = {

@@ -21,9 +21,9 @@ import type {
     EncoderAction,
     ExportedFile,
     KeyAction,
+    Keymap,
     KeyOverrideEntry,
     KeyUpdate,
-    Keymap,
     Layer,
     LockState,
     MacroAction,
@@ -33,15 +33,15 @@ import type {
 import { LockedError, ProtocolError } from '@firmware/errors'
 
 import {
+    buildMockActionTypes,
+    buildMockKeyAction,
     HID_KP,
     MOCK_KIND_KEYPRESS,
     MOCK_KIND_TRANSPARENT,
-    buildMockActionTypes,
-    buildMockKeyAction,
     relabelLayer,
 } from './actions'
 import { mockCodec } from './codec'
-import { MOCK_LAYOUTS, MOCK_KEY_COUNT, MOCK_CORNE_LAYOUT } from './layout'
+import { MOCK_CORNE_LAYOUT, MOCK_KEY_COUNT, MOCK_LAYOUTS } from './layout'
 
 const MOCK_DYNAMIC_COUNTS: DynamicEntryCounts = {
     tapDance: 4,

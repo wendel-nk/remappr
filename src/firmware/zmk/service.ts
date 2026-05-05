@@ -23,17 +23,17 @@ import type {
     DeviceInfo,
     ExportedFile,
     KeyAction,
-    KeyUpdate,
     Keymap,
+    KeyUpdate,
     Layer,
     LockState,
 } from '@firmware/types'
 import { ProtocolError } from '@firmware/errors'
 
 import {
+    type BehaviorMap,
     bindingToKeyAction,
     keyActionToBinding,
-    type BehaviorMap,
 } from './actions'
 import { zmkCodec } from './codec'
 import { behaviorsToActionTypes } from './actionTypes'

@@ -1,11 +1,11 @@
 // Pattern check: no GoF pattern (-) — rejected — unit tests for QMK keycode encode/decode round-trips and label generation.
-import { describe, it, expect } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 import {
-    QMK_KIND,
     buildQmkKeyAction,
     decodeKeycode,
     encodeKeycode,
+    QMK_KIND,
 } from './actions'
 
 describe('qmk/actions — keycode codec', () => {

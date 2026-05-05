@@ -2,13 +2,13 @@
 import { useRef, useState } from 'react'
 import {
     Bluetooth,
-    Usb,
-    Loader2,
-    SignalHigh,
-    Pencil,
     Check,
-    X,
+    Loader2,
+    Pencil,
+    SignalHigh,
     Trash2,
+    Usb,
+    X,
 } from 'lucide-react'
 import { Button } from '@/ui/button'
 import { Input } from '@/ui/input'

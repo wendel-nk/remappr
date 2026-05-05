@@ -1,9 +1,7 @@
 // Pattern check: no GoF pattern (-) — rejected — unit tests for VIA framing helpers; pure assertions, no abstraction.
-import { describe, it, expect } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 import {
-    VIA_ID,
-    VIA_PAYLOAD_SIZE,
     getKeycodeCmd,
     getLayerCountCmd,
     getProtocolVersionCmd,
@@ -14,6 +12,8 @@ import {
     parseProtocolVersion,
     setBufferCmd,
     setKeycodeCmd,
+    VIA_ID,
+    VIA_PAYLOAD_SIZE,
 } from './protocol'
 
 describe('qmk/protocol — VIA framing', () => {

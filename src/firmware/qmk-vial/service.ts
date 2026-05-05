@@ -5,7 +5,6 @@ import type { KeyCatalog } from '@firmware/catalog/types'
 import { ProtocolError, UnsupportedError } from '@firmware/errors'
 import type { HidClient } from '@firmware/qmk/hidClient'
 import {
-    VIA_PAYLOAD_SIZE,
     getBufferCmd,
     getKeycodeCmd,
     parseBuffer,
@@ -13,9 +12,8 @@ import {
     parseSetKeycodeEcho,
     resetKeymapCmd,
     setKeycodeCmd,
+    VIA_PAYLOAD_SIZE,
 } from '@firmware/qmk/protocol'
-
-const BUFFER_FETCH_CHUNK = VIA_PAYLOAD_SIZE - 4
 import type {
     Capabilities,
     DynamicEntriesApi,
@@ -30,8 +28,8 @@ import type {
     EncoderAction,
     ExportedFile,
     KeyAction,
-    KeyUpdate,
     Keymap,
+    KeyUpdate,
     Layer,
     LockState,
     MacroAction,
@@ -52,17 +50,17 @@ import { type DynamicEntryCount } from './protocol'
 import {
     type AltRepeatKeyEntry,
     type ComboEntry,
-    type KeyOverrideEntry,
-    type TapDanceEntry,
     getAltRepeatKey,
     getCombo,
     getDynamicCounts,
     getKeyOverride,
     getTapDance,
+    type KeyOverrideEntry,
     setAltRepeatKey,
     setCombo,
     setKeyOverride,
     setTapDance,
+    type TapDanceEntry,
 } from './dynamic'
 import { readEncoder, writeEncoder } from './encoder'
 import { type ParsedKeyboardDef, type VialCustomKeycode } from './keyboardDef'
@@ -76,6 +74,8 @@ import {
     writeMacroBuffer,
 } from './macros'
 import { lockDevice, readUnlockStatus, runUnlockFlow } from './unlock'
+
+const BUFFER_FETCH_CHUNK = VIA_PAYLOAD_SIZE - 4
 
 const VIAL_CAPABILITIES_BASE: Omit<Capabilities, 'maxLayers'> = {
     lock: true,

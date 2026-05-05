@@ -3,7 +3,7 @@ import { RestoreStockModal } from './RestoreStockModal'
 import useConnectionStore from '@/stores/connectionStore'
 import undoRedoStore from '@/stores/undoRedoStore'
 import { Button } from '@/ui/button'
-import { Settings, Power } from 'lucide-react'
+import { Power, Settings } from 'lucide-react'
 import {
     DropdownMenu,
     DropdownMenuContent,

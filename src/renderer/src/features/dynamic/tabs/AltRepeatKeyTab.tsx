@@ -13,7 +13,7 @@ import { saveWithToast } from '@/lib/saveWithToast'
 
 import { IndexInput } from '../_shared/IndexInput'
 import { NumField } from '../_shared/NumField'
-import { OptionGrid, type OptionDef } from '../_shared/OptionGrid'
+import { type OptionDef, OptionGrid } from '../_shared/OptionGrid'
 import { useDynamicEntry } from '../_shared/useDynamicEntry'
 
 interface Props {

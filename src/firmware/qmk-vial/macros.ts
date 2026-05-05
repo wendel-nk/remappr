@@ -4,7 +4,7 @@
 
 import { ProtocolError } from '@firmware/errors'
 import type { HidClient } from '@firmware/qmk/hidClient'
-import { VIA_PAYLOAD_SIZE, makeFrame } from '@firmware/qmk/protocol'
+import { makeFrame, VIA_PAYLOAD_SIZE } from '@firmware/qmk/protocol'
 
 const VIA_MACRO = {
     GET_COUNT: 0x0c,

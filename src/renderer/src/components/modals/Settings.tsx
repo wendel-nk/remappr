@@ -1,6 +1,6 @@
 // Pattern check: no GoF pattern (-) — rejected — UI restructure into sidemenu nav with sectioned panels; no class hierarchy or polymorphism warranted.
 import { useState } from 'react'
-import { Settings as SettingsIcon, Palette, Radio, Info } from 'lucide-react'
+import { Info, Palette, Radio, Settings as SettingsIcon } from 'lucide-react'
 import { Modal } from '@/ui/modal'
 import { ScrollArea } from '@/ui/scroll-area'
 import { cn } from '@/lib/cn'
