@@ -1,21 +1,25 @@
+// pattern-check: skip mechanical drop-field codemod — removes RpcConnection from store; service is the sole connection handle
+// Pattern check: no GoF pattern (-) — rejected — additive zustand store slice for keyCatalog; existing store already exists, no abstraction needed.
 import { create, StateCreator } from 'zustand'
 import { devtools } from 'zustand/middleware'
-import { RpcConnection } from '@zmkfirmware/zmk-studio-ts-client'
-import { LockState } from '@zmkfirmware/zmk-studio-ts-client/core'
+import type { KeyCatalog } from '@firmware/catalog/types'
+import type { KeyboardService } from '@firmware/service'
+import type { LockState } from '@firmware/types'
 
-// Define the store interface
 interface ConnectionState {
-    connection: RpcConnection | null
-    communication: 'serial' | 'ble' | null
+    service: KeyboardService | null
+    communication: 'serial' | 'ble' | 'hid' | null
     deviceName: string | null
     lockState: LockState
+    keyCatalog: KeyCatalog | null
     connectionAbort: AbortController
-    setConnection: (
-        connection: RpcConnection | null,
-        communication?: 'serial' | 'ble',
+    setService: (
+        service: KeyboardService | null,
+        communication?: 'serial' | 'ble' | 'hid',
     ) => void
     setDeviceName: (name: string | null) => void
     setLockState: (state: LockState) => void
+    setKeyCatalog: (catalog: KeyCatalog | null) => void
     setConnectionAbort: (abort: AbortController) => void
     resetConnection: () => void
     showConnectionModal: boolean
@@ -23,15 +27,14 @@ interface ConnectionState {
     disconnect: () => Promise<void>
 }
 
-// Middleware to check if a connection exists and show the modal if not
 const connectionMiddleware =
     (config: StateCreator<ConnectionState>): StateCreator<ConnectionState> =>
     (set, get, api) =>
         config(
             (args, replace) => {
                 const next = args as Partial<ConnectionState>
-                if ('connection' in next) {
-                    set({ showConnectionModal: next.connection === null })
+                if ('service' in next) {
+                    set({ showConnectionModal: next.service === null })
                 }
                 set(args, replace as false | undefined)
             },
@@ -39,40 +42,54 @@ const connectionMiddleware =
             api,
         )
 
-// Create Zustand store with middleware and persistence
 const useConnectionStore = create<ConnectionState>()(
     devtools(
         connectionMiddleware((set, get) => ({
-            connection: null,
+            service: null,
             communication: null,
             deviceName: null,
-            lockState: LockState.ZMK_STUDIO_CORE_LOCK_STATE_LOCKED,
+            lockState: 'locked' as LockState,
+            keyCatalog: null,
             connectionAbort: new AbortController(),
-            setConnection: (connection, communication) =>
-                set({ connection, communication: communication ?? null }),
+            setService: (service, communication) => {
+                set({ service, communication: communication ?? null })
+                if (service?.listKeyCatalog) {
+                    service
+                        .listKeyCatalog()
+                        .then((catalog) => set({ keyCatalog: catalog }))
+                        .catch((err) => {
+                            console.warn('listKeyCatalog failed', err)
+                            set({ keyCatalog: null })
+                        })
+                } else {
+                    set({ keyCatalog: null })
+                }
+            },
             setDeviceName: (name) => set({ deviceName: name }),
             setLockState: (state) => set({ lockState: state }),
+            setKeyCatalog: (catalog) => set({ keyCatalog: catalog }),
             setConnectionAbort: (abort) => set({ connectionAbort: abort }),
             resetConnection: () =>
                 set({
-                    connection: null,
+                    service: null,
                     communication: null,
                     deviceName: null,
-                    lockState: LockState.ZMK_STUDIO_CORE_LOCK_STATE_LOCKED,
+                    lockState: 'locked' as LockState,
+                    keyCatalog: null,
                 }),
             showConnectionModal: false,
             setShowConnectionModal: (visible) =>
                 set({ showConnectionModal: visible }),
             disconnect: async () => {
-                const { connection, connectionAbort, resetConnection } = get()
-                if (!connection) {
+                const { service, connectionAbort, resetConnection } = get()
+                if (!service) {
                     return
                 }
 
                 try {
-                    await connection.request_writable.close()
+                    await service.disconnect()
                 } catch (error) {
-                    console.warn('Failed to close connection cleanly', error)
+                    console.warn('Failed to disconnect service cleanly', error)
                 }
 
                 connectionAbort.abort('User disconnected')

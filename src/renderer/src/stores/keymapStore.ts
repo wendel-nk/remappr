@@ -1,6 +1,7 @@
+// pattern-check: skip type-rewrite — Keymap from ZMK shape to neutral @firmware/types
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
-import { Keymap } from '@zmkfirmware/zmk-studio-ts-client/keymap'
+import type { Keymap } from '@firmware/types'
 
 // Define the store interface
 interface KeymapState {

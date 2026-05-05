@@ -1,161 +1,45 @@
-// pattern-check: skip — merge conflict resolution, no new logic
-import { TransportFactory } from '../transport/types'
-import {
-    listGrantedDevices as web_ble_list,
-    connectToGrantedDevice as web_ble_connect_granted,
-    requestAndConnect as web_ble_request_new,
-} from '../transport/web-ble'
-import {
-    listGrantedPorts as web_serial_list,
-    connectToGrantedPort as web_serial_connect_granted,
-    requestAndConnect as web_serial_request_new,
-} from '../transport/web-serial'
-import {
-    connect as tauri_ble_connect,
-    list_devices as ble_list_devices,
-} from '../tauri/ble.ts'
-import {
-    connect as tauri_serial_connect,
-    list_devices as tauri_serial_list_devices,
-} from '../tauri/serial.ts'
-import {
-    connect as electron_ble_connect,
-    list_devices as electron_ble_list_devices,
-} from '../electron/ble.ts'
-import {
-    connect as electron_noble_connect,
-    list_devices as electron_noble_list_devices,
-} from '../electron/noble-ble.ts'
-import {
-    connect as electron_serial_connect,
-    list_devices as electron_serial_list_devices,
-} from '../electron/serial.ts'
+// Pattern check: Strategy (Tier 1) — extended — registry-backed env dispatch replaces inline builder table
+/**
+ * Thin entry point for the transport system.
+ *
+ * Adapters self-register via `registerTransport()` at module load. The
+ * side-effect imports below pull each adapter family into the bundle and
+ * trigger registration. `getTransports()` then walks the registry,
+ * filters by current env, and returns the public-facing factories.
+ *
+ * Add a new transport by creating a new adapter module under
+ * `src/renderer/src/<env>/<kind>.ts` (or `transport/web-*.ts`), calling
+ * `registerTransport({...})` at module load, and adding the side-effect
+ * import here.
+ */
 
-declare global {
-    interface Window {
-        __TAURI_INTERNALS__?: object
-    }
-}
+import type { TransportFactory } from '../transport/types'
+import { detectEnv, isElectron, isTauri } from '../transport/adapter/env'
+import {
+    getRegisteredTransports,
+    subscribeAllChanges,
+} from '../transport/adapter/registry'
 
-export function isElectron(): boolean {
-    return (
-        typeof window.api !== 'undefined' &&
-        typeof window.api?.invoke === 'function'
-    )
-}
+// Side-effect imports — each adapter module calls registerTransport()
+import '../electron/serial'
+import '../electron/ble'
+import '../electron/hid'
+import '../tauri/serial'
+import '../tauri/ble'
+import '../transport/web-serial'
+import '../transport/web-hid'
+// Web Bluetooth disabled in browser builds — keep file referenced via
+// build-time import resolution but don't register a descriptor.
+import '../transport/web-ble'
 
-export function isTauri(): boolean {
-    return !!window.__TAURI_INTERNALS__
-}
+export { isElectron, isTauri }
 
 let cachedTransports: TransportFactory[] | null = null
 
 export function getTransports(): TransportFactory[] {
-    if (cachedTransports) return cachedTransports
+    return (cachedTransports ??= getRegisteredTransports(detectEnv()))
+}
 
-    console.log('[transports] env detect', {
-        hasApi: typeof window.api,
-        hasElectron: typeof window.electron,
-        isElectron: isElectron(),
-        isTauri: isTauri(),
-    })
-
-    const transports: TransportFactory[] = []
-
-    if (isTauri()) {
-        transports.push({
-            label: 'BLE',
-            communication: 'ble',
-            isWireless: true,
-            pick_and_connect: {
-                connect: tauri_ble_connect,
-                list: ble_list_devices,
-            },
-        })
-        transports.push({
-            label: 'USB',
-            communication: 'serial',
-            pick_and_connect: {
-                connect: tauri_serial_connect,
-                list: tauri_serial_list_devices,
-            },
-        })
-    } else if (isElectron()) {
-        // BLE on Linux currently broken (BlueZ writes accepted but firmware
-        // silent; noble setup blocked by nosuid mounts / adapter perms).
-        // Disable BLE transports on Linux entirely until a working backend
-        // exists. USB works.
-        const isLinux = navigator.userAgent.indexOf('Linux') >= 0
-        if (!isLinux) {
-            transports.push({
-                label: 'BLE',
-                communication: 'ble',
-                isWireless: true,
-                pick_and_connect: {
-                    connect: electron_ble_connect,
-                    list: electron_ble_list_devices,
-                },
-            })
-            transports.push({
-                label: 'BLE (Noble)',
-                communication: 'ble',
-                isWireless: true,
-                pick_and_connect: {
-                    connect: electron_noble_connect,
-                    list: electron_noble_list_devices,
-                },
-            })
-        }
-        transports.push({
-            label: 'USB',
-            communication: 'serial',
-            pick_and_connect: {
-                connect: electron_serial_connect,
-                list: electron_serial_list_devices,
-            },
-        })
-    } else {
-        if (navigator.serial) {
-            transports.push({
-                label: 'USB',
-                communication: 'serial',
-                pick_and_connect: {
-                    list: web_serial_list,
-                    connect: web_serial_connect_granted,
-                },
-                request_new: web_serial_request_new,
-            })
-        }
-
-        // Web Bluetooth disabled in browser builds: on Windows, ZMK
-        // keyboards bonded as HID are invisible to the Web BT chooser
-        // (OS hides connected HID devices), and ZMK Studio adv mode
-        // requires &studio_unlock + a fresh pair. Net result: chooser
-        // is empty for users. Use the Electron build (pnpm edev) for
-        // BLE — it talks to the native BT stack and reaches bonded
-        // devices. Re-enable the block below once a workable Web BT
-        // path exists. Shape mirrors the Web Serial branch above:
-        // pick_and_connect lists previously-granted devices via
-        // navigator.bluetooth.getDevices(), request_new opens the
-        // chooser for first-time pairing.
-        //
-        // if (navigator.bluetooth) {
-        //     transports.push({
-        //         label: 'BLE',
-        //         communication: 'ble',
-        //         isWireless: true,
-        //         pick_and_connect: {
-        //             list: web_ble_list,
-        //             connect: web_ble_connect_granted,
-        //         },
-        //         request_new: web_ble_request_new,
-        //     })
-        // }
-        void web_ble_list
-        void web_ble_connect_granted
-        void web_ble_request_new
-    }
-
-    cachedTransports = transports
-    return cachedTransports
+export function subscribeToTransportChanges(cb: () => void): () => void {
+    return subscribeAllChanges(detectEnv(), cb)
 }

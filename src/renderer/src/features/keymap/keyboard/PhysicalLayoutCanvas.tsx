@@ -6,7 +6,7 @@ import { LayoutZoom } from '@/lib/helpers'
 export type KeyPosition = PropsWithChildren<{
     id?: string
     header?: string
-    behaviorBinding?: string
+    actionLabel?: string
     holdTap?: HoldTapLabels
     width: number
     height: number
@@ -15,24 +15,30 @@ export type KeyPosition = PropsWithChildren<{
     r?: number
     rx?: number
     ry?: number
+    // Encoder marker (when present, KeyButton is rendered as a small dial half).
+    encoder?: { slot: number; dir: 'cw' | 'ccw' }
 }>
 
 interface PhysicalLayoutCanvasProps {
     positions: Array<KeyPosition>
     selectedPosition?: number
+    selectedEncoder?: { slot: number; dir: 'cw' | 'ccw' }
     oneU?: number
     hoverZoom?: boolean
     zoom?: LayoutZoom
     onPositionClicked?: (position: number) => void
+    onEncoderClicked?: (slot: number, dir: 'cw' | 'ccw') => void
     pressedKeys?: Set<number>
 }
 
 export const PhysicalLayoutCanvas = ({
     positions,
     selectedPosition,
+    selectedEncoder,
     oneU = 48,
     hoverZoom = true,
     onPositionClicked,
+    onEncoderClicked,
     pressedKeys = new Set(),
     ...props
 }: PhysicalLayoutCanvasProps): JSX.Element => {
@@ -90,16 +96,28 @@ export const PhysicalLayoutCanvas = ({
 
     const keysPositions = positions.map((p, idx) => {
         const posStyle = scalePosition(p, oneU)
+        const isEncoder = !!p.encoder
+        const isSelected = isEncoder
+            ? selectedEncoder?.slot === p.encoder!.slot &&
+              selectedEncoder?.dir === p.encoder!.dir
+            : idx === selectedPosition
+        const handleClick = (): void => {
+            if (isEncoder) {
+                onEncoderClicked?.(p.encoder!.slot, p.encoder!.dir)
+            } else {
+                onPositionClicked?.(idx)
+            }
+        }
         return (
             <div
                 key={p.id}
                 role="button"
                 tabIndex={0}
-                onClick={() => onPositionClicked?.(idx)}
+                onClick={handleClick}
                 onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault()
-                        onPositionClicked?.(idx)
+                        handleClick()
                     }
                 }}
                 className="absolute data-[zoomer=true]:hover:z-[1000] leading-[0]"
@@ -109,8 +127,8 @@ export const PhysicalLayoutCanvas = ({
                 <KeyButton
                     hoverZoom={hoverZoom}
                     oneU={oneU}
-                    selected={idx === selectedPosition}
-                    pressed={pressedKeys.has(idx)}
+                    selected={isSelected}
+                    pressed={!isEncoder && pressedKeys.has(idx)}
                     {...p}
                 />
             </div>

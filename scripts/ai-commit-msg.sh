@@ -21,6 +21,10 @@ SOURCE="${2:-}"
 
 [[ -z "$MSG_FILE" ]] && exit 0
 [[ "${SKIP_AI_COMMIT:-0}" == "1" ]] && exit 0
+# Never run inside CI / automated bots / release-please etc. The hook would
+# pipe staged diffs to an external CLI under an automation identity that
+# the user never opted in to.
+[[ -n "${CI:-}" || -n "${GITHUB_ACTIONS:-}" ]] && exit 0
 
 case "$SOURCE" in
     merge | squash | commit | template) exit 0 ;;

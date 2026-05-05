@@ -33,8 +33,8 @@ export const Standard: Story = {
                 keys: [1, 2, 3].map((x) => ({
                     x: x * 100,
                     y: 0,
-                    width: 100,
-                    height: 100,
+                    w: 100,
+                    h: 100,
                 })),
             },
             {
@@ -42,8 +42,8 @@ export const Standard: Story = {
                 keys: [1, 2, 3, 4].map((x) => ({
                     x: x * 100,
                     y: 0,
-                    width: 100,
-                    height: 100,
+                    w: 100,
+                    h: 100,
                 })),
             },
         ],

@@ -70,10 +70,6 @@ export async function getLatestRelease(): Promise<Release | null> {
     return promise
 }
 
-export function clearReleaseCache(): void {
-    cachedReleasePromise = null
-}
-
 export function getAssetForPlatform(
     release: Release,
     platform: AppPlatform,
@@ -104,11 +100,4 @@ export function detectPlatform(): AppPlatform {
     if (/Mac/i.test(ua)) return 'darwin'
     if (/Linux/i.test(ua)) return 'linux'
     return 'web'
-}
-
-export function isElectron(): boolean {
-    return Boolean(
-        (window as unknown as { electron?: unknown }).electron ||
-        (window as unknown as { api?: unknown }).api,
-    )
 }

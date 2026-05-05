@@ -11,7 +11,12 @@ export const ExternalLink = ({
     children,
 }: PropsWithChildren<ExternalLinkProps>): JSX.Element => {
     return (
-        <a className="text-primary hover:underline" target="_new" href={href}>
+        <a
+            className="text-primary hover:underline"
+            target="_blank"
+            rel="noopener noreferrer"
+            href={href}
+        >
             {children}
             <LinkIcon className="inline-block w-4 mx-1 align-text-top" />
         </a>

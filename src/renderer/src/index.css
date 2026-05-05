@@ -212,6 +212,7 @@
     * {
         @apply border-border outline-ring/50;
     }
+
     body {
         @apply bg-background text-foreground;
     }
@@ -229,6 +230,7 @@
         top: 2.25rem !important;
         height: calc(100svh - 2.25rem) !important;
     }
+
     body.app-electron [class~='group/sidebar-wrapper'] {
         min-height: calc(100svh - 2.25rem) !important;
     }

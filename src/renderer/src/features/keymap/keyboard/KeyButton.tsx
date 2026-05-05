@@ -2,6 +2,7 @@ import { Children, CSSProperties, PropsWithChildren } from 'react'
 import { KeyLabel } from './KeyLabel'
 import { HoldTapKeyLabel, type HoldTapLabels } from './HoldTapKeyLabel'
 import useUserSettingsStore from '@/stores/userSettingsStore'
+import useConnectionStore from '@/stores/connectionStore'
 
 export type { HoldTapLabels }
 
@@ -13,7 +14,7 @@ interface KeyButtonProps {
     oneU: number
     hoverZoom?: boolean
     header?: string
-    behaviorBinding?: string
+    actionLabel?: string
     holdTap?: HoldTapLabels
     onClick?: () => void
 }
@@ -31,9 +32,9 @@ function makeSize(
     height *= oneU
 
     return {
-        '--zmk-key-center-width': 'calc(' + width + 'px - 2px)',
+        '--key-center-width': 'calc(' + width + 'px - 2px)',
         width: 'calc(' + width + 'px - 2px)',
-        '--zmk-key-center-height': 'calc(' + height + 'px - 2px)',
+        '--key-center-height': 'calc(' + height + 'px - 2px)',
         height: 'calc(' + height + 'px - 2px)',
     }
 }
@@ -42,7 +43,7 @@ export const KeyButton = ({
     selected = false,
     pressed = false,
     header,
-    behaviorBinding,
+    actionLabel,
     oneU,
     hoverZoom = true,
     holdTap,
@@ -51,17 +52,20 @@ export const KeyButton = ({
     const size = makeSize(props, oneU)
     const maxChildFontSize = Math.max(10, oneU / 2.5)
     const maxHoldFontSize = Math.max(8, oneU / 4)
-    const keyDisplayMode = useUserSettingsStore((s) => s.keyDisplayMode)
+    const firmware = useConnectionStore((s) => s.service?.deviceInfo.firmware)
+    const keyDisplayModeMap = useUserSettingsStore((s) => s.keyDisplayMode)
+    const keyDisplayMode =
+        keyDisplayModeMap[firmware ?? '_default'] ??
+        keyDisplayModeMap['_default'] ??
+        'displayName'
 
     const effectiveHeader =
-        keyDisplayMode === 'binding' && behaviorBinding
-            ? behaviorBinding
-            : header
-    const isBindingMode = keyDisplayMode === 'binding' && !!behaviorBinding
+        keyDisplayMode === 'binding' && actionLabel ? actionLabel : header
+    const isBindingMode = keyDisplayMode === 'binding' && !!actionLabel
     const headerFontPx = Math.max(6, Math.round(oneU / 8))
     const tooltipParts = [
         header,
-        behaviorBinding ? `(${behaviorBinding})` : '',
+        actionLabel ? `(${actionLabel})` : '',
         holdTap?.tooltip,
     ].filter(Boolean)
     const tooltip = tooltipParts.join(' — ')

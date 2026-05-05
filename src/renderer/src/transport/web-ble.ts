@@ -1,9 +1,6 @@
-import type { RpcTransport } from '@zmkfirmware/zmk-studio-ts-client/transport/index'
-import { UserCancelledError } from '@zmkfirmware/zmk-studio-ts-client/transport/errors'
+import type { Transport } from '@firmware'
+import { UserCancelledError } from '@firmware'
 import type { AvailableDevice } from '@/transport/types'
-
-const SERVICE_UUID = '00000000-0196-6107-c967-c5cfb1c2482a'
-const RPC_CHRC_UUID = '00000001-0196-6107-c967-c5cfb1c2482a'
 
 const deviceRegistry = new Map<string, BluetoothDevice>()
 
@@ -15,7 +12,11 @@ function makeLabel(dev: BluetoothDevice): string {
     return dev.name || 'Unknown BLE Device'
 }
 
-async function openTransport(dev: BluetoothDevice): Promise<RpcTransport> {
+async function openTransport(
+    dev: BluetoothDevice,
+    serviceUuid: string,
+    charUuid: string,
+): Promise<Transport> {
     if (!dev.gatt) throw new Error('No GATT server on selected device')
 
     const abortController = new AbortController()
@@ -28,41 +29,74 @@ async function openTransport(dev: BluetoothDevice): Promise<RpcTransport> {
 
     let svc: BluetoothRemoteGATTService
     try {
-        svc = await dev.gatt.getPrimaryService(SERVICE_UUID)
+        svc = await dev.gatt.getPrimaryService(serviceUuid)
     } catch (e) {
         console.error(
-            '[web-ble] device does not expose ZMK Studio service',
-            SERVICE_UUID,
+            '[web-ble] device does not expose firmware studio service',
+            serviceUuid,
             e,
         )
         dev.gatt.disconnect()
         throw new Error(
-            'Selected device does not expose the ZMK Studio service. ' +
-                'Make sure firmware is built with CONFIG_ZMK_STUDIO=y and the device is unlocked.',
+            'Selected device does not expose the firmware studio service. ' +
+                'Make sure the firmware is built with the studio service enabled and the device is unlocked.',
         )
     }
 
-    const char = await svc.getCharacteristic(RPC_CHRC_UUID)
+    const char = await svc.getCharacteristic(charUuid)
+
+    let onValueChanged: ((ev: Event) => void) | null = null
+    let onDisconnected: (() => void) | null = null
 
     const readable = new ReadableStream<Uint8Array>({
         async start(controller) {
             await char.stopNotifications().catch(() => undefined)
             await char.startNotifications()
 
-            const vc = (ev: Event): void => {
+            // B7: respect view byteOffset/byteLength — value is a DataView
+            onValueChanged = (ev: Event): void => {
                 const target = ev.target as BluetoothRemoteGATTCharacteristic
-                const buf = target?.value?.buffer
-                if (!buf) return
-                controller.enqueue(new Uint8Array(buf))
+                const v = target?.value
+                if (!v) return
+                controller.enqueue(
+                    new Uint8Array(v.buffer, v.byteOffset, v.byteLength),
+                )
             }
-            char.addEventListener('characteristicvaluechanged', vc)
+            char.addEventListener('characteristicvaluechanged', onValueChanged)
 
-            const cb = async (): Promise<void> => {
-                char.removeEventListener('characteristicvaluechanged', vc)
-                dev.removeEventListener('gattserverdisconnected', cb)
+            onDisconnected = (): void => {
+                if (onValueChanged) {
+                    char.removeEventListener(
+                        'characteristicvaluechanged',
+                        onValueChanged,
+                    )
+                }
+                if (onDisconnected) {
+                    dev.removeEventListener(
+                        'gattserverdisconnected',
+                        onDisconnected,
+                    )
+                }
                 controller.close()
             }
-            dev.addEventListener('gattserverdisconnected', cb)
+            dev.addEventListener('gattserverdisconnected', onDisconnected)
+        },
+        // B5: clean up listeners if consumer cancels before disconnect fires
+        cancel(): void {
+            if (onValueChanged) {
+                char.removeEventListener(
+                    'characteristicvaluechanged',
+                    onValueChanged,
+                )
+                onValueChanged = null
+            }
+            if (onDisconnected) {
+                dev.removeEventListener(
+                    'gattserverdisconnected',
+                    onDisconnected,
+                )
+                onDisconnected = null
+            }
         },
     })
 
@@ -117,14 +151,16 @@ export async function listGrantedDevices(): Promise<AvailableDevice[]> {
 
 export async function connectToGrantedDevice(
     device: AvailableDevice,
-): Promise<RpcTransport> {
+    serviceUuid: string,
+    charUuid: string,
+): Promise<Transport> {
     const dev = deviceRegistry.get(device.id)
     if (!dev) {
         throw new Error(
             'Selected BLE device is no longer available. Refresh the list.',
         )
     }
-    return openTransport(dev)
+    return openTransport(dev, serviceUuid, charUuid)
 }
 
 /**
@@ -132,11 +168,14 @@ export async function connectToGrantedDevice(
  * ZMK firmware builds expose the Studio GATT service without including
  * it in the advertising payload — strict service filter shows empty.
  */
-export async function requestAndConnect(): Promise<RpcTransport> {
+export async function requestAndConnect(
+    serviceUuid: string,
+    charUuid: string,
+): Promise<Transport> {
     const dev = await navigator.bluetooth
         .requestDevice({
             acceptAllDevices: true,
-            optionalServices: [SERVICE_UUID],
+            optionalServices: [serviceUuid],
         })
         .catch((e: unknown) => {
             if (e instanceof DOMException && e.name === 'NotFoundError') {
@@ -155,8 +194,20 @@ export async function requestAndConnect(): Promise<RpcTransport> {
     })
 
     deviceRegistry.set(makeId(dev), dev)
-    return openTransport(dev)
+    return openTransport(dev, serviceUuid, charUuid)
 }
 
 // Back-compat alias for the original single-call connect().
 export const connect = requestAndConnect
+
+// pattern-check: skip — sibling capability utility, no abstraction
+export async function forgetGrantedDevice(deviceId: string): Promise<void> {
+    const dev = deviceRegistry.get(deviceId)
+    if (!dev) return
+    const forget = (dev as BluetoothDevice & { forget?: () => Promise<void> })
+        .forget
+    if (typeof forget === 'function') {
+        await forget.call(dev).catch(() => undefined)
+    }
+    deviceRegistry.delete(deviceId)
+}

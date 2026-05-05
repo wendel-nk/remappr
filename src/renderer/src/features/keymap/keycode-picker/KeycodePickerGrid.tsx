@@ -1,13 +1,7 @@
-import { useState, useEffect, useCallback } from 'react'
-import { keyboards } from '@/data/keys'
-import KeycodeButton from './KeycodeButton.tsx'
+// Pattern check: no GoF pattern (-) — rejected — picker rewrite to iterate catalog pages + use codec for canonical↔value translation; replaces legacy keyboards import flow.
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Key } from 'react-aria-components'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/ui/tabs'
-import { Input } from '@/ui/input'
-import {
-    hidUsageFromPageAndId,
-    hidUsagePageAndIdFromUsage,
-} from '@/lib/behaviors/hidUsages'
+import { hidUsagePageAndIdFromUsage } from '@/lib/actions/hidUsages'
 import {
     maskMods,
     filterKeysBySearch,
@@ -16,8 +10,12 @@ import {
     maxBottomForPositioned,
 } from '@/lib/keymap/keycodeGrid'
 import { useKeycodeFilter } from '@/hooks/use-keycode-filter'
+import useConnectionStore from '@/stores/connectionStore'
+import type { CatalogEntry } from '@firmware/catalog/types'
+import KeycodeButton from './KeycodeButton.tsx'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/ui/tabs'
+import { Input } from '@/ui/input'
 
-// Pattern check: no GoF pattern (-) — rejected — added optional prop for multi-highlight, no abstraction warranted.
 interface KeycodePickerGridProps {
     value?: number
     label?: string
@@ -65,11 +63,40 @@ export function KeycodePickerGrid({
         setSearchQuery,
         activeTab,
         setActiveTab,
-        keyboardsWithMatches,
+        pages,
+        pagesWithMatches,
     } = useKeycodeFilter()
+
+    const codec = useConnectionStore((s) => s.service?.codec)
 
     const [modFlags, setModFlags] = useState<number>(0)
     const [baseKey, setBaseKey] = useState<number | undefined>(undefined)
+
+    // Build a lookup keyed by encoded numeric value so we can resolve the
+    // active page tab from incoming `value` and reuse during render. Falls
+    // back to (page<<16)|usage encoding when codec absent (pre-connect).
+    const valueByEntryId = useMemo(() => {
+        const map = new Map<string, number>()
+        if (!codec) return map
+        for (const page of pages) {
+            for (const entry of page.entries) {
+                const enc = codec.encode(entry.id)
+                if (enc) map.set(entry.id, enc.value)
+            }
+        }
+        return map
+    }, [codec, pages])
+
+    const valueToEntry = useMemo(() => {
+        const map = new Map<number, CatalogEntry>()
+        for (const page of pages) {
+            for (const entry of page.entries) {
+                const v = valueByEntryId.get(entry.id)
+                if (v !== undefined) map.set(v, entry)
+            }
+        }
+        return map
+    }, [pages, valueByEntryId])
 
     const handleKeySelect = useCallback(
         (e: Key | null) => {
@@ -114,49 +141,25 @@ export function KeycodePickerGrid({
 
     useEffect(() => {
         if (value === undefined || value === 0) return
-        const maskedValue = value & 0x00ffffff
-        const [page, id] = hidUsagePageAndIdFromUsage(maskedValue)
-
-        for (let i = 0; i < keyboards.length; i++) {
-            const keyboard = keyboards[i]
-            if (keyboard.Id === page) {
-                const key = keyboard.UsageIds.find((k) => {
-                    const kId = typeof k.Id === 'string' ? parseInt(k.Id) : k.Id
-                    return kId === id
-                })
-                if (key) {
-                    setActiveTab(i.toString())
-                    return
-                }
-            }
+        const masked = maskMods(value)
+        const entry = valueToEntry.get(masked)
+        if (entry) {
+            const idx = pages.findIndex((p) =>
+                p.entries.some((e) => e.id === entry.id),
+            )
+            if (idx >= 0) setActiveTab(idx.toString())
         }
+    }, [value, pages, valueToEntry, setActiveTab])
 
-        if (id >= 1 && id <= 231) {
-            for (let i = 0; i < keyboards.length; i++) {
-                const keyboard = keyboards[i]
-                const key = keyboard.UsageIds.find((k) => {
-                    const kId = typeof k.Id === 'string' ? parseInt(k.Id) : k.Id
-                    return kId === id
-                })
-                if (key) {
-                    setActiveTab(i.toString())
-                    return
-                }
-            }
-        }
-    }, [value, setActiveTab])
-
-    function isKeySelected(keyId: number): boolean {
-        const [page, id] = hidUsagePageAndIdFromUsage(keyId)
+    function isKeySelected(entryValue: number | undefined): boolean {
+        if (entryValue === undefined) return false
+        const [page, id] = hidUsagePageAndIdFromUsage(entryValue)
         if (isModifierKey(page, id)) {
             return (modFlags & idToModBit(id)) !== 0
         }
-        if (baseKey !== undefined && baseKey === keyId) {
+        if (baseKey !== undefined && baseKey === entryValue) return true
+        if (highlightedKeys?.some((k) => maskMods(k) === entryValue))
             return true
-        }
-        if (highlightedKeys?.some((k) => maskMods(k) === keyId)) {
-            return true
-        }
         return false
     }
 
@@ -164,19 +167,17 @@ export function KeycodePickerGrid({
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <div className="flex items-center gap-4 mb-4">
                 <TabsList className="flex-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                    {keyboards.map((keyboard, index) => {
-                        const keyboardMatch = keyboardsWithMatches[index]
+                    {pages.map((page, index) => {
+                        const match = pagesWithMatches[index]
                         const isDisabled =
-                            searchQuery.trim() !== '' &&
-                            !keyboardMatch?.hasMatches
-
+                            searchQuery.trim() !== '' && !match?.hasMatches
                         return (
                             <TabsTrigger
-                                key={keyboard.Name}
+                                key={page.id}
                                 value={index.toString()}
                                 disabled={isDisabled}
                             >
-                                {keyboard.Name}
+                                {page.name}
                             </TabsTrigger>
                         )
                     })}
@@ -190,9 +191,9 @@ export function KeycodePickerGrid({
                 />
             </div>
 
-            {keyboards.map((keyboard, index) => {
+            {pages.map((page, index) => {
                 const filteredKeys = filterKeysBySearch(
-                    keyboard.UsageIds,
+                    page.entries,
                     searchQuery,
                 )
                 const { withPositions, withoutPositions } =
@@ -203,9 +204,44 @@ export function KeycodePickerGrid({
                 )
                 const maxBottomPosition = maxBottomForPositioned(withPositions)
 
+                const renderEntry = (
+                    entry: CatalogEntry,
+                    positioned: boolean,
+                ): JSX.Element => {
+                    const entryValue = valueByEntryId.get(entry.id)
+                    const keyWidth = entry.w ? entry.w / 2 : 50
+                    const keyHeight = entry.h ? entry.h / 2 : 50
+                    const button = (
+                        <KeycodeButton
+                            value={entryValue ?? 0}
+                            label={entry.label}
+                            width={keyWidth}
+                            height={keyHeight}
+                            x={positioned ? (entry.x ?? 0) / 100 : 0}
+                            y={positioned ? (entry.y ?? 0) / 100 : 0}
+                            baseKeyValue={entryValue ?? 0}
+                            onSelect={handleKeySelect}
+                            isSelected={isKeySelected(entryValue)}
+                        />
+                    )
+                    if (positioned) return button
+                    return (
+                        <div
+                            style={{
+                                position: 'relative',
+                                width: `${keyWidth}px`,
+                                height: `${keyHeight}px`,
+                                flexShrink: 0,
+                            }}
+                        >
+                            {button}
+                        </div>
+                    )
+                }
+
                 return (
                     <TabsContent
-                        key={keyboard.Name}
+                        key={page.id}
                         value={index.toString()}
                         className="mt-4"
                     >
@@ -218,31 +254,11 @@ export function KeycodePickerGrid({
                                 overflowX: 'hidden',
                             }}
                         >
-                            {withPositions.map((key, keyIndex) => {
-                                const keyId = hidUsageFromPageAndId(
-                                    keyboard.Id,
-                                    key.Id as number,
-                                )
-                                const keyWidth =
-                                    'w' in key && key.w ? key.w / 2 : 50
-                                const keyHeight =
-                                    'h' in key && key.h ? key.h / 2 : 50
-
-                                return (
-                                    <KeycodeButton
-                                        key={key.Id + '-' + keyIndex}
-                                        value={keyId}
-                                        label={key.Label || ''}
-                                        width={keyWidth}
-                                        height={keyHeight}
-                                        x={key.x! / 100}
-                                        y={key.y! / 100}
-                                        baseKeyValue={key.Id}
-                                        onSelect={handleKeySelect}
-                                        isSelected={isKeySelected(keyId)}
-                                    />
-                                )
-                            })}
+                            {withPositions.map((entry, keyIndex) => (
+                                <div key={`${entry.id}-${keyIndex}`}>
+                                    {renderEntry(entry, true)}
+                                </div>
+                            ))}
 
                             {withoutPositions.length > 0 && (
                                 <div
@@ -266,41 +282,11 @@ export function KeycodePickerGrid({
                                         maxWidth: '100%',
                                     }}
                                 >
-                                    {withoutPositions.map((key, keyIndex) => {
-                                        const keyId = hidUsageFromPageAndId(
-                                            keyboard.Id,
-                                            key.Id as number,
-                                        )
-                                        const keyWidth =
-                                            'w' in key && key.w ? key.w / 2 : 50
-                                        const keyHeight =
-                                            'h' in key && key.h ? key.h / 2 : 50
-                                        return (
-                                            <div
-                                                key={key.Id + '-' + keyIndex}
-                                                style={{
-                                                    position: 'relative',
-                                                    width: `${keyWidth}px`,
-                                                    height: `${keyHeight}px`,
-                                                    flexShrink: 0,
-                                                }}
-                                            >
-                                                <KeycodeButton
-                                                    value={keyId}
-                                                    label={key.Label || ''}
-                                                    width={keyWidth}
-                                                    height={keyHeight}
-                                                    x={0}
-                                                    y={0}
-                                                    baseKeyValue={key.Id}
-                                                    onSelect={handleKeySelect}
-                                                    isSelected={isKeySelected(
-                                                        keyId,
-                                                    )}
-                                                />
-                                            </div>
-                                        )
-                                    })}
+                                    {withoutPositions.map((entry, keyIndex) => (
+                                        <div key={`${entry.id}-${keyIndex}`}>
+                                            {renderEntry(entry, false)}
+                                        </div>
+                                    ))}
                                 </div>
                             )}
                             {calculatedHeight > CONTAINER_MAX_HEIGHT && (

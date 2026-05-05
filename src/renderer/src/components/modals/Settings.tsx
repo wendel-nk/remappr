@@ -1,132 +1,71 @@
-// pattern-check: skip — adding manual check button + IPC plumbing, no abstraction
+// Pattern check: no GoF pattern (-) — rejected — UI restructure into sidemenu nav with sectioned panels; no class hierarchy or polymorphism warranted.
 import { useState } from 'react'
-import { Settings as SettingsIcon, RefreshCw } from 'lucide-react'
-import { toast } from 'sonner'
-import { DarkModeToggle } from '@/components/DarkModeToggle'
-import { ThemePicker } from '@/components/ThemePicker'
-import { KeyDisplayModePicker } from '@/components/KeyDisplayModePicker'
-import { DownloadLatestButton } from '@/components/DownloadLatestButton'
+import { Info, Palette, Radio, Settings as SettingsIcon } from 'lucide-react'
 import { Modal } from '@/ui/modal'
-import { Button } from '@/ui/button'
-import { Label } from '@/ui/label'
-import { APP_VERSION } from '@/lib/constants'
-import { IpcChannels } from '../../../../shared/ipc-types'
-import type { UpdateCheckResultPayload } from '../../../../shared/ipc-types'
-
-interface ElectronWindow {
-    api?: {
-        invoke: (channel: string, ...args: unknown[]) => Promise<unknown>
-    }
-}
+import { ScrollArea } from '@/ui/scroll-area'
+import { cn } from '@/lib/cn'
+import { GeneralSection } from './settings/GeneralSection'
+import { CommunicationSection } from './settings/CommunicationSection'
+import { AboutSection } from './settings/AboutSection'
 
 interface SettingsProps {
     opened?: boolean
     onClose?: () => void
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export function Settings(_props: SettingsProps): JSX.Element {
-    const [checking, setChecking] = useState(false)
-    const api = (window as unknown as ElectronWindow).api
-    const isElectron = Boolean(api)
+type SettingsSection = 'general' | 'communication' | 'about'
 
-    const handleCheckUpdates = async (): Promise<void> => {
-        if (!api) return
-        setChecking(true)
-        try {
-            const result = (await api.invoke(
-                IpcChannels.UPDATES_CHECK,
-            )) as UpdateCheckResultPayload
-            if (result.status === 'newer' && result.version) {
-                toast.success(`Update available: v${result.version}`, {
-                    description:
-                        'A toast with download options should appear shortly.',
-                })
-            } else if (result.status === 'current') {
-                toast.success('You are on the latest version', {
-                    description: `Remappr v${APP_VERSION} is up to date.`,
-                })
-            } else {
-                toast.error('Could not check for updates', {
-                    description: result.error ?? 'Unknown error',
-                })
-            }
-        } finally {
-            setChecking(false)
-        }
-    }
+const SECTIONS: {
+    id: SettingsSection
+    label: string
+    icon: typeof Palette
+}[] = [
+    { id: 'general', label: 'General', icon: Palette },
+    { id: 'communication', label: 'Communication', icon: Radio },
+    { id: 'about', label: 'About', icon: Info },
+]
 
+export function Settings({ opened, onClose }: SettingsProps): JSX.Element {
+    const [section, setSection] = useState<SettingsSection>('general')
     return (
         <Modal
+            opened={opened}
+            onClose={onClose}
             customModalBoxClass="w-11/14 max-w-4xl"
             type="icon"
             icon={<SettingsIcon />}
             variant="ghost"
         >
-            <div className="space-y-6">
-                {/* Theme Settings */}
-                <div className="space-y-4">
-                    <h3 className="text-lg font-semibold">Appearance</h3>
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <Label htmlFor="theme-picker">Theme</Label>
-                            <p className="text-sm text-muted-foreground">
-                                Choose a color theme
-                            </p>
-                        </div>
-                        <ThemePicker />
-                    </div>
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <Label htmlFor="theme-toggle">Dark Mode</Label>
-                            <p className="text-sm text-muted-foreground">
-                                Toggle between light and dark themes
-                            </p>
-                        </div>
-                        <DarkModeToggle />
-                    </div>
-                </div>
-
-                {/* Keymap Display */}
-                <div className="space-y-4">
-                    <h3 className="text-lg font-semibold">Keymap Display</h3>
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <Label>Key Header</Label>
-                            <p className="text-sm text-muted-foreground">
-                                Show behavior name (Key Press) or binding code
-                                (&amp;kp)
-                            </p>
-                        </div>
-                        <KeyDisplayModePicker />
-                    </div>
-                </div>
-
-                {/* About */}
-                <div className="space-y-3">
-                    <h3 className="text-lg font-semibold">About</h3>
-                    <p className="text-sm">
-                        Remappr{' '}
-                        <span className="font-mono">v{APP_VERSION}</span>
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                        <DownloadLatestButton />
-                        {isElectron && (
-                            <Button
-                                variant="ghost"
-                                onClick={handleCheckUpdates}
-                                disabled={checking}
-                            >
-                                <RefreshCw
-                                    className={`mr-2 h-4 w-4 ${
-                                        checking ? 'animate-spin' : ''
-                                    }`}
-                                />
-                                {checking ? 'Checking…' : 'Check for updates'}
-                            </Button>
-                        )}
-                    </div>
-                </div>
+            <div className="flex min-h-[28rem] gap-4">
+                <aside className="w-48 shrink-0 border-r pr-2">
+                    <nav className="flex flex-col gap-0.5">
+                        {SECTIONS.map(({ id, label, icon: Icon }) => {
+                            const active = section === id
+                            return (
+                                <button
+                                    key={id}
+                                    type="button"
+                                    onClick={() => setSection(id)}
+                                    aria-current={active ? 'page' : undefined}
+                                    className={cn(
+                                        'flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                                        active
+                                            ? 'bg-accent text-accent-foreground'
+                                            : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
+                                    )}
+                                >
+                                    <Icon className="h-4 w-4" />
+                                    {label}
+                                </button>
+                            )
+                        })}
+                    </nav>
+                </aside>
+                <ScrollArea className="max-h-[60vh] flex-1 pr-2">
+                    {section === 'general' && <GeneralSection />}
+                    {section === 'communication' && <CommunicationSection />}
+                    {section === 'about' && <AboutSection />}
+                </ScrollArea>
             </div>
         </Modal>
     )

@@ -13,16 +13,15 @@ import {
     SidebarHeader,
     SidebarFooter,
 } from '@/ui/sidebar'
-import { DeviceMenu } from '@/features/connection/DeviceMenu'
-import { setKeymapRequest } from '@/services/rpcEventsService'
-import { callRpc } from '@/services/rpcCall'
-import { LockState } from '@zmkfirmware/zmk-studio-ts-client/core'
-import { Keymap } from '@zmkfirmware/zmk-studio-ts-client/keymap'
+import { DeviceMenu } from '@/features/connection/device-menu/DeviceMenu'
+// pattern-check: skip — drop dead lock guards now that App-shell render-gates locked state
+import type { Keymap } from '@firmware/types'
 import { produce } from 'immer'
 import { APP_VERSION } from '@/lib/constants'
 
+// pattern-check: skip — mechanical lock-guard removal
 export function Drawer(): JSX.Element {
-    const { connection, lockState } = useConnectionStore()
+    const { service } = useConnectionStore()
     const { setSelectedLayerIndex } = useLayerSelectionStore()
     const { keymap, setKeymap, resetKeymap } = useKeymapStore()
     const {
@@ -43,25 +42,22 @@ export function Drawer(): JSX.Element {
         [setKeymap],
     )
 
-    // Fetch keymap when connection changes or becomes unlocked
+    // Fetch keymap when service changes
     useEffect(() => {
-        if (
-            !connection ||
-            lockState !== LockState.ZMK_STUDIO_CORE_LOCK_STATE_UNLOCKED
-        ) {
+        if (!service) {
             resetKeymap()
             return
         }
 
         let ignore = false
+
         async function fetchKeymap(): Promise<void> {
-            const response = await callRpc({
-                keymap: { getKeymap: true },
-            })
-            const keymapData = response?.keymap?.getKeymap
-            console.log('Got the keymap!')
-            if (!ignore && keymapData) {
-                setKeymap(keymapData)
+            if (!service) return
+            try {
+                const km = await service.getKeymap()
+                if (!ignore) setKeymap(km)
+            } catch (e) {
+                console.error('Failed to fetch keymap', e)
             }
         }
 
@@ -69,12 +65,12 @@ export function Drawer(): JSX.Element {
         return (): void => {
             ignore = true
         }
-    }, [connection, lockState, setKeymap, resetKeymap])
+    }, [service, setKeymap, resetKeymap])
 
-    // Reset the layer selection whenever the connection is swapped or locked state changes
+    // Reset the layer selection whenever the service is swapped
     useEffect(() => {
         setSelectedLayerIndex(0)
-    }, [connection, lockState, setSelectedLayerIndex])
+    }, [service, setSelectedLayerIndex])
 
     const doSelectPhysicalLayout = useCallback(
         (i: number): void => {
@@ -91,18 +87,19 @@ export function Drawer(): JSX.Element {
     )
 
     useEffect(() => {
-        if (!connection || !layouts) return
+        if (!service || !layouts) return
 
         void (async () => {
-            const result = await setKeymapRequest(
-                layouts,
-                selectedPhysicalLayoutIndex,
-            )
-            if (result) {
-                setKeymap(result)
+            try {
+                const km = await service.setActivePhysicalLayout(
+                    selectedPhysicalLayoutIndex,
+                )
+                setKeymap(km)
+            } catch (e) {
+                console.error('Failed to set active physical layout', e)
             }
         })()
-    }, [connection, layouts, selectedPhysicalLayoutIndex, setKeymap])
+    }, [service, layouts, selectedPhysicalLayoutIndex, setKeymap])
 
     return (
         <Sidebar collapsible="icon" variant="inset">

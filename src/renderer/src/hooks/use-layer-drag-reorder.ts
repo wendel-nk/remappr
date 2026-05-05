@@ -1,9 +1,25 @@
+// pattern-check: skip mechanical port — uses service.moveLayer + neutral Keymap mutation
 import { useCallback, useRef, useState } from 'react'
-import type { Keymap } from '@zmkfirmware/zmk-studio-ts-client/keymap'
+import type { Keymap } from '@firmware/types'
+import type { KeyboardService } from '@firmware/service'
 import undoRedoStore from '@/stores/undoRedoStore'
 import useConnectionStore from '@/stores/connectionStore'
 import useLayerSelectionStore from '@/stores/layerSelectionStore'
-import { moveLayer } from '@/services/rpcLayerService'
+
+async function moveLayerOp(
+    service: KeyboardService,
+    setKeymap: (updater: (draft: Keymap) => void) => void,
+    setSelectedLayerIndex: (i: number) => void,
+    startIndex: number,
+    destIndex: number,
+): Promise<void> {
+    await service.moveLayer(startIndex, destIndex)
+    setKeymap((draft) => {
+        const [moved] = draft.layers.splice(startIndex, 1)
+        draft.layers.splice(destIndex, 0, moved)
+    })
+    setSelectedLayerIndex(destIndex)
+}
 
 export interface DragHandlers {
     draggable: boolean
@@ -29,7 +45,7 @@ export function useLayerDragReorder({
     setKeymap,
 }: UseLayerDragReorderArgs): UseLayerDragReorderResult {
     const { doIt } = undoRedoStore()
-    const { connection } = useConnectionStore()
+    const { service } = useConnectionStore()
     const { setSelectedLayerIndex } = useLayerSelectionStore()
 
     const sourceRef = useRef<number | null>(null)
@@ -38,15 +54,36 @@ export function useLayerDragReorder({
 
     const performMove = useCallback(
         (start: number, dest: number): void => {
-            if (!connection || !setKeymap) return
+            if (!service || !setKeymap) return
             if (start === dest) return
             doIt?.(async () => {
-                await moveLayer(start, dest, setKeymap, setSelectedLayerIndex)
-                return async () =>
-                    moveLayer(dest, start, setKeymap, setSelectedLayerIndex)
+                try {
+                    await moveLayerOp(
+                        service,
+                        setKeymap,
+                        setSelectedLayerIndex,
+                        start,
+                        dest,
+                    )
+                } catch (e) {
+                    console.error('Failed to move layer', e)
+                }
+                return async () => {
+                    try {
+                        await moveLayerOp(
+                            service,
+                            setKeymap,
+                            setSelectedLayerIndex,
+                            dest,
+                            start,
+                        )
+                    } catch (e) {
+                        console.error('Failed to undo move layer', e)
+                    }
+                }
             })
         },
-        [connection, doIt, setKeymap, setSelectedLayerIndex],
+        [service, doIt, setKeymap, setSelectedLayerIndex],
     )
 
     const handlersFor = useCallback(

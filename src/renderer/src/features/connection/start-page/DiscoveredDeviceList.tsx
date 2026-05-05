@@ -1,7 +1,6 @@
-// pattern-check: skip — prop plumbing only
-import { DeviceCard } from '@/features/connection/DeviceCard'
-import type { DeviceWithTransport } from '@/hooks/use-transport-discovery'
-import { setUserDeviceName } from '@/transport/web-serial'
+// pattern-check: skip — capability dispatch via transport methods, no abstraction
+import { DeviceCard } from './DeviceCard'
+import type { DeviceWithTransport } from '@/features/connection/types'
 
 interface DiscoveredDeviceListProps {
     devices: DeviceWithTransport[]
@@ -21,9 +20,8 @@ export function DiscoveredDeviceList({
     return (
         <div className="space-y-3">
             {devices.map((d) => {
-                const isWebSerial = d.device.id.startsWith('web-serial:')
-                const canRename =
-                    isWebSerial && d.transport.communication === 'serial'
+                const canRename = !!d.transport.renameDevice
+                const canForget = !!d.transport.forgetDevice
                 return (
                     <DeviceCard
                         key={d.device.id}
@@ -40,7 +38,15 @@ export function DiscoveredDeviceList({
                         onRename={
                             canRename
                                 ? (next) => {
-                                      setUserDeviceName(d.device.id, next)
+                                      d.transport.renameDevice!(d.device, next)
+                                      onRefresh?.()
+                                  }
+                                : undefined
+                        }
+                        onForget={
+                            canForget
+                                ? async () => {
+                                      await d.transport.forgetDevice!(d.device)
                                       onRefresh?.()
                                   }
                                 : undefined

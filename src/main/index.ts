@@ -1,15 +1,26 @@
-// pattern-check: skip — merge conflict resolution, no new logic
-import { app, shell, BrowserWindow } from 'electron'
+// pattern-check: skip — defensive Electron lifecycle hooks, no new abstraction
+import { app, BrowserWindow, shell } from 'electron'
 import { join } from 'path'
-import { electronApp, optimizer, is } from '@electron-toolkit/utils'
+import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { registerIpcHandlers } from './ipc-handlers'
-import { setupBleDeviceSelection, registerBleIpcHandlers } from './ble-manager'
+import { registerBleIpcHandlers, setupBleDeviceSelection } from './ble-manager'
 import { setupSerialDeviceSelection } from './serial-picker'
 import { startSerialDevicePolling } from './serial'
 import { silenceConsoleInProduction } from '../shared/logger'
 import { checkForUpdates, registerUpdateIpc } from './update-checker'
 import { registerWindowControlsIpc } from './window-controls'
+
+// Origin allowlist: file:// (packaged app) and the dev-server URL (HMR).
+// Used by permission/device handlers and `will-navigate` lockdown so an
+// attacker cannot pivot a renderer compromise into self-granting hardware
+// access or navigating off-app.
+function isAllowedOrigin(origin: string): boolean {
+    const devUrl = process.env['ELECTRON_RENDERER_URL']
+    return (
+        origin.startsWith('file://') || (!!devUrl && origin.startsWith(devUrl))
+    )
+}
 
 silenceConsoleInProduction()
 
@@ -41,9 +52,15 @@ function createWindow(): void {
         ...(isLinux ? { icon } : {}),
         webPreferences: {
             preload: join(__dirname, '../preload/index.mjs'),
+            // sandbox:false — electron-vite emits the preload as ESM (.mjs),
+            // and Chromium's sandboxed preload loader only accepts CommonJS.
+            // contextIsolation:true + nodeIntegration:false still confine the
+            // renderer; flipping the sandbox here would need a build-side
+            // change to emit a CJS preload bundle first.
             sandbox: false,
             nodeIntegration: false,
             contextIsolation: true,
+            webviewTag: false,
         },
     })
 
@@ -51,27 +68,70 @@ function createWindow(): void {
     // can surface pickers inside Electron. Gated by origin so external pages opened via
     // shell.openExternal cannot self-grant.
     const sess = mainWindow.webContents.session
-    const devUrl = process.env['ELECTRON_RENDERER_URL']
 
     sess.setPermissionCheckHandler((_wc, permission, origin) => {
-        const allowedOrigin =
-            origin.startsWith('file://') ||
-            (!!devUrl && origin.startsWith(devUrl))
         const p = permission as string
         return (
-            allowedOrigin &&
+            isAllowedOrigin(origin) &&
             (p === 'serial' || p === 'bluetooth' || p === 'hid')
         )
     })
 
-    sess.setPermissionRequestHandler((_wc, permission, cb) => {
+    sess.setPermissionRequestHandler((wc, permission, cb) => {
         const p = permission as string
-        cb(p === 'bluetooth' || p === 'serial' || p === 'hid')
+        const origin = wc?.getURL() ?? ''
+        cb(
+            isAllowedOrigin(origin) &&
+                (p === 'bluetooth' || p === 'serial' || p === 'hid'),
+        )
     })
 
     sess.setDevicePermissionHandler((details) => {
         const t = details.deviceType as string
-        return t === 'serial' || t === 'usb' || t === 'hid'
+        return (
+            isAllowedOrigin(details.origin) &&
+            (t === 'serial' || t === 'usb' || t === 'hid')
+        )
+    })
+
+    // Inject a strict CSP in production so a future XSS sink in the renderer
+    // cannot pull remote code or exfiltrate via arbitrary fetch/connect.
+    // Skipped in dev because Vite's HMR client + @vitejs/plugin-react-swc
+    // preamble inject inline scripts and need ws:// to localhost — the
+    // packaged file:// build has none of that.
+    // style-src 'unsafe-inline' is required for Radix / Tailwind runtime
+    // style injection. img-src data: covers icon/svg inlining. connect-src
+    // https://api.github.com matches update-checker.
+    if (!is.dev) {
+        sess.webRequest.onHeadersReceived((details, cb) => {
+            cb({
+                responseHeaders: {
+                    ...details.responseHeaders,
+                    'Content-Security-Policy': [
+                        "default-src 'self'; " +
+                            "script-src 'self' 'wasm-unsafe-eval'; " +
+                            "style-src 'self' 'unsafe-inline'; " +
+                            "img-src 'self' data: blob:; " +
+                            "font-src 'self' data:; " +
+                            "connect-src 'self' https://api.github.com; " +
+                            "frame-src 'none'; " +
+                            "object-src 'none'; " +
+                            "base-uri 'self'; " +
+                            "form-action 'none';",
+                    ],
+                },
+            })
+        })
+    }
+
+    // ZMK Studio's BLE profile uses Just Works / no-input pairing. Auto-confirm
+    // the simple-confirm path so paired-on-demand keyboards don't hang for 30s
+    // waiting on a UI we don't render. confirmPin / providePin paths fall
+    // through to deny so users see an explicit failure rather than a silent
+    // stall — those flows would need a real PIN dialog.
+    sess.setBluetoothPairingHandler((details, cb) => {
+        if (details.pairingKind === 'confirm') return cb({ confirmed: true })
+        cb({ confirmed: false })
     })
 
     // Safety-net handler for any stray navigator.serial.requestPort() calls.
@@ -88,9 +148,41 @@ function createWindow(): void {
         void checkForUpdates(mainWindow)
     })
 
+    // Bestow a synthetic user gesture each time the renderer finishes loading
+    // so the initial BLE scan (navigator.bluetooth.requestDevice) doesn't
+    // bounce with SecurityError. The event fires inside an executeJavaScript
+    // call with userGesture=true, giving Web Bluetooth a transient activation.
+    // The renderer's useConnection hook listens and re-runs loadDevices. Uses
+    // .on() (not .once()) so HMR refreshes / in-renderer reloads also trigger
+    // the auto-scan — the renderer's userActivation guard de-dupes.
+    mainWindow.webContents.on('did-finish-load', (): void => {
+        setTimeout(() => {
+            mainWindow.webContents
+                .executeJavaScript(
+                    `window.dispatchEvent(new CustomEvent('electron-auto-scan'))`,
+                    true,
+                )
+                .catch(() => undefined)
+        }, 500)
+    })
+
     mainWindow.webContents.setWindowOpenHandler(
         (details): { action: 'deny' } => {
-            shell.openExternal(details.url)
+            // Only forward http/https/mailto to the OS shell. Schemes like
+            // file:, smb:, ms-msdt: would otherwise reach the Windows shell
+            // via Electron and turn `window.open` into an LPE/RCE primitive.
+            try {
+                const u = new URL(details.url)
+                if (
+                    u.protocol === 'https:' ||
+                    u.protocol === 'http:' ||
+                    u.protocol === 'mailto:'
+                ) {
+                    void shell.openExternal(details.url)
+                }
+            } catch {
+                /* ignore unparseable URLs */
+            }
             return { action: 'deny' }
         },
     )
@@ -120,6 +212,29 @@ app.whenReady().then((): void => {
             optimizer.watchWindowShortcuts(window)
         },
     )
+
+    // Global lockdown for any web-contents (main window, popups, devtools).
+    // - will-navigate: prevent renderer from leaving the app origin.
+    // - setWindowOpenHandler: deny by default for child contents we did not
+    //   already wire up in createWindow.
+    // - will-attach-webview: defense-in-depth; <webview> is also disabled
+    //   per webPreferences but reject the attach here in case it's enabled.
+    app.on('web-contents-created', (_evt, contents) => {
+        contents.on('will-navigate', (event, navUrl) => {
+            try {
+                const u = new URL(navUrl)
+                if (!isAllowedOrigin(u.origin) && u.protocol !== 'file:') {
+                    event.preventDefault()
+                }
+            } catch {
+                event.preventDefault()
+            }
+        })
+        contents.setWindowOpenHandler(() => ({ action: 'deny' }))
+        contents.on('will-attach-webview', (event) => {
+            event.preventDefault()
+        })
+    })
 
     // Register all IPC handlers
     registerIpcHandlers(() => BrowserWindow.getAllWindows())

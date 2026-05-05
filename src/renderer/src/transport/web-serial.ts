@@ -1,6 +1,7 @@
 // pattern-check: skip — bug fix in single transport module; cache + perm helpers are utilities
-import type { RpcTransport } from '@zmkfirmware/zmk-studio-ts-client/transport/index'
+import type { Transport } from '@firmware'
 import type { AvailableDevice } from '@/transport/types'
+import { registerTransport } from '@/transport/adapter/registry'
 
 const BAUD_RATE = 12500
 
@@ -14,14 +15,14 @@ function makeId(info: SerialPortInfo, fallbackIndex: number): string {
 
 // Fallback labels when WebUSB cannot supply a productName.
 const KNOWN_VENDOR_LABELS: Record<number, string> = {
-    0x1d50: 'ZMK Keyboard',
+    0x1d50: 'OpenMoko Keyboard',
     0x239a: 'Adafruit Keyboard',
     0x303a: 'ESP32 Keyboard',
     0x2e8a: 'Raspberry Pi Pico Keyboard',
     0x16c0: 'V-USB / Teensy Keyboard',
     0x1915: 'Nordic Keyboard',
     0x05ac: 'Apple Keyboard',
-    0x1209: 'Generic ZMK Keyboard',
+    0x1209: 'Generic Keyboard',
 }
 
 const KNOWN_VENDOR_IDS: number[] = Object.keys(KNOWN_VENDOR_LABELS).map((k) =>
@@ -175,7 +176,7 @@ export async function listGrantedPorts(): Promise<AvailableDevice[]> {
     })
 }
 
-async function openTransport(port: SerialPort): Promise<RpcTransport> {
+async function openTransport(port: SerialPort): Promise<Transport> {
     if (!port.readable || !port.writable) {
         await port.open({ baudRate: BAUD_RATE }).catch((e: unknown) => {
             if (e instanceof DOMException && e.name === 'NetworkError') {
@@ -213,7 +214,7 @@ async function openTransport(port: SerialPort): Promise<RpcTransport> {
 
 export async function connectToGrantedPort(
     device: AvailableDevice,
-): Promise<RpcTransport> {
+): Promise<Transport> {
     const port = portRegistry.get(device.id)
     if (!port) {
         throw new Error(
@@ -227,7 +228,7 @@ export async function connectToGrantedPort(
 // RPC handshake reports the firmware's keyboard name.
 let lastOpenedPortInfo: SerialPortInfo | null = null
 
-export async function requestAndConnect(): Promise<RpcTransport> {
+export async function requestAndConnect(): Promise<Transport> {
     if (!navigator.serial) throw new Error('Web Serial not supported')
     const filters = KNOWN_VENDOR_IDS.map((usbVendorId) => ({ usbVendorId }))
     const port = await navigator.serial.requestPort({ filters })
@@ -275,6 +276,7 @@ export function onPortsChanged(cb: () => void): () => void {
 // Persist a user-chosen friendly name for the device. Looked up first in
 // the resolution chain, so it always wins over the WebUSB productName and
 // the vendor-id fallback.
+// pattern-check: skip — adding sibling utility forgetGrantedPort, no abstraction
 export function setUserDeviceName(deviceId: string, name: string): void {
     const port = portRegistry.get(deviceId)
     if (!port) return
@@ -293,3 +295,51 @@ export function setUserDeviceName(deviceId: string, name: string): void {
     }
     writeCache(USER_NAME_CACHE_KEY, cache)
 }
+
+// Revoke browser permission for a previously granted port and clear any
+// per-id user-name override so a re-pair starts fresh.
+export async function forgetGrantedPort(deviceId: string): Promise<void> {
+    const port = portRegistry.get(deviceId)
+    if (!port) return
+    const info = port.getInfo()
+    const vid = info.usbVendorId
+    const pid = info.usbProductId
+
+    const forget = (port as SerialPort & { forget?: () => Promise<void> })
+        .forget
+    if (typeof forget === 'function') {
+        await forget.call(port).catch(() => undefined)
+    }
+    portRegistry.delete(deviceId)
+
+    if (vid !== undefined && pid !== undefined) {
+        const cache = readCache(USER_NAME_CACHE_KEY)
+        const k = vidPidKey(vid, pid)
+        if (k in cache) {
+            delete cache[k]
+            writeCache(USER_NAME_CACHE_KEY, cache)
+        }
+    }
+}
+
+registerTransport({
+    id: 'web:serial',
+    envs: 'web',
+    create() {
+        if (typeof navigator === 'undefined' || !navigator.serial) return null
+        return {
+            label: 'USB',
+            communication: 'serial',
+            pick_and_connect: {
+                list: listGrantedPorts,
+                connect: connectToGrantedPort,
+            },
+            request_new: requestAndConnect,
+            renameDevice: (device, name) => setUserDeviceName(device.id, name),
+            forgetDevice: (device) => forgetGrantedPort(device.id),
+        }
+    },
+    subscribeChanges(_ctx, cb) {
+        return onPortsChanged(cb)
+    },
+})

@@ -1,8 +1,21 @@
+// Pattern check: Observer (Tier 1) — extended — uses service.onPendingChangesChanged Observer instead of pub-sub bridge.
+// pattern-check: skip — drop dead lock guards now that App-shell render-gates locked state
 /* eslint-disable react-hooks/preserve-manual-memoization */
-import { useCallback, useEffect } from 'react'
-import { useEmitter } from '@/hooks/use-pub-sub'
-import { LockState } from '@zmkfirmware/zmk-studio-ts-client/core'
-import { Redo2, Save, Trash2, Undo2 } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import {
+    Lightbulb,
+    Redo2,
+    Save,
+    Sliders,
+    Sparkles,
+    Trash2,
+    Undo2,
+    Wifi,
+} from 'lucide-react'
+import { DynamicEntriesModal } from '@/features/dynamic/DynamicEntriesModal'
+import { MacroEditorModal } from '@/features/dynamic/MacroEditorModal'
+import { WirelessSettingsModal } from '@/features/firmware/WirelessSettingsModal'
+import { RgbSettingsModal } from '@/features/firmware/RgbSettingsModal'
 import { GitHubIcon } from '@/components/GitHubIcon'
 import { REPO_URL } from '@/lib/constants'
 import useConnectionStore from '@/stores/connectionStore'
@@ -12,57 +25,68 @@ import { Download as DownloadModal } from '../components/modals/Download.tsx'
 import { SidebarTrigger } from '@/ui/sidebar'
 import { Button } from '@/ui/button'
 import { Separator } from '@/ui/separator'
-import { useConnectedDeviceData } from '@/hooks/use-connected-device-data'
 import { toast } from 'sonner'
-import { callRpc } from '@/services/rpcCall'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/ui/tooltip'
+import { FeatureGate } from '@/features/firmware/FeatureGate'
+import { LayoutSideloadAction } from '@/features/firmware/LayoutSideloadAction'
 
+// pattern-check: skip — wrap toolbar buttons in capability gate, no abstraction
 export function Header(): JSX.Element {
-    const { connection, lockState, setConnection } = useConnectionStore()
+    const { service, setService, communication } = useConnectionStore()
     const { undo, redo, canUndo, canRedo, reset } = undoRedoStore()
-    const { subscribe } = useEmitter()
 
-    const [unsaved, setUnsaved] = useConnectedDeviceData<boolean>(
-        { keymap: { checkUnsavedChanges: true } },
-        (request) => request.keymap?.checkUnsavedChanges,
-    )
+    const [unsaved, setUnsaved] = useState<boolean>(false)
+    const [dynOpen, setDynOpen] = useState(false)
+    const [macroOpen, setMacroOpen] = useState(false)
+    const [wirelessOpen, setWirelessOpen] = useState(false)
+    const [rgbOpen, setRgbOpen] = useState(false)
 
     useEffect(() => {
-        console.log(unsaved)
-        return subscribe(
-            'rpc_notification.keymap.unsavedChangesStatusChanged',
-            (data: unknown): void => {
-                const ls = data as boolean
-                console.log(ls)
-                setUnsaved(ls)
-            },
-        )
-    }, [setUnsaved, subscribe, unsaved])
+        if (!service) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setUnsaved(false)
+            return
+        }
+        let cancelled = false
+        ;(async () => {
+            try {
+                const pending = await service.refreshPendingChanges()
+                if (!cancelled) setUnsaved(pending)
+            } catch (e) {
+                console.error('Failed to refresh pending changes', e)
+            }
+        })()
+        const off = service.onPendingChangesChanged((pending) => {
+            setUnsaved(pending)
+        })
+        return (): void => {
+            cancelled = true
+            off()
+        }
+    }, [service])
 
     const save = useCallback(async (): Promise<void> => {
-        const resp = await callRpc({
-            keymap: { saveChanges: true },
-        })
-
-        if (!resp.keymap?.saveChanges || resp.keymap?.saveChanges.err) {
-            console.error('Failed to save changes', resp.keymap?.saveChanges)
+        if (!service) return
+        try {
+            await service.commit()
+        } catch (e) {
+            console.error('Failed to save changes', e)
             toast.error(`Failed to save changes`)
         }
-    }, [])
+    }, [service])
 
     const discard = useCallback(async (): Promise<void> => {
-        const resp = await callRpc({
-            keymap: { discardChanges: true },
-        })
-
-        if (!resp.keymap?.discardChanges) {
-            console.error('Failed to discard changes', resp)
+        if (!service) return
+        try {
+            await service.discardChanges()
+        } catch (e) {
+            console.error('Failed to discard changes', e)
             toast.error(`Failed to discard changes`)
         }
 
         reset()
-        setConnection(connection)
-    }, [connection, reset, setConnection])
+        setService(service, communication ?? undefined)
+    }, [service, communication, reset, setService])
 
     return (
         <header className="flex h-(--header-height) shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)">
@@ -99,6 +123,95 @@ export function Header(): JSX.Element {
                             <p>Settings</p>
                         </TooltipContent>
                     </Tooltip>
+                    <FeatureGate feature="dynamic">
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    disabled={!service}
+                                    onClick={(): void => setDynOpen(true)}
+                                >
+                                    <Sliders aria-label="Dynamic entries" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Dynamic Entries</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </FeatureGate>
+                    <DynamicEntriesModal
+                        service={service}
+                        opened={dynOpen}
+                        onClose={(): void => setDynOpen(false)}
+                    />
+                    <FeatureGate feature="macros">
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    disabled={!service}
+                                    onClick={(): void => setMacroOpen(true)}
+                                >
+                                    <Sparkles aria-label="Macros" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Macros</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </FeatureGate>
+                    <MacroEditorModal
+                        service={service}
+                        opened={macroOpen}
+                        onClose={(): void => setMacroOpen(false)}
+                    />
+                    <FeatureGate feature="wireless">
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    disabled={!service}
+                                    onClick={(): void => setWirelessOpen(true)}
+                                >
+                                    <Wifi aria-label="Wireless settings" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Wireless</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </FeatureGate>
+                    <WirelessSettingsModal
+                        opened={wirelessOpen}
+                        onClose={(): void => setWirelessOpen(false)}
+                    />
+                    <FeatureGate feature="rgb">
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    disabled={!service}
+                                    onClick={(): void => setRgbOpen(true)}
+                                >
+                                    <Lightbulb aria-label="RGB settings" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>RGB</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </FeatureGate>
+                    <RgbSettingsModal
+                        opened={rgbOpen}
+                        onClose={(): void => setRgbOpen(false)}
+                    />
+                    <FeatureGate feature="layoutSideloadable">
+                        <LayoutSideloadAction />
+                    </FeatureGate>
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <Button variant="ghost" size="icon" asChild>
@@ -156,12 +269,7 @@ export function Header(): JSX.Element {
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    disabled={
-                                        !unsaved ||
-                                        !connection ||
-                                        lockState !==
-                                            LockState.ZMK_STUDIO_CORE_LOCK_STATE_UNLOCKED
-                                    }
+                                    disabled={!unsaved || !service}
                                     onClick={save}
                                 >
                                     <Save aria-label="Save" />

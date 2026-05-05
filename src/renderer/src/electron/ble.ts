@@ -1,32 +1,42 @@
-// pattern-check: skip — platform branch in renderer, no new abstraction
+// Pattern check: Adapter (Tier 1) — extended — Bluez adapter extends IpcTransportAdapter; Web-BT adapter extends TransportAdapter
 /**
- * Electron BLE transport adapter.
+ * Electron BLE — two adapters under one descriptor.
  *
- * Linux: talks to BlueZ via main-process D-Bus client. Lists paired devices
- * advertising the ZMK Studio service without user gesture or chooser dialog.
- * Connects via BlueZ GATT, so devices already paired+connected to the OS
- * are reachable (Web Bluetooth on Linux can't see them).
+ * Linux: ElectronBluezAdapter (IPC to main-process BlueZ D-Bus client).
+ * Other: ElectronWebBluetoothAdapter (navigator.bluetooth in renderer).
  *
- * Windows/macOS: uses Chromium Web Bluetooth via navigator.bluetooth.
- * Discovery via requestDevice() chooser, GATT in renderer.
+ * Discovery is platform-branched too: BlueZ paired-device list on Linux,
+ * requestDevice() chooser elsewhere.
  */
 
 import { IpcChannels, IpcEvents } from '../../../shared/ipc-types'
-import type { RpcTransport } from '@zmkfirmware/zmk-studio-ts-client/transport/index'
+import type { Transport } from '@firmware'
 import type { AvailableDevice } from '@/transport'
+import { TransportAdapter } from '../transport/adapter/base'
+import {
+    electronIpc,
+    type IpcConnectResult,
+    IpcTransportAdapter,
+} from '../transport/adapter/ipc-adapter'
+import { registerTransport } from '../transport/adapter/registry'
 
-// ZMK Studio BLE service/characteristic UUIDs (Web Bluetooth path)
-const ZMK_SERVICE_UUID = '00000000-0196-6107-c967-c5cfb1c2482a'
-const ZMK_CHARACTERISTIC_UUID = '00000001-0196-6107-c967-c5cfb1c2482a'
+/* --- module state for Web Bluetooth chooser flow ------------------------ */
 
-/** Holds the pending requestDevice() promise between list_devices() and connect() */
 let pendingDevicePromise: Promise<BluetoothDevice> | null = null
-
-/** Duration to collect BLE device discoveries before returning the list (ms) */
 const SCAN_COLLECTION_MS = 5000
+let scanToken = 0
+let lastSelectedDeviceId: string | null = null
 
-/** Cached platform string from main process. */
+/**
+ * Shared promise for an in-flight Web Bluetooth scan. React StrictMode
+ * + the main-process auto-scan kick can fire 3 concurrent listDevices()
+ * calls on initial mount. Returning the same promise dedupes them into a
+ * single scan window.
+ */
+let inFlightScan: Promise<AvailableDevice[]> | null = null
+
 let cachedPlatform: string | null = null
+
 async function getPlatform(): Promise<string> {
     if (cachedPlatform) return cachedPlatform
     cachedPlatform = (await window.api.invoke(
@@ -35,264 +45,330 @@ async function getPlatform(): Promise<string> {
     return cachedPlatform
 }
 
-/**
- * Scan for available BLE devices.
- *
- * Linux: queries BlueZ for paired devices advertising the ZMK service.
- * No user gesture required, no chooser dialog. Returns immediately.
- *
- * Other platforms: Web Bluetooth requestDevice() chooser flow.
- */
-export async function list_devices(): Promise<AvailableDevice[]> {
-    console.log('[electron/ble] list_devices() called')
+/* --- discovery ---------------------------------------------------------- */
 
-    const platform = await getPlatform()
-    if (platform === 'linux') {
-        try {
-            const devices = (await window.api.invoke(
-                IpcChannels.BLUEZ_LIST_DEVICES,
-            )) as AvailableDevice[]
-            console.log(
-                '[electron/ble] BlueZ returned',
-                devices.length,
-                'devices',
-            )
-            return devices
-        } catch (e) {
-            console.error('[electron/ble] BLUEZ_LIST_DEVICES failed:', e)
-            return []
-        }
+async function listBluezDevices(
+    serviceUuid: string,
+    charUuid: string,
+): Promise<AvailableDevice[]> {
+    try {
+        const devices = (await window.api.invoke(
+            IpcChannels.BLUEZ_LIST_DEVICES,
+            { serviceUuid, charUuid },
+        )) as AvailableDevice[]
+        return devices
+    } catch (e) {
+        console.error('[electron/ble] BLUEZ_LIST_DEVICES failed:', e)
+        return []
     }
+}
 
+async function listWebBluetoothDevices(
+    serviceUuid: string,
+): Promise<AvailableDevice[]> {
     if (!navigator.bluetooth) {
         console.warn('[electron/ble] navigator.bluetooth missing')
         return []
     }
 
-    // Cancel any previous pending scan. Fire-and-forget to preserve
-    // user-activation token for requestDevice() below.
+    // Skip the scan entirely without a transient user activation —
+    // requestDevice would reject with SecurityError and we'd waste a
+    // BLE_START_SCAN IPC roundtrip. Mount-time loadDevices() has no
+    // gesture; the main-process auto-scan event (executeJavaScript with
+    // userGesture: true) is the only entry that will actually scan.
+    if (
+        typeof navigator.userActivation !== 'undefined' &&
+        !navigator.userActivation.isActive
+    ) {
+        return []
+    }
+
+    // Dedupe concurrent callers within the same gesture window.
+    if (inFlightScan) return inFlightScan
+    inFlightScan = runScan(serviceUuid).finally(() => {
+        inFlightScan = null
+    })
+    return inFlightScan
+}
+
+async function runScan(serviceUuid: string): Promise<AvailableDevice[]> {
+    const myToken = ++scanToken
+
     if (pendingDevicePromise) {
         window.api.invoke(IpcChannels.BLE_STOP_SCAN).catch(() => {})
         pendingDevicePromise = null
     }
 
-    // Tell main to enter scan/collection mode. Do NOT await — Chromium
-    // consumes the user-activation token across awaits, which would make
-    // requestDevice() throw "must be handling a user gesture".
+    // Do NOT await — Chromium consumes the user-activation token across
+    // awaits, which would make requestDevice() throw.
     window.api.invoke(IpcChannels.BLE_START_SCAN).catch((e) => {
         console.error('[electron/ble] BLE_START_SCAN failed:', e)
     })
 
+    // pattern-check: skip — bug fix: bail fast on requestDevice rejection.
+    // Web Bluetooth `filters: [{ services }]` matches the BLE *advertisement*
+    // payload, not GATT services exposed after connect. ZMK firmware does not
+    // advertise its Studio service UUID, so a service-UUID filter would yield
+    // an empty chooser. Tauri's bluest::discover_devices works on Windows via
+    // WinRT enumeration of paired devices and isn't an analogue. Use
+    // acceptAllDevices + optionalServices and let the renderer pick.
     try {
         pendingDevicePromise = navigator.bluetooth.requestDevice({
             acceptAllDevices: true,
-            optionalServices: [ZMK_SERVICE_UUID],
+            optionalServices: [serviceUuid],
         })
     } catch (e) {
         console.error('[electron/ble] requestDevice threw:', e)
         return []
     }
 
-    pendingDevicePromise.catch((e) => {
-        console.warn('[electron/ble] requestDevice rejected:', e)
-        pendingDevicePromise = null
-    })
-
+    // pattern-check: skip — bug fix: drop early-finish debounce, keep collecting until ceiling
     return new Promise<AvailableDevice[]>((resolve) => {
         let latestDevices: AvailableDevice[] = []
+        let settled = false
 
+        const finish = (): void => {
+            if (settled) return
+            settled = true
+            clearTimeout(ceilingTimer)
+            unlisten()
+            resolve(latestDevices)
+        }
+
+        const bail = (): void => {
+            if (settled) return
+            settled = true
+            clearTimeout(ceilingTimer)
+            unlisten()
+            resolve([])
+        }
+
+        // requestDevice rejection ⇒ bail immediately. SecurityError is the
+        // on-mount no-user-gesture case — common, expected; user clicks the
+        // Scan/Refresh button to retry inside a gesture.
+        pendingDevicePromise!.catch((e: unknown) => {
+            pendingDevicePromise = null
+            if (e instanceof DOMException && e.name === 'SecurityError') {
+                console.info(
+                    '[electron/ble] BLE scan needs a user gesture — click Scan / Refresh',
+                )
+            } else {
+                console.warn('[electron/ble] requestDevice rejected:', e)
+            }
+            bail()
+        })
+
+        // Collect every BLE_DEVICES_DISCOVERED event for the full ceiling
+        // window. Earlier debounce-after-first-event optimisation cut scans
+        // short — BLE peripherals advertise across multiple seconds.
         const unlisten = window.api.on(
             IpcEvents.BLE_DEVICES_DISCOVERED,
             (...args: unknown[]) => {
+                if (myToken !== scanToken) {
+                    bail()
+                    return
+                }
                 latestDevices = args[0] as AvailableDevice[]
-                console.log(
-                    '[electron/ble] BLE_DEVICES_DISCOVERED:',
-                    latestDevices.length,
-                )
             },
         )
 
-        setTimeout(() => {
-            unlisten()
-            console.log(
-                '[electron/ble] scan window closed, returning',
-                latestDevices.length,
-                'devices',
-            )
-            resolve(latestDevices)
-        }, SCAN_COLLECTION_MS)
+        const ceilingTimer = setTimeout(finish, SCAN_COLLECTION_MS)
     })
 }
 
-/**
- * Connect to a specific BLE device and return an RpcTransport.
- *
- * Linux: routes through main-process BlueZ client. dev.id is a D-Bus path
- * like /org/bluez/hci0/dev_CD_8F_C5_C5_8B_A4. Reads/writes flow over IPC
- * via TRANSPORT_SEND_DATA + CONNECTION_DATA event.
- *
- * Other platforms: GATT in renderer via Web Bluetooth.
- */
-export async function connect(dev: AvailableDevice): Promise<RpcTransport> {
+export async function list_devices(
+    serviceUuid: string,
+    charUuid: string,
+): Promise<AvailableDevice[]> {
+    const platform = await getPlatform()
+    if (platform === 'linux') return listBluezDevices(serviceUuid, charUuid)
+    return listWebBluetoothDevices(serviceUuid)
+}
+
+/* --- adapters ----------------------------------------------------------- */
+
+export class ElectronBluezAdapter extends IpcTransportAdapter {
+    constructor(
+        private readonly dev: AvailableDevice,
+        private readonly serviceUuid: string,
+        private readonly charUuid: string,
+    ) {
+        super(electronIpc, dev.label ?? 'BLE Device')
+    }
+
+    protected async connectIpc(): Promise<IpcConnectResult> {
+        const result = (await window.api.invoke(IpcChannels.BLUEZ_CONNECT, {
+            devicePath: this.dev.id,
+            serviceUuid: this.serviceUuid,
+            charUuid: this.charUuid,
+        })) as { ok: boolean; label?: string; error?: string }
+        if (!result.ok) {
+            throw new Error(result.error ?? 'Failed to connect via BlueZ')
+        }
+        return { label: result.label ?? this.dev.label ?? 'BLE Device' }
+    }
+}
+
+export class ElectronWebBluetoothAdapter extends TransportAdapter {
+    constructor(
+        private readonly dev: AvailableDevice,
+        private readonly serviceUuid: string,
+        private readonly charUuid: string,
+    ) {
+        super()
+        this.label = dev.label ?? 'BLE Device'
+    }
+
+    async connect(): Promise<Transport> {
+        if (!navigator.bluetooth) {
+            throw new Error(
+                'Web Bluetooth API not available in this Electron build',
+            )
+        }
+
+        const selected = await window.api.invoke(
+            IpcChannels.BLE_SELECT_DEVICE,
+            this.dev.id,
+        )
+        if (!selected) throw new Error('Failed to select BLE device')
+        lastSelectedDeviceId = this.dev.id
+
+        if (!pendingDevicePromise) {
+            throw new Error('No pending BLE scan — call list_devices() first')
+        }
+
+        const device = await pendingDevicePromise
+        pendingDevicePromise = null
+
+        if (lastSelectedDeviceId !== this.dev.id) {
+            throw new Error(
+                'BLE device selection mismatch — list_devices() ran again before connect',
+            )
+        }
+
+        if (!device.gatt)
+            throw new Error('GATT not available on selected device')
+
+        let server: BluetoothRemoteGATTServer
+        try {
+            server = await device.gatt.connect()
+        } catch (e) {
+            // Windows holds the GATT exclusively when the keyboard is
+            // connected at the OS level — Web Bluetooth gets NetworkError.
+            // Translate the message so users know what to do.
+            if (e instanceof DOMException && e.name === 'NetworkError') {
+                throw new Error(
+                    'GATT connect failed. On Windows, disconnect the keyboard from Bluetooth settings (Settings → Bluetooth & devices → … → Disconnect, do NOT remove), then retry.',
+                    { cause: e },
+                )
+            }
+            throw e
+        }
+        const service = await server.getPrimaryService(this.serviceUuid)
+        const characteristic = await service.getCharacteristic(this.charUuid)
+        await characteristic.startNotifications()
+
+        const { writable: respWritable, readable } =
+            new TransformStream<Uint8Array>()
+        const responseWriter = respWritable.getWriter()
+
+        const onValueChanged = async (event: Event): Promise<void> => {
+            const target = event.target as BluetoothRemoteGATTCharacteristic
+            const v = target?.value
+            if (!v) return
+            try {
+                await responseWriter.write(
+                    new Uint8Array(v.buffer, v.byteOffset, v.byteLength),
+                )
+            } catch {
+                /* stream closed */
+            }
+        }
+
+        characteristic.addEventListener(
+            'characteristicvaluechanged',
+            onValueChanged,
+        )
+
+        const writable = new WritableStream<Uint8Array>({
+            async write(chunk) {
+                await characteristic.writeValueWithoutResponse(
+                    new Uint8Array(chunk),
+                )
+            },
+        })
+
+        const cleanup = (): void => {
+            characteristic.removeEventListener(
+                'characteristicvaluechanged',
+                onValueChanged,
+            )
+            device.removeEventListener('gattserverdisconnected', onDisconnected)
+        }
+
+        const onDisconnected = (): void => {
+            cleanup()
+            responseWriter.close().catch(() => {})
+        }
+
+        device.addEventListener('gattserverdisconnected', onDisconnected)
+
+        const onAbort = async (): Promise<void> => {
+            cleanup()
+            // Stop CCCD notifications before disconnecting. Skipping this on
+            // Windows can keep the OS BLE stack holding the GATT handle, which
+            // makes the next connect attempt fail with NetworkError.
+            try {
+                await characteristic.stopNotifications()
+            } catch {
+                /* already torn down */
+            }
+            responseWriter.close().catch(() => {})
+            if (device.gatt?.connected) device.gatt.disconnect()
+            this.abortController.signal.removeEventListener('abort', onAbort)
+        }
+        this.abortController.signal.addEventListener('abort', onAbort)
+
+        if (device.name) this.label = device.name
+
+        return {
+            label: this.label,
+            abortController: this.abortController,
+            readable,
+            writable,
+        }
+    }
+}
+
+/* --- registration ------------------------------------------------------- */
+
+async function pickBleAdapter(
+    dev: AvailableDevice,
+    serviceUuid: string,
+    charUuid: string,
+): Promise<Transport> {
     const platform = await getPlatform()
     if (platform === 'linux') {
-        return connectViaBluez(dev)
+        return new ElectronBluezAdapter(dev, serviceUuid, charUuid).connect()
     }
-    return connectViaWebBluetooth(dev)
+    return new ElectronWebBluetoothAdapter(dev, serviceUuid, charUuid).connect()
 }
 
-async function connectViaBluez(dev: AvailableDevice): Promise<RpcTransport> {
-    const result = (await window.api.invoke(
-        IpcChannels.BLUEZ_CONNECT,
-        dev.id,
-    )) as { ok: boolean; label?: string; error?: string }
-
-    if (!result.ok) {
-        throw new Error(result.error ?? 'Failed to connect via BlueZ')
-    }
-
-    const abortController = new AbortController()
-
-    const writable = new WritableStream<Uint8Array>({
-        async write(chunk) {
-            await window.api.invoke(
-                IpcChannels.TRANSPORT_SEND_DATA,
-                new Uint8Array(chunk),
-            )
-        },
-    })
-
-    const { writable: responseWritable, readable } =
-        new TransformStream<Uint8Array>()
-
-    const unlistenData = window.api.on(
-        IpcEvents.CONNECTION_DATA,
-        async (...args: unknown[]) => {
-            const data = args[0] as number[]
-            const writer = responseWritable.getWriter()
-            await writer.write(new Uint8Array(data))
-            writer.releaseLock()
-        },
-    )
-
-    const unlistenDisconnected = window.api.on(
-        IpcEvents.CONNECTION_DISCONNECTED,
-        async () => {
-            unlistenData()
-            unlistenDisconnected()
-            responseWritable.close().catch(() => {})
-        },
-    )
-
-    const signal = abortController.signal
-    const onAbort = async (): Promise<void> => {
-        unlistenData()
-        unlistenDisconnected()
-        await window.api.invoke(IpcChannels.TRANSPORT_CLOSE).catch(() => {})
-        signal.removeEventListener('abort', onAbort)
-    }
-    signal.addEventListener('abort', onAbort)
-
-    return {
-        label: result.label ?? dev.label ?? 'BLE Device',
-        abortController,
-        readable,
-        writable,
-    }
-}
-
-async function connectViaWebBluetooth(
-    dev: AvailableDevice,
-): Promise<RpcTransport> {
-    if (!navigator.bluetooth) {
-        throw new Error(
-            'Web Bluetooth API not available in this Electron build',
-        )
-    }
-
-    const selected = await window.api.invoke(
-        IpcChannels.BLE_SELECT_DEVICE,
-        dev.id,
-    )
-    if (!selected) {
-        throw new Error('Failed to select BLE device')
-    }
-
-    if (!pendingDevicePromise) {
-        throw new Error('No pending BLE scan — call list_devices() first')
-    }
-
-    const device = await pendingDevicePromise
-    pendingDevicePromise = null
-
-    if (!device.gatt) {
-        throw new Error('GATT not available on selected device')
-    }
-
-    const server = await device.gatt.connect()
-    const service = await server.getPrimaryService(ZMK_SERVICE_UUID)
-    const characteristic = await service.getCharacteristic(
-        ZMK_CHARACTERISTIC_UUID,
-    )
-    await characteristic.startNotifications()
-
-    const abortController = new AbortController()
-
-    const { writable: responseWritable, readable } =
-        new TransformStream<Uint8Array>()
-
-    const onCharacteristicChanged = async (event: Event): Promise<void> => {
-        const target = event.target as BluetoothRemoteGATTCharacteristic
-        const value = target?.value
-        if (value) {
-            const writer = responseWritable.getWriter()
-            await writer.write(new Uint8Array(value.buffer))
-            writer.releaseLock()
+registerTransport({
+    id: 'electron:ble',
+    envs: 'electron',
+    create(ctx) {
+        const ble = ctx.bleDiscovery()
+        if (!ble) return null
+        return {
+            label: 'BLE',
+            communication: 'ble',
+            isWireless: true,
+            pick_and_connect: {
+                list: () => list_devices(ble.serviceUuid, ble.charUuid),
+                connect: (dev) =>
+                    pickBleAdapter(dev, ble.serviceUuid, ble.charUuid),
+            },
         }
-    }
-
-    characteristic.addEventListener(
-        'characteristicvaluechanged',
-        onCharacteristicChanged,
-    )
-
-    const writable = new WritableStream<Uint8Array>({
-        async write(chunk) {
-            await characteristic.writeValueWithoutResponse(
-                new Uint8Array(chunk),
-            )
-        },
-    })
-
-    const onDisconnected = (): void => {
-        cleanup()
-        responseWritable.close().catch(() => {})
-    }
-
-    device.addEventListener('gattserverdisconnected', onDisconnected)
-
-    const cleanup = (): void => {
-        characteristic.removeEventListener(
-            'characteristicvaluechanged',
-            onCharacteristicChanged,
-        )
-        device.removeEventListener('gattserverdisconnected', onDisconnected)
-    }
-
-    const onAbort = (): void => {
-        cleanup()
-        if (device.gatt?.connected) {
-            device.gatt.disconnect()
-        }
-        abortController.signal.removeEventListener('abort', onAbort)
-    }
-
-    abortController.signal.addEventListener('abort', onAbort)
-
-    return {
-        label: device.name || dev.label || 'BLE Device',
-        abortController,
-        readable,
-        writable,
-    }
-}
+    },
+})

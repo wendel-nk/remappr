@@ -1,5 +1,6 @@
 import NOTICE from '../../../../../NOTICE?raw'
 import { Modal } from '@/ui/modal'
+
 export function LicenseNoticeModal(): JSX.Element {
     return (
         <>

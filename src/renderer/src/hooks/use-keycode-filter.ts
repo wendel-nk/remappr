@@ -1,5 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
-import { keyboards } from '@/data/keys'
+// Pattern check: no GoF pattern (-) — rejected — derive active tab instead of set-state-in-effect, single-hook refactor
+import { useMemo, useState } from 'react'
+import { CATALOG_PAGES } from '@firmware/catalog/pages'
+import type { CatalogPage } from '@firmware/catalog/types'
+import useConnectionStore from '@/stores/connectionStore'
 import { filterKeysBySearch } from '@/lib/keymap/keycodeGrid'
 
 interface UseKeycodeFilterResult {
@@ -7,43 +10,44 @@ interface UseKeycodeFilterResult {
     setSearchQuery: (q: string) => void
     activeTab: string
     setActiveTab: (t: string) => void
-    keyboardsWithMatches: { index: number; hasMatches: boolean }[]
+    pages: CatalogPage[]
+    pagesWithMatches: { index: number; hasMatches: boolean }[]
 }
 
 export function useKeycodeFilter(): UseKeycodeFilterResult {
     const [searchQuery, setSearchQuery] = useState('')
-    const [activeTab, setActiveTab] = useState('0')
+    const [userTab, setUserTab] = useState('0')
+    const keyCatalog = useConnectionStore((s) => s.keyCatalog)
 
-    const keyboardsWithMatches = useMemo(() => {
-        return keyboards.map((keyboard, index) => {
-            const filteredKeys = filterKeysBySearch(
-                keyboard.UsageIds,
-                searchQuery,
-            )
-            return { index, hasMatches: filteredKeys.length > 0 }
+    const pages: CatalogPage[] = useMemo(
+        () => keyCatalog?.pages ?? CATALOG_PAGES,
+        [keyCatalog],
+    )
+
+    const pagesWithMatches = useMemo(() => {
+        return pages.map((page, index) => {
+            const filtered = filterKeysBySearch(page.entries, searchQuery)
+            return { index, hasMatches: filtered.length > 0 }
         })
-    }, [searchQuery])
+    }, [pages, searchQuery])
 
-    useEffect(() => {
-        if (!searchQuery.trim()) return
-        const currentTabIndex = parseInt(activeTab)
-        const currentKeyboard = keyboardsWithMatches[currentTabIndex]
-        if (currentKeyboard && !currentKeyboard.hasMatches) {
-            const firstEnabledTab = keyboardsWithMatches.find(
-                (k) => k.hasMatches,
-            )
-            if (firstEnabledTab) {
-                // eslint-disable-next-line react-hooks/set-state-in-effect
-                setActiveTab(firstEnabledTab.index.toString())
-            }
-        }
-    }, [searchQuery, activeTab, keyboardsWithMatches])
+    const activeTab = useMemo(() => {
+        const userIndex = parseInt(userTab)
+        const maxIndex = pages.length - 1
+        const clamped = Math.min(Math.max(0, userIndex), Math.max(0, maxIndex))
+        if (!searchQuery.trim()) return clamped.toString()
+        const current = pagesWithMatches[clamped]
+        if (current?.hasMatches) return clamped.toString()
+        const firstMatch = pagesWithMatches.find((k) => k.hasMatches)
+        return (firstMatch?.index ?? clamped).toString()
+    }, [userTab, searchQuery, pagesWithMatches, pages.length])
 
     return {
         searchQuery,
         setSearchQuery,
         activeTab,
-        setActiveTab,
-        keyboardsWithMatches,
+        setActiveTab: setUserTab,
+        pages,
+        pagesWithMatches,
     }
 }

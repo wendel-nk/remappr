@@ -1,8 +1,7 @@
-import { PhysicalLayout } from '@zmkfirmware/zmk-studio-ts-client/keymap'
+// pattern-check: skip mechanical port — useLayout now reads from service.getPhysicalLayouts() and uses neutral PhysicalLayout
+import type { PhysicalLayout } from '@firmware/types'
 import { Dispatch, SetStateAction, useEffect, useState } from 'react'
-import { LockState } from '@zmkfirmware/zmk-studio-ts-client/core'
 import useConnectionStore from '@/stores/connectionStore'
-import { callRpc } from '@/services/rpcCall'
 
 interface UseLayoutsReturn {
     layouts: PhysicalLayout[] | undefined
@@ -12,7 +11,7 @@ interface UseLayoutsReturn {
 }
 
 export function useLayout(): UseLayoutsReturn {
-    const { connection, lockState } = useConnectionStore()
+    const { service } = useConnectionStore()
 
     const [layouts, setLayouts] = useState<PhysicalLayout[] | undefined>(
         undefined,
@@ -21,10 +20,7 @@ export function useLayout(): UseLayoutsReturn {
         useState<number>(0)
 
     useEffect((): void | (() => void) => {
-        if (
-            !connection ||
-            lockState !== LockState.ZMK_STUDIO_CORE_LOCK_STATE_UNLOCKED
-        ) {
+        if (!service) {
             // eslint-disable-next-line react-hooks/set-state-in-effect
             setLayouts(undefined)
             return
@@ -32,22 +28,14 @@ export function useLayout(): UseLayoutsReturn {
 
         let isCancelled = false
 
-        const fetchLayouts = async (): Promise<void> => {
-            setLayouts(undefined)
-
+        const fetchLayouts = async (resetSelected: boolean): Promise<void> => {
             try {
-                const response = await callRpc({
-                    keymap: { getPhysicalLayouts: true },
-                })
-
+                const got = await service.getPhysicalLayouts()
                 if (!isCancelled) {
-                    const layoutsResponse =
-                        response?.keymap?.getPhysicalLayouts?.layouts
-                    const activeIndex =
-                        response?.keymap?.getPhysicalLayouts
-                            ?.activeLayoutIndex ?? 0
-                    setLayouts(layoutsResponse)
-                    setSelectedPhysicalLayoutIndex(activeIndex)
+                    setLayouts(got.layouts)
+                    if (resetSelected) {
+                        setSelectedPhysicalLayoutIndex(got.activeLayoutId)
+                    }
                 }
             } catch (error) {
                 if (!isCancelled) {
@@ -57,12 +45,19 @@ export function useLayout(): UseLayoutsReturn {
             }
         }
 
-        fetchLayouts()
+        setLayouts(undefined)
+
+        const off = service.subscribe?.((n) => {
+            if (n.topic === 'layout-changed') void fetchLayouts(false)
+        })
+
+        void fetchLayouts(true)
 
         return (): void => {
             isCancelled = true
+            off?.()
         }
-    }, [connection, lockState])
+    }, [service])
 
     return {
         layouts,

@@ -9,6 +9,23 @@ export interface AvailableDevice {
     id: string
 }
 
+/**
+ * BLE discovery descriptor supplied by the renderer (adapter-owned).
+ * Shell layers MUST treat the UUIDs as opaque identifiers — they exist
+ * to keep the shell firmware-neutral.
+ */
+export interface BleDiscoveryPayload {
+    serviceUuid: string
+    charUuid: string
+}
+
+// pattern-check: skip — flat IPC DTO, no behavior
+export interface HidDiscoveryPayload {
+    vendorIds?: number[]
+    usagePage?: number
+    usage?: number
+}
+
 // --- IPC Channel Names ---
 
 /** Request/response channels (renderer invokes, main handles) */
@@ -18,9 +35,8 @@ export const IpcChannels = {
     SERIAL_CONNECT: 'serial:connect',
     SERIAL_DISCONNECT: 'serial:disconnect',
 
-    // BLE device operations
-    BLE_LIST_DEVICES: 'ble:list-devices',
-    BLE_CONNECT: 'ble:connect',
+    // BLE device operations (Web Bluetooth flow — discovery + connect happen
+    // in the renderer; main only coordinates scan lifecycle and chooser).
     BLE_START_SCAN: 'ble:start-scan',
     BLE_STOP_SCAN: 'ble:stop-scan',
     BLE_SELECT_DEVICE: 'ble:select-device',
@@ -29,9 +45,9 @@ export const IpcChannels = {
     BLUEZ_LIST_DEVICES: 'bluez:list-devices',
     BLUEZ_CONNECT: 'bluez:connect',
 
-    // Noble (Linux only) — raw HCI socket, bypasses BlueZ entirely
-    NOBLE_LIST_DEVICES: 'noble:list-devices',
-    NOBLE_CONNECT: 'noble:connect',
+    // HID device operations (raw USB HID via node-hid)
+    HID_LIST_DEVICES: 'hid:list-devices',
+    HID_CONNECT: 'hid:connect',
 
     // Platform info
     GET_PLATFORM: 'platform:get',
@@ -93,14 +109,6 @@ export interface IpcInvokeMap {
         params: void
         result: void
     }
-    [IpcChannels.BLE_LIST_DEVICES]: {
-        params: void
-        result: AvailableDevice[]
-    }
-    [IpcChannels.BLE_CONNECT]: {
-        params: AvailableDevice
-        result: boolean
-    }
     [IpcChannels.BLE_START_SCAN]: {
         params: void
         result: void
@@ -114,19 +122,19 @@ export interface IpcInvokeMap {
         result: boolean
     }
     [IpcChannels.BLUEZ_LIST_DEVICES]: {
-        params: void
+        params: BleDiscoveryPayload
         result: AvailableDevice[]
     }
     [IpcChannels.BLUEZ_CONNECT]: {
-        params: string
+        params: { devicePath: string } & BleDiscoveryPayload
         result: { ok: boolean; label?: string; error?: string }
     }
-    [IpcChannels.NOBLE_LIST_DEVICES]: {
-        params: void
+    [IpcChannels.HID_LIST_DEVICES]: {
+        params: HidDiscoveryPayload
         result: AvailableDevice[]
     }
-    [IpcChannels.NOBLE_CONNECT]: {
-        params: string
+    [IpcChannels.HID_CONNECT]: {
+        params: { device: AvailableDevice } & HidDiscoveryPayload
         result: { ok: boolean; label?: string; error?: string }
     }
     [IpcChannels.GET_PLATFORM]: {
@@ -180,5 +188,6 @@ export interface IpcEventMap {
  */
 export interface ElectronIpcApi {
     invoke(channel: string, ...args: unknown[]): Promise<unknown>
+
     on(event: string, callback: (...args: unknown[]) => void): () => void
 }

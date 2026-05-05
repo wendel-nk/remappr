@@ -1,11 +1,19 @@
 // pattern-check: skip — merge conflict resolution, no new logic
 import { contextBridge, ipcRenderer } from 'electron'
-import { electronAPI } from '@electron-toolkit/preload'
+import { electronAPI, type ElectronAPI } from '@electron-toolkit/preload'
 import {
+    type ElectronIpcApi,
     IpcChannels,
     IpcEvents,
-    type ElectronIpcApi,
 } from '../shared/ipc-types'
+
+declare global {
+    interface Window {
+        electron: ElectronAPI
+        api: ElectronIpcApi
+        __TAURI_INTERNALS__?: object
+    }
+}
 
 // Allowed invoke channels (whitelist for security)
 const VALID_INVOKE_CHANNELS = new Set<string>(Object.values(IpcChannels))
@@ -54,9 +62,6 @@ if (process.contextIsolated) {
         console.error(error)
     }
 } else {
-    // @ts-expect-error window typings live in src/preload/index.d.ts which is
-    // surfaced to renderer; preload's own typecheck doesn't load it.
     window.electron = electronAPI
-    // @ts-expect-error see above
     window.api = api
 }
