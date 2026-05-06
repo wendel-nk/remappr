@@ -25,6 +25,17 @@ import {
 } from './entries'
 import type { CanonicalKeyId, CatalogPage } from './types'
 
+// IME / locale switching keys — HID page 7 IDs 135–146 — split off the
+// Keyboard tab into their own Language tab so the main grid stays
+// focused on Latin-keyboard keys.
+const isLanguageId = (id: CanonicalKeyId): boolean =>
+    /^key\.keyboard_(international|lang)\d+$/.test(id)
+
+const LANGUAGE_ENTRIES = KEYBOARD_ENTRIES.filter((e) => isLanguageId(e.id))
+const KEYBOARD_NON_LANGUAGE = KEYBOARD_ENTRIES.filter(
+    (e) => !isLanguageId(e.id),
+)
+
 // PR 1 ships HID pages only. PR 2 adds 'wireless' / 'os-keys' / 'rgb' /
 // 'backlight' / 'audio' / 'mouse' / 'midi' / 'magic' / 'quantum' /
 // 'macros' / 'misc' once per-firmware codecs and canonical entries land.
@@ -34,7 +45,18 @@ export const CATALOG_PAGES: CatalogPage[] = [
         name: 'Keyboard',
         style: 'keyboard-grid',
         visible: true,
-        entries: [...KEYBOARD_ENTRIES, ...SHIFTED_ENTRIES, ...MOD_ENTRIES],
+        entries: [
+            ...KEYBOARD_NON_LANGUAGE,
+            ...SHIFTED_ENTRIES,
+            ...MOD_ENTRIES,
+        ],
+    },
+    {
+        id: 'language',
+        name: 'Language',
+        style: 'flat-grid',
+        visible: true,
+        entries: LANGUAGE_ENTRIES,
     },
     {
         id: 'consumer',
@@ -200,6 +222,7 @@ const PREFIX_TO_PAGE: Record<string, string> = {
 }
 
 export const groupForId = (id: CanonicalKeyId): string | null => {
+    if (isLanguageId(id)) return 'language'
     const prefix = id.split('.')[0]
     return PREFIX_TO_PAGE[prefix] ?? null
 }
