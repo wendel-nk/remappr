@@ -47,6 +47,7 @@ const ZMK_CAPABILITIES: Capabilities = {
     reorderLayers: true,
     variableLayerCount: true,
     exportFormats: ['devicetree'],
+    behaviors: { capsWord: true },
 }
 
 function mapLockState(state: ZmkLockState): LockState {

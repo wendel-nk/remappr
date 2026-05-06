@@ -84,6 +84,12 @@ const VIAL_CAPABILITIES_BASE: Omit<Capabilities, 'maxLayers'> = {
     reorderLayers: false,
     variableLayerCount: false,
     exportFormats: ['vial.json', 'keymap.c'],
+    behaviors: {
+        capsWord: true,
+        leader: true,
+        autoShift: true,
+        swapHands: true,
+    },
 }
 
 type LockStateHandler = (state: LockState) => void

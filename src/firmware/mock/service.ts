@@ -65,6 +65,12 @@ const MOCK_CAPABILITIES: Capabilities = {
     encoders: MOCK_ENCODER_COUNT,
     dynamicEntries: MOCK_DYNAMIC_COUNTS,
     macros: { count: MOCK_MACRO_COUNT, bufferSize: MOCK_MACRO_BUFFER },
+    behaviors: {
+        capsWord: true,
+        leader: true,
+        autoShift: true,
+        swapHands: true,
+    },
 }
 
 const ZERO_TAP_DANCE: TapDanceEntry = {
