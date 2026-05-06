@@ -7,6 +7,7 @@ import mediaJson from './hid-pages/media.json'
 import contactJson from './hid-pages/contact.json'
 import overridesJson from './hid-pages/overrides.json'
 import { CANONICAL_ALIASES, resolveAlias } from './aliases'
+import { EXTERNAL_NAMES, EXTERNAL_NOTES } from './external-names'
 
 import type { CanonicalKeyId, CatalogEntry } from './types'
 
@@ -179,6 +180,21 @@ for (const [secId, primId] of Object.entries(CANONICAL_ALIASES)) {
     const aliasNames = prim.aliases ?? []
     if (!aliasNames.includes(sec.name)) aliasNames.push(sec.name)
     prim.aliases = aliasNames
+}
+
+// Append spec-name aliases (ZMK + QMK + KC_*/QK_*) and copy platform
+// notes from external-names onto each entry. Runs after the HID-merge
+// pass so secondary entries are already collapsed onto their primary.
+for (const e of ENTRY_BY_ID.values()) {
+    if (e.id in CANONICAL_ALIASES) continue
+    const ext = EXTERNAL_NAMES[e.id]
+    if (ext?.length) {
+        const merged = e.aliases ? [...e.aliases] : []
+        for (const a of ext) if (!merged.includes(a)) merged.push(a)
+        e.aliases = merged
+    }
+    const note = EXTERNAL_NOTES[e.id]
+    if (note) e.notes = note
 }
 
 // Drop secondary entries from each exported array.

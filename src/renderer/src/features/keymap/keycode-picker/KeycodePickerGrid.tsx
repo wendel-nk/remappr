@@ -215,6 +215,9 @@ export function KeycodePickerGrid({
                         <KeycodeButton
                             value={entryValue ?? 0}
                             label={entry.label}
+                            name={entry.name}
+                            aliases={entry.aliases}
+                            notes={entry.notes}
                             width={keyWidth}
                             height={keyHeight}
                             x={positioned ? (entry.x ?? 0) / 100 : 0}

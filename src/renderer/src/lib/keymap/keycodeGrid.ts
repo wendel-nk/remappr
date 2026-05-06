@@ -30,19 +30,66 @@ export function maskMods(value: number): number {
     return value & ~MODS_FLAGS_SHIFTED
 }
 
+// pattern-check: skip pure helper for filterKeysBySearch ranking — single private caller
+// Pattern check: no GoF pattern (-) — rejected — table-driven scoring of label/name/id/aliases for picker filter, single caller, no abstraction.
+//
+// Per-field scoring table. Higher = better. `prefix: 0` disables the
+// prefix tier for that field (e.g. `id` only contributes via exact /
+// contains). Order in the table doesn't matter — best-of-all wins.
+const SCORE_FIELDS: ReadonlyArray<{
+    values: (e: CatalogEntry) => readonly string[]
+    exact: number
+    prefix: number
+    contains: number
+}> = [
+    {
+        values: (e) => [e.label.replace(/<[^>]*>/g, '')],
+        exact: 100,
+        prefix: 50,
+        contains: 20,
+    },
+    { values: (e) => [e.name], exact: 90, prefix: 40, contains: 15 },
+    { values: (e) => e.aliases ?? [], exact: 80, prefix: 30, contains: 10 },
+    { values: (e) => [e.id], exact: 70, prefix: 0, contains: 12 },
+]
+
+const matchTier = (
+    s: string,
+    lq: string,
+    exact: number,
+    prefix: number,
+    contains: number,
+): number =>
+    s === lq ? exact
+    : prefix && s.startsWith(lq) ? prefix
+    : contains && s.includes(lq) ? contains
+    : 0
+
+function scoreEntry(entry: CatalogEntry, lq: string): number {
+    return Math.max(
+        0,
+        ...SCORE_FIELDS.flatMap(({ values, exact, prefix, contains }) =>
+            values(entry).map((raw) =>
+                matchTier(raw.toLowerCase(), lq, exact, prefix, contains),
+            ),
+        ),
+    )
+}
+
+// pattern-check: skip refinement of existing pure filter — substring → ranked filter+sort, same call sites
 export function filterKeysBySearch(
     keys: CatalogEntry[],
     query: string,
 ): CatalogEntry[] {
     if (!query.trim()) return keys
-    const lowerQuery = query.toLowerCase()
-    return keys.filter((key) => {
-        const aliasNames = key.aliases?.join(' ') ?? ''
-        const haystack = `${key.label} ${key.name} ${key.id} ${aliasNames}`
-            .replace(/<[^>]*>/g, '')
-            .toLowerCase()
-        return haystack.includes(lowerQuery)
+    const lq = query.toLowerCase()
+    const scored: { entry: CatalogEntry; score: number; idx: number }[] = []
+    keys.forEach((entry, idx) => {
+        const score = scoreEntry(entry, lq)
+        if (score > 0) scored.push({ entry, score, idx })
     })
+    scored.sort((a, b) => b.score - a.score || a.idx - b.idx)
+    return scored.map((s) => s.entry)
 }
 
 export function splitKeysByPosition(keys: CatalogEntry[]): {

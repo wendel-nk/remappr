@@ -248,6 +248,8 @@ export const QMK_HEX_BY_CANONICAL: Record<CanonicalKeyId, number> = {
     'wireless.profile.3': 0x7795,
     'wireless.profile.4': 0x7796,
     'wireless.profile.5': 0x7797,
+    'wireless.bt.clear': 0x7798,
+    'wireless.bt.clear_all': 0x7799,
 
     // ───────────── Backlight + LED matrix (0x7800..0x7818) ─────────────
     'backlight.on': 0x7800,
