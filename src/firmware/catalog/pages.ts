@@ -36,20 +36,16 @@ const KEYBOARD_NON_LANGUAGE = KEYBOARD_ENTRIES.filter(
     (e) => !isLanguageId(e.id),
 )
 
-// PR 1 ships HID pages only. PR 2 adds 'wireless' / 'os-keys' / 'rgb' /
-// 'backlight' / 'audio' / 'mouse' / 'midi' / 'magic' / 'quantum' /
-// 'macros' / 'misc' once per-firmware codecs and canonical entries land.
+// HID pages plus extension pages: 'wireless' / 'os-keys' / 'lighting'
+// (RGB underglow + backlight + LED matrix collapsed into one tab) /
+// 'audio' / 'mouse' / 'midi' / 'magic' / 'quantum' / 'macros' / 'misc'.
 export const CATALOG_PAGES: CatalogPage[] = [
     {
         id: 'keyboard',
         name: 'Keyboard',
         style: 'keyboard-grid',
         visible: true,
-        entries: [
-            ...KEYBOARD_NON_LANGUAGE,
-            ...SHIFTED_ENTRIES,
-            ...MOD_ENTRIES,
-        ],
+        entries: [...KEYBOARD_NON_LANGUAGE, ...SHIFTED_ENTRIES, ...MOD_ENTRIES],
     },
     {
         id: 'language',
@@ -108,18 +104,11 @@ export const CATALOG_PAGES: CatalogPage[] = [
         entries: OS_KEYS_ENTRIES,
     },
     {
-        id: 'rgb',
-        name: 'RGB',
+        id: 'lighting',
+        name: 'Lighting',
         style: 'flat-grid',
         visible: true,
-        entries: RGB_ENTRIES,
-    },
-    {
-        id: 'backlight',
-        name: 'Backlight',
-        style: 'flat-grid',
-        visible: true,
-        entries: BACKLIGHT_ENTRIES,
+        entries: [...RGB_ENTRIES, ...BACKLIGHT_ENTRIES],
     },
     {
         id: 'audio',
@@ -187,9 +176,9 @@ const PREFIX_TO_PAGE: Record<string, string> = {
     contact: 'contact',
     wireless: 'wireless',
     os: 'os-keys',
-    rgb: 'rgb',
-    backlight: 'backlight',
-    led_matrix: 'backlight',
+    rgb: 'lighting',
+    backlight: 'lighting',
+    led_matrix: 'lighting',
     audio: 'audio',
     mouse: 'mouse',
     midi: 'midi',
