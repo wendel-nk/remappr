@@ -30,19 +30,45 @@ export function maskMods(value: number): number {
     return value & ~MODS_FLAGS_SHIFTED
 }
 
+// pattern-check: skip pure helper for filterKeysBySearch ranking — single private caller
+// Pattern check: no GoF pattern (-) — rejected — pure scoring helper for the picker filter, single caller, no abstraction or family of behaviours.
+function scoreEntry(entry: CatalogEntry, lq: string): number {
+    const label = entry.label.replace(/<[^>]*>/g, '').toLowerCase()
+    const name = entry.name.toLowerCase()
+    const id = entry.id.toLowerCase()
+    const aliasesLower = (entry.aliases ?? []).map((a) => a.toLowerCase())
+
+    if (label === lq) return 100
+    if (name === lq) return 90
+    if (aliasesLower.includes(lq)) return 80
+    if (id === lq) return 70
+
+    if (label.startsWith(lq)) return 50
+    if (name.startsWith(lq)) return 40
+    if (aliasesLower.some((a) => a.startsWith(lq))) return 30
+
+    if (label.includes(lq)) return 20
+    if (name.includes(lq)) return 15
+    if (id.includes(lq)) return 12
+    if (aliasesLower.some((a) => a.includes(lq))) return 10
+
+    return 0
+}
+
+// pattern-check: skip refinement of existing pure filter — substring → ranked filter+sort, same call sites
 export function filterKeysBySearch(
     keys: CatalogEntry[],
     query: string,
 ): CatalogEntry[] {
     if (!query.trim()) return keys
-    const lowerQuery = query.toLowerCase()
-    return keys.filter((key) => {
-        const aliasNames = key.aliases?.join(' ') ?? ''
-        const haystack = `${key.label} ${key.name} ${key.id} ${aliasNames}`
-            .replace(/<[^>]*>/g, '')
-            .toLowerCase()
-        return haystack.includes(lowerQuery)
+    const lq = query.toLowerCase()
+    const scored: { entry: CatalogEntry; score: number; idx: number }[] = []
+    keys.forEach((entry, idx) => {
+        const score = scoreEntry(entry, lq)
+        if (score > 0) scored.push({ entry, score, idx })
     })
+    scored.sort((a, b) => b.score - a.score || a.idx - b.idx)
+    return scored.map((s) => s.entry)
 }
 
 export function splitKeysByPosition(keys: CatalogEntry[]): {

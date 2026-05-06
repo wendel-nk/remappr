@@ -55,6 +55,18 @@ export const WIRELESS_ENTRIES: CatalogEntry[] = [
         kinds: hid,
     },
     {
+        id: 'wireless.bt.clear',
+        label: 'BT Clr',
+        name: 'Clear current Bluetooth profile',
+        kinds: hid,
+    },
+    {
+        id: 'wireless.bt.clear_all',
+        label: 'BT ClrA',
+        name: 'Clear all Bluetooth profiles',
+        kinds: hid,
+    },
+    {
         id: 'wireless.output.auto',
         label: 'OUT Auto',
         name: 'Output auto-select',

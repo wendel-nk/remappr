@@ -1,3 +1,4 @@
+// pattern-check: skip optional tooltip enrichment props on existing button component — mechanical prop extension
 import { CSSProperties } from 'react'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/ui/tooltip'
 import { Button } from '@/ui/button'
@@ -5,6 +6,9 @@ import { Button } from '@/ui/button'
 interface KeycodeButtonProps {
     value?: number
     label: string
+    name?: string
+    aliases?: string[]
+    notes?: string
     width?: number
     height?: number
     x: number
@@ -17,6 +21,9 @@ interface KeycodeButtonProps {
 export default function KeycodeButton({
     value,
     label,
+    name,
+    aliases,
+    notes,
     width = 50,
     height = 50,
     x,
@@ -43,6 +50,9 @@ export default function KeycodeButton({
         }
     }
 
+    const aliasLine =
+        aliases && aliases.length > 0 ? aliases.join(' · ') : null
+
     return (
         <Tooltip>
             <TooltipTrigger asChild>
@@ -60,7 +70,20 @@ export default function KeycodeButton({
                 </Button>
             </TooltipTrigger>
             <TooltipContent>
-                <div>{label}</div>
+                <div className="font-medium">{name ?? label}</div>
+                {name && name !== label ? (
+                    <div className="text-xs opacity-70">{label}</div>
+                ) : null}
+                {aliasLine ? (
+                    <div className="text-xs mt-1 opacity-80">
+                        Aliases: {aliasLine}
+                    </div>
+                ) : null}
+                {notes ? (
+                    <div className="text-xs mt-1 italic opacity-70">
+                        {notes}
+                    </div>
+                ) : null}
             </TooltipContent>
         </Tooltip>
     )
