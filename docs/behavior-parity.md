@@ -54,18 +54,18 @@ Sources:
 
 ## Dynamic / runtime entries
 
-| Behavior                                      | ZMK     | QMK | Vial | Keychron | Picker surface                                                                               |
-| --------------------------------------------- | ------- | --- | ---- | -------- | -------------------------------------------------------------------------------------------- |
-| Compile-time macro (`MC_0..MC_15`)            | —       | ✓   | ✓    | ✓        | catalog tile (Macros tab)                                                                    |
-| Dynamic-record macro (`DM_REC*` / `DM_PLY*`)  | —       | ✓   | ✓    | ✓        | catalog tile (Macros tab)                                                                    |
-| Vial dynamic macro (per-slot contents)        | —       | —   | ✓    | —        | catalog tile (Macros tab, label enriched via `dynamicCatalogStore`)                          |
-| ZMK user macro (`&macro_*`)                   | ✓       | —   | —    | —        | catalog tile (Macros tab — `dynamicCatalogStore.extraMacroEntries`, behaviorRef bypass)      |
-| Tap-dance (`TD()`)                            | —       | —   | ✓    | —        | action type (vial:tap-dance) + Header → Dynamic Entries → Tap Dance tab                      |
-| Combo (control toggle: `combo.on/off/toggle`) | ✓       | ✓   | ✓    | ✓        | catalog tile (Combos tab)                                                                    |
-| Combo (per-entry list)                        | ✓       | —   | ✓    | —        | ZMK: catalog tile (Combos tab, behaviorRef bypass) — Vial: Dynamic Entries modal (Combo tab) |
-| Key-override (`KO_TOGG/ON/OFF`)               | —       | ✓   | ✓    | ✓        | catalog tile (Misc tab)                                                                      |
-| Key-override (per-entry list)                 | —       | —   | ✓    | —        | Header → Dynamic Entries → Key Override tab                                                  |
-| Alt-repeat-key (`QK_REP` / `QK_AREP`)         | partial | ✓   | ✓    | ✓        | catalog tile (Misc) + Vial editor                                                            |
+| Behavior                                      | ZMK     | QMK | Vial | Keychron | Picker surface                                                                                                                                 |
+| --------------------------------------------- | ------- | --- | ---- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Compile-time macro (`MC_0..MC_15`)            | —       | ✓   | ✓    | ✓        | catalog tile (Macros tab)                                                                                                                      |
+| Dynamic-record macro (`DM_REC*` / `DM_PLY*`)  | —       | ✓   | ✓    | ✓        | catalog tile (Macros tab)                                                                                                                      |
+| Vial dynamic macro (per-slot contents)        | —       | —   | ✓    | —        | catalog tile (Macros tab, label enriched via `dynamicCatalogStore`)                                                                            |
+| ZMK user macro (`&macro_*`)                   | ✓       | —   | —    | —        | catalog tile (Macros tab — `dynamicCatalogStore.extraMacroEntries`, behaviorRef bypass)                                                        |
+| Tap-dance (`TD()`)                            | —       | —   | ✓    | —        | action type (vial:tap-dance) + Header → Dynamic Entries → Tap Dance tab                                                                        |
+| Combo (control toggle: `combo.on/off/toggle`) | ✓       | ✓   | ✓    | ✓        | catalog tile (Combos tab)                                                                                                                      |
+| Combo (per-entry list)                        | partial | —   | ✓    | —        | ZMK: **(deferred — combos are keymap-level config, not behaviors; not exposed via listActionTypes)** — Vial: Dynamic Entries modal (Combo tab) |
+| Key-override (`KO_TOGG/ON/OFF`)               | —       | ✓   | ✓    | ✓        | catalog tile (Misc tab)                                                                                                                        |
+| Key-override (per-entry list)                 | —       | —   | ✓    | —        | Header → Dynamic Entries → Key Override tab                                                                                                    |
+| Alt-repeat-key (`QK_REP` / `QK_AREP`)         | partial | ✓   | ✓    | ✓        | catalog tile (Misc) + Vial editor                                                                                                              |
 
 ## Mode flags / single-keycode features
 
@@ -132,23 +132,29 @@ Sources:
 
 ## Open gaps
 
-### Gap 1 — ZMK `&macro_*` / `&combo_*` as catalog tiles — **CLOSED**
+### Gap 1 — ZMK `&macro_*` as catalog tiles — **CLOSED (macros)**
 
 Implementation: `dynamicCatalogStore.fetchBehaviorEntries` walks
 `service.listActionTypes()`, classifies each ActionType via
-`classifyBehavior` (uses `displayNameToBinding` + lowercase fallback),
-and produces `CatalogEntry` rows with `behaviorRef: { kind }` for the
-macro/combo tabs. `use-keycode-filter.mergeBehaviorEntries` appends
-them to the Macros / Combos pages (synthesizing the page when codec
-filtering dropped it). `KeycodePickerGrid` adds `onClickOverride` on
-KeycodeButton when an entry has `behaviorRef`, calling
-`onActionChosen(kind)` which threads up SlotValuePicker →
-ActionSlotsPicker → KeyActionPicker → handleTypeSelected (skips slot
-fill, dispatches `{kind, params: []}` directly). ActionTypeSelector
-gets `hideIds: Set<string>` so the dropdown hides the same behaviors
-(KeyActionPicker computes via `isMacroOrCombo`); existing macro
-bindings still resolve their selected label since the lookup uses
-the unfiltered list.
+`classifyBehavior` (id-prefix check for `qmk:` / `vial:`, then
+`displayNameToBinding` against `KNOWN_BINDING_PREFIXES`; any
+slug-fallback ZMK binding is treated as a user macro), and produces
+`CatalogEntry` rows with `behaviorRef: { kind }` for the macro tab.
+`use-keycode-filter.mergeBehaviorEntries` appends them to the Macros
+page (synthesizing the page when codec filtering dropped it).
+`KeycodePickerGrid` adds `onClickOverride` on KeycodeButton when an
+entry has `behaviorRef`, calling `onActionChosen(kind)` which threads
+up SlotValuePicker → ActionSlotsPicker → KeyActionPicker →
+handleTypeSelected (skips slot fill, dispatches `{kind, params: []}`
+directly). ActionTypeSelector gets `hideIds: Set<string>` so the
+dropdown hides the same behaviors (KeyActionPicker computes via
+`isMacroOrCombo`); existing macro bindings still resolve their
+selected label since the lookup uses the unfiltered list.
+
+**Combos still deferred for ZMK.** ZMK combos live in the keymap
+device-tree config (`combos { combo_X { ... }; }`), not as behaviors
+exposed through `listActionTypes`. Closing this needs either a new
+ZMK Studio RPC for combo enumeration or a keymap-export-side parser.
 
 ### Gap 2 — QMK swap-hands variants
 
