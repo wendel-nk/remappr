@@ -31,28 +31,45 @@ export function maskMods(value: number): number {
 }
 
 // pattern-check: skip pure helper for filterKeysBySearch ranking — single private caller
-// Pattern check: no GoF pattern (-) — rejected — pure scoring helper for the picker filter, single caller, no abstraction or family of behaviours.
+// Pattern check: no GoF pattern (-) — rejected — table-driven scoring of label/name/id/aliases for picker filter, single caller, no abstraction.
+//
+// Per-field scoring table. Higher = better. `prefix: 0` disables the
+// prefix tier for that field (e.g. `id` only contributes via exact /
+// contains). Order in the table doesn't matter — best-of-all wins.
+const SCORE_FIELDS: ReadonlyArray<{
+    values: (e: CatalogEntry) => readonly string[]
+    exact: number
+    prefix: number
+    contains: number
+}> = [
+    {
+        values: (e) => [e.label.replace(/<[^>]*>/g, '')],
+        exact: 100,
+        prefix: 50,
+        contains: 20,
+    },
+    { values: (e) => [e.name], exact: 90, prefix: 40, contains: 15 },
+    { values: (e) => e.aliases ?? [], exact: 80, prefix: 30, contains: 10 },
+    { values: (e) => [e.id], exact: 70, prefix: 0, contains: 12 },
+]
+
 function scoreEntry(entry: CatalogEntry, lq: string): number {
-    const label = entry.label.replace(/<[^>]*>/g, '').toLowerCase()
-    const name = entry.name.toLowerCase()
-    const id = entry.id.toLowerCase()
-    const aliasesLower = (entry.aliases ?? []).map((a) => a.toLowerCase())
-
-    if (label === lq) return 100
-    if (name === lq) return 90
-    if (aliasesLower.includes(lq)) return 80
-    if (id === lq) return 70
-
-    if (label.startsWith(lq)) return 50
-    if (name.startsWith(lq)) return 40
-    if (aliasesLower.some((a) => a.startsWith(lq))) return 30
-
-    if (label.includes(lq)) return 20
-    if (name.includes(lq)) return 15
-    if (id.includes(lq)) return 12
-    if (aliasesLower.some((a) => a.includes(lq))) return 10
-
-    return 0
+    let best = 0
+    for (const { values, exact, prefix, contains } of SCORE_FIELDS) {
+        for (const raw of values(entry)) {
+            const s = raw.toLowerCase()
+            if (s === lq) {
+                if (exact > best) best = exact
+                continue
+            }
+            if (prefix && s.startsWith(lq)) {
+                if (prefix > best) best = prefix
+            } else if (contains && s.includes(lq)) {
+                if (contains > best) best = contains
+            }
+        }
+    }
+    return best
 }
 
 // pattern-check: skip refinement of existing pure filter — substring → ranked filter+sort, same call sites
