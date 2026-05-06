@@ -25,50 +25,163 @@
 
 import type { CanonicalKeyId } from './types'
 
-export const EXTERNAL_NAMES: Record<CanonicalKeyId, string[]> = {
-    // ─────────────────────────────────────────────────────────────
-    // Keyboard letters (HID 7 / 4–29)
-    // ─────────────────────────────────────────────────────────────
-    'key.keyboard_a': ['A', 'KC_A'],
-    'key.keyboard_b': ['B', 'KC_B'],
-    'key.keyboard_c': ['C', 'KC_C'],
-    'key.keyboard_d': ['D', 'KC_D'],
-    'key.keyboard_e': ['E', 'KC_E'],
-    'key.keyboard_f': ['F', 'KC_F'],
-    'key.keyboard_g': ['G', 'KC_G'],
-    'key.keyboard_h': ['H', 'KC_H'],
-    'key.keyboard_i': ['I', 'KC_I'],
-    'key.keyboard_j': ['J', 'KC_J'],
-    'key.keyboard_k': ['K', 'KC_K'],
-    'key.keyboard_l': ['L', 'KC_L'],
-    'key.keyboard_m': ['M', 'KC_M'],
-    'key.keyboard_n': ['N', 'KC_N'],
-    'key.keyboard_o': ['O', 'KC_O'],
-    'key.keyboard_p': ['P', 'KC_P'],
-    'key.keyboard_q': ['Q', 'KC_Q'],
-    'key.keyboard_r': ['R', 'KC_R'],
-    'key.keyboard_s': ['S', 'KC_S'],
-    'key.keyboard_t': ['T', 'KC_T'],
-    'key.keyboard_u': ['U', 'KC_U'],
-    'key.keyboard_v': ['V', 'KC_V'],
-    'key.keyboard_w': ['W', 'KC_W'],
-    'key.keyboard_x': ['X', 'KC_X'],
-    'key.keyboard_y': ['Y', 'KC_Y'],
-    'key.keyboard_z': ['Z', 'KC_Z'],
+// pattern-check: skip small in-file generator helpers — DRY for repetitive HID/keypad/intl banks
+type Names = Record<CanonicalKeyId, string[]>
 
-    // ─────────────────────────────────────────────────────────────
-    // Keyboard numbers (HID 7 / 30–39) — ZMK NUMBER_n / Nn ; QMK KC_n
-    // ─────────────────────────────────────────────────────────────
-    'key.keyboard_1_and_bang': ['NUMBER_1', 'N1', 'KC_1'],
-    'key.keyboard_2_and_at': ['NUMBER_2', 'N2', 'KC_2'],
-    'key.keyboard_3_and_hash': ['NUMBER_3', 'N3', 'KC_3'],
-    'key.keyboard_4_and_dollar': ['NUMBER_4', 'N4', 'KC_4'],
-    'key.keyboard_5_and_percent': ['NUMBER_5', 'N5', 'KC_5'],
-    'key.keyboard_6_and_caret': ['NUMBER_6', 'N6', 'KC_6'],
-    'key.keyboard_7_and_ampersand': ['NUMBER_7', 'N7', 'KC_7'],
-    'key.keyboard_8_and_star': ['NUMBER_8', 'N8', 'KC_8'],
-    'key.keyboard_9_and_left_bracket': ['NUMBER_9', 'N9', 'KC_9'],
-    'key.keyboard_0_and_right_bracket': ['NUMBER_0', 'N0', 'KC_0'],
+const range = (count: number, start = 0): number[] =>
+    Array.from({ length: count }, (_, i) => i + start)
+
+const fromPairs = (pairs: ReadonlyArray<readonly [string, string[]]>): Names =>
+    Object.fromEntries(pairs)
+
+// HID page 7 IDs 30–39 — keyboard number row. Names tie back to the slugified
+// HID `Name` field ("Keyboard 1 and Bang" → key.keyboard_1_and_bang).
+const NUMBER_SLUGS: Record<number, string> = {
+    1: '1_and_bang',
+    2: '2_and_at',
+    3: '3_and_hash',
+    4: '4_and_dollar',
+    5: '5_and_percent',
+    6: '6_and_caret',
+    7: '7_and_ampersand',
+    8: '8_and_star',
+    9: '9_and_left_bracket',
+    0: '0_and_right_bracket',
+}
+
+// HID page 7 keypad number names (89–98). Order = digit → slug suffix.
+const KEYPAD_NUMBER_SLUGS: Record<number, string> = {
+    0: '0_and_insert',
+    1: '1_and_end',
+    2: '2_and_down_arrow',
+    3: '3_and_pagedn',
+    4: '4_and_left_arrow',
+    5: '5',
+    6: '6_and_right_arrow',
+    7: '7_and_home',
+    8: '8_and_up_arrow',
+    9: '9_and_pageup',
+}
+
+// Per-index extra ZMK shorthands (e.g. INT_RO for INTERNATIONAL_1).
+const INTL_EXTRAS: Record<number, string[]> = {
+    1: ['INT_RO'],
+    2: ['INT_KATAKANAHIRAGANA', 'INT_KANA'],
+    3: ['INT_YEN'],
+    4: ['INT_HENKAN'],
+    5: ['INT_MUHENKAN'],
+    6: ['INT_KPJPCOMMA'],
+}
+
+const LANG_EXTRAS: Record<number, string[]> = {
+    1: ['LANG_HANGEUL'],
+    2: ['LANG_HANJA'],
+    3: ['LANG_KATAKANA'],
+    4: ['LANG_HIRAGANA'],
+    5: ['LANG_ZENKAKUHANKAKU'],
+}
+
+const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
+
+const lettersMap: Names = fromPairs(
+    LETTERS.map((c) => [`key.keyboard_${c.toLowerCase()}`, [c, `KC_${c}`]]),
+)
+
+const fkeysMap: Names = fromPairs(
+    range(24, 1).map((n) => [`key.keyboard_f${n}`, [`F${n}`, `KC_F${n}`]]),
+)
+
+const numbersMap: Names = fromPairs(
+    range(10).map((n) => [
+        `key.keyboard_${NUMBER_SLUGS[n]}`,
+        [`NUMBER_${n}`, `N${n}`, `KC_${n}`],
+    ]),
+)
+
+const keypadNumbersMap: Names = fromPairs(
+    range(10).map((n) => [
+        `key.keypad_${KEYPAD_NUMBER_SLUGS[n]}`,
+        [`KP_NUMBER_${n}`, `KP_N${n}`, `KC_KP_${n}`, `KC_P${n}`],
+    ]),
+)
+
+const internationalsMap: Names = fromPairs(
+    range(9, 1).map((n) => [
+        `key.keyboard_international${n}`,
+        [
+            `INTERNATIONAL_${n}`,
+            `INT${n}`,
+            ...(INTL_EXTRAS[n] ?? []),
+            `KC_INTERNATIONAL_${n}`,
+            `KC_INT${n}`,
+        ],
+    ]),
+)
+
+const languagesMap: Names = fromPairs(
+    range(9, 1).map((n) => [
+        `key.keyboard_lang${n}`,
+        [
+            `LANGUAGE_${n}`,
+            `LANG${n}`,
+            ...(LANG_EXTRAS[n] ?? []),
+            `KC_LANGUAGE_${n}`,
+            `KC_LNG${n}`,
+        ],
+    ]),
+)
+
+const btProfilesMap: Names = fromPairs(
+    range(5, 1).map((n) => [
+        `wireless.profile.${n}`,
+        [`BT_SEL ${n - 1}`, `QK_BLUETOOTH_PROFILE${n}`, `BT_PRF${n}`],
+    ]),
+)
+
+const mouseButtonsMap: Names = fromPairs(
+    range(8, 1).map((n) => [
+        `mouse.button.${n}`,
+        [`QK_MOUSE_BUTTON_${n}`, `MS_BTN${n}`],
+    ]),
+)
+
+// pattern-check: skip mechanical range/flatMap expansion of MIDI banks
+const MIDI_NOTE_SLUGS = [
+    'c', 'c_sharp', 'd', 'd_sharp', 'e', 'f',
+    'f_sharp', 'g', 'g_sharp', 'a', 'a_sharp', 'b',
+] as const
+const MIDI_OCTAVE_SLUGS = [
+    'n2', 'n1', '0', '1', '2', '3', '4', '5', '6', '7',
+] as const
+const MIDI_TRANSPOSE_SLUGS = [
+    'n6', 'n5', 'n4', 'n3', 'n2', 'n1',
+    '0', '1', '2', '3', '4', '5', '6',
+] as const
+
+const MIDI_BANK_IDS: readonly CanonicalKeyId[] = [
+    ...range(6).flatMap((o) =>
+        MIDI_NOTE_SLUGS.map((s) => `midi.note.${s}_${o}`),
+    ),
+    ...MIDI_OCTAVE_SLUGS.map((o) => `midi.octave.${o}`),
+    ...MIDI_TRANSPOSE_SLUGS.map((t) => `midi.transpose.${t}`),
+    ...range(11).map((v) => `midi.velocity.${v}`),
+    ...range(16, 1).map((c) => `midi.channel.${c}`),
+]
+
+export const EXTERNAL_NAMES: Record<CanonicalKeyId, string[]> = {
+    ...lettersMap,
+    ...fkeysMap,
+    ...numbersMap,
+    ...keypadNumbersMap,
+    ...internationalsMap,
+    ...languagesMap,
+    ...btProfilesMap,
+    ...mouseButtonsMap,
+
+    // pattern-check: skip bulk row trim — generators above provide same data
+    // Letters (HID 7 / 4–29) and numbers (30–39) come from lettersMap /
+    // numbersMap above. Override-able here if a digit ever needs more
+    // than [NUMBER_n, Nn, KC_n] — none today.
 
     // ─────────────────────────────────────────────────────────────
     // Control & whitespace (HID 7 / 40–43)
@@ -150,33 +263,8 @@ export const EXTERNAL_NAMES: Record<CanonicalKeyId, string[]> = {
         'KC_LOCKING_SCROLL_LOCK', 'KC_LSCR',
     ],
 
-    // ─────────────────────────────────────────────────────────────
-    // F-keys (HID 7 / 58–69, 104–115)
-    // ─────────────────────────────────────────────────────────────
-    'key.keyboard_f1': ['F1', 'KC_F1'],
-    'key.keyboard_f2': ['F2', 'KC_F2'],
-    'key.keyboard_f3': ['F3', 'KC_F3'],
-    'key.keyboard_f4': ['F4', 'KC_F4'],
-    'key.keyboard_f5': ['F5', 'KC_F5'],
-    'key.keyboard_f6': ['F6', 'KC_F6'],
-    'key.keyboard_f7': ['F7', 'KC_F7'],
-    'key.keyboard_f8': ['F8', 'KC_F8'],
-    'key.keyboard_f9': ['F9', 'KC_F9'],
-    'key.keyboard_f10': ['F10', 'KC_F10'],
-    'key.keyboard_f11': ['F11', 'KC_F11'],
-    'key.keyboard_f12': ['F12', 'KC_F12'],
-    'key.keyboard_f13': ['F13', 'KC_F13'],
-    'key.keyboard_f14': ['F14', 'KC_F14'],
-    'key.keyboard_f15': ['F15', 'KC_F15'],
-    'key.keyboard_f16': ['F16', 'KC_F16'],
-    'key.keyboard_f17': ['F17', 'KC_F17'],
-    'key.keyboard_f18': ['F18', 'KC_F18'],
-    'key.keyboard_f19': ['F19', 'KC_F19'],
-    'key.keyboard_f20': ['F20', 'KC_F20'],
-    'key.keyboard_f21': ['F21', 'KC_F21'],
-    'key.keyboard_f22': ['F22', 'KC_F22'],
-    'key.keyboard_f23': ['F23', 'KC_F23'],
-    'key.keyboard_f24': ['F24', 'KC_F24'],
+    // pattern-check: skip bulk row trim — fkeysMap covers F1–F24
+    // F1–F24 (HID 7 / 58–69, 104–115) come from fkeysMap above.
 
     // ─────────────────────────────────────────────────────────────
     // Navigation (HID 7 / 70–82)
@@ -229,32 +317,7 @@ export const EXTERNAL_NAMES: Record<CanonicalKeyId, string[]> = {
         'KC_KP_MINUS', 'KC_PMNS',
     ],
     'key.keypad_plus': ['KP_PLUS', 'KC_KP_PLUS', 'KC_PPLS'],
-    'key.keypad_1_and_end': ['KP_NUMBER_1', 'KP_N1', 'KC_KP_1', 'KC_P1'],
-    'key.keypad_2_and_down_arrow': [
-        'KP_NUMBER_2', 'KP_N2', 'KC_KP_2', 'KC_P2',
-    ],
-    'key.keypad_3_and_pagedn': [
-        'KP_NUMBER_3', 'KP_N3', 'KC_KP_3', 'KC_P3',
-    ],
-    'key.keypad_4_and_left_arrow': [
-        'KP_NUMBER_4', 'KP_N4', 'KC_KP_4', 'KC_P4',
-    ],
-    'key.keypad_5': ['KP_NUMBER_5', 'KP_N5', 'KC_KP_5', 'KC_P5'],
-    'key.keypad_6_and_right_arrow': [
-        'KP_NUMBER_6', 'KP_N6', 'KC_KP_6', 'KC_P6',
-    ],
-    'key.keypad_7_and_home': [
-        'KP_NUMBER_7', 'KP_N7', 'KC_KP_7', 'KC_P7',
-    ],
-    'key.keypad_8_and_up_arrow': [
-        'KP_NUMBER_8', 'KP_N8', 'KC_KP_8', 'KC_P8',
-    ],
-    'key.keypad_9_and_pageup': [
-        'KP_NUMBER_9', 'KP_N9', 'KC_KP_9', 'KC_P9',
-    ],
-    'key.keypad_0_and_insert': [
-        'KP_NUMBER_0', 'KP_N0', 'KC_KP_0', 'KC_P0',
-    ],
+    // pattern-check: skip bulk row trim — keypadNumbersMap covers KP 0–9
     'key.keypad_period_and_delete': ['KP_DOT', 'KC_KP_DOT', 'KC_PDOT'],
     'key.keyboard_non_us_backslash_and_pipe': [
         'NON_US_BACKSLASH', 'NON_US_BSLH', 'NUBS', 'PIPE2',
@@ -268,66 +331,11 @@ export const EXTERNAL_NAMES: Record<CanonicalKeyId, string[]> = {
         'KP_EQUAL_AS400', 'KC_KP_EQUAL_AS400',
     ],
 
-    // ─────────────────────────────────────────────────────────────
-    // International / Language (HID 7 / 135–146)
-    // ─────────────────────────────────────────────────────────────
-    'key.keyboard_international1': [
-        'INTERNATIONAL_1', 'INT1', 'INT_RO',
-        'KC_INTERNATIONAL_1', 'KC_INT1',
-    ],
-    'key.keyboard_international2': [
-        'INTERNATIONAL_2', 'INT2', 'INT_KATAKANAHIRAGANA', 'INT_KANA',
-        'KC_INTERNATIONAL_2', 'KC_INT2',
-    ],
-    'key.keyboard_international3': [
-        'INTERNATIONAL_3', 'INT3', 'INT_YEN',
-        'KC_INTERNATIONAL_3', 'KC_INT3',
-    ],
-    'key.keyboard_international4': [
-        'INTERNATIONAL_4', 'INT4', 'INT_HENKAN',
-        'KC_INTERNATIONAL_4', 'KC_INT4',
-    ],
-    'key.keyboard_international5': [
-        'INTERNATIONAL_5', 'INT5', 'INT_MUHENKAN',
-        'KC_INTERNATIONAL_5', 'KC_INT5',
-    ],
-    'key.keyboard_international6': [
-        'INTERNATIONAL_6', 'INT6', 'INT_KPJPCOMMA',
-        'KC_INTERNATIONAL_6', 'KC_INT6',
-    ],
-    'key.keyboard_international7': [
-        'INTERNATIONAL_7', 'INT7', 'KC_INTERNATIONAL_7', 'KC_INT7',
-    ],
-    'key.keyboard_international8': [
-        'INTERNATIONAL_8', 'INT8', 'KC_INTERNATIONAL_8', 'KC_INT8',
-    ],
-    'key.keyboard_international9': [
-        'INTERNATIONAL_9', 'INT9', 'KC_INTERNATIONAL_9', 'KC_INT9',
-    ],
-    'key.keyboard_lang1': [
-        'LANGUAGE_1', 'LANG1', 'LANG_HANGEUL',
-        'KC_LANGUAGE_1', 'KC_LNG1',
-    ],
-    'key.keyboard_lang2': [
-        'LANGUAGE_2', 'LANG2', 'LANG_HANJA',
-        'KC_LANGUAGE_2', 'KC_LNG2',
-    ],
-    'key.keyboard_lang3': [
-        'LANGUAGE_3', 'LANG3', 'LANG_KATAKANA',
-        'KC_LANGUAGE_3', 'KC_LNG3',
-    ],
-    'key.keyboard_lang4': [
-        'LANGUAGE_4', 'LANG4', 'LANG_HIRAGANA',
-        'KC_LANGUAGE_4', 'KC_LNG4',
-    ],
-    'key.keyboard_lang5': [
-        'LANGUAGE_5', 'LANG5', 'LANG_ZENKAKUHANKAKU',
-        'KC_LANGUAGE_5', 'KC_LNG5',
-    ],
-    'key.keyboard_lang6': ['LANGUAGE_6', 'LANG6', 'KC_LANGUAGE_6', 'KC_LNG6'],
-    'key.keyboard_lang7': ['LANGUAGE_7', 'LANG7', 'KC_LANGUAGE_7', 'KC_LNG7'],
-    'key.keyboard_lang8': ['LANGUAGE_8', 'LANG8', 'KC_LANGUAGE_8', 'KC_LNG8'],
-    'key.keyboard_lang9': ['LANGUAGE_9', 'LANG9', 'KC_LANGUAGE_9', 'KC_LNG9'],
+    // pattern-check: skip bulk row trim — internationalsMap + languagesMap cover 1–9 with INTL_EXTRAS / LANG_EXTRAS for the named slots
+    // International (HID 7 / 135–143) and Language (144–152) come from
+    // internationalsMap / languagesMap above with INTL_EXTRAS /
+    // LANG_EXTRAS supplying the named ZMK shorthands (INT_RO,
+    // LANG_HANGEUL, etc.) per index.
 
     // ─────────────────────────────────────────────────────────────
     // Misc keyboard (HID 7 / 116–164, 166)
@@ -711,22 +719,9 @@ export const EXTERNAL_NAMES: Record<CanonicalKeyId, string[]> = {
 
     // ─────────────────────────────────────────────────────────────
     // Wireless (Bluetooth + output mode)
+    // pattern-check: skip bulk row trim — btProfilesMap covers profile 1–5
     // ─────────────────────────────────────────────────────────────
-    'wireless.profile.1': [
-        'BT_SEL 0', 'QK_BLUETOOTH_PROFILE1', 'BT_PRF1',
-    ],
-    'wireless.profile.2': [
-        'BT_SEL 1', 'QK_BLUETOOTH_PROFILE2', 'BT_PRF2',
-    ],
-    'wireless.profile.3': [
-        'BT_SEL 2', 'QK_BLUETOOTH_PROFILE3', 'BT_PRF3',
-    ],
-    'wireless.profile.4': [
-        'BT_SEL 3', 'QK_BLUETOOTH_PROFILE4', 'BT_PRF4',
-    ],
-    'wireless.profile.5': [
-        'BT_SEL 4', 'QK_BLUETOOTH_PROFILE5', 'BT_PRF5',
-    ],
+    // BT profiles 1–5 come from btProfilesMap above.
     'wireless.bt.next': [
         'BT_NXT', 'QK_BLUETOOTH_PROFILE_NEXT', 'BT_NEXT',
     ],
@@ -755,14 +750,7 @@ export const EXTERNAL_NAMES: Record<CanonicalKeyId, string[]> = {
     'mouse.cursor.down': ['QK_MOUSE_CURSOR_DOWN', 'MS_DOWN'],
     'mouse.cursor.left': ['QK_MOUSE_CURSOR_LEFT', 'MS_LEFT'],
     'mouse.cursor.right': ['QK_MOUSE_CURSOR_RIGHT', 'MS_RGHT'],
-    'mouse.button.1': ['QK_MOUSE_BUTTON_1', 'MS_BTN1'],
-    'mouse.button.2': ['QK_MOUSE_BUTTON_2', 'MS_BTN2'],
-    'mouse.button.3': ['QK_MOUSE_BUTTON_3', 'MS_BTN3'],
-    'mouse.button.4': ['QK_MOUSE_BUTTON_4', 'MS_BTN4'],
-    'mouse.button.5': ['QK_MOUSE_BUTTON_5', 'MS_BTN5'],
-    'mouse.button.6': ['QK_MOUSE_BUTTON_6', 'MS_BTN6'],
-    'mouse.button.7': ['QK_MOUSE_BUTTON_7', 'MS_BTN7'],
-    'mouse.button.8': ['QK_MOUSE_BUTTON_8', 'MS_BTN8'],
+    // pattern-check: skip bulk row trim — mouseButtonsMap covers button 1–8
     'mouse.wheel.up': ['QK_MOUSE_WHEEL_UP', 'MS_WHLU'],
     'mouse.wheel.down': ['QK_MOUSE_WHEEL_DOWN', 'MS_WHLD'],
     'mouse.wheel.left': ['QK_MOUSE_WHEEL_LEFT', 'MS_WHLL'],
@@ -1087,38 +1075,16 @@ export const EXTERNAL_NOTES: Partial<Record<CanonicalKeyId, string>> = {
 export const EXTERNAL_NAMES_ALLOWLIST: ReadonlySet<CanonicalKeyId> = new Set<
     CanonicalKeyId
 >([
+    // pattern-check: skip mechanical range expansion of indexed banks
     // Internal helpers / device-specific
     'wireless.battery.level',
-    // Macro slot bank — runtime-defined
-    ...Array.from({ length: 16 }, (_, i) => `macro.user.${i}`),
-    // Joystick / programmable button banks — index-only
-    ...Array.from({ length: 32 }, (_, i) => `joystick.button.${i}`),
-    ...Array.from(
-        { length: 32 },
-        (_, i) => `programmable.button.${i + 1}`,
-    ),
-    // MIDI note grid (12 notes × 6 octaves) + octave/transpose/velocity
-    // index banks. Top-level toggles already have aliases above; the
-    // index banks are bare-numeric.
-    ...(() => {
-        const slugs = [
-            'c', 'c_sharp', 'd', 'd_sharp', 'e', 'f',
-            'f_sharp', 'g', 'g_sharp', 'a', 'a_sharp', 'b',
-        ]
-        const out: string[] = []
-        for (let oct = 0; oct <= 5; oct++)
-            for (const s of slugs) out.push(`midi.note.${s}_${oct}`)
-        for (const o of ['n2', 'n1', '0', '1', '2', '3', '4', '5', '6', '7'])
-            out.push(`midi.octave.${o}`)
-        for (const t of [
-            'n6', 'n5', 'n4', 'n3', 'n2', 'n1',
-            '0', '1', '2', '3', '4', '5', '6',
-        ])
-            out.push(`midi.transpose.${t}`)
-        for (let v = 0; v <= 10; v++) out.push(`midi.velocity.${v}`)
-        for (let c = 1; c <= 16; c++) out.push(`midi.channel.${c}`)
-        return out
-    })(),
+    // Macro slot bank (16) + joystick (32) + programmable buttons (32).
+    ...range(16).map((i) => `macro.user.${i}`),
+    ...range(32).map((i) => `joystick.button.${i}`),
+    ...range(32, 1).map((i) => `programmable.button.${i}`),
+    // MIDI grid: 12 notes × 6 octaves, plus octave/transpose/velocity/
+    // channel index banks. Top-level toggles get aliases above.
+    ...MIDI_BANK_IDS,
     // HID error / metadata entries (not user-pickable in normal flows)
     // pattern-check: skip bulk static-list extension to allowlist Set
     'key.errorrollover',
