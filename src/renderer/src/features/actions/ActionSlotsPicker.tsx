@@ -2,12 +2,14 @@
 import type { ActionSlot } from '@firmware/types'
 import { SlotValuePicker } from './SlotValuePicker'
 
+// pattern-check: skip optional onActionChosen pass-through prop — mechanical prop forwarding to SlotValuePicker
 export interface ActionSlotsPickerProps {
     slots: ActionSlot[]
     values: number[]
     layers: { id: number; name: string }[]
     activeSlotIndex: number
     onSlotChanged: (slotIndex: number, value?: number) => void
+    onActionChosen?: (kind: string) => void
     highlightedKeys?: number[]
     holdInvalidHint?: string
 }
@@ -18,6 +20,7 @@ export const ActionSlotsPicker = ({
     layers,
     activeSlotIndex,
     onSlotChanged,
+    onActionChosen,
     highlightedKeys,
     holdInvalidHint,
 }: ActionSlotsPickerProps): JSX.Element | null => {
@@ -37,6 +40,7 @@ export const ActionSlotsPicker = ({
                     layers={layers}
                     highlightedKeys={highlightedKeys}
                     onChange={(v) => onSlotChanged(safeIndex, v)}
+                    onActionChosen={onActionChosen}
                 />
             </div>
         )
@@ -57,6 +61,7 @@ export const ActionSlotsPicker = ({
                     layers={layers}
                     highlightedKeys={highlightedKeys}
                     onChange={(v) => onSlotChanged(safeIndex, v)}
+                    onActionChosen={onActionChosen}
                 />
             </div>
         </div>

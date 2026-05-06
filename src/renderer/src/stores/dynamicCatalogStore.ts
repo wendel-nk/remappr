@@ -9,6 +9,7 @@
 // automatically through the zustand subscription.
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
+import type { CatalogEntry } from '@firmware/catalog/types'
 import type { KeyboardService } from '@firmware/service'
 
 interface DynamicLabel {
@@ -25,6 +26,13 @@ interface DynamicCatalogState {
     // over overlays when present.
     macroLabels: Record<number, string>
     comboLabels: Record<number, string>
+    // ZMK runtime macro / combo behaviors as catalog tiles. Each entry
+    // carries `behaviorRef` so the picker emits a complete KeyAction
+    // (kind = behavior id, params = []) instead of a codec-encoded
+    // number. Empty on QMK / Vial / Keychron — those use the static
+    // MACROS_ENTRIES + COMBOS_ENTRIES tiles.
+    extraMacroEntries: CatalogEntry[]
+    extraComboEntries: CatalogEntry[]
     setMacroOverlays: (next: Record<number, DynamicLabel>) => void
     setComboOverlays: (next: Record<number, DynamicLabel>) => void
     setMacroLabel: (idx: number, label: string) => void
@@ -39,6 +47,8 @@ const useDynamicCatalogStore = create<DynamicCatalogState>()(
         comboOverlays: {},
         macroLabels: {},
         comboLabels: {},
+        extraMacroEntries: [],
+        extraComboEntries: [],
         setMacroOverlays: (macroOverlays) => set({ macroOverlays }),
         setComboOverlays: (comboOverlays) => set({ comboOverlays }),
         setMacroLabel: (idx, label) =>
@@ -47,14 +57,25 @@ const useDynamicCatalogStore = create<DynamicCatalogState>()(
             set((s) => ({ comboLabels: { ...s.comboLabels, [idx]: label } })),
         refresh: async (svc) => {
             if (!svc) {
-                set({ macroOverlays: {}, comboOverlays: {} })
+                set({
+                    macroOverlays: {},
+                    comboOverlays: {},
+                    extraMacroEntries: [],
+                    extraComboEntries: [],
+                })
                 return
             }
-            const [macros, combos] = await Promise.all([
+            const [macros, combos, behaviorEntries] = await Promise.all([
                 fetchMacroOverlays(svc),
                 fetchComboOverlays(svc),
+                fetchBehaviorEntries(svc),
             ])
-            set({ macroOverlays: macros, comboOverlays: combos })
+            set({
+                macroOverlays: macros,
+                comboOverlays: combos,
+                extraMacroEntries: behaviorEntries.macros,
+                extraComboEntries: behaviorEntries.combos,
+            })
         },
         reset: () =>
             set({
@@ -62,6 +83,8 @@ const useDynamicCatalogStore = create<DynamicCatalogState>()(
                 comboOverlays: {},
                 macroLabels: {},
                 comboLabels: {},
+                extraMacroEntries: [],
+                extraComboEntries: [],
             }),
     })),
 )
@@ -130,6 +153,44 @@ async function fetchComboOverlays(
         }
     }
     return out
+}
+
+// Walks listActionTypes() and splits user-defined &macro_* / &combo_*
+// behaviors into Macros / Combos catalog tiles. Each tile carries
+// behaviorRef = { kind: actionType.id } so the picker can emit a
+// complete KeyAction (kind, params: []) on click instead of going
+// through codec.encode. ZMK populates these; QMK / Vial / Keychron
+// return empty since vial:macro is no longer an action type and QMK
+// macros / combos are catalog-tile-only by construction.
+async function fetchBehaviorEntries(svc: KeyboardService): Promise<{
+    macros: CatalogEntry[]
+    combos: CatalogEntry[]
+}> {
+    try {
+        const types = await svc.listActionTypes()
+        const { classifyBehavior } =
+            await import('@/lib/keymap/behaviorClassify')
+        const macros: CatalogEntry[] = []
+        const combos: CatalogEntry[] = []
+        for (const at of types) {
+            const cls = classifyBehavior(at)
+            if (cls === 'other') continue
+            const entry: CatalogEntry = {
+                id: `${cls}.behavior.${at.id}`,
+                label: at.displayName,
+                name: at.displayName,
+                description: at.description,
+                kinds: ['hid'],
+                behaviorRef: { kind: at.id },
+            }
+            if (cls === 'macro') macros.push(entry)
+            else combos.push(entry)
+        }
+        return { macros, combos }
+    } catch (err) {
+        console.warn('fetchBehaviorEntries failed', err)
+        return { macros: [], combos: [] }
+    }
 }
 
 export default useDynamicCatalogStore

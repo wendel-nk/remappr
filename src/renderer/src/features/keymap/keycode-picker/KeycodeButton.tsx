@@ -15,6 +15,10 @@ interface KeycodeButtonProps {
     y: number
     baseKeyValue?: number
     onSelect: (keyCode: number) => void
+    // Bypass the value/onSelect path. Used by behavior-ref tiles
+    // (ZMK runtime &macro_* / &combo_*) which emit a complete
+    // KeyAction rather than a codec-encoded number.
+    onClickOverride?: () => void
     isSelected?: boolean
 }
 
@@ -30,6 +34,7 @@ export default function KeycodeButton({
     y,
     baseKeyValue,
     onSelect,
+    onClickOverride,
     isSelected = false,
 }: KeycodeButtonProps): JSX.Element {
     const keySize = 50
@@ -45,13 +50,16 @@ export default function KeycodeButton({
     }
 
     const handleClick = (): void => {
+        if (onClickOverride) {
+            onClickOverride()
+            return
+        }
         if (value !== undefined) {
             onSelect(value)
         }
     }
 
-    const aliasLine =
-        aliases && aliases.length > 0 ? aliases.join(' · ') : null
+    const aliasLine = aliases && aliases.length > 0 ? aliases.join(' · ') : null
 
     return (
         <Tooltip>

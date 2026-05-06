@@ -17,6 +17,7 @@ export interface SlotValuePickerProps {
     layers: { id: number; name: string }[]
     highlightedKeys?: number[]
     onChange: (value?: number) => void
+    onActionChosen?: (kind: string) => void
 }
 
 export const SlotValuePicker = ({
@@ -25,11 +26,13 @@ export const SlotValuePicker = ({
     layers,
     highlightedKeys,
     onChange,
+    onActionChosen,
 }: SlotValuePickerProps): JSX.Element | null => {
     if (slot.kind === 'hid') {
         return (
             <KeycodePickerGrid
                 onValueChanged={onChange}
+                onActionChosen={onActionChosen}
                 label={slot.label}
                 value={value}
                 highlightedKeys={highlightedKeys}

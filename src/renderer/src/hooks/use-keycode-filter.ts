@@ -24,6 +24,56 @@ const enrichMacroEntries = (
         return { ...e, label: overlay }
     })
 
+// Append ZMK runtime &macro_* / &combo_* behavior tiles to the
+// Macros / Combos pages. ZMK is the only adapter that produces these
+// today; for QMK / Vial / Keychron the extra arrays are empty so the
+// pages are returned unchanged. On ZMK the codec doesn't support the
+// static MC_* / COMBO_TOG ids so filterCatalogByCodec drops the pages
+// entirely — synthesize them here when extras exist.
+const mergeBehaviorEntries = (
+    base: CatalogPage[],
+    extraMacros: CatalogEntry[],
+    extraCombos: CatalogEntry[],
+): CatalogPage[] => {
+    if (extraMacros.length === 0 && extraCombos.length === 0) return base
+    let hasMacros = false
+    let hasCombos = false
+    const merged = base.map((p) => {
+        if (p.id === 'macros') {
+            hasMacros = true
+            return extraMacros.length > 0
+                ? { ...p, entries: [...extraMacros, ...p.entries] }
+                : p
+        }
+        if (p.id === 'combos') {
+            hasCombos = true
+            return extraCombos.length > 0
+                ? { ...p, entries: [...extraCombos, ...p.entries] }
+                : p
+        }
+        return p
+    })
+    if (!hasMacros && extraMacros.length > 0) {
+        merged.push({
+            id: 'macros',
+            name: 'Macros',
+            style: 'flat-grid',
+            visible: true,
+            entries: extraMacros,
+        })
+    }
+    if (!hasCombos && extraCombos.length > 0) {
+        merged.push({
+            id: 'combos',
+            name: 'Combos',
+            style: 'flat-grid',
+            visible: true,
+            entries: extraCombos,
+        })
+    }
+    return merged
+}
+
 interface UseKeycodeFilterResult {
     searchQuery: string
     setSearchQuery: (q: string) => void
@@ -41,7 +91,12 @@ export function useKeycodeFilter(): UseKeycodeFilterResult {
 
     const pages: CatalogPage[] = useMemo(() => {
         const base = keyCatalog?.pages ?? CATALOG_PAGES
-        return base.map((p) =>
+        const { extraMacroEntries, extraComboEntries } = dynamicCatalog
+        return mergeBehaviorEntries(
+            base,
+            extraMacroEntries,
+            extraComboEntries,
+        ).map((p) =>
             p.id === 'macros'
                 ? {
                       ...p,

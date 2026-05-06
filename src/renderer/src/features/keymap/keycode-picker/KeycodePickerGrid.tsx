@@ -21,6 +21,11 @@ interface KeycodePickerGridProps {
     label?: string
     highlightedKeys?: number[]
     onValueChanged?: (value?: number) => void
+    // Fired when the user clicks a tile carrying entry.behaviorRef
+    // (ZMK runtime &macro_* / &combo_* tiles). The picker bypasses
+    // the slot/value flow and emits the behavior id directly so the
+    // caller can switch the bound action type wholesale.
+    onActionChosen?: (kind: string) => void
 }
 
 const CONTAINER_MAX_HEIGHT = 350
@@ -56,6 +61,7 @@ function emitFromState(
 export function KeycodePickerGrid({
     value,
     onValueChanged,
+    onActionChosen,
     highlightedKeys,
 }: KeycodePickerGridProps): JSX.Element {
     const {
@@ -211,6 +217,7 @@ export function KeycodePickerGrid({
                     const entryValue = valueByEntryId.get(entry.id)
                     const keyWidth = entry.w ? entry.w / 2 : 50
                     const keyHeight = entry.h ? entry.h / 2 : 50
+                    const behaviorKind = entry.behaviorRef?.kind
                     const button = (
                         <KeycodeButton
                             value={entryValue ?? 0}
@@ -224,7 +231,14 @@ export function KeycodePickerGrid({
                             y={positioned ? (entry.y ?? 0) / 100 : 0}
                             baseKeyValue={entryValue ?? 0}
                             onSelect={handleKeySelect}
-                            isSelected={isKeySelected(entryValue)}
+                            onClickOverride={
+                                behaviorKind
+                                    ? () => onActionChosen?.(behaviorKind)
+                                    : undefined
+                            }
+                            isSelected={
+                                behaviorKind ? false : isKeySelected(entryValue)
+                            }
                         />
                     )
                     if (positioned) return button

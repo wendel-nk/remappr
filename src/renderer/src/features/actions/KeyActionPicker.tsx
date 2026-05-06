@@ -5,6 +5,7 @@ import type { ActionSlot, ActionType, KeyAction } from '@firmware/types'
 import { ActionTypeSelector } from './ActionTypeSelector'
 import { ActionSlotsPicker } from './ActionSlotsPicker'
 import { SlotBar, type SlotDescriptor, type SlotKind } from './SlotBar'
+import { isMacroOrCombo } from '@/lib/keymap/behaviorClassify'
 
 export interface KeyActionDraft {
     kind: string
@@ -88,6 +89,16 @@ export const KeyActionPicker = ({
     }, [action])
 
     const layerIds = useMemo(() => layers.map((l) => l.id), [layers])
+
+    // Macros / combos surface as catalog tiles (Macros / Combos tabs);
+    // hide them from the action-type dropdown so each behavior has
+    // exactly one pick path. Resolution by id stays intact since the
+    // unfiltered actionTypes list still feeds the lookup.
+    const dropdownHidden = useMemo(
+        (): Set<string> =>
+            new Set(actionTypes.filter(isMacroOrCombo).map((t) => t.id)),
+        [actionTypes],
+    )
 
     const dispatch = useCallback(
         (nextKind: string, nextParams: number[]): void => {
@@ -194,6 +205,7 @@ export const KeyActionPicker = ({
             <div className="flex flex-row flex-wrap gap-3 items-center">
                 <ActionTypeSelector
                     actionTypes={actionTypes}
+                    hideIds={dropdownHidden}
                     selectedId={kind}
                     onSelect={handleTypeSelected}
                     placeholder="Select action..."
@@ -214,6 +226,7 @@ export const KeyActionPicker = ({
                         layers={layers}
                         activeSlotIndex={activeSlotIndex}
                         onSlotChanged={handleSlotChanged}
+                        onActionChosen={handleTypeSelected}
                         highlightedKeys={highlightedKeys}
                     />
                 </div>
