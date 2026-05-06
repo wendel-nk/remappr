@@ -92,6 +92,7 @@ const contactBuild = fromHidPage(contactJson as RawHidEntry[], 'contact', 12)
 export {
     AUDIO_ENTRIES,
     BACKLIGHT_ENTRIES,
+    COMBOS_ENTRIES,
     JOYSTICK_ENTRIES,
     MACROS_ENTRIES,
     MAGIC_ENTRIES,

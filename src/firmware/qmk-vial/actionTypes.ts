@@ -4,6 +4,11 @@ import type { ActionType } from '@firmware/types'
 
 import type { VialCustomKeycode } from './keyboardDef'
 
+// Note: vial:macro is no longer exposed as a pickable action type —
+// users now pick macro slots from the Macros catalog tab (which
+// encodes via VialCodec → QK_MACRO 0x7700+idx). Encode/decode of
+// existing vial:macro KeyActions stays in actions.ts so old keymaps
+// round-trip until rewritten.
 const VIAL_BASE: ActionType[] = [
     {
         id: 'vial:tap-dance',
@@ -11,14 +16,6 @@ const VIAL_BASE: ActionType[] = [
         description: 'Reference a configured tap-dance entry.',
         slots: [
             { label: 'Index', kind: 'number', range: { min: 0, max: 255 } },
-        ],
-    },
-    {
-        id: 'vial:macro',
-        displayName: 'Dynamic Macro',
-        description: 'Trigger a dynamic macro slot.',
-        slots: [
-            { label: 'Index', kind: 'number', range: { min: 0, max: 127 } },
         ],
     },
     {

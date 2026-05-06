@@ -263,6 +263,28 @@ export const OS_KEYS_ENTRIES: CatalogEntry[] = [
     },
 ]
 
+// pattern-check: skip mechanical extraction of three combo control rows from MISC_ENTRIES into new COMBOS_ENTRIES + page record
+export const COMBOS_ENTRIES: CatalogEntry[] = [
+    {
+        id: 'combo.on',
+        label: 'Cmb On',
+        name: 'Combo on',
+        kinds: ['hid'],
+    },
+    {
+        id: 'combo.off',
+        label: 'Cmb Off',
+        name: 'Combo off',
+        kinds: ['hid'],
+    },
+    {
+        id: 'combo.toggle',
+        label: 'Cmb Tog',
+        name: 'Combo toggle',
+        kinds: ['hid'],
+    },
+]
+
 export const MACROS_ENTRIES: CatalogEntry[] = [
     ...Array.from(
         { length: 16 },
@@ -504,9 +526,6 @@ export const MISC_ENTRIES: CatalogEntry[] = [
     entry('key_override.on', 'KO On', 'Key override on'),
     entry('key_override.off', 'KO Off', 'Key override off'),
     entry('key_override.toggle', 'KO Tog', 'Key override toggle'),
-    entry('combo.on', 'Cmb On', 'Combo on'),
-    entry('combo.off', 'Cmb Off', 'Combo off'),
-    entry('combo.toggle', 'Cmb Tog', 'Combo toggle'),
     entry('velocikey.toggle', 'Velki', 'Velocikey toggle'),
     entry('haptic.on', 'Hap On', 'Haptic on'),
     entry('haptic.off', 'Hap Off', 'Haptic off'),
@@ -713,6 +732,7 @@ export const STATIC_ENTRIES: CatalogEntry[] = [
     ...WIRELESS_ENTRIES,
     ...OS_KEYS_ENTRIES,
     ...MACROS_ENTRIES,
+    ...COMBOS_ENTRIES,
     ...AUDIO_ENTRIES,
     ...BACKLIGHT_ENTRIES,
     ...MOUSE_ENTRIES,
