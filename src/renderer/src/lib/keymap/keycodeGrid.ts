@@ -53,23 +53,27 @@ const SCORE_FIELDS: ReadonlyArray<{
     { values: (e) => [e.id], exact: 70, prefix: 0, contains: 12 },
 ]
 
+const matchTier = (
+    s: string,
+    lq: string,
+    exact: number,
+    prefix: number,
+    contains: number,
+): number =>
+    s === lq ? exact
+    : prefix && s.startsWith(lq) ? prefix
+    : contains && s.includes(lq) ? contains
+    : 0
+
 function scoreEntry(entry: CatalogEntry, lq: string): number {
-    let best = 0
-    for (const { values, exact, prefix, contains } of SCORE_FIELDS) {
-        for (const raw of values(entry)) {
-            const s = raw.toLowerCase()
-            if (s === lq) {
-                if (exact > best) best = exact
-                continue
-            }
-            if (prefix && s.startsWith(lq)) {
-                if (prefix > best) best = prefix
-            } else if (contains && s.includes(lq)) {
-                if (contains > best) best = contains
-            }
-        }
-    }
-    return best
+    return Math.max(
+        0,
+        ...SCORE_FIELDS.flatMap(({ values, exact, prefix, contains }) =>
+            values(entry).map((raw) =>
+                matchTier(raw.toLowerCase(), lq, exact, prefix, contains),
+            ),
+        ),
+    )
 }
 
 // pattern-check: skip refinement of existing pure filter — substring → ranked filter+sort, same call sites
