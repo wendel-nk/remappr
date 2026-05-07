@@ -377,6 +377,17 @@ export const QMK_HEX_BY_CANONICAL: Record<CanonicalKeyId, number> = {
     'tap_term.up': 0x7c71,
     'tap_term.down': 0x7c72,
     'caps_word.toggle': 0x7c73,
+
+    // Swap-hands parameterless variants (within QK_SWAP_HANDS range
+    // 0x5600..0x56FF; SH_T(kc) uses low byte for basic kc 0x04..0xA7,
+    // these aliases occupy the high tail of the range).
+    'swap_hands.toggle': 0x56f0, // SH_TOGG
+    'swap_hands.tap_toggle': 0x56f1, // SH_TT
+    'swap_hands.momentary_on': 0x56f2, // SH_MON
+    'swap_hands.momentary_off': 0x56f3, // SH_MOFF
+    'swap_hands.off': 0x56f4, // SH_OFF
+    'swap_hands.on': 0x56f5, // SH_ON
+    'swap_hands.oneshot': 0x56f6, // SH_OS
     'autocorrect.on': 0x7c74,
     'autocorrect.off': 0x7c75,
     'autocorrect.toggle': 0x7c76,

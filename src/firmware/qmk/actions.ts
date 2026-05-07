@@ -398,6 +398,11 @@ export function decodeKeycode(kc: number): DecodedKeycode {
         }
     }
     if (code >= QK_SWAP_HANDS && code <= QK_SWAP_HANDS_MAX) {
+        // Parameterless aliases (SH_TOGG..SH_OS) occupy 0x56F0..0x56F6;
+        // surface as BASIC so the codec maps them to swap_hands.* tiles.
+        if (code >= 0x56f0 && code <= 0x56f6) {
+            return { kind: QMK_KIND.BASIC, params: [code] }
+        }
         return { kind: QMK_KIND.SWAP_HANDS_TAP, params: [code & 0xff] }
     }
     // Fallback: treat as raw basic; loses fidelity but never throws.
