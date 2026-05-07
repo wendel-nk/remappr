@@ -64,18 +64,24 @@ const enrichMacroEntries = (
         }
     })
 
+// pattern-check: skip mechanical extension — third optional sideloadedCombos arg merged into Combos page
 // Append ZMK runtime &macro_* / &combo_* behavior tiles to the
-// Macros / Combos pages. ZMK is the only adapter that produces these
-// today; for QMK / Vial / Keychron the extra arrays are empty so the
-// pages are returned unchanged. On ZMK the codec doesn't support the
-// static MC_* / COMBO_TOG ids so filterCatalogByCodec drops the pages
-// entirely — synthesize them here when extras exist.
+// Macros / Combos pages, plus side-loaded display-only combos parsed
+// from an imported ZMK .keymap file. ZMK is the only adapter that
+// produces runtime behavior tiles; QMK / Vial / Keychron pass empty
+// runtime arrays. The sideloaded array is independent — present on
+// any adapter once the user uploads a .keymap. On ZMK the codec
+// doesn't support the static MC_* / COMBO_TOG ids so
+// filterCatalogByCodec drops the pages entirely — synthesize them
+// here when extras exist.
 const mergeBehaviorEntries = (
     base: CatalogPage[],
     extraMacros: CatalogEntry[],
     extraCombos: CatalogEntry[],
+    sideloadedCombos: CatalogEntry[] = [],
 ): CatalogPage[] => {
-    if (extraMacros.length === 0 && extraCombos.length === 0) return base
+    const allCombos = [...sideloadedCombos, ...extraCombos]
+    if (extraMacros.length === 0 && allCombos.length === 0) return base
     let hasMacros = false
     let hasCombos = false
     const merged = base.map((p) => {
@@ -87,8 +93,8 @@ const mergeBehaviorEntries = (
         }
         if (p.id === 'combos') {
             hasCombos = true
-            return extraCombos.length > 0
-                ? { ...p, entries: [...extraCombos, ...p.entries] }
+            return allCombos.length > 0
+                ? { ...p, entries: [...allCombos, ...p.entries] }
                 : p
         }
         return p
@@ -102,13 +108,13 @@ const mergeBehaviorEntries = (
             entries: extraMacros,
         })
     }
-    if (!hasCombos && extraCombos.length > 0) {
+    if (!hasCombos && allCombos.length > 0) {
         merged.push({
             id: 'combos',
             name: 'Combos',
             style: 'flat-grid',
             visible: true,
-            entries: extraCombos,
+            entries: allCombos,
         })
     }
     return merged
@@ -134,12 +140,14 @@ export function useKeycodeFilter(): UseKeycodeFilterResult {
 
     const pages: CatalogPage[] = useMemo(() => {
         const base = keyCatalog?.pages ?? CATALOG_PAGES
-        const { extraMacroEntries, extraComboEntries } = dynamicCatalog
+        const { extraMacroEntries, extraComboEntries, sideloadedComboEntries } =
+            dynamicCatalog
         const gated = filterPagesByBehaviorFlags(base, behaviorFlags)
         return mergeBehaviorEntries(
             gated,
             extraMacroEntries,
             extraComboEntries,
+            sideloadedComboEntries,
         ).map((p) =>
             p.id === 'macros'
                 ? {

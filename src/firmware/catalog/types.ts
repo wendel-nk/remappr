@@ -30,6 +30,10 @@ export interface CatalogEntry {
     // complete KeyAction { kind, params: [] } via onActionChosen instead
     // of a codec-encoded number. Static catalog entries leave this unset.
     behaviorRef?: { kind: string }
+    // Display-only tile (e.g. parsed ZMK combo from a side-loaded
+    // .keymap file). Picker click shows a toast instead of dispatching
+    // a binding because there's no firmware path to set the entry.
+    displayOnly?: boolean
 }
 
 export interface CatalogPage {

@@ -33,10 +33,16 @@ interface DynamicCatalogState {
     // MACROS_ENTRIES + COMBOS_ENTRIES tiles.
     extraMacroEntries: CatalogEntry[]
     extraComboEntries: CatalogEntry[]
+    // Display-only combo tiles parsed from a side-loaded ZMK .keymap
+    // file. Tiles render in the Combos page with displayOnly=true so
+    // the picker shows a toast instead of dispatching a binding when
+    // clicked (no firmware path exists to assign a combo to a key).
+    sideloadedComboEntries: CatalogEntry[]
     setMacroOverlays: (next: Record<number, DynamicLabel>) => void
     setComboOverlays: (next: Record<number, DynamicLabel>) => void
     setMacroLabel: (idx: number, label: string) => void
     setComboLabel: (idx: number, label: string) => void
+    setSideloadedComboEntries: (entries: CatalogEntry[]) => void
     refresh: (svc: KeyboardService | null) => Promise<void>
     reset: () => void
 }
@@ -49,12 +55,15 @@ const useDynamicCatalogStore = create<DynamicCatalogState>()(
         comboLabels: {},
         extraMacroEntries: [],
         extraComboEntries: [],
+        sideloadedComboEntries: [],
         setMacroOverlays: (macroOverlays) => set({ macroOverlays }),
         setComboOverlays: (comboOverlays) => set({ comboOverlays }),
         setMacroLabel: (idx, label) =>
             set((s) => ({ macroLabels: { ...s.macroLabels, [idx]: label } })),
         setComboLabel: (idx, label) =>
             set((s) => ({ comboLabels: { ...s.comboLabels, [idx]: label } })),
+        setSideloadedComboEntries: (sideloadedComboEntries) =>
+            set({ sideloadedComboEntries }),
         refresh: async (svc) => {
             if (!svc) {
                 set({
@@ -85,6 +94,7 @@ const useDynamicCatalogStore = create<DynamicCatalogState>()(
                 comboLabels: {},
                 extraMacroEntries: [],
                 extraComboEntries: [],
+                sideloadedComboEntries: [],
             }),
     })),
 )
