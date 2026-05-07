@@ -4,9 +4,7 @@ import { CATALOG_PAGES } from '@firmware/catalog/pages'
 import type { CatalogEntry, CatalogPage } from '@firmware/catalog/types'
 import type { FirmwareBehaviorFlags } from '@firmware/service'
 import useConnectionStore from '@/stores/connectionStore'
-import useDynamicCatalogStore, {
-    resolveMacroLabel,
-} from '@/stores/dynamicCatalogStore'
+import useDynamicCatalogStore from '@/stores/dynamicCatalogStore'
 import { filterKeysBySearch } from '@/lib/keymap/keycodeGrid'
 
 // Canonical-id prefixes whose tiles are gated by Capabilities.behaviors.
@@ -41,7 +39,10 @@ const filterPagesByBehaviorFlags = (
 
 // Enrich Macros-page tiles with the user's real macro names from the
 // dynamic catalog store (Vial macro contents, future editor labels).
-// Falls through unchanged when no overlay exists for an idx.
+// Patches label (tile face), name (tooltip heading), and notes (tooltip
+// description) so the device-derived label flows all the way into the
+// hover surface — not just the grid button. Falls through unchanged
+// when no overlay exists for an idx.
 const enrichMacroEntries = (
     entries: CatalogEntry[],
     state: ReturnType<typeof useDynamicCatalogStore.getState>,
@@ -50,9 +51,17 @@ const enrichMacroEntries = (
         const m = e.id.match(/^macro\.user\.(\d+)$/)
         if (!m) return e
         const idx = Number(m[1])
-        const overlay = resolveMacroLabel(idx, state, e.label)
-        if (overlay === e.label) return e
-        return { ...e, label: overlay }
+        const overlay = state.macroOverlays[idx]
+        const userLabel = state.macroLabels[idx]
+        const labelOverride = userLabel ?? overlay?.label
+        const descOverride = overlay?.description
+        if (!labelOverride && !descOverride) return e
+        return {
+            ...e,
+            label: labelOverride ?? e.label,
+            name: labelOverride ?? e.name,
+            notes: descOverride ?? e.notes,
+        }
     })
 
 // Append ZMK runtime &macro_* / &combo_* behavior tiles to the
