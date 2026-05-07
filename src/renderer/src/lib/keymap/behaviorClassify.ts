@@ -8,7 +8,10 @@
 //      `keychron:` prefixes; never user-defined macros.
 //   2. displayNameToBinding lookup — if the binding lands in the known
 //      system set (&kp, &mt, &mo, …), it's a system behavior.
-//   3. anything left is a slug-fallback ZMK behavior — user-defined.
+//   3. slot count — a fallback behavior with parameter slots is a
+//      user-defined hold-tap / mod-morph / inc-dec-kp shape, not a
+//      zero-arg macro tile; keep it in the action-type dropdown.
+//   4. anything left is a slug-fallback ZMK behavior — user-defined.
 //      Default-classify as 'macro' since user macros are the dominant
 //      runtime-defined behavior shape; explicit `&macro_` / `&combo_`
 //      prefixes still take priority. ZMK combos aren't exposed through
@@ -29,6 +32,7 @@ export function classifyBehavior(at: ActionType): BehaviorClass {
     const binding = displayNameToBinding(at.displayName)
     if (binding.startsWith('&macro_')) return 'macro'
     if (binding.startsWith('&combo_')) return 'combo'
+    if (at.slots.length > 0) return 'other'
     if (binding && !SYSTEM_BINDING_SET.has(binding)) return 'macro'
     return 'other'
 }
