@@ -26,10 +26,24 @@ function slotBarKind(slot: ActionSlot | undefined): SlotKind {
     return 'plain'
 }
 
+function defaultForSlot(slot: ActionSlot): number {
+    // Modifier / enum slots with an explicit value list — 0 is rarely a
+    // member (e.g. mod-tap MODIFIER_VALUES start at 0x01 = LCTL), so
+    // pre-select the first listed value to spare the user one click.
+    if (
+        (slot.kind === 'modifier' || slot.kind === 'enum') &&
+        slot.values &&
+        slot.values.length > 0
+    ) {
+        return slot.values[0].value
+    }
+    return 0
+}
+
 function paramsForSlots(source: number[], slots: ActionSlot[]): number[] {
     const next: number[] = []
     for (let i = 0; i < slots.length; i++) {
-        next.push(source[i] ?? 0)
+        next.push(source[i] ?? defaultForSlot(slots[i]))
     }
     return next
 }
