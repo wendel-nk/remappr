@@ -2,11 +2,42 @@
 import { useMemo, useState } from 'react'
 import { CATALOG_PAGES } from '@firmware/catalog/pages'
 import type { CatalogEntry, CatalogPage } from '@firmware/catalog/types'
+import type { FirmwareBehaviorFlags } from '@firmware/service'
 import useConnectionStore from '@/stores/connectionStore'
 import useDynamicCatalogStore, {
     resolveMacroLabel,
 } from '@/stores/dynamicCatalogStore'
 import { filterKeysBySearch } from '@/lib/keymap/keycodeGrid'
+
+// Canonical-id prefixes whose tiles are gated by Capabilities.behaviors.
+// Adapter that explicitly sets the flag to `false` hides the family;
+// `undefined` means unspecified → treat as supported (backward compat).
+const BEHAVIOR_PREFIX_GATES: ReadonlyArray<{
+    flag: keyof FirmwareBehaviorFlags
+    prefix: string
+}> = [
+    { flag: 'capsWord', prefix: 'caps_word.' },
+    { flag: 'leader', prefix: 'leader.' },
+    { flag: 'autoShift', prefix: 'auto_shift.' },
+    { flag: 'swapHands', prefix: 'swap_hands.' },
+]
+
+const filterPagesByBehaviorFlags = (
+    pages: CatalogPage[],
+    flags: FirmwareBehaviorFlags | undefined,
+): CatalogPage[] => {
+    if (!flags) return pages
+    const disabled = BEHAVIOR_PREFIX_GATES.filter(
+        ({ flag }) => flags[flag] === false,
+    )
+    if (disabled.length === 0) return pages
+    return pages.map((p) => ({
+        ...p,
+        entries: p.entries.filter(
+            (e) => !disabled.some(({ prefix }) => e.id.startsWith(prefix)),
+        ),
+    }))
+}
 
 // Enrich Macros-page tiles with the user's real macro names from the
 // dynamic catalog store (Vial macro contents, future editor labels).
@@ -87,13 +118,17 @@ export function useKeycodeFilter(): UseKeycodeFilterResult {
     const [searchQuery, setSearchQuery] = useState('')
     const [userTab, setUserTab] = useState('0')
     const keyCatalog = useConnectionStore((s) => s.keyCatalog)
+    const behaviorFlags = useConnectionStore(
+        (s) => s.service?.capabilities.behaviors,
+    )
     const dynamicCatalog = useDynamicCatalogStore()
 
     const pages: CatalogPage[] = useMemo(() => {
         const base = keyCatalog?.pages ?? CATALOG_PAGES
         const { extraMacroEntries, extraComboEntries } = dynamicCatalog
+        const gated = filterPagesByBehaviorFlags(base, behaviorFlags)
         return mergeBehaviorEntries(
-            base,
+            gated,
             extraMacroEntries,
             extraComboEntries,
         ).map((p) =>
@@ -104,7 +139,7 @@ export function useKeycodeFilter(): UseKeycodeFilterResult {
                   }
                 : p,
         )
-    }, [keyCatalog, dynamicCatalog])
+    }, [keyCatalog, dynamicCatalog, behaviorFlags])
 
     const pagesWithMatches = useMemo(() => {
         return pages.map((page, index) => {
