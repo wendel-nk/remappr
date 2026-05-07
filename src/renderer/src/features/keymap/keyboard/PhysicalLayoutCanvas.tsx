@@ -1,4 +1,9 @@
-import { PropsWithChildren, useLayoutEffect, useRef, useState } from 'react'
+import React, {
+    PropsWithChildren,
+    useLayoutEffect,
+    useRef,
+    useState,
+} from 'react'
 import { HoldTapLabels, KeyButton } from './KeyButton.tsx'
 import { scalePosition } from '@/lib/scalePosition'
 import { LayoutZoom } from '@/lib/helpers'
@@ -28,6 +33,13 @@ interface PhysicalLayoutCanvasProps {
     zoom?: LayoutZoom
     onPositionClicked?: (position: number) => void
     onEncoderClicked?: (slot: number, dir: 'cw' | 'ccw') => void
+    // Right-click on a key (not encoder) → host shows a context menu at the
+    // viewport coords. Skipped silently when undefined so callers that
+    // don't want the menu don't pay for the wiring.
+    onPositionContextMenu?: (
+        position: number,
+        coords: { x: number; y: number },
+    ) => void
     pressedKeys?: Set<number>
 }
 
@@ -39,6 +51,7 @@ export const PhysicalLayoutCanvas = ({
     hoverZoom = true,
     onPositionClicked,
     onEncoderClicked,
+    onPositionContextMenu,
     pressedKeys = new Set(),
     ...props
 }: PhysicalLayoutCanvasProps): JSX.Element => {
@@ -108,12 +121,18 @@ export const PhysicalLayoutCanvas = ({
                 onPositionClicked?.(idx)
             }
         }
+        const handleContextMenu = (e: React.MouseEvent): void => {
+            if (isEncoder || !onPositionContextMenu) return
+            e.preventDefault()
+            onPositionContextMenu(idx, { x: e.clientX, y: e.clientY })
+        }
         return (
             <div
                 key={p.id}
                 role="button"
                 tabIndex={0}
                 onClick={handleClick}
+                onContextMenu={handleContextMenu}
                 onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault()
