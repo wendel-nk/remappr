@@ -263,6 +263,28 @@ export const OS_KEYS_ENTRIES: CatalogEntry[] = [
     },
 ]
 
+// pattern-check: skip mechanical extraction of three combo control rows from MISC_ENTRIES into new COMBOS_ENTRIES + page record
+export const COMBOS_ENTRIES: CatalogEntry[] = [
+    {
+        id: 'combo.on',
+        label: 'Cmb On',
+        name: 'Combo on',
+        kinds: ['hid'],
+    },
+    {
+        id: 'combo.off',
+        label: 'Cmb Off',
+        name: 'Combo off',
+        kinds: ['hid'],
+    },
+    {
+        id: 'combo.toggle',
+        label: 'Cmb Tog',
+        name: 'Combo toggle',
+        kinds: ['hid'],
+    },
+]
+
 export const MACROS_ENTRIES: CatalogEntry[] = [
     ...Array.from(
         { length: 16 },
@@ -493,6 +515,13 @@ export const MISC_ENTRIES: CatalogEntry[] = [
     entry('space_cadet.lapo', 'LAPO', 'Left Alt/paren open'),
     entry('space_cadet.rapc', 'RAPC', 'Right Alt/paren close'),
     entry('space_cadet.sftent', 'SftEnt', 'Right Shift/Enter'),
+    entry('swap_hands.toggle', 'SH Tog', 'Swap hands toggle'),
+    entry('swap_hands.tap_toggle', 'SH TT', 'Swap hands tap-toggle'),
+    entry('swap_hands.momentary_on', 'SH MOn', 'Swap hands momentary on'),
+    entry('swap_hands.momentary_off', 'SH MOff', 'Swap hands momentary off'),
+    entry('swap_hands.off', 'SH Off', 'Swap hands off'),
+    entry('swap_hands.on', 'SH On', 'Swap hands on'),
+    entry('swap_hands.oneshot', 'SH OS', 'Swap hands one-shot'),
     entry('tap_term.up', 'TT Up', 'Tap term up'),
     entry('tap_term.down', 'TT Dn', 'Tap term down'),
     entry('tap_term.print', 'TT Prt', 'Tap term print'),
@@ -504,9 +533,6 @@ export const MISC_ENTRIES: CatalogEntry[] = [
     entry('key_override.on', 'KO On', 'Key override on'),
     entry('key_override.off', 'KO Off', 'Key override off'),
     entry('key_override.toggle', 'KO Tog', 'Key override toggle'),
-    entry('combo.on', 'Cmb On', 'Combo on'),
-    entry('combo.off', 'Cmb Off', 'Combo off'),
-    entry('combo.toggle', 'Cmb Tog', 'Combo toggle'),
     entry('velocikey.toggle', 'Velki', 'Velocikey toggle'),
     entry('haptic.on', 'Hap On', 'Haptic on'),
     entry('haptic.off', 'Hap Off', 'Haptic off'),
@@ -713,6 +739,7 @@ export const STATIC_ENTRIES: CatalogEntry[] = [
     ...WIRELESS_ENTRIES,
     ...OS_KEYS_ENTRIES,
     ...MACROS_ENTRIES,
+    ...COMBOS_ENTRIES,
     ...AUDIO_ENTRIES,
     ...BACKLIGHT_ENTRIES,
     ...MOUSE_ENTRIES,

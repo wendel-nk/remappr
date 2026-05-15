@@ -55,6 +55,12 @@ export const QMK_CAPABILITIES_BASE: Omit<Capabilities, 'maxLayers'> = {
     reorderLayers: false,
     variableLayerCount: false,
     exportFormats: ['keymap.c'],
+    behaviors: {
+        capsWord: true,
+        leader: true,
+        autoShift: true,
+        swapHands: true,
+    },
 }
 
 type LockStateHandler = (state: LockState) => void

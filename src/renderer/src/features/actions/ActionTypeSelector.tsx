@@ -14,12 +14,18 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/ui/popover'
 import { cn } from '@/lib/cn'
 
+// pattern-check: skip optional hideIds dropdown filter — mechanical filter, sortedVisible split from selected lookup
 export interface ActionTypeSelectorProps {
     actionTypes: ActionType[]
     selectedId: string
     onSelect: (id: string) => void
     placeholder?: string
     className?: string
+    // Hide these ids from the dropdown list (still resolvable for the
+    // selected-label lookup so existing bindings whose kind is hidden
+    // still display). Used by KeyActionPicker to drop ZMK runtime
+    // &macro_* / &combo_* behaviors — those have catalog tiles.
+    hideIds?: ReadonlySet<string>
 }
 
 export const ActionTypeSelector = ({
@@ -28,21 +34,22 @@ export const ActionTypeSelector = ({
     onSelect,
     placeholder = 'Select action...',
     className,
+    hideIds,
 }: ActionTypeSelectorProps): JSX.Element => {
     const [open, setOpen] = useState(false)
 
-    const sorted = useMemo(
+    const sortedVisible = useMemo(
         (): ActionType[] =>
-            [...actionTypes].sort((a, b) =>
-                a.displayName.localeCompare(b.displayName),
-            ),
-        [actionTypes],
+            [...actionTypes]
+                .filter((t) => !hideIds?.has(t.id))
+                .sort((a, b) => a.displayName.localeCompare(b.displayName)),
+        [actionTypes, hideIds],
     )
 
     const selected = useMemo(
         (): ActionType | undefined =>
-            sorted.find((t): boolean => t.id === selectedId),
-        [sorted, selectedId],
+            actionTypes.find((t): boolean => t.id === selectedId),
+        [actionTypes, selectedId],
     )
 
     const handleSelect = (id: string): void => {
@@ -69,7 +76,7 @@ export const ActionTypeSelector = ({
                     <CommandList>
                         <CommandEmpty>No action found.</CommandEmpty>
                         <CommandGroup>
-                            {sorted.map((t) => (
+                            {sortedVisible.map((t) => (
                                 <CommandItem
                                     key={t.id}
                                     value={t.displayName}

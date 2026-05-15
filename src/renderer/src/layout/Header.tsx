@@ -26,7 +26,7 @@ import { SidebarTrigger } from '@/ui/sidebar'
 import { Button } from '@/ui/button'
 import { Separator } from '@/ui/separator'
 import { toast } from 'sonner'
-import { Tooltip, TooltipTrigger, TooltipContent } from '@/ui/tooltip'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/ui/tooltip'
 import { FeatureGate } from '@/features/firmware/FeatureGate'
 import { LayoutSideloadAction } from '@/features/firmware/LayoutSideloadAction'
 
@@ -212,6 +212,7 @@ export function Header(): JSX.Element {
                     <FeatureGate feature="layoutSideloadable">
                         <LayoutSideloadAction />
                     </FeatureGate>
+                    {/*<ZmkComboSideloadAction />*/}
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <Button variant="ghost" size="icon" asChild>

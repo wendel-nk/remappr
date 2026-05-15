@@ -1,6 +1,7 @@
 // Pattern check: no GoF pattern (-) — rejected — picker rewrite to iterate catalog pages + use codec for canonical↔value translation; replaces legacy keyboards import flow.
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Key } from 'react-aria-components'
+import { toast } from 'sonner'
 import { hidUsagePageAndIdFromUsage } from '@/lib/actions/hidUsages'
 import {
     maskMods,
@@ -21,6 +22,11 @@ interface KeycodePickerGridProps {
     label?: string
     highlightedKeys?: number[]
     onValueChanged?: (value?: number) => void
+    // Fired when the user clicks a tile carrying entry.behaviorRef
+    // (ZMK runtime &macro_* / &combo_* tiles). The picker bypasses
+    // the slot/value flow and emits the behavior id directly so the
+    // caller can switch the bound action type wholesale.
+    onActionChosen?: (kind: string) => void
 }
 
 const CONTAINER_MAX_HEIGHT = 350
@@ -56,6 +62,7 @@ function emitFromState(
 export function KeycodePickerGrid({
     value,
     onValueChanged,
+    onActionChosen,
     highlightedKeys,
 }: KeycodePickerGridProps): JSX.Element {
     const {
@@ -211,6 +218,19 @@ export function KeycodePickerGrid({
                     const entryValue = valueByEntryId.get(entry.id)
                     const keyWidth = entry.w ? entry.w / 2 : 50
                     const keyHeight = entry.h ? entry.h / 2 : 50
+                    const behaviorKind = entry.behaviorRef?.kind
+                    const displayOnlyClick = entry.displayOnly
+                        ? (): void => {
+                              toast.info(
+                                  `${entry.label} is a sideloaded combo definition — assign it via the .keymap file, not the picker.`,
+                              )
+                          }
+                        : undefined
+                    const overrideClick =
+                        displayOnlyClick ??
+                        (behaviorKind
+                            ? () => onActionChosen?.(behaviorKind)
+                            : undefined)
                     const button = (
                         <KeycodeButton
                             value={entryValue ?? 0}
@@ -224,7 +244,12 @@ export function KeycodePickerGrid({
                             y={positioned ? (entry.y ?? 0) / 100 : 0}
                             baseKeyValue={entryValue ?? 0}
                             onSelect={handleKeySelect}
-                            isSelected={isKeySelected(entryValue)}
+                            onClickOverride={overrideClick}
+                            isSelected={
+                                behaviorKind || entry.displayOnly
+                                    ? false
+                                    : isKeySelected(entryValue)
+                            }
                         />
                     )
                     if (positioned) return button

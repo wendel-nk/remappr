@@ -5,6 +5,7 @@ import { devtools } from 'zustand/middleware'
 import type { KeyCatalog } from '@firmware/catalog/types'
 import type { KeyboardService } from '@firmware/service'
 import type { LockState } from '@firmware/types'
+import useDynamicCatalogStore from '@/stores/dynamicCatalogStore'
 
 interface ConnectionState {
     service: KeyboardService | null
@@ -64,19 +65,27 @@ const useConnectionStore = create<ConnectionState>()(
                 } else {
                     set({ keyCatalog: null })
                 }
+                useDynamicCatalogStore
+                    .getState()
+                    .refresh(service)
+                    .catch((err) =>
+                        console.warn('dynamicCatalog refresh failed', err),
+                    )
             },
             setDeviceName: (name) => set({ deviceName: name }),
             setLockState: (state) => set({ lockState: state }),
             setKeyCatalog: (catalog) => set({ keyCatalog: catalog }),
             setConnectionAbort: (abort) => set({ connectionAbort: abort }),
-            resetConnection: () =>
+            resetConnection: () => {
                 set({
                     service: null,
                     communication: null,
                     deviceName: null,
                     lockState: 'locked' as LockState,
                     keyCatalog: null,
-                }),
+                })
+                useDynamicCatalogStore.getState().reset()
+            },
             showConnectionModal: false,
             setShowConnectionModal: (visible) =>
                 set({ showConnectionModal: visible }),

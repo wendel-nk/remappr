@@ -18,6 +18,14 @@ import type {
     TapDanceEntry,
 } from './types'
 
+// pattern-check: skip optional behavior-flags field added to existing Capabilities DTO — feature gate per firmware
+export interface FirmwareBehaviorFlags {
+    capsWord?: boolean
+    leader?: boolean
+    autoShift?: boolean
+    swapHands?: boolean
+}
+
 export interface Capabilities {
     lock: boolean
     rename: boolean
@@ -29,6 +37,7 @@ export interface Capabilities {
     encoders?: number
     dynamicEntries?: { tapDance: number; combo: number; keyOverride: number }
     macros?: { count: number; bufferSize: number }
+    behaviors?: FirmwareBehaviorFlags
     layoutSideloadable?: boolean
 }
 

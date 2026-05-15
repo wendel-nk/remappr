@@ -1,15 +1,21 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { produce } from 'immer'
+import { toast } from 'sonner'
 import type { Keymap } from '@firmware/types'
 import { PhysicalLayoutCanvas, type KeyPosition } from './PhysicalLayoutCanvas'
 import { HidUsageLabel } from './HidUsageLabel'
 import type { HoldTapLabels } from './KeyButton'
+import { KeyContextMenu } from './KeyContextMenu'
 import { useLocalStorageState } from '@/hooks/use-local-storage-state'
 import { deserializeLayoutZoom, LayoutZoom } from '@/lib/helpers'
 import { useLayout } from '@/hooks/use-layouts'
 import { KeyboardZoomSlider } from '../editor/KeyboardZoomSlider'
 import useConnectionStore from '@/stores/connectionStore'
 import useLayerSelectionStore from '@/stores/layerSelectionStore'
+import useKeymapStore from '@/stores/keymapStore'
+import useClipboardStore from '@/stores/clipboardStore'
+import undoRedoStore from '@/stores/undoRedoStore'
 import { useKeypressDetection } from '@/hooks/use-keypress-detection'
 import type { KeypressDetectionConfig } from '@/lib/keypress/keypressDetector'
 import { resolveBindingLabels, type ResolvedHoldTapDescriptor } from '@firmware'
@@ -107,6 +113,84 @@ export default function KeyboardView({
         setPressedKeys(new Set())
     }, [effectiveLayerIndex])
 
+    const setKeymapInStore = useKeymapStore((s) => s.setKeymap)
+    const clipboardAction = useClipboardStore((s) => s.action)
+    const setClipboardAction = useClipboardStore((s) => s.setAction)
+    const doIt = undoRedoStore((s) => s.doIt)
+    const [contextMenu, setContextMenu] = useState<{
+        position: number
+        x: number
+        y: number
+    } | null>(null)
+
+    const handlePositionContextMenu = useCallback(
+        (position: number, coords: { x: number; y: number }): void => {
+            setContextMenu({ position, x: coords.x, y: coords.y })
+        },
+        [],
+    )
+
+    const dispatchSetKey = useCallback(
+        (
+            position: number,
+            action: import('@firmware/types').KeyAction,
+        ): void => {
+            if (!service || !keymap) return
+            const layer = effectiveLayerIndex
+            const layerEntry = keymap.layers[layer]
+            if (!layerEntry) return
+            const layerId = layerEntry.id
+            const oldAction = layerEntry.keys[position]
+            doIt?.(async (): Promise<() => Promise<void>> => {
+                try {
+                    await service.setKey(layerId, position, action)
+                    setKeymapInStore((prev) => {
+                        if (!prev) return prev
+                        return produce(prev, (d) => {
+                            d.layers[layer].keys[position] = action
+                        })
+                    })
+                } catch (e) {
+                    toast.error('Failed to set action')
+                    console.error('contextmenu setKey failed', e)
+                }
+                return async (): Promise<void> => {
+                    try {
+                        await service.setKey(layerId, position, oldAction)
+                        setKeymapInStore((prev) => {
+                            if (!prev) return prev
+                            return produce(prev, (d) => {
+                                d.layers[layer].keys[position] = oldAction
+                            })
+                        })
+                    } catch (e) {
+                        console.error('Failed to undo contextmenu setKey', e)
+                    }
+                }
+            })
+        },
+        [service, keymap, effectiveLayerIndex, doIt, setKeymapInStore],
+    )
+
+    const handleCopy = useCallback(
+        (position: number): void => {
+            const action = keymap?.layers[effectiveLayerIndex]?.keys[position]
+            if (action) {
+                setClipboardAction(action)
+                toast.success('Binding copied')
+            }
+        },
+        [keymap, effectiveLayerIndex, setClipboardAction],
+    )
+
+    const handlePaste = useCallback(
+        (position: number): void => {
+            if (!clipboardAction) return
+            dispatchSetKey(position, clipboardAction)
+        },
+        [clipboardAction, dispatchSetKey],
+    )
+
     const positions: KeyPosition[] = useMemo(() => {
         if (!layouts || !keymap) return []
         const layout = layouts[selectedPhysicalLayoutIndex]
@@ -187,7 +271,33 @@ export default function KeyboardView({
                         onEncoderClicked={(slot, dir): void =>
                             setSelectedEncoder?.({ slot, dir })
                         }
+                        onPositionContextMenu={handlePositionContextMenu}
                         pressedKeys={pressedKeys}
+                    />
+                    <KeyContextMenu
+                        open={contextMenu !== null}
+                        x={contextMenu?.x ?? 0}
+                        y={contextMenu?.y ?? 0}
+                        items={
+                            contextMenu === null
+                                ? []
+                                : [
+                                      {
+                                          label: 'Copy binding',
+                                          onSelect: () =>
+                                              handleCopy(contextMenu.position),
+                                      },
+                                      {
+                                          label: clipboardAction
+                                              ? 'Paste binding'
+                                              : 'Paste binding (empty)',
+                                          disabled: !clipboardAction,
+                                          onSelect: () =>
+                                              handlePaste(contextMenu.position),
+                                      },
+                                  ]
+                        }
+                        onClose={() => setContextMenu(null)}
                     />
                     <KeyboardZoomSlider
                         value={keymapScale}

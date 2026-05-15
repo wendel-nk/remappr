@@ -12,7 +12,11 @@ import { produce } from 'immer'
 import type { ActionType, KeyAction, Keymap } from '@firmware/types'
 import { Card, CardContent } from '@/ui/card'
 import { Button } from '@/ui/button'
+import { Modal } from '@/ui/modal'
+import { TapDanceTab } from '@/features/dynamic/tabs/TapDanceTab'
 import { toast } from 'sonner'
+
+const TAP_DANCE_KINDS: ReadonlySet<string> = new Set(['vial:tap-dance'])
 
 interface EncoderSelection {
     slot: number
@@ -226,6 +230,15 @@ export function BindingEditor({
         setSelectedEncoder?.(undefined)
     }
 
+    const [tapDanceEditOpen, setTapDanceEditOpen] = useState(false)
+    const tapDanceCount = service?.dynamic?.getCounts()?.tapDance ?? 0
+    const tapDanceIdx =
+        selectedAction && TAP_DANCE_KINDS.has(selectedAction.kind)
+            ? (selectedAction.params[0] ?? 0)
+            : null
+    const canEditTapDance =
+        tapDanceIdx !== null && !!service && tapDanceCount > 0
+
     return (
         <>
             {open && (
@@ -248,6 +261,19 @@ export function BindingEditor({
                                     />
                                 )}
                             </div>
+                            {canEditTapDance && (
+                                <div className="mt-2">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() =>
+                                            setTapDanceEditOpen(true)
+                                        }
+                                    >
+                                        Edit tap-dance #{tapDanceIdx}…
+                                    </Button>
+                                </div>
+                            )}
                             <Button
                                 variant="ghost"
                                 size="sm"
@@ -259,6 +285,24 @@ export function BindingEditor({
                         </CardContent>
                     </Card>
                 </div>
+            )}
+            {service && tapDanceCount > 0 && tapDanceIdx !== null && (
+                <Modal
+                    opened={tapDanceEditOpen}
+                    onClose={() => setTapDanceEditOpen(false)}
+                    title={`Tap dance #${tapDanceIdx}`}
+                    xButton={true}
+                    isDismissable={true}
+                    showFooter={false}
+                >
+                    <TapDanceTab
+                        key={`td-${tapDanceIdx}`}
+                        service={service}
+                        count={tapDanceCount}
+                        opened={tapDanceEditOpen}
+                        defaultIndex={tapDanceIdx}
+                    />
+                </Modal>
             )}
         </>
     )
