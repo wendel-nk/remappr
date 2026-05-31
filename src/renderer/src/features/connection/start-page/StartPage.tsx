@@ -74,6 +74,10 @@ export function StartPage({
             <main className="flex-1">
                 <div className="container mx-auto max-w-3xl px-4 py-12">
                     <div className="mb-12 text-center">
+                        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+                            <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                            QMK · VIA · ZMK compatible
+                        </div>
                         <h1 className="mb-3 text-3xl font-bold tracking-tight sm:text-4xl">
                             Configure Your Keyboard
                         </h1>

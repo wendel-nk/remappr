@@ -13,6 +13,7 @@ import { ThemeProvider } from '@/providers/ThemeProvider'
 import { Toaster } from '@/ui/sonner'
 import { Header } from '@/layout/Header'
 import { AutoLayoutResolver } from '@/features/firmware/AutoLayoutResolver'
+import { DevicePreviewCapture } from '@/features/connection/DevicePreviewCapture'
 // import { Footer } from '@/layout/Footer'
 import { ErrorBoundary } from '@/ui/ErrorBoundary'
 import { toast } from 'sonner'
@@ -144,6 +145,7 @@ function App(): JSX.Element {
                                     <SidebarInset>
                                         <Header />
                                         <AutoLayoutResolver />
+                                        <DevicePreviewCapture />
                                         <ErrorBoundary>
                                             <KeymapEditor />
                                         </ErrorBoundary>

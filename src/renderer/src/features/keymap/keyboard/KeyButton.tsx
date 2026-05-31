@@ -42,6 +42,10 @@ interface KeyButtonProps {
     capStyleOverride?: CapStyle
     /** Force a colour-coding intensity; defaults to the user setting. */
     colorModeOverride?: ColorMode
+    /** Hide the action-type tag (top-left) — used by small, clean previews. */
+    showHeaderTag?: boolean
+    /** Hide the category dot (top-right) — used by small, clean previews. */
+    showCategoryDot?: boolean
     onClick?: () => void
 }
 
@@ -220,6 +224,8 @@ export const KeyButton = ({
     richTooltip = false,
     capStyleOverride,
     colorModeOverride,
+    showHeaderTag = true,
+    showCategoryDot = true,
     ...props
 }: PropsWithChildren<KeyButtonProps>): JSX.Element => {
     const size = makeSize(props, oneU)
@@ -258,7 +264,7 @@ export const KeyButton = ({
 
     const F = resolveFaceColors(category, colorMode, heat)
     const chrome = CAP_CHROME[capStyle](F, oneU)
-    const showDot = !!F.dot && !F.heat && !chrome.mono
+    const showDot = showCategoryDot && !!F.dot && !F.heat && !chrome.mono
     const showColor = !F.neutral || F.heat
 
     // Selected ring + pressed (live) state stack on top of the cap chrome.
@@ -339,7 +345,7 @@ export const KeyButton = ({
                     className="flex items-center justify-between leading-none"
                     style={{ height: oneU * 0.16 }}
                 >
-                    {effectiveHeader ? (
+                    {showHeaderTag && effectiveHeader ? (
                         <span
                             className={`leading-none whitespace-nowrap overflow-hidden ${
                                 chrome.mono || isBindingMode
@@ -401,7 +407,7 @@ export const KeyButton = ({
 
     return (
         <div
-            className="group inline-flex box-border b-0 flex-col justify-items-center justify-content-center items-center transition-all duration-0 hover:scale-150 border border-transparent rounded-none"
+            className={`group inline-flex flex-col items-center justify-center transition-transform duration-100 ease-[cubic-bezier(.2,.7,.3,1)] ${hoverZoom ? 'hover:scale-[1.06]' : ''}`}
             data-zoomer={hoverZoom}
             style={size}
             {...props}

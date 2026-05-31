@@ -10,7 +10,8 @@ import { Minus, Plus, Maximize2 } from 'lucide-react'
 import { HoldTapLabels, KeyButton } from './KeyButton.tsx'
 import { scalePosition } from '@/lib/scalePosition'
 import { LayoutZoom } from '@/lib/helpers'
-import type { KeyCategory } from '@/lib/keymap/keyCategory'
+import type { KeyCategory, ColorMode } from '@/lib/keymap/keyCategory'
+import type { CapStyle } from '@/stores/userSettingsStore'
 
 export type KeyPosition = PropsWithChildren<{
     id?: string
@@ -49,6 +50,11 @@ interface PhysicalLayoutCanvasProps {
     selectedEncoder?: { slot: number; dir: 'cw' | 'ccw' }
     oneU?: number
     hoverZoom?: boolean
+    // Presentational forwards for small/clean previews (e.g. start-page device card).
+    capStyleOverride?: CapStyle
+    colorModeOverride?: ColorMode
+    showHeaderTag?: boolean
+    showCategoryDot?: boolean
     zoom?: LayoutZoom
     // Opt-in wheel-zoom + drag-pan stage with a zoom HUD. Off by default so the
     // small layout-picker preview keeps its plain auto-fit behaviour.
@@ -87,6 +93,10 @@ export const PhysicalLayoutCanvas = ({
     selectedEncoder,
     oneU = 48,
     hoverZoom = true,
+    capStyleOverride,
+    colorModeOverride,
+    showHeaderTag,
+    showCategoryDot,
     pannable = false,
     tooltips = false,
     onPositionClicked,
@@ -323,6 +333,10 @@ export const PhysicalLayoutCanvas = ({
                     multiSelected={isMultiSelected}
                     pressed={!isEncoder && pressedKeys.has(idx)}
                     richTooltip={tooltips && !isEncoder}
+                    capStyleOverride={capStyleOverride}
+                    colorModeOverride={colorModeOverride}
+                    showHeaderTag={showHeaderTag}
+                    showCategoryDot={showCategoryDot}
                     {...p}
                 />
             </div>

@@ -1,6 +1,7 @@
 // pattern-check: skip — capability dispatch via transport methods, no abstraction
 import { DeviceCard } from './DeviceCard'
 import type { DeviceWithTransport } from '@/features/connection/types'
+import useDevicePreviewStore from '@/stores/devicePreviewStore'
 
 interface DiscoveredDeviceListProps {
     devices: DeviceWithTransport[]
@@ -17,17 +18,24 @@ export function DiscoveredDeviceList({
     onConnect,
     onRefresh,
 }: DiscoveredDeviceListProps): JSX.Element {
+    const snapshots = useDevicePreviewStore((s) => s.snapshots)
     return (
         <div className="space-y-3">
             {devices.map((d) => {
                 const canRename = !!d.transport.renameDevice
                 const canForget = !!d.transport.forgetDevice
+                const preview =
+                    snapshots[d.device.id] ??
+                    Object.values(snapshots).find(
+                        (s) => s.name === d.device.label,
+                    )
                 return (
                     <DeviceCard
                         key={d.device.id}
                         name={d.device.label}
                         status={d.status}
                         isWireless={d.transport.isWireless}
+                        preview={preview}
                         onConnect={() => onConnect(d)}
                         disabled={
                             refreshing ||

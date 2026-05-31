@@ -1,8 +1,8 @@
 import {
     hid_usage_get_labels,
     hidUsagePageAndIdFromUsage,
+    usageGlyph,
 } from '@/lib/actions/hidUsages'
-import { abbreviateKeyName } from '@/lib/keyAbbreviations'
 
 export interface HidUsageLabelProps {
     hid_usage: number
@@ -41,10 +41,9 @@ export const HidUsageLabel = ({
     const page = pageMut & 0xff
 
     const labels = hid_usage_get_labels(page, id)
-    const baseShort = remove_prefix(labels.short)
     const baseLong = remove_prefix(labels.long || labels.med || labels.short)
     const mods = activeMods(hid_usage)
-    const abbreviated = baseShort ? abbreviateKeyName(baseShort, 5) : baseShort
+    const abbreviated = usageGlyph(hid_usage)
     const longTitle = mods.length
         ? mods.map((m) => m.long).join(' + ') + ' + ' + (baseLong ?? '')
         : baseLong

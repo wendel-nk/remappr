@@ -14,9 +14,14 @@ interface ConnectionState {
     lockState: LockState
     keyCatalog: KeyCatalog | null
     connectionAbort: AbortController
+    /** Identity of the listed device being connected — bridges connect → preview capture. */
+    lastConnectedDevice: { id: string; label: string } | null
     setService: (
         service: KeyboardService | null,
         communication?: 'serial' | 'ble' | 'hid',
+    ) => void
+    setLastConnectedDevice: (
+        device: { id: string; label: string } | null,
     ) => void
     setDeviceName: (name: string | null) => void
     setLockState: (state: LockState) => void
@@ -52,6 +57,7 @@ const useConnectionStore = create<ConnectionState>()(
             lockState: 'locked' as LockState,
             keyCatalog: null,
             connectionAbort: new AbortController(),
+            lastConnectedDevice: null,
             setService: (service, communication) => {
                 set({ service, communication: communication ?? null })
                 if (service?.listKeyCatalog) {
@@ -72,6 +78,8 @@ const useConnectionStore = create<ConnectionState>()(
                         console.warn('dynamicCatalog refresh failed', err),
                     )
             },
+            setLastConnectedDevice: (device) =>
+                set({ lastConnectedDevice: device }),
             setDeviceName: (name) => set({ deviceName: name }),
             setLockState: (state) => set({ lockState: state }),
             setKeyCatalog: (catalog) => set({ keyCatalog: catalog }),
