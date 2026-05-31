@@ -23,6 +23,7 @@ interface EncoderSelection {
     dir: 'cw' | 'ccw'
 }
 
+// pattern-check: skip — additive optional variant prop on existing BindingEditor
 interface BindingEditorProps {
     keymap: Keymap | undefined
     setKeymap: (
@@ -35,6 +36,8 @@ interface BindingEditorProps {
     setSelectedKeyPosition: (position: number | undefined) => void
     selectedEncoder?: EncoderSelection | undefined
     setSelectedEncoder?: (sel: EncoderSelection | undefined) => void
+    // 'sheet' = bottom card (workbench); 'panel' = persistent right column (inspector).
+    variant?: 'sheet' | 'panel'
 }
 
 export function BindingEditor({
@@ -44,6 +47,7 @@ export function BindingEditor({
     setSelectedKeyPosition,
     selectedEncoder,
     setSelectedEncoder,
+    variant = 'sheet',
 }: BindingEditorProps): JSX.Element {
     const doIt = undoRedoStore((s) => s.doIt)
     const { service } = useConnectionStore()
@@ -239,52 +243,83 @@ export function BindingEditor({
     const canEditTapDance =
         tapDanceIdx !== null && !!service && tapDanceCount > 0
 
+    const editorBody = (
+        <>
+            {selectedEncoder && (
+                <div className="text-xs text-muted-foreground mb-2">
+                    Encoder {selectedEncoder.slot} —{' '}
+                    {selectedEncoder.dir.toUpperCase()}
+                </div>
+            )}
+            <div className="flex flex-row gap-4 w-full">
+                {selectedAction && (
+                    <KeyActionPicker
+                        action={selectedAction}
+                        actionTypes={actionTypes}
+                        layers={layerList}
+                        onChange={doUpdateAction}
+                    />
+                )}
+            </div>
+            {canEditTapDance && (
+                <div className="mt-2">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setTapDanceEditOpen(true)}
+                    >
+                        Edit tap-dance #{tapDanceIdx}…
+                    </Button>
+                </div>
+            )}
+        </>
+    )
+
     return (
         <>
-            {open && (
-                <div className="p-2 col-start-2 row-start-2 w-full">
-                    <Card className="relative">
-                        <CardContent className="p-4">
-                            {selectedEncoder && (
-                                <div className="text-xs text-muted-foreground mb-2">
-                                    Encoder {selectedEncoder.slot} —{' '}
-                                    {selectedEncoder.dir.toUpperCase()}
-                                </div>
-                            )}
-                            <div className="flex flex-row gap-4 w-full">
-                                {selectedAction && (
-                                    <KeyActionPicker
-                                        action={selectedAction}
-                                        actionTypes={actionTypes}
-                                        layers={layerList}
-                                        onChange={doUpdateAction}
-                                    />
-                                )}
-                            </div>
-                            {canEditTapDance && (
-                                <div className="mt-2">
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() =>
-                                            setTapDanceEditOpen(true)
-                                        }
-                                    >
-                                        Edit tap-dance #{tapDanceIdx}…
-                                    </Button>
-                                </div>
-                            )}
+            {variant === 'panel' ? (
+                <aside className="row-start-1 flex h-full w-80 shrink-0 flex-col overflow-y-auto border-l bg-card">
+                    <div className="flex items-center justify-between border-b px-4 py-2">
+                        <span className="text-sm font-semibold">Inspector</span>
+                        {open && (
                             <Button
                                 variant="ghost"
                                 size="sm"
-                                className="absolute right-2 top-2 h-8 w-8 p-0"
+                                className="h-7 w-7 p-0"
                                 onClick={closeEditor}
                             >
                                 <X className="h-4 w-4" />
                             </Button>
-                        </CardContent>
-                    </Card>
-                </div>
+                        )}
+                    </div>
+                    <div className="p-4">
+                        {open ? (
+                            editorBody
+                        ) : (
+                            <p className="text-sm text-muted-foreground">
+                                Select a key to edit its action.
+                            </p>
+                        )}
+                    </div>
+                </aside>
+            ) : (
+                open && (
+                    <div className="p-2 col-start-2 row-start-2 w-full">
+                        <Card className="relative">
+                            <CardContent className="p-4">
+                                {editorBody}
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="absolute right-2 top-2 h-8 w-8 p-0"
+                                    onClick={closeEditor}
+                                >
+                                    <X className="h-4 w-4" />
+                                </Button>
+                            </CardContent>
+                        </Card>
+                    </div>
+                )
             )}
             {service && tapDanceCount > 0 && tapDanceIdx !== null && (
                 <Modal

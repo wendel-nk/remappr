@@ -3,6 +3,7 @@ import { useState } from 'react'
 import {
     Info,
     Keyboard,
+    LayoutPanelLeft,
     Palette,
     Radio,
     Settings as SettingsIcon,
@@ -12,6 +13,7 @@ import { ScrollArea } from '@/ui/scroll-area'
 import { cn } from '@/lib/cn'
 import { GeneralSection } from './settings/GeneralSection'
 import { KeycapsSection } from './settings/KeycapsSection'
+import { WorkspaceSection } from './settings/WorkspaceSection'
 import { CommunicationSection } from './settings/CommunicationSection'
 import { AboutSection } from './settings/AboutSection'
 
@@ -20,7 +22,12 @@ interface SettingsProps {
     onClose?: () => void
 }
 
-type SettingsSection = 'general' | 'keycaps' | 'communication' | 'about'
+type SettingsSection =
+    | 'general'
+    | 'keycaps'
+    | 'workspace'
+    | 'communication'
+    | 'about'
 
 const SECTIONS: {
     id: SettingsSection
@@ -29,6 +36,7 @@ const SECTIONS: {
 }[] = [
     { id: 'general', label: 'General', icon: Palette },
     { id: 'keycaps', label: 'Keycaps', icon: Keyboard },
+    { id: 'workspace', label: 'Workspace', icon: LayoutPanelLeft },
     { id: 'communication', label: 'Communication', icon: Radio },
     { id: 'about', label: 'About', icon: Info },
 ]
@@ -72,6 +80,7 @@ export function Settings({ opened, onClose }: SettingsProps): JSX.Element {
                 <ScrollArea className="max-h-[60vh] flex-1 pr-2">
                     {section === 'general' && <GeneralSection />}
                     {section === 'keycaps' && <KeycapsSection />}
+                    {section === 'workspace' && <WorkspaceSection />}
                     {section === 'communication' && <CommunicationSection />}
                     {section === 'about' && <AboutSection />}
                 </ScrollArea>

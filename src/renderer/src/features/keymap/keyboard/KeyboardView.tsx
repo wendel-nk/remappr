@@ -20,11 +20,15 @@ import {
 import { HidUsageLabel } from './HidUsageLabel'
 import type { HoldTapLabels } from './KeyButton'
 import { KeyContextMenu } from './KeyContextMenu'
+import { LayerColorRail } from './LayerColorRail'
+import { CommandAssign } from './CommandAssign'
 import {
     type KeyActionDraft,
     KeyActionPicker,
 } from '@/features/actions/KeyActionPicker'
 import { Modal } from '@/ui/modal'
+import type { WorkspaceMode } from '@/stores/userSettingsStore'
+import type { CatalogEntry } from '@firmware/catalog/types'
 import { useLocalStorageState } from '@/hooks/use-local-storage-state'
 import { useLayout } from '@/hooks/use-layouts'
 import useConnectionStore from '@/stores/connectionStore'
@@ -96,6 +100,7 @@ interface KeyboardViewProps {
     setSelectedEncoder?: (sel: EncoderSelection | undefined) => void
     multiSelection: Set<number>
     setMultiSelection: (next: Set<number>) => void
+    workspace: WorkspaceMode
 }
 
 function holdTapToLabels(desc: ResolvedHoldTapDescriptor): HoldTapLabels {
@@ -119,11 +124,13 @@ export default function KeyboardView({
     setSelectedEncoder,
     multiSelection,
     setMultiSelection,
+    workspace,
 }: KeyboardViewProps): JSX.Element {
     const { layouts, selectedPhysicalLayoutIndex } = useLayout()
     const { selectedLayerIndex, setSelectedLayerIndex } =
         useLayerSelectionStore()
     const { service } = useConnectionStore()
+    const codec = useConnectionStore((s) => s.service?.codec)
     const peekLayerIndex = useLayerPeekStore((s) => s.peekLayerIndex)
 
     const effectiveLayerIndex = useMemo(() => {
@@ -163,9 +170,10 @@ export default function KeyboardView({
         }
     }, [service])
 
-    // Anchor for shift-range selection; assign-to-many modal visibility.
+    // Anchor for shift-range selection; assign-to-many modal + command palette visibility.
     const anchorRef = useRef<number | null>(null)
     const [assignOpen, setAssignOpen] = useState(false)
+    const [paletteOpen, setPaletteOpen] = useState(false)
 
     const heatmapEnabled = useHeatmapStore((s) => s.enabled)
     const heatmapCounts = useHeatmapStore((s) => s.counts)
@@ -439,6 +447,8 @@ export default function KeyboardView({
                 anchorRef.current = position
                 if (multiSelection.size > 0) setMultiSelection(new Set())
                 setSelectedKeyPosition(position)
+                // Command workspace: clicking a key opens the assign palette.
+                if (workspace === 'command') setPaletteOpen(true)
             }
         },
         [
@@ -447,6 +457,7 @@ export default function KeyboardView({
             selectedKeyPosition,
             setSelectedKeyPosition,
             setMultiSelection,
+            workspace,
         ],
     )
 
@@ -541,7 +552,38 @@ export default function KeyboardView({
         setMultiSelection(new Set())
         setSelectedKeyPosition(undefined)
         setAssignOpen(false)
+        setPaletteOpen(false)
     }, [setMultiSelection, setSelectedKeyPosition])
+
+    // Key Press action type (single HID slot) used for command-palette quick assign.
+    const keyPressType = useMemo(
+        () =>
+            actionTypes.find(
+                (t) => t.slots.length === 1 && t.slots[0].kind === 'hid',
+            ),
+        [actionTypes],
+    )
+
+    // Build a KeyAction from a picked catalog entry and apply it to the targets.
+    const handleAssignEntry = useCallback(
+        (entry: CatalogEntry): void => {
+            if (!service || targetPositions.length === 0) return
+            const behaviorKind = entry.behaviorRef?.kind
+            let action: KeyAction | null = null
+            if (behaviorKind) {
+                action = service.buildKeyAction(behaviorKind, [])
+            } else if (keyPressType) {
+                const enc = codec?.encode(entry.id)
+                if (enc)
+                    action = service.buildKeyAction(keyPressType.id, [
+                        enc.value,
+                    ])
+            }
+            if (action) dispatchSetKeys(targetPositions, action)
+            setPaletteOpen(false)
+        },
+        [service, codec, keyPressType, targetPositions, dispatchSetKeys],
+    )
 
     const assignSeed = useMemo(
         () =>
@@ -580,10 +622,12 @@ export default function KeyboardView({
             const meta = e.metaKey || e.ctrlKey
             if (meta && (e.key === 'k' || e.key === 'K')) {
                 e.preventDefault()
-                if (targetPositions.length > 0) setAssignOpen(true)
+                if (targetPositions.length === 0) return
+                if (workspace === 'command') setPaletteOpen(true)
+                else setAssignOpen(true)
                 return
             }
-            if (assignOpen) return
+            if (assignOpen || paletteOpen) return
             if (e.key === 'Backspace' || e.key === 'Delete') {
                 if (targetPositions.length > 0) {
                     e.preventDefault()
@@ -620,6 +664,8 @@ export default function KeyboardView({
         return (): void => window.removeEventListener('keydown', onKeyDown)
     }, [
         assignOpen,
+        paletteOpen,
+        workspace,
         targetPositions,
         selectedKeyPosition,
         multiSelection,
@@ -734,6 +780,17 @@ export default function KeyboardView({
                                 onChange={handleAssign}
                             />
                         </Modal>
+                    )}
+                    {workspace === 'command' && (
+                        <>
+                            <LayerColorRail />
+                            <CommandAssign
+                                open={paletteOpen}
+                                onOpenChange={setPaletteOpen}
+                                targetCount={targetPositions.length}
+                                onSelect={handleAssignEntry}
+                            />
+                        </>
                     )}
                     <KeyContextMenu
                         open={contextMenu !== null}

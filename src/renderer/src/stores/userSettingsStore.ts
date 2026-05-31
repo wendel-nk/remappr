@@ -6,6 +6,7 @@ export type KeyDisplayMode = 'displayName' | 'binding'
 export type AdapterCategory = 'zmk' | 'qmk'
 export type CapStyle = 'flat' | 'sculpted' | 'mono' | 'glass'
 export type ColorCodingMode = 'off' | 'subtle' | 'vivid'
+export type WorkspaceMode = 'workbench' | 'inspector' | 'command'
 
 const DEFAULT_FIRMWARE_KEY = '_default'
 
@@ -18,8 +19,10 @@ interface UserSettingsState {
     preferredAdapterCategory: AdapterCategory
     capStyle: CapStyle
     colorMode: ColorCodingMode
+    workspace: WorkspaceMode
     setCapStyle: (style: CapStyle) => void
     setColorMode: (mode: ColorCodingMode) => void
+    setWorkspace: (workspace: WorkspaceMode) => void
     setTheme: (theme: 'dark' | 'light') => void
     setAutosave: (enabled: boolean) => void
     setAutoLoadLayout: (enabled: boolean) => void
@@ -42,8 +45,10 @@ const useUserSettingsStore = create<UserSettingsState>()(
                 preferredAdapterCategory: 'zmk',
                 capStyle: 'flat',
                 colorMode: 'subtle',
+                workspace: 'workbench',
                 setCapStyle: (capStyle) => set({ capStyle }),
                 setColorMode: (colorMode) => set({ colorMode }),
+                setWorkspace: (workspace) => set({ workspace }),
                 setTheme: (theme) => set({ theme }),
                 setAutosave: (enabled) => set({ autosave: enabled }),
                 setAutoLoadLayout: (enabled) =>
@@ -69,7 +74,7 @@ const useUserSettingsStore = create<UserSettingsState>()(
             {
                 name: 'user-settings-store',
                 storage: createJSONStorage(() => localStorage),
-                version: 4,
+                version: 5,
                 migrate: (persisted: unknown, version: number) => {
                     if (!persisted || typeof persisted !== 'object') {
                         return persisted as Partial<UserSettingsState>
@@ -105,6 +110,16 @@ const useUserSettingsStore = create<UserSettingsState>()(
                         const cm = p.colorMode
                         if (cm !== 'off' && cm !== 'subtle' && cm !== 'vivid') {
                             p.colorMode = 'subtle'
+                        }
+                    }
+                    if (version < 5) {
+                        const ws = p.workspace
+                        if (
+                            ws !== 'workbench' &&
+                            ws !== 'inspector' &&
+                            ws !== 'command'
+                        ) {
+                            p.workspace = 'workbench'
                         }
                     }
                     return p as Partial<UserSettingsState>

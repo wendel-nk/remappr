@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react'
 import KeyboardView from '@/features/keymap/keyboard/KeyboardView'
 import { BindingEditor } from './BindingEditor'
 import useKeymapStore from '@/stores/keymapStore'
+import useUserSettingsStore from '@/stores/userSettingsStore'
 
 export type EncoderSelection = { slot: number; dir: 'cw' | 'ccw' }
 
@@ -33,25 +34,51 @@ export function KeymapEditor(): JSX.Element {
         [],
     )
 
+    const workspace = useUserSettingsStore((s) => s.workspace)
+
+    const keyboard = (
+        <KeyboardView
+            keymap={keymap}
+            selectedKeyPosition={selectedKeyPosition}
+            setSelectedKeyPosition={setSelectedKeyPosition}
+            selectedEncoder={selectedEncoder}
+            setSelectedEncoder={setSelectedEncoder}
+            multiSelection={multiSelection}
+            setMultiSelection={setMultiSelection}
+            workspace={workspace}
+        />
+    )
+
+    if (workspace === 'inspector') {
+        return (
+            <div className="flex flex-1 min-h-0">
+                <div className="flex min-w-0 flex-1 flex-col">{keyboard}</div>
+                <BindingEditor
+                    variant="panel"
+                    keymap={keymap}
+                    setKeymap={setKeymap}
+                    selectedKeyPosition={selectedKeyPosition}
+                    setSelectedKeyPosition={setSelectedKeyPosition}
+                    selectedEncoder={selectedEncoder}
+                    setSelectedEncoder={setSelectedEncoder}
+                />
+            </div>
+        )
+    }
+
     return (
         <div className="flex flex-col flex-1">
-            <KeyboardView
-                keymap={keymap}
-                selectedKeyPosition={selectedKeyPosition}
-                setSelectedKeyPosition={setSelectedKeyPosition}
-                selectedEncoder={selectedEncoder}
-                setSelectedEncoder={setSelectedEncoder}
-                multiSelection={multiSelection}
-                setMultiSelection={setMultiSelection}
-            />
-            <BindingEditor
-                keymap={keymap}
-                setKeymap={setKeymap}
-                selectedKeyPosition={selectedKeyPosition}
-                setSelectedKeyPosition={setSelectedKeyPosition}
-                selectedEncoder={selectedEncoder}
-                setSelectedEncoder={setSelectedEncoder}
-            />
+            {keyboard}
+            {workspace !== 'command' && (
+                <BindingEditor
+                    keymap={keymap}
+                    setKeymap={setKeymap}
+                    selectedKeyPosition={selectedKeyPosition}
+                    setSelectedKeyPosition={setSelectedKeyPosition}
+                    selectedEncoder={selectedEncoder}
+                    setSelectedEncoder={setSelectedEncoder}
+                />
+            )}
         </div>
     )
 }

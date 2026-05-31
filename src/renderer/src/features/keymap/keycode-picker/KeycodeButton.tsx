@@ -1,7 +1,8 @@
-// pattern-check: skip optional tooltip enrichment props on existing button component — mechanical prop extension
+// pattern-check: skip — additive category-colour tint on existing chip button, lookup only
 import { CSSProperties } from 'react'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/ui/tooltip'
 import { Button } from '@/ui/button'
+import { catStyle, categoryForUsage } from '@/lib/keymap/keyCategory'
 
 interface KeycodeButtonProps {
     value?: number
@@ -39,6 +40,12 @@ export default function KeycodeButton({
 }: KeycodeButtonProps): JSX.Element {
     const keySize = 50
 
+    // Colour-code chips by function category (border tint + accent edge).
+    const accent =
+        value && value !== 0
+            ? catStyle(categoryForUsage(value), 'vivid').dot
+            : null
+
     const style: CSSProperties = {
         position: 'absolute',
         top: `${y * keySize}px`,
@@ -46,7 +53,14 @@ export default function KeycodeButton({
         width: `${width - 2}px`,
         height: `${height - 2}px`,
         overflow: 'hidden',
-        border: isSelected ? '2px solid blue' : '1px solid gray',
+        border: isSelected
+            ? '2px solid var(--primary)'
+            : `1px solid ${
+                  accent
+                      ? `color-mix(in oklch, ${accent} 50%, var(--border))`
+                      : 'var(--border)'
+              }`,
+        borderLeft: !isSelected && accent ? `3px solid ${accent}` : undefined,
     }
 
     const handleClick = (): void => {
