@@ -3,6 +3,7 @@
 /* eslint-disable react-hooks/preserve-manual-memoization */
 import { useCallback, useEffect, useState } from 'react'
 import {
+    BarChart3,
     Lightbulb,
     Redo2,
     Save,
@@ -12,6 +13,7 @@ import {
     Undo2,
     Wifi,
 } from 'lucide-react'
+import { LoadStatsModal } from '@/features/keymap/keyboard/LoadStatsModal'
 import { DynamicEntriesModal } from '@/features/dynamic/DynamicEntriesModal'
 import { MacroEditorModal } from '@/features/dynamic/MacroEditorModal'
 import { WirelessSettingsModal } from '@/features/firmware/WirelessSettingsModal'
@@ -40,6 +42,7 @@ export function Header(): JSX.Element {
     const [macroOpen, setMacroOpen] = useState(false)
     const [wirelessOpen, setWirelessOpen] = useState(false)
     const [rgbOpen, setRgbOpen] = useState(false)
+    const [loadOpen, setLoadOpen] = useState(false)
 
     useEffect(() => {
         if (!service) {
@@ -102,7 +105,10 @@ export function Header(): JSX.Element {
                     className="h-8 rounded ps-3"
                 />{' '}
                 <span className="px-3">Remappr</span>
-                <div className="ml-auto flex items-center gap-2">
+                <div
+                    className="ml-auto flex items-center gap-2"
+                    data-coach="tools"
+                >
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <div>
@@ -241,6 +247,24 @@ export function Header(): JSX.Element {
                     <Separator
                         orientation="vertical"
                         className="mx-0.5 data-[orientation=vertical]:h-5"
+                    />
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={(): void => setLoadOpen(true)}
+                            >
+                                <BarChart3 aria-label="Typing load" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>Typing load</p>
+                        </TooltipContent>
+                    </Tooltip>
+                    <LoadStatsModal
+                        opened={loadOpen}
+                        onClose={(): void => setLoadOpen(false)}
                     />
                     <Tooltip>
                         <TooltipTrigger asChild>

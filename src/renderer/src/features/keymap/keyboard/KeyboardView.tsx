@@ -681,7 +681,10 @@ export default function KeyboardView({
     return (
         <>
             {layouts && keymap && (
-                <div className="p-2 col-start-2 row-start-1 items-center justify-center relative min-w-0 flex h-full bg-accent">
+                <div
+                    data-coach="board"
+                    className="p-2 col-start-2 row-start-1 items-center justify-center relative min-w-0 flex h-full bg-accent"
+                >
                     {/* // pattern-check: skip — presentational stage overlays (glow, layer pill, multi-select bar, assign modal) */}
                     {/* Dotted workbench backdrop + soft radial glow behind the board. */}
                     <div

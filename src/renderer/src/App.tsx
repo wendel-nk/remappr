@@ -17,6 +17,7 @@ import { AutoLayoutResolver } from '@/features/firmware/AutoLayoutResolver'
 import { ErrorBoundary } from '@/ui/ErrorBoundary'
 import { toast } from 'sonner'
 import { StartPage } from '@/features/connection/start-page/StartPage'
+import { CoachmarkTour } from '@/features/onboarding/CoachmarkTour'
 import { UpdateNotification } from '@/components/UpdateNotification'
 import { TitleBar } from '@/layout/TitleBar'
 import { isElectron as isElectronEnv } from '@/transport'
@@ -148,6 +149,7 @@ function App(): JSX.Element {
                                         </ErrorBoundary>
                                         {/*<Footer />*/}
                                     </SidebarInset>
+                                    <CoachmarkTour />
                                 </SidebarProvider>
                             </ErrorBoundary>
                         )

@@ -126,7 +126,7 @@ export function Drawer(): JSX.Element {
                         />
                     )}
                 </SidebarGroup>
-                <SidebarGroup>
+                <SidebarGroup data-coach="layers">
                     {keymap && (
                         <LayerPicker
                             layers={keymap.layers}

@@ -14,6 +14,7 @@ import { Button } from '@/ui/button'
 import { Input } from '@/ui/input'
 import { cn } from '@/lib/cn'
 import type { DeviceStatus } from '@/features/connection/types'
+import { MiniKeyboardPreview } from './MiniKeyboardPreview'
 
 export interface DeviceCardProps {
     name: string
@@ -158,6 +159,11 @@ export function DeviceCard({
                     isConnected && 'opacity-100',
                 )}
             />
+
+            {/* Decorative mini keyboard watermark (generic, not the real layout). */}
+            <div className="pointer-events-none absolute right-32 top-1/2 hidden -translate-y-1/2 rotate-6 opacity-15 transition-opacity duration-300 group-hover:opacity-40 lg:block">
+                <MiniKeyboardPreview />
+            </div>
 
             <div className="relative flex items-center justify-between gap-4">
                 <div className="flex items-center gap-4 min-w-0">
