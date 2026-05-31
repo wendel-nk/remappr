@@ -1,10 +1,17 @@
 // Pattern check: no GoF pattern (-) — rejected — UI restructure into sidemenu nav with sectioned panels; no class hierarchy or polymorphism warranted.
 import { useState } from 'react'
-import { Info, Palette, Radio, Settings as SettingsIcon } from 'lucide-react'
+import {
+    Info,
+    Keyboard,
+    Palette,
+    Radio,
+    Settings as SettingsIcon,
+} from 'lucide-react'
 import { Modal } from '@/ui/modal'
 import { ScrollArea } from '@/ui/scroll-area'
 import { cn } from '@/lib/cn'
 import { GeneralSection } from './settings/GeneralSection'
+import { KeycapsSection } from './settings/KeycapsSection'
 import { CommunicationSection } from './settings/CommunicationSection'
 import { AboutSection } from './settings/AboutSection'
 
@@ -13,7 +20,7 @@ interface SettingsProps {
     onClose?: () => void
 }
 
-type SettingsSection = 'general' | 'communication' | 'about'
+type SettingsSection = 'general' | 'keycaps' | 'communication' | 'about'
 
 const SECTIONS: {
     id: SettingsSection
@@ -21,6 +28,7 @@ const SECTIONS: {
     icon: typeof Palette
 }[] = [
     { id: 'general', label: 'General', icon: Palette },
+    { id: 'keycaps', label: 'Keycaps', icon: Keyboard },
     { id: 'communication', label: 'Communication', icon: Radio },
     { id: 'about', label: 'About', icon: Info },
 ]
@@ -63,6 +71,7 @@ export function Settings({ opened, onClose }: SettingsProps): JSX.Element {
                 </aside>
                 <ScrollArea className="max-h-[60vh] flex-1 pr-2">
                     {section === 'general' && <GeneralSection />}
+                    {section === 'keycaps' && <KeycapsSection />}
                     {section === 'communication' && <CommunicationSection />}
                     {section === 'about' && <AboutSection />}
                 </ScrollArea>

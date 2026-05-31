@@ -7,12 +7,15 @@ import React, {
 import { HoldTapLabels, KeyButton } from './KeyButton.tsx'
 import { scalePosition } from '@/lib/scalePosition'
 import { LayoutZoom } from '@/lib/helpers'
+import type { KeyCategory } from '@/lib/keymap/keyCategory'
 
 export type KeyPosition = PropsWithChildren<{
     id?: string
     header?: string
     actionLabel?: string
     holdTap?: HoldTapLabels
+    category?: KeyCategory
+    heat?: number | null
     width: number
     height: number
     x: number

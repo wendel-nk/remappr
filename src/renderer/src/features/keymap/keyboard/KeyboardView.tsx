@@ -19,6 +19,7 @@ import undoRedoStore from '@/stores/undoRedoStore'
 import { useKeypressDetection } from '@/hooks/use-keypress-detection'
 import type { KeypressDetectionConfig } from '@/lib/keypress/keypressDetector'
 import { resolveBindingLabels, type ResolvedHoldTapDescriptor } from '@firmware'
+import { categoryForBinding } from '@/lib/keymap/keyCategory'
 
 interface EncoderSelection {
     slot: number
@@ -204,6 +205,14 @@ export default function KeyboardView({
             header: p.header,
             actionLabel: p.actionLabel,
             holdTap: p.holdTap ? holdTapToLabels(p.holdTap) : undefined,
+            category: categoryForBinding({
+                actionLabel: p.actionLabel,
+                bindingParam1: p.bindingParam1,
+                actionTypeName: p.actionTypeName,
+                outOfRange: p.outOfRange,
+                isHoldTap: !!p.holdTap,
+                holdIsLayer: p.holdTap?.holdNodeKind === 'layer',
+            }),
             x: p.x,
             y: p.y,
             width: p.width,

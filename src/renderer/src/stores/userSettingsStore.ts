@@ -4,6 +4,8 @@ import { createJSONStorage, devtools, persist } from 'zustand/middleware'
 
 export type KeyDisplayMode = 'displayName' | 'binding'
 export type AdapterCategory = 'zmk' | 'qmk'
+export type CapStyle = 'flat' | 'sculpted' | 'mono' | 'glass'
+export type ColorCodingMode = 'off' | 'subtle' | 'vivid'
 
 const DEFAULT_FIRMWARE_KEY = '_default'
 
@@ -14,6 +16,10 @@ interface UserSettingsState {
     autoLoadLayout: boolean
     keyDisplayMode: Record<string, KeyDisplayMode>
     preferredAdapterCategory: AdapterCategory
+    capStyle: CapStyle
+    colorMode: ColorCodingMode
+    setCapStyle: (style: CapStyle) => void
+    setColorMode: (mode: ColorCodingMode) => void
     setTheme: (theme: 'dark' | 'light') => void
     setAutosave: (enabled: boolean) => void
     setAutoLoadLayout: (enabled: boolean) => void
@@ -34,6 +40,10 @@ const useUserSettingsStore = create<UserSettingsState>()(
                 autoLoadLayout: false,
                 keyDisplayMode: {},
                 preferredAdapterCategory: 'zmk',
+                capStyle: 'flat',
+                colorMode: 'subtle',
+                setCapStyle: (capStyle) => set({ capStyle }),
+                setColorMode: (colorMode) => set({ colorMode }),
                 setTheme: (theme) => set({ theme }),
                 setAutosave: (enabled) => set({ autosave: enabled }),
                 setAutoLoadLayout: (enabled) =>
@@ -59,7 +69,7 @@ const useUserSettingsStore = create<UserSettingsState>()(
             {
                 name: 'user-settings-store',
                 storage: createJSONStorage(() => localStorage),
-                version: 3,
+                version: 4,
                 migrate: (persisted: unknown, version: number) => {
                     if (!persisted || typeof persisted !== 'object') {
                         return persisted as Partial<UserSettingsState>
@@ -80,6 +90,21 @@ const useUserSettingsStore = create<UserSettingsState>()(
                         const cat = p.preferredAdapterCategory
                         if (cat !== 'zmk' && cat !== 'qmk') {
                             p.preferredAdapterCategory = 'zmk'
+                        }
+                    }
+                    if (version < 4) {
+                        const cap = p.capStyle
+                        if (
+                            cap !== 'flat' &&
+                            cap !== 'sculpted' &&
+                            cap !== 'mono' &&
+                            cap !== 'glass'
+                        ) {
+                            p.capStyle = 'flat'
+                        }
+                        const cm = p.colorMode
+                        if (cm !== 'off' && cm !== 'subtle' && cm !== 'vivid') {
+                            p.colorMode = 'subtle'
                         }
                     }
                     return p as Partial<UserSettingsState>
