@@ -1,20 +1,20 @@
 /* eslint-disable react-hooks/set-state-in-effect */
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { produce } from 'immer'
 import { toast } from 'sonner'
+import { Activity, Flame, RotateCcw } from 'lucide-react'
 import type { Keymap } from '@firmware/types'
 import { PhysicalLayoutCanvas, type KeyPosition } from './PhysicalLayoutCanvas'
 import { HidUsageLabel } from './HidUsageLabel'
 import type { HoldTapLabels } from './KeyButton'
 import { KeyContextMenu } from './KeyContextMenu'
 import { useLocalStorageState } from '@/hooks/use-local-storage-state'
-import { deserializeLayoutZoom, LayoutZoom } from '@/lib/helpers'
 import { useLayout } from '@/hooks/use-layouts'
-import { KeyboardZoomSlider } from '../editor/KeyboardZoomSlider'
 import useConnectionStore from '@/stores/connectionStore'
 import useLayerSelectionStore from '@/stores/layerSelectionStore'
 import useKeymapStore from '@/stores/keymapStore'
 import useClipboardStore from '@/stores/clipboardStore'
+import useHeatmapStore from '@/stores/heatmapStore'
 import undoRedoStore from '@/stores/undoRedoStore'
 import { useKeypressDetection } from '@/hooks/use-keypress-detection'
 import type { KeypressDetectionConfig } from '@/lib/keypress/keypressDetector'
@@ -72,13 +72,21 @@ export default function KeyboardView({
         setSelectedKeyPosition(undefined)
     }, [service, setSelectedLayerIndex, setSelectedKeyPosition])
 
-    const [keymapScale, setKeymapScale] = useLocalStorageState<LayoutZoom>(
-        'keymapScale',
-        'auto',
-        { deserialize: deserializeLayoutZoom },
+    const heatmapEnabled = useHeatmapStore((s) => s.enabled)
+    const heatmapCounts = useHeatmapStore((s) => s.counts)
+    const toggleHeatmap = useHeatmapStore((s) => s.toggle)
+    const incrementHeat = useHeatmapStore((s) => s.increment)
+    const resetHeat = useHeatmapStore((s) => s.reset)
+
+    const [liveView, setLiveView] = useLocalStorageState<boolean>(
+        'liveView',
+        true,
     )
 
     const [pressedKeys, setPressedKeys] = useState<Set<number>>(new Set())
+    // Mirror of pressedKeys for the heat-count repeat guard (keydown auto-repeats).
+    const pressedRef = useRef<Set<number>>(new Set())
+    const EMPTY_KEYS = useMemo(() => new Set<number>(), [])
 
     const keypressConfig: KeypressDetectionConfig | null = useMemo(
         () =>
@@ -93,11 +101,20 @@ export default function KeyboardView({
         [layouts, keymap, effectiveLayerIndex, selectedPhysicalLayoutIndex],
     )
 
-    const handleKeyPressed = useCallback((keyPosition: number) => {
-        setPressedKeys((prev) => new Set(prev).add(keyPosition))
-    }, [])
+    const handleKeyPressed = useCallback(
+        (keyPosition: number) => {
+            // Only count the leading edge of a press (keydown repeats while held).
+            if (!pressedRef.current.has(keyPosition)) {
+                pressedRef.current.add(keyPosition)
+                incrementHeat(`${selectedPhysicalLayoutIndex}:${keyPosition}`)
+            }
+            setPressedKeys((prev) => new Set(prev).add(keyPosition))
+        },
+        [incrementHeat, selectedPhysicalLayoutIndex],
+    )
 
     const handleKeyReleased = useCallback((keyPosition: number) => {
+        pressedRef.current.delete(keyPosition)
         setPressedKeys((prev) => {
             const newSet = new Set(prev)
             newSet.delete(keyPosition)
@@ -111,8 +128,9 @@ export default function KeyboardView({
     })
 
     useEffect(() => {
+        pressedRef.current = new Set()
         setPressedKeys(new Set())
-    }, [effectiveLayerIndex])
+    }, [effectiveLayerIndex, selectedPhysicalLayoutIndex])
 
     const setKeymapInStore = useKeymapStore((s) => s.setKeymap)
     const clipboardAction = useClipboardStore((s) => s.action)
@@ -192,7 +210,7 @@ export default function KeyboardView({
         [clipboardAction, dispatchSetKey],
     )
 
-    const positions: KeyPosition[] = useMemo(() => {
+    const basePositions: KeyPosition[] = useMemo(() => {
         if (!layouts || !keymap) return []
         const layout = layouts[selectedPhysicalLayoutIndex]
         if (!layout) return []
@@ -265,6 +283,33 @@ export default function KeyboardView({
         return [...keyPositions, ...encoderPositions]
     }, [layouts, keymap, selectedPhysicalLayoutIndex, effectiveLayerIndex])
 
+    // Inject heatmap tint + raw counts without rebuilding the (expensive) label nodes.
+    const positions: KeyPosition[] = useMemo(() => {
+        if (!heatmapEnabled) return basePositions
+        let max = 0
+        basePositions.forEach((p, idx) => {
+            if (p.encoder) return
+            const c =
+                heatmapCounts[`${selectedPhysicalLayoutIndex}:${idx}`] ?? 0
+            if (c > max) max = c
+        })
+        return basePositions.map((p, idx) => {
+            if (p.encoder) return p
+            const c =
+                heatmapCounts[`${selectedPhysicalLayoutIndex}:${idx}`] ?? 0
+            return {
+                ...p,
+                heat: max > 0 ? c / max : null,
+                pressCount: c,
+            }
+        })
+    }, [
+        basePositions,
+        heatmapEnabled,
+        heatmapCounts,
+        selectedPhysicalLayoutIndex,
+    ])
+
     return (
         <>
             {layouts && keymap && (
@@ -273,7 +318,9 @@ export default function KeyboardView({
                         positions={positions}
                         oneU={48}
                         hoverZoom={true}
-                        zoom={keymapScale}
+                        zoom="auto"
+                        pannable
+                        tooltips
                         selectedPosition={selectedKeyPosition}
                         onPositionClicked={setSelectedKeyPosition}
                         selectedEncoder={selectedEncoder}
@@ -281,7 +328,14 @@ export default function KeyboardView({
                             setSelectedEncoder?.({ slot, dir })
                         }
                         onPositionContextMenu={handlePositionContextMenu}
-                        pressedKeys={pressedKeys}
+                        pressedKeys={liveView ? pressedKeys : EMPTY_KEYS}
+                    />
+                    <StageControls
+                        heatmapEnabled={heatmapEnabled}
+                        onToggleHeatmap={toggleHeatmap}
+                        onResetHeat={resetHeat}
+                        liveView={liveView}
+                        onToggleLive={() => setLiveView((v) => !v)}
                     />
                     <KeyContextMenu
                         open={contextMenu !== null}
@@ -308,12 +362,82 @@ export default function KeyboardView({
                         }
                         onClose={() => setContextMenu(null)}
                     />
-                    <KeyboardZoomSlider
-                        value={keymapScale}
-                        onChange={(e) => {
-                            setKeymapScale(deserializeLayoutZoom(e))
-                        }}
-                    />
+                </div>
+            )}
+        </>
+    )
+}
+
+interface StageControlsProps {
+    heatmapEnabled: boolean
+    onToggleHeatmap: () => void
+    onResetHeat: () => void
+    liveView: boolean
+    onToggleLive: () => void
+}
+
+const pillBase =
+    'flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium shadow-sm backdrop-blur transition-colors'
+const pillOn = 'border-primary/50 bg-primary/15 text-primary'
+const pillOff =
+    'border-border bg-background/80 text-muted-foreground hover:text-foreground'
+
+function StageControls({
+    heatmapEnabled,
+    onToggleHeatmap,
+    onResetHeat,
+    liveView,
+    onToggleLive,
+}: StageControlsProps): JSX.Element {
+    return (
+        <>
+            <div className="absolute top-2 left-2 z-10 flex items-center gap-2">
+                <button
+                    type="button"
+                    onClick={onToggleHeatmap}
+                    aria-pressed={heatmapEnabled}
+                    className={`${pillBase} ${heatmapEnabled ? pillOn : pillOff}`}
+                >
+                    <Flame className="size-3.5" /> Heatmap
+                </button>
+                {heatmapEnabled && (
+                    <div className="flex items-center gap-1.5 rounded-full border border-border bg-background/80 px-2 py-1 text-[10px] text-muted-foreground shadow-sm backdrop-blur">
+                        <span>Cold</span>
+                        <span
+                            className="h-2 w-16 rounded-full"
+                            style={{
+                                background:
+                                    'linear-gradient(90deg, oklch(0.32 0.06 250), oklch(0.5 0.16 135), oklch(0.62 0.22 20))',
+                            }}
+                        />
+                        <span>Hot</span>
+                        <button
+                            type="button"
+                            onClick={onResetHeat}
+                            title="Reset press counts"
+                            aria-label="Reset press counts"
+                            className="ml-0.5 rounded-full p-0.5 hover:text-foreground"
+                        >
+                            <RotateCcw className="size-3" />
+                        </button>
+                    </div>
+                )}
+                <button
+                    type="button"
+                    onClick={onToggleLive}
+                    aria-pressed={liveView}
+                    className={`${pillBase} ${liveView ? pillOn : pillOff}`}
+                >
+                    <Activity className="size-3.5" /> Live
+                </button>
+            </div>
+            {liveView && (
+                <div className="absolute top-2 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-green-500/40 bg-green-500/15 px-2.5 py-1 text-[11px] font-semibold text-green-600 dark:text-green-400">
+                    <span className="relative flex size-2">
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-500 opacity-75" />
+                        <span className="relative inline-flex size-2 rounded-full bg-green-500" />
+                    </span>
+                    LIVE
                 </div>
             )}
         </>

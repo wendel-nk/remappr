@@ -6,8 +6,10 @@ import { KeyLabel } from './KeyLabel'
 import { type HoldTapLabels } from './HoldTapKeyLabel'
 import useUserSettingsStore, { type CapStyle } from '@/stores/userSettingsStore'
 import useConnectionStore from '@/stores/connectionStore'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/ui/tooltip'
 import {
     catStyle,
+    CATEGORY_META,
     heatColor,
     type ColorMode,
     type KeyCategory,
@@ -29,6 +31,10 @@ interface KeyButtonProps {
     category?: KeyCategory
     /** Normalised press intensity 0–1 for the heatmap overlay, or null when off. */
     heat?: number | null
+    /** Raw lifetime press count, surfaced in the rich tooltip when the heatmap is on. */
+    pressCount?: number | null
+    /** Render a rich hover tooltip (tap/action/hold/type/press-count). */
+    richTooltip?: boolean
     /** Force a cap style (e.g. settings previews); defaults to the user setting. */
     capStyleOverride?: CapStyle
     /** Force a colour-coding intensity; defaults to the user setting. */
@@ -206,6 +212,8 @@ export const KeyButton = ({
     holdTap,
     category = 'alpha',
     heat = null,
+    pressCount = null,
+    richTooltip = false,
     capStyleOverride,
     colorModeOverride,
     ...props
@@ -234,6 +242,15 @@ export const KeyButton = ({
         holdTap?.tooltip,
     ].filter(Boolean)
     const tooltip = tooltipParts.join(' — ')
+
+    // Rich-tooltip rows (label → value); only non-empty rows render.
+    const tipRows: Array<[string, string]> = []
+    if (header) tipRows.push(['Tap', header])
+    if (actionLabel) tipRows.push(['Action', actionLabel])
+    if (holdTap?.tooltip) tipRows.push(['Hold', holdTap.tooltip])
+    const typeLabel = CATEGORY_META[category]?.label
+    if (typeLabel) tipRows.push(['Type', typeLabel])
+    if (pressCount != null) tipRows.push(['Presses', String(pressCount)])
 
     const F = resolveFaceColors(category, colorMode, heat)
     const chrome = CAP_CHROME[capStyle](F, oneU)
@@ -276,6 +293,104 @@ export const KeyButton = ({
         ),
     )
 
+    const buttonEl = (
+        <button
+            type="button"
+            aria-pressed={selected}
+            data-zoomer={hoverZoom}
+            title={richTooltip ? undefined : tooltip || undefined}
+            style={{ ...chrome.style, ...pressedStyle, ...ringStyle }}
+            className={`relative transition-[box-shadow,transform] duration-100 box-border text-secondary-foreground grow flex flex-col items-center justify-center w-full h-full ${chrome.className} ${
+                pressed ? 'text-white translate-y-[2px]' : ''
+            }`}
+        >
+            {chrome.face && <div style={chrome.face} aria-hidden />}
+            {chrome.accentBar && <div style={chrome.accentBar} aria-hidden />}
+            {/* content layer (sits inside the lit face for sculpted) */}
+            <div
+                className="absolute flex flex-col"
+                style={
+                    capStyle === 'sculpted'
+                        ? {
+                              top: oneU * 0.085,
+                              left: oneU * 0.11,
+                              right: oneU * 0.11,
+                              bottom: oneU * 0.17,
+                          }
+                        : {
+                              inset: 0,
+                              padding: oneU * 0.1,
+                              paddingLeft: chrome.mono
+                                  ? oneU * 0.2
+                                  : oneU * 0.1,
+                          }
+                }
+            >
+                {/* header / category-dot row */}
+                <div
+                    className="flex items-center justify-between leading-none"
+                    style={{ height: oneU * 0.16 }}
+                >
+                    {effectiveHeader ? (
+                        <span
+                            className={`leading-none whitespace-nowrap overflow-hidden ${
+                                chrome.mono || isBindingMode
+                                    ? 'font-mono uppercase'
+                                    : ''
+                            }`}
+                            style={{
+                                fontSize: `${headerFontPx}px`,
+                                fontWeight: 700,
+                                color: headerColor,
+                            }}
+                        >
+                            {effectiveHeader}
+                        </span>
+                    ) : (
+                        <span />
+                    )}
+                    {showDot && (
+                        <span
+                            aria-hidden
+                            style={{
+                                width: Math.max(4, oneU * 0.09),
+                                height: Math.max(4, oneU * 0.09),
+                                borderRadius: 99,
+                                background: F.dot ?? undefined,
+                                flexShrink: 0,
+                                boxShadow: `0 0 ${oneU * 0.12}px ${F.dot}`,
+                            }}
+                        />
+                    )}
+                </div>
+
+                {/* primary legend */}
+                <div
+                    className="flex-1 flex items-center justify-center min-h-0"
+                    style={{ color: legendColor }}
+                >
+                    {children}
+                </div>
+
+                {/* hold legend */}
+                {holdTap && (
+                    <div
+                        className="flex items-end justify-center"
+                        style={{ height: oneU * 0.24 }}
+                    >
+                        <HoldLegend
+                            hold={holdTap.hold}
+                            color={pressed ? 'rgba(255,255,255,.85)' : F.legend}
+                            mono={chrome.mono}
+                            maxHoldFontSize={maxHoldFontSize}
+                            hoverZoom={hoverZoom}
+                        />
+                    </div>
+                )}
+            </div>
+        </button>
+    )
+
     return (
         <div
             className="group inline-flex box-border b-0 flex-col justify-items-center justify-content-center items-center transition-all duration-0 hover:scale-150 border border-transparent rounded-none"
@@ -283,105 +398,28 @@ export const KeyButton = ({
             style={size}
             {...props}
         >
-            <button
-                type="button"
-                aria-pressed={selected}
-                data-zoomer={hoverZoom}
-                title={tooltip || undefined}
-                style={{ ...chrome.style, ...pressedStyle, ...ringStyle }}
-                className={`relative transition-[box-shadow,transform] duration-100 box-border text-secondary-foreground grow flex flex-col items-center justify-center w-full h-full ${chrome.className} ${
-                    pressed ? 'text-white translate-y-[2px]' : ''
-                }`}
-            >
-                {chrome.face && <div style={chrome.face} aria-hidden />}
-                {chrome.accentBar && (
-                    <div style={chrome.accentBar} aria-hidden />
-                )}
-                {/* content layer (sits inside the lit face for sculpted) */}
-                <div
-                    className="absolute flex flex-col"
-                    style={
-                        capStyle === 'sculpted'
-                            ? {
-                                  top: oneU * 0.085,
-                                  left: oneU * 0.11,
-                                  right: oneU * 0.11,
-                                  bottom: oneU * 0.17,
-                              }
-                            : {
-                                  inset: 0,
-                                  padding: oneU * 0.1,
-                                  paddingLeft: chrome.mono
-                                      ? oneU * 0.2
-                                      : oneU * 0.1,
-                              }
-                    }
-                >
-                    {/* header / category-dot row */}
-                    <div
-                        className="flex items-center justify-between leading-none"
-                        style={{ height: oneU * 0.16 }}
-                    >
-                        {effectiveHeader ? (
-                            <span
-                                className={`leading-none whitespace-nowrap overflow-hidden ${
-                                    chrome.mono || isBindingMode
-                                        ? 'font-mono uppercase'
-                                        : ''
-                                }`}
-                                style={{
-                                    fontSize: `${headerFontPx}px`,
-                                    fontWeight: 700,
-                                    color: headerColor,
-                                }}
-                            >
-                                {effectiveHeader}
-                            </span>
-                        ) : (
-                            <span />
-                        )}
-                        {showDot && (
-                            <span
-                                aria-hidden
-                                style={{
-                                    width: Math.max(4, oneU * 0.09),
-                                    height: Math.max(4, oneU * 0.09),
-                                    borderRadius: 99,
-                                    background: F.dot ?? undefined,
-                                    flexShrink: 0,
-                                    boxShadow: `0 0 ${oneU * 0.12}px ${F.dot}`,
-                                }}
-                            />
-                        )}
-                    </div>
-
-                    {/* primary legend */}
-                    <div
-                        className="flex-1 flex items-center justify-center min-h-0"
-                        style={{ color: legendColor }}
-                    >
-                        {children}
-                    </div>
-
-                    {/* hold legend */}
-                    {holdTap && (
-                        <div
-                            className="flex items-end justify-center"
-                            style={{ height: oneU * 0.24 }}
-                        >
-                            <HoldLegend
-                                hold={holdTap.hold}
-                                color={
-                                    pressed ? 'rgba(255,255,255,.85)' : F.legend
-                                }
-                                mono={chrome.mono}
-                                maxHoldFontSize={maxHoldFontSize}
-                                hoverZoom={hoverZoom}
-                            />
+            {richTooltip && tipRows.length > 0 ? (
+                <Tooltip>
+                    <TooltipTrigger asChild>{buttonEl}</TooltipTrigger>
+                    <TooltipContent side="top" sideOffset={6}>
+                        <div className="flex flex-col gap-0.5">
+                            {tipRows.map(([k, v]) => (
+                                <div
+                                    key={k}
+                                    className="flex items-center gap-2 text-[11px] leading-tight"
+                                >
+                                    <span className="w-12 shrink-0 opacity-60">
+                                        {k}
+                                    </span>
+                                    <span className="font-medium">{v}</span>
+                                </div>
+                            ))}
                         </div>
-                    )}
-                </div>
-            </button>
+                    </TooltipContent>
+                </Tooltip>
+            ) : (
+                buttonEl
+            )}
         </div>
     )
 }
