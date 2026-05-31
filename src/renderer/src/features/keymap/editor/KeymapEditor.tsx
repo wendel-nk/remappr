@@ -12,6 +12,9 @@ export function KeymapEditor(): JSX.Element {
     const [selectedEncoder, setSelectedEncoderRaw] = useState<
         EncoderSelection | undefined
     >(undefined)
+    const [multiSelection, setMultiSelection] = useState<Set<number>>(
+        () => new Set(),
+    )
 
     const { keymap, setKeymap } = useKeymapStore()
 
@@ -38,6 +41,8 @@ export function KeymapEditor(): JSX.Element {
                 setSelectedKeyPosition={setSelectedKeyPosition}
                 selectedEncoder={selectedEncoder}
                 setSelectedEncoder={setSelectedEncoder}
+                multiSelection={multiSelection}
+                setMultiSelection={setMultiSelection}
             />
             <BindingEditor
                 keymap={keymap}

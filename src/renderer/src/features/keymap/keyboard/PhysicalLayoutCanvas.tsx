@@ -32,9 +32,20 @@ export type KeyPosition = PropsWithChildren<{
     encoder?: { slot: number; dir: 'cw' | 'ccw' }
 }>
 
+// Pattern check: no GoF pattern (-) — rejected — plain prop/callback shape additions for
+// multi-select highlight + click modifiers; data plumbing, no abstraction or polymorphism.
+/** Modifier keys held during a key click, used to drive multi-select. */
+export interface ClickModifiers {
+    shiftKey: boolean
+    metaKey: boolean
+    ctrlKey: boolean
+}
+
 interface PhysicalLayoutCanvasProps {
     positions: Array<KeyPosition>
     selectedPosition?: number
+    // Additional positions highlighted as part of a multi-selection.
+    selectedPositions?: Set<number>
     selectedEncoder?: { slot: number; dir: 'cw' | 'ccw' }
     oneU?: number
     hoverZoom?: boolean
@@ -44,7 +55,7 @@ interface PhysicalLayoutCanvasProps {
     pannable?: boolean
     // Opt-in rich hover tooltips on each key (tap/action/hold/type/press-count).
     tooltips?: boolean
-    onPositionClicked?: (position: number) => void
+    onPositionClicked?: (position: number, mods?: ClickModifiers) => void
     onEncoderClicked?: (slot: number, dir: 'cw' | 'ccw') => void
     // Right-click on a key (not encoder) → host shows a context menu at the
     // viewport coords. Skipped silently when undefined so callers that
@@ -72,6 +83,7 @@ interface View {
 export const PhysicalLayoutCanvas = ({
     positions,
     selectedPosition,
+    selectedPositions,
     selectedEncoder,
     oneU = 48,
     hoverZoom = true,
@@ -267,11 +279,12 @@ export const PhysicalLayoutCanvas = ({
             ? selectedEncoder?.slot === p.encoder!.slot &&
               selectedEncoder?.dir === p.encoder!.dir
             : idx === selectedPosition
-        const handleClick = (): void => {
+        const isMultiSelected = !isEncoder && !!selectedPositions?.has(idx)
+        const handleClick = (mods?: ClickModifiers): void => {
             if (isEncoder) {
                 onEncoderClicked?.(p.encoder!.slot, p.encoder!.dir)
             } else {
-                onPositionClicked?.(idx)
+                onPositionClicked?.(idx, mods)
             }
         }
         const handleContextMenu = (e: React.MouseEvent): void => {
@@ -285,7 +298,13 @@ export const PhysicalLayoutCanvas = ({
                 role="button"
                 tabIndex={0}
                 data-key="true"
-                onClick={handleClick}
+                onClick={(e) =>
+                    handleClick({
+                        shiftKey: e.shiftKey,
+                        metaKey: e.metaKey,
+                        ctrlKey: e.ctrlKey,
+                    })
+                }
                 onContextMenu={handleContextMenu}
                 onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
@@ -301,6 +320,7 @@ export const PhysicalLayoutCanvas = ({
                     hoverZoom={hoverZoom}
                     oneU={oneU}
                     selected={isSelected}
+                    multiSelected={isMultiSelected}
                     pressed={!isEncoder && pressedKeys.has(idx)}
                     richTooltip={tooltips && !isEncoder}
                     {...p}

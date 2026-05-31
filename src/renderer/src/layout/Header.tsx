@@ -123,6 +123,10 @@ export function Header(): JSX.Element {
                             <p>Settings</p>
                         </TooltipContent>
                     </Tooltip>
+                    <Separator
+                        orientation="vertical"
+                        className="mx-0.5 data-[orientation=vertical]:h-5"
+                    />
                     <FeatureGate feature="dynamic">
                         <Tooltip>
                             <TooltipTrigger asChild>
@@ -213,6 +217,10 @@ export function Header(): JSX.Element {
                         <LayoutSideloadAction />
                     </FeatureGate>
                     {/*<ZmkComboSideloadAction />*/}
+                    <Separator
+                        orientation="vertical"
+                        className="mx-0.5 data-[orientation=vertical]:h-5"
+                    />
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <Button variant="ghost" size="icon" asChild>
@@ -230,6 +238,10 @@ export function Header(): JSX.Element {
                             <p>GitHub Repository</p>
                         </TooltipContent>
                     </Tooltip>
+                    <Separator
+                        orientation="vertical"
+                        className="mx-0.5 data-[orientation=vertical]:h-5"
+                    />
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <span>
@@ -264,6 +276,10 @@ export function Header(): JSX.Element {
                             <p>Redo</p>
                         </TooltipContent>
                     </Tooltip>
+                    <Separator
+                        orientation="vertical"
+                        className="mx-0.5 data-[orientation=vertical]:h-5"
+                    />
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <span>

@@ -13,6 +13,7 @@ import {
     DropdownMenuTrigger,
 } from '@/ui/dropdown-menu'
 import type { DragHandlers } from '@/hooks/use-layer-drag-reorder'
+import useLayerPeekStore from '@/stores/layerPeekStore'
 
 interface LayerItem {
     id: number
@@ -48,12 +49,15 @@ export function LayerListItem({
     onRemove,
     onSaveNewLabel,
 }: LayerListItemProps): JSX.Element {
+    const setPeek = useLayerPeekStore((s) => s.setPeek)
     return (
         <SidebarMenuItem
             className={
                 (isDragOver ? 'outline outline-1 outline-accent ' : '') +
                 (isDragSource ? 'opacity-50 ' : '')
             }
+            onMouseEnter={() => setPeek(item.index)}
+            onMouseLeave={() => setPeek(null)}
             {...(dragHandlers ?? {})}
         >
             {dragHandlers && (

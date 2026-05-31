@@ -17,8 +17,11 @@ import {
 
 export type { HoldTapLabels }
 
+// pattern-check: skip — additive optional prop on existing KeyButtonProps interface
 interface KeyButtonProps {
     selected?: boolean
+    /** Part of an active multi-selection (distinct accent ring from `selected`). */
+    multiSelected?: boolean
     pressed?: boolean
     width: number
     height: number
@@ -204,6 +207,7 @@ const CAP_CHROME: Record<
 
 export const KeyButton = ({
     selected = false,
+    multiSelected = false,
     pressed = false,
     header,
     actionLabel,
@@ -262,7 +266,11 @@ export const KeyButton = ({
         ? {
               boxShadow: `0 0 0 2px var(--background), 0 0 0 4px var(--primary), 0 0 ${oneU * 0.5}px color-mix(in oklch, var(--primary) 55%, transparent)`,
           }
-        : {}
+        : multiSelected
+          ? {
+                boxShadow: `0 0 0 2px var(--background), 0 0 0 3px color-mix(in oklch, var(--primary) 70%, transparent)`,
+            }
+          : {}
     const pressedStyle: CSSProperties = pressed
         ? {
               background:

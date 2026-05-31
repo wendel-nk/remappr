@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo } from 'react'
 import { useLayout } from '@/hooks/use-layouts'
 import { PhysicalLayoutPicker } from '@/features/keymap/layout-picker/PhysicalLayoutPicker'
 import { LayerPicker } from '@/features/keymap/layer-picker/LayerPicker'
+import { KeyTypeLegend } from '@/features/keymap/keyboard/KeyTypeLegend'
 import undoRedoStore from '@/stores/undoRedoStore'
 import useConnectionStore from '@/stores/connectionStore'
 import useLayerSelectionStore from '@/stores/layerSelectionStore'
@@ -135,6 +136,9 @@ export function Drawer(): JSX.Element {
                             canRemove={(keymap.layers?.length || 0) > 1}
                         />
                     )}
+                </SidebarGroup>
+                <SidebarGroup>
+                    <KeyTypeLegend />
                 </SidebarGroup>
             </SidebarContent>
             <SidebarFooter>
