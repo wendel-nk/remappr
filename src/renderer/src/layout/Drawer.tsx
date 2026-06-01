@@ -11,14 +11,12 @@ import {
     Sidebar,
     SidebarContent,
     SidebarGroup,
-    SidebarHeader,
     SidebarFooter,
 } from '@/ui/sidebar'
 import { DeviceMenu } from '@/features/connection/device-menu/DeviceMenu'
 // pattern-check: skip — drop dead lock guards now that App-shell render-gates locked state
 import type { Keymap } from '@firmware/types'
 import { produce } from 'immer'
-import { APP_VERSION } from '@/lib/constants'
 
 // pattern-check: skip — mechanical lock-guard removal
 export function Drawer(): JSX.Element {
@@ -103,18 +101,8 @@ export function Drawer(): JSX.Element {
     }, [service, layouts, selectedPhysicalLayoutIndex, setKeymap])
 
     return (
-        <Sidebar collapsible="icon" variant="inset">
-            <SidebarHeader className="flex-col items-center gap-1">
-                <img
-                    src="/remappr.png"
-                    alt="Remappr Logo"
-                    className="h-8 rounded w-10"
-                />
-                <span className="text-[10px] text-muted-foreground group-data-[collapsible=icon]:hidden">
-                    v{APP_VERSION}
-                </span>
-            </SidebarHeader>
-            <SidebarContent>
+        <Sidebar collapsible="offcanvas" variant="sidebar">
+            <SidebarContent className="pt-2">
                 <SidebarGroup>
                     {layouts && (
                         <PhysicalLayoutPicker
@@ -137,7 +125,7 @@ export function Drawer(): JSX.Element {
                         />
                     )}
                 </SidebarGroup>
-                <SidebarGroup>
+                <SidebarGroup className="mt-auto">
                     <KeyTypeLegend />
                 </SidebarGroup>
             </SidebarContent>

@@ -2,53 +2,62 @@
 import type { PhysicalLayout, PhysicalLayoutKey } from '@firmware/types'
 
 // Renderer (`resolveBindingLabels`, `PhysicalLayoutCanvas`) expects centi-unit
-// coordinates (1u = 100). Match the ZMK convention so mock keys render at the
-// same scale as real hardware.
-const KEY_W = 100
-const KEY_H = 100
+// coordinates (1u = 100) and centi-degree rotation (8° = 800). Match the ZMK
+// convention so mock keys render at the same scale as real hardware.
+const U = 100 // one key unit, centi-units
+const STEP = 112 // key (100) + 12 gap → matches the design prototype's 1.12U pitch
+const SPLIT = 200 // gap between the two halves (2.0U)
 
-// Corne: 3 rows x (5 cols + 1 thumb cluster) x 2 halves = 36 keys.
-// Coordinates mirror the open-source Corne plate layout (no rotation).
-// Inputs are in unit-keys (col, row); values stored on PhysicalLayoutKey are
-// centi-units to match `resolveBindingLabels` / `PhysicalLayoutCanvas`.
-function row(
-    rowIndex: number,
-    leftCol: number,
-    count: number,
-): PhysicalLayoutKey[] {
+// Column stagger (pinky → inner index), centi-units. Mirrored on the right half
+// so the board reads as an ergonomic split, not a flat grid.
+const STAGGER = [30, 6, 0, 12, 24]
+
+const LEFT_W = 5 * STEP - (STEP - U) // right edge of the left 3x5 block
+const RIGHT_X = LEFT_W + SPLIT // x where the right half begins
+
+// Centre a rotation on the key itself (rx/ry default to the corner otherwise,
+// which would swing the cap out of place).
+function rotated(x: number, y: number, r: number): PhysicalLayoutKey {
+    return { x, y, w: U, h: U, r, rx: x + U / 2, ry: y + U / 2 }
+}
+
+function mainBlock(baseX: number, mirror: boolean): PhysicalLayoutKey[] {
     const keys: PhysicalLayoutKey[] = []
-    for (let i = 0; i < count; i++) {
-        keys.push({
-            x: (leftCol + i) * KEY_W,
-            y: rowIndex * KEY_H,
-            w: KEY_W,
-            h: KEY_H,
-        })
+    for (let row = 0; row < 3; row++) {
+        for (let col = 0; col < 5; col++) {
+            const stag = mirror ? STAGGER[4 - col] : STAGGER[col]
+            keys.push({
+                x: baseX + col * STEP,
+                y: row * STEP + stag,
+                w: U,
+                h: U,
+            })
+        }
     }
     return keys
 }
 
+// Thumb clusters: 3 keys per half, gently fanned and tucked below row 3.
+const THUMB_Y = 3 * STEP + 50
+const TSP = 124 // thumb spacing (> rotated diagonal so caps never overlap)
+
 function buildCorneLeft(): PhysicalLayoutKey[] {
+    const lx = 255
     return [
-        ...row(0, 0, 5),
-        ...row(1, 0, 5),
-        ...row(2, 0, 5),
-        // 3-key thumb cluster, inset
-        { x: 2 * KEY_W, y: 3 * KEY_H, w: KEY_W, h: KEY_H },
-        { x: 3 * KEY_W, y: 3 * KEY_H, w: KEY_W, h: KEY_H },
-        { x: 4 * KEY_W, y: 3 * KEY_H, w: KEY_W, h: KEY_H },
+        ...mainBlock(0, false),
+        rotated(lx, THUMB_Y + 24, 800),
+        rotated(lx + TSP, THUMB_Y + 8, 400),
+        rotated(lx + 2 * TSP, THUMB_Y, 0),
     ]
 }
 
 function buildCorneRight(): PhysicalLayoutKey[] {
-    const xOffsetCol = 7 // gap between halves (in unit-keys)
+    const rx = RIGHT_X + 20
     return [
-        ...row(0, xOffsetCol, 5),
-        ...row(1, xOffsetCol, 5),
-        ...row(2, xOffsetCol, 5),
-        { x: xOffsetCol * KEY_W, y: 3 * KEY_H, w: KEY_W, h: KEY_H },
-        { x: (xOffsetCol + 1) * KEY_W, y: 3 * KEY_H, w: KEY_W, h: KEY_H },
-        { x: (xOffsetCol + 2) * KEY_W, y: 3 * KEY_H, w: KEY_W, h: KEY_H },
+        ...mainBlock(RIGHT_X, true),
+        rotated(rx, THUMB_Y, 0),
+        rotated(rx + TSP, THUMB_Y + 8, -400),
+        rotated(rx + 2 * TSP, THUMB_Y + 24, -800),
     ]
 }
 

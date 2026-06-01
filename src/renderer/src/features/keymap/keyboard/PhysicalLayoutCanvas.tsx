@@ -19,6 +19,7 @@ export type KeyPosition = PropsWithChildren<{
     actionLabel?: string
     holdTap?: HoldTapLabels
     category?: KeyCategory
+    accentCategory?: KeyCategory
     heat?: number | null
     /** Raw lifetime press count, shown in the rich tooltip when the heatmap is on. */
     pressCount?: number | null
@@ -76,12 +77,25 @@ interface PhysicalLayoutCanvasProps {
 const MIN_ZOOM = 0.4
 const MAX_ZOOM = 3.2
 
+// Auto-fit sizes the key unit (oneU) itself — the design prototype's model —
+// instead of transform-scaling a fixed-oneU board. Rendering caps at their real
+// size keeps the 1px borders and px-fixed shadows crisp (a transform scale would
+// magnify them). The relative zoom is then a plain transform on top.
+const MIN_ONE_U = 34
+const MAX_ONE_U = 92
+const FIT_PADDING = 48
+
 const clamp = (v: number, lo: number, hi: number): number =>
     Math.min(hi, Math.max(lo, v))
 
-// User-adjusted view (absolute scale + translate from centre); null = follow auto-fit.
+// pattern-check: skip — rename View.scale→zoom + relative-zoom semantics, no new abstraction
+// User-adjusted view; null = follow auto-fit (zoom 1, no pan). `zoom` is the
+// factor *relative to the auto-fit scale* — exactly the design prototype's
+// model, where 1.0 = "fitted to the viewport" and the [0.4, 3.2] range is the
+// same no matter how big the board or viewport is. `tx`/`ty` are the pan
+// offset in viewport px (applied before the scale, like the prototype).
 interface View {
-    scale: number
+    zoom: number
     tx: number
     ty: number
 }
@@ -108,39 +122,15 @@ export const PhysicalLayoutCanvas = ({
     const ref = useRef<HTMLDivElement>(null)
     const viewportRef = useRef<HTMLDivElement>(null)
     const [scale, setScale] = useState(1)
+    // Fitted key-unit size for the pannable stage (design model). Non-pannable
+    // previews keep the fixed `oneU` prop and fit via the transform `scale`.
+    const [fitU, setFitU] = useState(oneU)
     const [view, setView] = useState<View | null>(null)
+    // True while actively panning — disables the transform transition so the
+    // board tracks the pointer 1:1 instead of easing behind it.
+    const [dragging, setDragging] = useState(false)
 
     const { zoom } = props
-
-    useLayoutEffect((): (() => void) | void => {
-        const element = ref.current
-        if (!element) return
-
-        const parent = element.parentElement
-        if (!parent) return
-
-        const calculateScale = (): void => {
-            if (zoom === 'auto') {
-                const padding =
-                    Math.min(window.innerWidth, window.innerHeight) * 0.05
-                const newScale = Math.min(
-                    parent.clientWidth / (element.clientWidth + padding * 2),
-                    parent.clientHeight / (element.clientHeight + padding * 2),
-                )
-                setScale(newScale)
-            } else {
-                setScale(zoom || 1)
-            }
-        }
-
-        calculateScale()
-
-        const resizeObserver = new ResizeObserver(calculateScale)
-        resizeObserver.observe(element)
-        resizeObserver.observe(parent)
-
-        return (): void => resizeObserver.disconnect()
-    }, [zoom])
 
     // TODO: Add a bit of padding for rotation when supported
     const { rightMost, bottomMost } = positions.reduce(
@@ -159,23 +149,79 @@ export const PhysicalLayoutCanvas = ({
         { rightMost: 0, bottomMost: 0 },
     )
 
-    const boardW = rightMost * oneU
-    const boardH = bottomMost * oneU
+    useLayoutEffect((): (() => void) | void => {
+        // Pannable stage: fit by sizing oneU (caps render at real size → crisp).
+        if (pannable) {
+            const vp = viewportRef.current
+            if (!vp || rightMost === 0 || bottomMost === 0) return
+            const fit = (): void => {
+                const u = Math.min(
+                    (vp.clientWidth - FIT_PADDING * 2) / rightMost,
+                    (vp.clientHeight - FIT_PADDING * 2) / bottomMost,
+                )
+                if (Number.isFinite(u)) {
+                    setFitU(clamp(u, MIN_ONE_U, MAX_ONE_U))
+                }
+            }
+            fit()
+            const ro = new ResizeObserver(fit)
+            ro.observe(vp)
+            return (): void => ro.disconnect()
+        }
 
-    const effScale = view ? view.scale : scale
+        // Non-pannable preview: keep the fixed oneU and fit via transform scale.
+        const element = ref.current
+        if (!element) return
+        const parent = element.parentElement
+        if (!parent) return
+        const calculateScale = (): void => {
+            if (zoom === 'auto') {
+                const padding =
+                    Math.min(window.innerWidth, window.innerHeight) * 0.05
+                setScale(
+                    Math.min(
+                        parent.clientWidth /
+                            (element.clientWidth + padding * 2),
+                        parent.clientHeight /
+                            (element.clientHeight + padding * 2),
+                    ),
+                )
+            } else {
+                setScale(zoom || 1)
+            }
+        }
+        calculateScale()
+        const resizeObserver = new ResizeObserver(calculateScale)
+        resizeObserver.observe(element)
+        resizeObserver.observe(parent)
+        return (): void => resizeObserver.disconnect()
+    }, [zoom, pannable, rightMost, bottomMost])
+
+    // Pannable caps render at the fitted oneU; previews use the fixed prop.
+    const effOneU = pannable ? fitU : oneU
+    const boardW = rightMost * effOneU
+    const boardH = bottomMost * effOneU
+
+    // For the pannable stage the board is already at its fitted size, so the
+    // transform is just the relative zoom (1 = fitted, crisp). Previews still
+    // fold the auto-fit `scale` into the transform.
+    const zoomLevel = view ? view.zoom : 1
+    const effScale = pannable ? zoomLevel : scale * zoomLevel
     const tx = view ? view.tx : 0
     const ty = view ? view.ty : 0
 
-    // Keep the board reachable: never let it be dragged fully out of the viewport.
+    // Pan clamp, ported from the design prototype: keep at least half the board
+    // (or the whole viewport, whichever is larger) within reach. `z` is the
+    // relative zoom; boardW/boardH are already at the fitted oneU.
     const clampPan = useCallback(
-        (nx: number, ny: number, s: number): { tx: number; ty: number } => {
+        (nx: number, ny: number, z: number): { tx: number; ty: number } => {
             const vp = viewportRef.current
             if (!vp) return { tx: nx, ty: ny }
-            const pw = vp.clientWidth
-            const ph = vp.clientHeight
-            const maxX = Math.max(0, (boardW * s - pw) / 2) + pw * 0.45
-            const maxY = Math.max(0, (boardH * s - ph) / 2) + ph * 0.45
-            return { tx: clamp(nx, -maxX, maxX), ty: clamp(ny, -maxY, maxY) }
+            const cw = boardW * z
+            const ch = boardH * z
+            const limX = Math.max(cw, vp.clientWidth) / 2
+            const limY = Math.max(ch, vp.clientHeight) / 2
+            return { tx: clamp(nx, -limX, limX), ty: clamp(ny, -limY, limY) }
         },
         [boardW, boardH],
     )
@@ -188,17 +234,24 @@ export const PhysicalLayoutCanvas = ({
         const onWheel = (e: WheelEvent): void => {
             e.preventDefault()
             const rect = vp.getBoundingClientRect()
-            const curS = view ? view.scale : scale
+            const curZoom = view ? view.zoom : 1
             const curTx = view ? view.tx : 0
             const curTy = view ? view.ty : 0
-            const factor = Math.exp(-e.deltaY * 0.0015)
-            const newS = clamp(curS * factor, MIN_ZOOM, MAX_ZOOM)
+            // Fixed multiplicative step per notch (design prototype), so the feel
+            // is identical on a mouse wheel and a trackpad regardless of deltaY.
+            const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12
+            const nz = clamp(curZoom * factor, MIN_ZOOM, MAX_ZOOM)
+            if (nz === curZoom) return
             const cx = e.clientX - rect.left - rect.width / 2
             const cy = e.clientY - rect.top - rect.height / 2
-            const bx = (cx - curTx) / curS
-            const by = (cy - curTy) / curS
-            const next = clampPan(cx - bx * newS, cy - by * newS, newS)
-            setView({ scale: newS, ...next })
+            // Keep the board point under the cursor fixed: k is the zoom ratio.
+            const k = nz / curZoom
+            const next = clampPan(
+                cx - (cx - curTx) * k,
+                cy - (cy - curTy) * k,
+                nz,
+            )
+            setView({ zoom: nz, ...next })
         }
         vp.addEventListener('wheel', onWheel, { passive: false })
         return (): void => vp.removeEventListener('wheel', onWheel)
@@ -212,7 +265,7 @@ export const PhysicalLayoutCanvas = ({
         startY: number
         baseTx: number
         baseTy: number
-        scale: number
+        zoom: number
         pointerId: number
     } | null>(null)
 
@@ -225,16 +278,17 @@ export const PhysicalLayoutCanvas = ({
             ) {
                 return
             }
-            const s = view ? view.scale : scale
+            const z = view ? view.zoom : 1
             drag.current = {
                 active: true,
                 startX: e.clientX,
                 startY: e.clientY,
                 baseTx: view ? view.tx : 0,
                 baseTy: view ? view.ty : 0,
-                scale: s,
+                zoom: z,
                 pointerId: e.pointerId,
             }
+            setDragging(true)
             viewportRef.current?.setPointerCapture(e.pointerId)
         },
         [view, scale],
@@ -247,9 +301,9 @@ export const PhysicalLayoutCanvas = ({
             const next = clampPan(
                 d.baseTx + (e.clientX - d.startX),
                 d.baseTy + (e.clientY - d.startY),
-                d.scale,
+                d.zoom,
             )
-            setView({ scale: d.scale, ...next })
+            setView({ zoom: d.zoom, ...next })
         },
         [clampPan],
     )
@@ -259,6 +313,7 @@ export const PhysicalLayoutCanvas = ({
             viewportRef.current?.releasePointerCapture(drag.current.pointerId)
             drag.current.active = false
         }
+        setDragging(false)
         void e
     }, [])
 
@@ -270,20 +325,21 @@ export const PhysicalLayoutCanvas = ({
 
     const zoomBy = useCallback(
         (factor: number): void => {
-            const s = view ? view.scale : scale
-            const newS = clamp(s * factor, MIN_ZOOM, MAX_ZOOM)
+            const curZoom = view ? view.zoom : 1
+            const nz = clamp(curZoom * factor, MIN_ZOOM, MAX_ZOOM)
+            const k = nz / curZoom
             const next = clampPan(
-                (view ? view.tx : 0) * (newS / s),
-                (view ? view.ty : 0) * (newS / s),
-                newS,
+                (view ? view.tx : 0) * k,
+                (view ? view.ty : 0) * k,
+                nz,
             )
-            setView({ scale: newS, ...next })
+            setView({ zoom: nz, ...next })
         },
-        [view, scale, clampPan],
+        [view, clampPan],
     )
 
     const keysPositions = positions.map((p, idx) => {
-        const posStyle = scalePosition(p, oneU)
+        const posStyle = scalePosition(p, effOneU)
         const isEncoder = !!p.encoder
         const isSelected = isEncoder
             ? selectedEncoder?.slot === p.encoder!.slot &&
@@ -328,7 +384,7 @@ export const PhysicalLayoutCanvas = ({
             >
                 <KeyButton
                     hoverZoom={hoverZoom}
-                    oneU={oneU}
+                    oneU={effOneU}
                     selected={isSelected}
                     multiSelected={isMultiSelected}
                     pressed={!isEncoder && pressedKeys.has(idx)}
@@ -350,10 +406,14 @@ export const PhysicalLayoutCanvas = ({
                 {
                     height: boardH + 'px',
                     width: boardW + 'px',
-                    transform: `translate(${tx}px, ${ty}px) scale(${effScale}) translateZ(0)`,
+                    // Plain 2D transform — no translateZ/will-change/backface
+                    // hints. Those promote the board to a composited layer with a
+                    // fixed-resolution backing store, so zooming in scales a cached
+                    // bitmap and the keycaps go blurry. Without them the browser
+                    // re-rasterises the vector content crisply at every zoom level.
+                    transform: `translate(${tx}px, ${ty}px) scale(${effScale})`,
                     transformOrigin: 'center',
-                    backfaceVisibility: 'hidden',
-                    willChange: 'transform',
+                    transition: dragging ? 'none' : 'transform .08s ease-out',
                 } as React.CSSProperties
             }
             ref={ref}
@@ -365,7 +425,8 @@ export const PhysicalLayoutCanvas = ({
 
     if (!pannable) return <>{board}</>
 
-    const livePct = Math.round(effScale * 100)
+    // Show zoom relative to fit (100% = fitted), matching the design prototype.
+    const livePct = Math.round(zoomLevel * 100)
     return (
         <div
             ref={viewportRef}
@@ -379,15 +440,15 @@ export const PhysicalLayoutCanvas = ({
             {board}
             <div
                 data-zoomhud="true"
-                className="absolute bottom-3 right-3 flex items-center gap-1 rounded-lg border border-border bg-background/80 px-1 py-1 shadow-sm backdrop-blur"
+                className="absolute top-3 right-3 flex items-center gap-1 rounded-lg border border-border bg-card px-1 py-1 shadow-sm"
             >
-                <ZoomButton label="Zoom out" onClick={() => zoomBy(1 / 1.2)}>
+                <ZoomButton label="Zoom out" onClick={() => zoomBy(1 / 1.15)}>
                     <Minus className="size-4" />
                 </ZoomButton>
                 <span className="min-w-12 text-center text-xs font-mono tabular-nums text-muted-foreground">
                     {livePct}%
                 </span>
-                <ZoomButton label="Zoom in" onClick={() => zoomBy(1.2)}>
+                <ZoomButton label="Zoom in" onClick={() => zoomBy(1.15)}>
                     <Plus className="size-4" />
                 </ZoomButton>
                 <ZoomButton label="Reset view" onClick={() => setView(null)}>

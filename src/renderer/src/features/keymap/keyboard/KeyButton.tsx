@@ -30,8 +30,15 @@ interface KeyButtonProps {
     header?: string
     actionLabel?: string
     holdTap?: HoldTapLabels
-    /** Function category used for colour-coding (alpha/mod/layer/…). */
+    /** Face (cap-fill) category — tints the cap, the dot and the tap legend. */
     category?: KeyCategory
+    /**
+     * Accent (function) category — colours the header tag + hold legend only.
+     * For a home-row mod this is `mod` while {@link category} stays `alpha`, so
+     * the cap face is neutral and only the text is accented (design behaviour).
+     * Defaults to {@link category} when omitted.
+     */
+    accentCategory?: KeyCategory
     /** Normalised press intensity 0–1 for the heatmap overlay, or null when off. */
     heat?: number | null
     /** Raw lifetime press count, surfaced in the rich tooltip when the heatmap is on. */
@@ -69,15 +76,44 @@ function makeSize(
     } as CSSProperties
 }
 
-// Resolved colours for a cap face, derived from category tint or heatmap value.
+// pattern-check: skip — verbatim port of the design's face/chrome helpers, pure mappers
+// Resolved cap-surface colours, ported 1:1 from the design's KeyCap.computeFaces:
+// every style consumes the same concrete set (skirt + face gradients, legend,
+// edge, dot). Neutral keys use a fixed dark-grey set so the caps look like real
+// (dark) keycaps in any theme — exactly the prototype.
 interface FaceColors {
-    face: string | null
-    faceTop: string | null
-    edge: string | null
+    skirtTop: string
+    skirtBot: string
+    faceTop: string
+    face: string
     legend: string
+    edge: string
     dot: string | null
-    neutral: boolean
     heat: boolean
+}
+
+// Shift the lightness channel of an `oklch(L C H)` string by `delta`, clamped.
+function shiftLightness(
+    color: string,
+    delta: number,
+    lo: number,
+    hi = 1,
+): string {
+    return color.replace(
+        /oklch\(([\d.]+)/,
+        (_m, l: string) =>
+            `oklch(${Math.min(hi, Math.max(lo, parseFloat(l) + delta))}`,
+    )
+}
+
+const NEUTRAL_FACES: Omit<FaceColors, 'heat'> = {
+    skirtTop: 'oklch(0.305 0 0)',
+    skirtBot: 'oklch(0.25 0 0)',
+    faceTop: 'oklch(0.35 0 0)',
+    face: 'oklch(0.30 0 0)',
+    legend: 'oklch(0.93 0 0)',
+    edge: 'oklch(0.46 0 0)',
+    dot: null,
 }
 
 function resolveFaceColors(
@@ -88,69 +124,66 @@ function resolveFaceColors(
     if (heat != null) {
         const hc = heatColor(heat)
         return {
+            skirtTop: hc.face,
+            skirtBot: shiftLightness(hc.face, -0.06, 0.12),
+            faceTop: shiftLightness(hc.face, 0.05, 0, 0.8),
             face: hc.face,
-            faceTop: hc.face,
-            edge: hc.edge,
             legend: 'oklch(0.98 0 0)',
+            edge: hc.edge,
             dot: null,
-            neutral: false,
             heat: true,
         }
     }
     const cs = catStyle(category, colorMode)
+    if (!cs.face) return { ...NEUTRAL_FACES, heat: false }
     return {
-        face: cs.face,
+        skirtTop: cs.face,
+        skirtBot: shiftLightness(cs.face, -0.05, 0.18),
         faceTop: cs.faceTop ?? cs.face,
-        edge: cs.edge,
+        face: cs.face,
         legend: cs.legend,
+        edge: cs.edge ?? NEUTRAL_FACES.edge,
         dot: cs.dot,
-        neutral: cs.face == null,
         heat: false,
     }
 }
 
 interface CapChrome {
-    /** Tailwind classes applied to the cap button (neutral theming, borders). */
+    /** Tailwind classes applied to the cap button. */
     className: string
-    /** Inline style for the tinted cap surface. */
+    /** Inline style for the cap surface. */
     style: CSSProperties
-    /** Optional sculpted "face" element rendered above the skirt. */
+    /** Sculpted "face" element rendered above the skirt. */
     face?: CSSProperties
     /** Left accent bar (mono style). */
     accentBar?: CSSProperties
     mono: boolean
 }
 
-// One builder per cap style — the Strategy set.
+// One builder per cap style — ported verbatim from the design's KeyCap.
 const CAP_CHROME: Record<
     'flat' | 'sculpted' | 'mono' | 'glass',
     (F: FaceColors, oneU: number) => CapChrome
 > = {
     flat: (F, oneU) => ({
-        className: F.neutral ? 'bg-secondary border border-border' : 'border',
+        className: '',
         style: {
             borderRadius: Math.max(4, oneU * 0.12),
-            ...(F.neutral
-                ? {}
-                : {
-                      background: `linear-gradient(180deg, ${F.faceTop}, ${F.face})`,
-                      borderColor: F.heat
-                          ? (F.edge ?? 'var(--border)')
-                          : 'color-mix(in oklch, var(--border) 70%, transparent)',
-                  }),
+            background: F.heat
+                ? F.face
+                : `linear-gradient(180deg, ${F.faceTop}, ${F.face})`,
+            border: `1px solid ${F.heat ? F.edge : 'var(--border)'}`,
             boxShadow: 'inset 0 1px 0 rgba(255,255,255,.06)',
         },
         mono: false,
     }),
     sculpted: (F, oneU) => {
         const rad = Math.max(5, oneU * 0.15)
-        const skirtTop = F.neutral ? 'oklch(0.305 0 0)' : F.faceTop
-        const skirtBot = F.neutral ? 'oklch(0.25 0 0)' : F.face
         return {
             className: '',
             style: {
                 borderRadius: rad,
-                background: `linear-gradient(180deg, ${skirtTop}, ${skirtBot})`,
+                background: `linear-gradient(180deg, ${F.skirtTop}, ${F.skirtBot})`,
                 boxShadow: `0 ${oneU * 0.045}px ${oneU * 0.11}px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.05)`,
             },
             face: {
@@ -160,9 +193,7 @@ const CAP_CHROME: Record<
                 right: oneU * 0.085,
                 bottom: oneU * 0.155,
                 borderRadius: rad * 0.7,
-                background: F.neutral
-                    ? 'linear-gradient(180deg, oklch(0.35 0 0), oklch(0.30 0 0))'
-                    : `linear-gradient(180deg, ${F.faceTop}, ${F.face})`,
+                background: `linear-gradient(180deg, ${F.faceTop}, ${F.face})`,
                 boxShadow:
                     'inset 0 1px 0 rgba(255,255,255,.10), 0 1px 2px rgba(0,0,0,.28)',
             },
@@ -170,13 +201,15 @@ const CAP_CHROME: Record<
         }
     },
     mono: (F, oneU) => ({
-        className: 'border border-border overflow-hidden',
+        className: '',
         style: {
             borderRadius: Math.max(4, oneU * 0.11),
-            background: F.heat ? (F.face ?? undefined) : 'oklch(0.245 0 0)',
+            background: F.heat ? F.face : 'oklch(0.245 0 0)',
+            border: '1px solid var(--border)',
+            overflow: 'hidden',
         },
         accentBar:
-            F.neutral || !F.edge
+            F.heat || !F.dot
                 ? undefined
                 : {
                       position: 'absolute',
@@ -193,14 +226,10 @@ const CAP_CHROME: Record<
         className: '',
         style: {
             borderRadius: Math.max(5, oneU * 0.16),
-            background: F.neutral
-                ? 'color-mix(in oklch, var(--secondary) 55%, transparent)'
+            background: F.heat
+                ? F.face
                 : `linear-gradient(160deg, color-mix(in oklch, ${F.faceTop} 70%, transparent), color-mix(in oklch, ${F.face} 46%, transparent))`,
-            border: `1px solid ${
-                F.edge
-                    ? `color-mix(in oklch, ${F.edge} 60%, transparent)`
-                    : 'color-mix(in oklch, var(--border) 60%, transparent)'
-            }`,
+            border: `1px solid color-mix(in oklch, ${F.edge} 60%, transparent)`,
             backdropFilter: 'blur(6px)',
             boxShadow:
                 'inset 0 1px 0 rgba(255,255,255,.18), 0 6px 18px rgba(0,0,0,.32)',
@@ -219,6 +248,7 @@ export const KeyButton = ({
     hoverZoom = true,
     holdTap,
     category = 'alpha',
+    accentCategory,
     heat = null,
     pressCount = null,
     richTooltip = false,
@@ -229,8 +259,11 @@ export const KeyButton = ({
     ...props
 }: PropsWithChildren<KeyButtonProps>): JSX.Element => {
     const size = makeSize(props, oneU)
-    const maxChildFontSize = Math.max(10, oneU / 2.5)
-    const maxHoldFontSize = Math.max(8, oneU / 4)
+    // Match the design prototype: a plain tap legend fills ~0.44U, but when a
+    // hold legend shares the cap the tap shrinks to ~0.34U and the hold to
+    // ~0.175U so the two never collide.
+    const maxChildFontSize = Math.max(10, oneU * (holdTap ? 0.34 : 0.44))
+    const maxHoldFontSize = Math.max(8, oneU * 0.175)
     const firmware = useConnectionStore((s) => s.service?.deviceInfo.firmware)
     const keyDisplayModeMap = useUserSettingsStore((s) => s.keyDisplayMode)
     const capStyleSetting = useUserSettingsStore((s) => s.capStyle)
@@ -242,6 +275,7 @@ export const KeyButton = ({
         keyDisplayModeMap['_default'] ??
         'displayName'
 
+    const headerHidden = keyDisplayMode === 'hidden'
     const effectiveHeader =
         keyDisplayMode === 'binding' && actionLabel ? actionLabel : header
     const isBindingMode = keyDisplayMode === 'binding' && !!actionLabel
@@ -264,8 +298,18 @@ export const KeyButton = ({
 
     const F = resolveFaceColors(category, colorMode, heat)
     const chrome = CAP_CHROME[capStyle](F, oneU)
-    const showDot = showCategoryDot && !!F.dot && !F.heat && !chrome.mono
-    const showColor = !F.neutral || F.heat
+    const showDot = showCategoryDot && !!F.dot && !F.heat
+
+    // Accent colour (header tag + hold legend). Falls back to the face category.
+    // Only categories with a hue (mod/layer/punct/…) tint the text; alpha/space
+    // and `off` mode leave it neutral — so a home-row mod's header is violet
+    // while its cap face stays grey.
+    const accentCat = accentCategory ?? category
+    const accentColored =
+        colorMode !== 'off' && CATEGORY_META[accentCat]?.hue != null
+    const accentLegend = accentColored
+        ? catStyle(accentCat, colorMode).legend
+        : null
 
     // Selected ring + pressed (live) state stack on top of the cap chrome.
     const ringStyle: CSSProperties = selected
@@ -288,9 +332,11 @@ export const KeyButton = ({
     const legendColor = pressed ? '#fff' : F.legend
     const headerColor = pressed
         ? 'rgba(255,255,255,.82)'
-        : showColor
-          ? `color-mix(in oklch, ${F.legend} 92%, transparent)`
-          : 'color-mix(in oklch, var(--foreground) 44%, transparent)'
+        : F.heat
+          ? 'rgba(255,255,255,.78)'
+          : accentLegend
+            ? `color-mix(in oklch, ${accentLegend} 92%, transparent)`
+            : 'color-mix(in oklch, var(--foreground) 44%, transparent)'
 
     const tapNode = holdTap ? holdTap.tap : props.children
     const children = Children.map(
@@ -345,7 +391,7 @@ export const KeyButton = ({
                     className="flex items-center justify-between leading-none"
                     style={{ height: oneU * 0.16 }}
                 >
-                    {showHeaderTag && effectiveHeader ? (
+                    {showHeaderTag && !headerHidden && effectiveHeader ? (
                         <span
                             className={`leading-none whitespace-nowrap overflow-hidden ${
                                 chrome.mono || isBindingMode
@@ -370,9 +416,9 @@ export const KeyButton = ({
                                 width: Math.max(4, oneU * 0.09),
                                 height: Math.max(4, oneU * 0.09),
                                 borderRadius: 99,
-                                background: F.dot ?? undefined,
+                                background: F.edge,
                                 flexShrink: 0,
-                                boxShadow: `0 0 ${oneU * 0.12}px ${F.dot}`,
+                                boxShadow: `0 0 ${oneU * 0.12}px ${F.edge}`,
                             }}
                         />
                     )}
@@ -381,7 +427,13 @@ export const KeyButton = ({
                 {/* primary legend */}
                 <div
                     className="flex-1 flex items-center justify-center min-h-0"
-                    style={{ color: legendColor }}
+                    style={{
+                        color: legendColor,
+                        textShadow:
+                            capStyle === 'sculpted' && !F.heat
+                                ? '0 1px 1px rgba(0,0,0,.35)'
+                                : 'none',
+                    }}
                 >
                     {children}
                 </div>
@@ -394,7 +446,11 @@ export const KeyButton = ({
                     >
                         <HoldLegend
                             hold={holdTap.hold}
-                            color={pressed ? 'rgba(255,255,255,.85)' : F.legend}
+                            color={
+                                pressed
+                                    ? 'rgba(255,255,255,.85)'
+                                    : (accentLegend ?? F.legend)
+                            }
                             mono={chrome.mono}
                             maxHoldFontSize={maxHoldFontSize}
                             hoverZoom={hoverZoom}
@@ -443,7 +499,6 @@ function HoldLegend({
     color,
     mono,
     maxHoldFontSize,
-    hoverZoom,
 }: {
     hold: React.ReactNode
     color: string
@@ -451,23 +506,24 @@ function HoldLegend({
     maxHoldFontSize: number
     hoverZoom?: boolean
 }): JSX.Element {
+    // The separator line is the span's own top border, so it spans only the
+    // hold word (plus a little side padding) and sits below the tap letter —
+    // matching the design. A full-width line would slice through the legend.
     return (
-        <div
-            className="flex items-center justify-center w-full leading-none"
+        <span
+            className={`max-w-full overflow-hidden text-ellipsis whitespace-nowrap leading-none ${
+                mono ? 'font-mono' : 'font-keycap'
+            }`}
             style={{
                 color,
                 borderTop: `1px solid color-mix(in oklch, ${color} 35%, transparent)`,
                 paddingTop: 1,
+                paddingInline: maxHoldFontSize * 0.34,
+                fontSize: maxHoldFontSize,
+                fontWeight: 700,
             }}
         >
-            <KeyLabel
-                maxFontSize={maxHoldFontSize}
-                minFontSize={4}
-                className={mono ? 'font-mono' : 'font-keycap'}
-                hoverZoom={hoverZoom}
-            >
-                {hold}
-            </KeyLabel>
-        </div>
+            {hold}
+        </span>
     )
 }

@@ -42,7 +42,7 @@ export const LayerPicker = ({
 }: LayerPickerProps): JSX.Element => {
     const { selectedLayerIndex, setSelectedLayerIndex } =
         useLayerSelectionStore()
-    const { add, remove, handleSaveNewLabel, selectionChanged } =
+    const { add, duplicate, remove, handleSaveNewLabel, selectionChanged } =
         useLayerActions({ keymap, setKeymap })
     const { dragSourceIndex, dragOverIndex, handlersFor } = useLayerDragReorder(
         { setKeymap },
@@ -83,7 +83,9 @@ export const LayerPicker = ({
 
     return (
         <>
-            <SidebarGroupLabel>Layers</SidebarGroupLabel>
+            <SidebarGroupLabel className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
+                Layers
+            </SidebarGroupLabel>
             <SidebarGroupAction
                 title="Add Layer"
                 onClick={add}
@@ -100,7 +102,7 @@ export const LayerPicker = ({
                     </TooltipContent>
                 </Tooltip>
             </SidebarGroupAction>
-            <SidebarMenu>
+            <SidebarMenu className="gap-[3px]">
                 {layersArray.map((item) => (
                     <LayerListItem
                         key={item.id ?? item.index}
@@ -115,10 +117,20 @@ export const LayerPicker = ({
                             onLayerClicked?.(idx)
                         }}
                         onRemove={remove}
+                        onDuplicate={duplicate}
                         onSaveNewLabel={handleSaveNewLabel}
                     />
                 ))}
             </SidebarMenu>
+            {/* Dashed add-layer affordance, matching the design's list footer. */}
+            <button
+                type="button"
+                onClick={add}
+                disabled={!canAdd}
+                className="mt-1 flex w-full items-center gap-2 rounded-[9px] border border-dashed border-sidebar-border px-2.5 py-2 text-[13px] font-semibold text-muted-foreground transition-colors hover:border-primary hover:text-foreground disabled:cursor-default disabled:opacity-40 disabled:hover:border-sidebar-border disabled:hover:text-muted-foreground"
+            >
+                <Plus className="size-4" /> Add layer
+            </button>
         </>
     )
 }

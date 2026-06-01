@@ -42,6 +42,13 @@ export const CATEGORY_META: Record<
     trans: { label: 'Pass-thru', hue: null },
 }
 
+// pattern-check: skip — hoisting a pure helper above an existing interface
+// Per-layer accent hues (Base/Lower/Raise/Nav…), matching the design's
+// LAYER_ACCENTS. Shared by the layer picker, the colour rail, and the stage pill.
+export const LAYER_ACCENT_HUES = [286, 210, 152, 80]
+export const layerAccent = (index: number): string =>
+    `oklch(0.7 0.15 ${LAYER_ACCENT_HUES[index % LAYER_ACCENT_HUES.length]})`
+
 export interface CategoryStyle {
     /** legend / text colour */
     legend: string
@@ -151,11 +158,13 @@ export interface BindingCategoryInput {
     holdIsLayer?: boolean
 }
 
+// pattern-check: skip — splits one classifier into face/accent variants, pure mapper, no abstraction
 /**
- * Classify a key by its dominant function.
+ * Accent (function) category — drives the header tag + hold-legend colour only.
  *
- * For tap-hold keys the *hold* function dominates the tint (a home-row mod reads as a
- * modifier, a layer-tap reads as a layer) — matching the design's action-tag rule.
+ * For tap-hold keys the *hold* function dominates (a home-row mod reads as a
+ * modifier, a layer-tap reads as a layer) — matching the design's action-tag
+ * rule. This is NOT the cap face tint; see {@link faceCategoryForBinding}.
  */
 export function categoryForBinding(b: BindingCategoryInput): KeyCategory {
     if (b.outOfRange) return 'trans'
@@ -171,6 +180,30 @@ export function categoryForBinding(b: BindingCategoryInput): KeyCategory {
     if (prefix && LAYER_PREFIXES.has(prefix)) return 'layer'
     if (prefix && MOUSE_PREFIXES.has(prefix)) return 'mouse'
 
+    return categoryForUsage(b.bindingParam1)
+}
+
+/**
+ * Face (cap-fill) category — drives the keycap tint, the category dot and the
+ * tap-legend colour.
+ *
+ * Unlike {@link categoryForBinding}, a tap-hold key's face follows its *tap*
+ * key, so a home-row mod on `A` is a neutral alpha cap and a layer-tap on Space
+ * stays a neutral space cap — exactly the design, which only accents the header
+ * and hold legend. Pure function keys (a bare layer or mouse behaviour) still
+ * tint the whole cap.
+ */
+export function faceCategoryForBinding(b: BindingCategoryInput): KeyCategory {
+    if (b.outOfRange) return 'trans'
+    const prefix = b.actionLabel?.trim().toLowerCase()
+    if (prefix === '&trans' || prefix === '&none') return 'trans'
+    // Tap-hold: classify by the tap key alone, leaving the face neutral when the
+    // tap is an alpha/space cap.
+    if (b.isHoldTap || prefix === '&mt' || prefix === '&lt') {
+        return categoryForUsage(b.bindingParam1)
+    }
+    if (prefix && LAYER_PREFIXES.has(prefix)) return 'layer'
+    if (prefix && MOUSE_PREFIXES.has(prefix)) return 'mouse'
     return categoryForUsage(b.bindingParam1)
 }
 

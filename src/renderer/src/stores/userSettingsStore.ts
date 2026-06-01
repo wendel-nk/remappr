@@ -2,7 +2,7 @@
 import { create } from 'zustand'
 import { createJSONStorage, devtools, persist } from 'zustand/middleware'
 
-export type KeyDisplayMode = 'displayName' | 'binding'
+export type KeyDisplayMode = 'displayName' | 'binding' | 'hidden'
 export type AdapterCategory = 'zmk' | 'qmk'
 export type CapStyle = 'flat' | 'sculpted' | 'mono' | 'glass'
 export type ColorCodingMode = 'off' | 'subtle' | 'vivid'
@@ -43,7 +43,7 @@ const useUserSettingsStore = create<UserSettingsState>()(
                 autoLoadLayout: false,
                 keyDisplayMode: {},
                 preferredAdapterCategory: 'zmk',
-                capStyle: 'flat',
+                capStyle: 'sculpted',
                 colorMode: 'subtle',
                 workspace: 'workbench',
                 setCapStyle: (capStyle) => set({ capStyle }),
@@ -74,7 +74,7 @@ const useUserSettingsStore = create<UserSettingsState>()(
             {
                 name: 'user-settings-store',
                 storage: createJSONStorage(() => localStorage),
-                version: 5,
+                version: 6,
                 migrate: (persisted: unknown, version: number) => {
                     if (!persisted || typeof persisted !== 'object') {
                         return persisted as Partial<UserSettingsState>
@@ -105,7 +105,7 @@ const useUserSettingsStore = create<UserSettingsState>()(
                             cap !== 'mono' &&
                             cap !== 'glass'
                         ) {
-                            p.capStyle = 'flat'
+                            p.capStyle = 'sculpted'
                         }
                         const cm = p.colorMode
                         if (cm !== 'off' && cm !== 'subtle' && cm !== 'vivid') {
@@ -120,6 +120,14 @@ const useUserSettingsStore = create<UserSettingsState>()(
                             ws !== 'command'
                         ) {
                             p.workspace = 'workbench'
+                        }
+                    }
+                    if (version < 6) {
+                        // Design refresh: the redesigned sculpted keycap is now the
+                        // default. Move the old default ('flat') over; leave a
+                        // deliberately-chosen mono/glass/sculpted alone.
+                        if (p.capStyle === 'flat') {
+                            p.capStyle = 'sculpted'
                         }
                     }
                     return p as Partial<UserSettingsState>

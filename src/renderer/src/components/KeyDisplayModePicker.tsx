@@ -28,6 +28,7 @@ export function KeyDisplayModePicker(): JSX.Element {
             <SelectContent>
                 <SelectItem value="displayName">Action name</SelectItem>
                 <SelectItem value="binding">Binding code</SelectItem>
+                <SelectItem value="hidden">Hidden</SelectItem>
             </SelectContent>
         </Select>
     )

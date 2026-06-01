@@ -116,10 +116,15 @@ function App(): JSX.Element {
         return () => document.body.classList.remove('app-electron')
     }, [isElectron])
 
+    const showEditor =
+        !!service && !(service.capabilities.lock && !isUnlocked(lockState))
+
     return (
         <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
             <div className="flex h-screen flex-col overflow-hidden">
-                <TitleBar />
+                {/* In the editor the window controls are merged into the 52px header;
+                    elsewhere (start page / locked overlay) we still need a drag bar. */}
+                {!showEditor && <TitleBar />}
                 <div className="flex-1 min-h-0 overflow-hidden">
                     {service ? (
                         service.capabilities.lock && !isUnlocked(lockState) ? (
@@ -132,10 +137,9 @@ function App(): JSX.Element {
                                     className="!min-h-0 h-full"
                                     style={
                                         {
-                                            '--sidebar-width':
-                                                'calc(var(--spacing) * 72)',
+                                            '--sidebar-width': '15.5rem',
                                             '--header-height':
-                                                'calc(var(--spacing) * 12)',
+                                                'calc(var(--spacing) * 13)',
                                             '--footer-height':
                                                 'calc(var(--spacing) * 8)',
                                         } as React.CSSProperties

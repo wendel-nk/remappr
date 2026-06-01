@@ -11,8 +11,10 @@ interface UseLayerActionsArgs {
     setKeymap?: (updater: (draft: Keymap) => void) => void
 }
 
+// pattern-check: skip — additive callback field on existing result interface
 interface UseLayerActionsResult {
     add: () => void
+    duplicate: (layerIndex: number) => void
     remove: (layerIndex: number) => void
     changeLayerName: (id: number, oldName: string, newName: string) => void
     handleSaveNewLabel: (
@@ -65,6 +67,67 @@ export function useLayerActions({
             }
         })
     }, [service, doIt, keymap, setKeymap, setSelectedLayerIndex])
+
+    // pattern-check: skip — additive callback mirroring add(); copies source bindings
+    const duplicate = useCallback(
+        (layerIndex: number): void => {
+            if (!service || !setKeymap || !keymap) return
+            const source = keymap.layers[layerIndex]
+            if (!source) return
+            const copyName = `${source.name} copy`
+            const sourceKeys = source.keys.map((k) => ({ ...k }))
+            doIt?.(async () => {
+                try {
+                    const newLayer = await service.addLayer()
+                    if (sourceKeys.length) {
+                        await service.setKeys(
+                            sourceKeys.map((action, position) => ({
+                                layerId: newLayer.id,
+                                position,
+                                action,
+                            })),
+                        )
+                    }
+                    try {
+                        await service.renameLayer(newLayer.id, copyName)
+                    } catch (e) {
+                        console.error('Failed to name duplicated layer', e)
+                    }
+                    const insertIndex = keymap.layers.length
+                    setKeymap((draft) => {
+                        draft.layers.push({
+                            ...newLayer,
+                            name: copyName,
+                            keys: sourceKeys,
+                            encoders: source.encoders,
+                        })
+                        draft.availableLayers--
+                    })
+                    setSelectedLayerIndex(insertIndex)
+                    return async () => {
+                        try {
+                            await service.removeLayer(newLayer.id)
+                            setKeymap((draft) => {
+                                const i = draft.layers.findIndex(
+                                    (l) => l.id === newLayer.id,
+                                )
+                                if (i >= 0) {
+                                    draft.layers.splice(i, 1)
+                                    draft.availableLayers++
+                                }
+                            })
+                        } catch (e) {
+                            console.error('Failed to undo duplicate layer', e)
+                        }
+                    }
+                } catch (e) {
+                    console.error('Failed to duplicate layer', e)
+                    return async () => {}
+                }
+            })
+        },
+        [service, doIt, keymap, setKeymap, setSelectedLayerIndex],
+    )
 
     const remove = useCallback(
         (layerIndex: number): void => {
@@ -175,6 +238,7 @@ export function useLayerActions({
 
     return {
         add,
+        duplicate,
         remove,
         changeLayerName,
         handleSaveNewLabel,

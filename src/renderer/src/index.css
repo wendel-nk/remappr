@@ -13,6 +13,18 @@
         src: url('/Inter.woff2') format('woff2');
         font-display: fallback;
     }
+    @font-face {
+        font-family: 'JetBrains Mono';
+        src: url('/jetbrains-mono-latin-400-normal.woff2') format('woff2');
+        font-weight: 400;
+        font-display: fallback;
+    }
+    @font-face {
+        font-family: 'JetBrains Mono';
+        src: url('/jetbrains-mono-latin-700-normal.woff2') format('woff2');
+        font-weight: 700;
+        font-display: fallback;
+    }
 }
 
 /*html {*/
@@ -76,7 +88,7 @@
         'Noto Color Emoji';
     --font-serif: ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif;
     --font-mono:
-        ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+        'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
         'Liberation Mono', 'Courier New', monospace;
     --radius: 0.625rem;
     --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
@@ -136,7 +148,7 @@
         'Noto Color Emoji';
     --font-serif: ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif;
     --font-mono:
-        ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+        'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
         'Liberation Mono', 'Courier New', monospace;
     --radius: 0.625rem;
     --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
@@ -224,16 +236,5 @@
         image-rendering: crisp-edges;
         image-rendering: -webkit-optimize-contrast;
         backface-visibility: hidden;
-    }
-
-    /* Offset shadcn sidebar below custom titlebar (electron only) */
-    body.app-electron [data-slot='sidebar-container'],
-    body.app-electron [data-slot='sidebar-gap'] {
-        top: 2.25rem !important;
-        height: calc(100svh - 2.25rem) !important;
-    }
-
-    body.app-electron [class~='group/sidebar-wrapper'] {
-        min-height: calc(100svh - 2.25rem) !important;
     }
 }

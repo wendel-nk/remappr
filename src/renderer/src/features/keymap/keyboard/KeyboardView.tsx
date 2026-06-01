@@ -2,15 +2,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { produce } from 'immer'
 import { toast } from 'sonner'
-import {
-    Activity,
-    Eraser,
-    Flame,
-    Layers,
-    RotateCcw,
-    Wand2,
-    X,
-} from 'lucide-react'
+import { Eraser, Layers, RotateCcw, Wand2, X } from 'lucide-react'
 import type { ActionType, KeyAction, Keymap } from '@firmware/types'
 import {
     PhysicalLayoutCanvas,
@@ -29,19 +21,23 @@ import {
 import { Modal } from '@/ui/modal'
 import type { WorkspaceMode } from '@/stores/userSettingsStore'
 import type { CatalogEntry } from '@firmware/catalog/types'
-import { useLocalStorageState } from '@/hooks/use-local-storage-state'
 import { useLayout } from '@/hooks/use-layouts'
 import useConnectionStore from '@/stores/connectionStore'
 import useLayerSelectionStore from '@/stores/layerSelectionStore'
 import useKeymapStore from '@/stores/keymapStore'
 import useClipboardStore from '@/stores/clipboardStore'
 import useHeatmapStore from '@/stores/heatmapStore'
+import useLiveViewStore from '@/stores/liveViewStore'
 import useLayerPeekStore from '@/stores/layerPeekStore'
 import undoRedoStore from '@/stores/undoRedoStore'
 import { useKeypressDetection } from '@/hooks/use-keypress-detection'
 import type { KeypressDetectionConfig } from '@/lib/keypress/keypressDetector'
 import { resolveBindingLabels, type ResolvedHoldTapDescriptor } from '@firmware'
-import { categoryForBinding } from '@/lib/keymap/keyCategory'
+import {
+    categoryForBinding,
+    faceCategoryForBinding,
+    layerAccent,
+} from '@/lib/keymap/keyCategory'
 
 /** Nearest key (by centre geometry) to `from` in a direction; null if none. */
 function neighborInDirection(
@@ -177,14 +173,11 @@ export default function KeyboardView({
 
     const heatmapEnabled = useHeatmapStore((s) => s.enabled)
     const heatmapCounts = useHeatmapStore((s) => s.counts)
-    const toggleHeatmap = useHeatmapStore((s) => s.toggle)
     const incrementHeat = useHeatmapStore((s) => s.increment)
     const resetHeat = useHeatmapStore((s) => s.reset)
 
-    const [liveView, setLiveView] = useLocalStorageState<boolean>(
-        'liveView',
-        true,
-    )
+    // Heatmap + live toggles now live in the header toolbar; the stage only reflects state.
+    const liveView = useLiveViewStore((s) => s.enabled)
 
     const [pressedKeys, setPressedKeys] = useState<Set<number>>(new Set())
     // Mirror of pressedKeys for the heat-count repeat guard (keydown auto-repeats).
@@ -326,7 +319,18 @@ export default function KeyboardView({
             header: p.header,
             actionLabel: p.actionLabel,
             holdTap: p.holdTap ? holdTapToLabels(p.holdTap) : undefined,
-            category: categoryForBinding({
+            // Face tint follows the tap key; the header tag + hold legend follow
+            // the hold/function category. A home-row mod is thus a neutral alpha
+            // cap with a violet "Mod-Tap" tag — matching the design.
+            category: faceCategoryForBinding({
+                actionLabel: p.actionLabel,
+                bindingParam1: p.bindingParam1,
+                actionTypeName: p.actionTypeName,
+                outOfRange: p.outOfRange,
+                isHoldTap: !!p.holdTap,
+                holdIsLayer: p.holdTap?.holdNodeKind === 'layer',
+            }),
+            accentCategory: categoryForBinding({
                 actionLabel: p.actionLabel,
                 bindingParam1: p.bindingParam1,
                 actionTypeName: p.actionTypeName,
@@ -713,25 +717,43 @@ export default function KeyboardView({
                         onPositionContextMenu={handlePositionContextMenu}
                         pressedKeys={liveView ? pressedKeys : EMPTY_KEYS}
                     />
-                    {/* Current-layer pill + hover-peek banner. */}
-                    <div className="absolute top-2 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2">
-                        <div
-                            className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium shadow-sm backdrop-blur ${
-                                isPeeking
-                                    ? 'border-amber-500/50 bg-amber-500/15 text-amber-600 dark:text-amber-400'
-                                    : 'border-border bg-background/80 text-muted-foreground'
-                            }`}
-                        >
-                            <Layers className="size-3.5" />
-                            {isPeeking ? `Previewing ${layerName}` : layerName}
-                        </div>
+                    {/* Top-left cluster: current-layer pill (accent dot + glow)
+                        plus the pulsing LIVE indicator, matching the design. */}
+                    <div className="absolute top-3.5 left-4 z-10 flex items-center gap-2.5">
+                        <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-[13px] font-bold shadow-sm">
+                            <span
+                                aria-hidden
+                                className="size-[9px] rounded-[3px]"
+                                style={{
+                                    background: layerAccent(displayLayerIndex),
+                                    boxShadow: `0 0 8px ${layerAccent(displayLayerIndex)}`,
+                                }}
+                            />
+                            {layerName}
+                            <span className="text-xs font-medium text-muted-foreground">
+                                layer
+                            </span>
+                        </span>
+                        {liveView && (
+                            <span className="inline-flex items-center gap-1.5 rounded-full border border-green-500/40 bg-green-500/15 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.04em] text-green-600 dark:text-green-400">
+                                <span className="relative flex size-[7px]">
+                                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-500 opacity-75" />
+                                    <span className="relative inline-flex size-[7px] rounded-full bg-green-500" />
+                                </span>
+                                LIVE
+                            </span>
+                        )}
                     </div>
+                    {/* Hover-peek banner (top-centre), separate from the layer pill. */}
+                    {isPeeking && (
+                        <div className="absolute top-3.5 left-1/2 z-[16] inline-flex -translate-x-1/2 items-center gap-1.5 rounded-full border bg-card px-3 py-1.5 text-xs font-bold text-amber-600 dark:text-amber-400 border-amber-500/50">
+                            <Layers className="size-3.5" /> Previewing{' '}
+                            {layerName}
+                        </div>
+                    )}
                     <StageControls
                         heatmapEnabled={heatmapEnabled}
-                        onToggleHeatmap={toggleHeatmap}
                         onResetHeat={resetHeat}
-                        liveView={liveView}
-                        onToggleLive={() => setLiveView((v) => !v)}
                     />
                     {multiSelection.size > 0 && (
                         <div className="absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2 rounded-full border border-border bg-background/90 px-2 py-1.5 shadow-lg backdrop-blur">
@@ -826,78 +848,39 @@ export default function KeyboardView({
     )
 }
 
+// pattern-check: skip — presentational refactor, strip toggle buttons from StageControls
 interface StageControlsProps {
     heatmapEnabled: boolean
-    onToggleHeatmap: () => void
     onResetHeat: () => void
-    liveView: boolean
-    onToggleLive: () => void
 }
 
-const pillBase =
-    'flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium shadow-sm backdrop-blur transition-colors'
-const pillOn = 'border-primary/50 bg-primary/15 text-primary'
-const pillOff =
-    'border-border bg-background/80 text-muted-foreground hover:text-foreground'
-
+// Heatmap legend (bottom, matching the design). The on/off toggles live in the
+// header toolbar (Flame / Zap); the stage only reflects and lets you reset counts.
 function StageControls({
     heatmapEnabled,
-    onToggleHeatmap,
     onResetHeat,
-    liveView,
-    onToggleLive,
-}: StageControlsProps): JSX.Element {
+}: StageControlsProps): JSX.Element | null {
+    if (!heatmapEnabled) return null
     return (
-        <>
-            <div className="absolute top-2 left-2 z-10 flex items-center gap-2">
-                <button
-                    type="button"
-                    onClick={onToggleHeatmap}
-                    aria-pressed={heatmapEnabled}
-                    className={`${pillBase} ${heatmapEnabled ? pillOn : pillOff}`}
-                >
-                    <Flame className="size-3.5" /> Heatmap
-                </button>
-                {heatmapEnabled && (
-                    <div className="flex items-center gap-1.5 rounded-full border border-border bg-background/80 px-2 py-1 text-[10px] text-muted-foreground shadow-sm backdrop-blur">
-                        <span>Cold</span>
-                        <span
-                            className="h-2 w-16 rounded-full"
-                            style={{
-                                background:
-                                    'linear-gradient(90deg, oklch(0.32 0.06 250), oklch(0.5 0.16 135), oklch(0.62 0.22 20))',
-                            }}
-                        />
-                        <span>Hot</span>
-                        <button
-                            type="button"
-                            onClick={onResetHeat}
-                            title="Reset press counts"
-                            aria-label="Reset press counts"
-                            className="ml-0.5 rounded-full p-0.5 hover:text-foreground"
-                        >
-                            <RotateCcw className="size-3" />
-                        </button>
-                    </div>
-                )}
-                <button
-                    type="button"
-                    onClick={onToggleLive}
-                    aria-pressed={liveView}
-                    className={`${pillBase} ${liveView ? pillOn : pillOff}`}
-                >
-                    <Activity className="size-3.5" /> Live
-                </button>
-            </div>
-            {liveView && (
-                <div className="absolute top-2 right-2 z-10 flex items-center gap-1.5 rounded-full border border-green-500/40 bg-green-500/15 px-2.5 py-1 text-[11px] font-semibold text-green-600 dark:text-green-400">
-                    <span className="relative flex size-2">
-                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-500 opacity-75" />
-                        <span className="relative inline-flex size-2 rounded-full bg-green-500" />
-                    </span>
-                    LIVE
-                </div>
-            )}
-        </>
+        <div className="absolute bottom-3 left-3 z-10 flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-[11px] font-semibold text-muted-foreground shadow-sm">
+            <span>Less</span>
+            <span
+                className="h-2 w-[110px] rounded-full"
+                style={{
+                    background:
+                        'linear-gradient(90deg, oklch(0.34 0.07 250), oklch(0.5 0.16 286), oklch(0.62 0.22 20))',
+                }}
+            />
+            <span>More</span>
+            <button
+                type="button"
+                onClick={onResetHeat}
+                title="Reset press counts"
+                aria-label="Reset press counts"
+                className="ml-0.5 rounded-full p-0.5 hover:text-foreground"
+            >
+                <RotateCcw className="size-3" />
+            </button>
+        </div>
     )
 }

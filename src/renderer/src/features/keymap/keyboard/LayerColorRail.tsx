@@ -3,10 +3,9 @@
 import useKeymapStore from '@/stores/keymapStore'
 import useLayerSelectionStore from '@/stores/layerSelectionStore'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/ui/tooltip'
+import { layerAccent } from '@/lib/keymap/keyCategory'
 
-// Layers have no inherent category, so colour them by index on a spread of hues.
-const hueForLayer = (i: number): number => (i * 47) % 360
-
+// pattern-check: skip — swap local hue helper for the shared layerAccent
 export function LayerColorRail(): JSX.Element | null {
     const keymap = useKeymapStore((s) => s.keymap)
     const { selectedLayerIndex, setSelectedLayerIndex } =
@@ -18,7 +17,7 @@ export function LayerColorRail(): JSX.Element | null {
         <div className="absolute left-2 top-1/2 z-10 flex -translate-y-1/2 flex-col gap-2 rounded-full border border-border bg-background/80 p-1.5 shadow-sm backdrop-blur">
             {keymap.layers.map((layer, i) => {
                 const active = i === selectedLayerIndex
-                const hue = hueForLayer(i)
+                const ac = layerAccent(i)
                 return (
                     <Tooltip key={layer.id ?? i}>
                         <TooltipTrigger asChild>
@@ -33,9 +32,9 @@ export function LayerColorRail(): JSX.Element | null {
                                         : 'opacity-60 hover:opacity-100'
                                 }`}
                                 style={{
-                                    background: `oklch(0.62 0.17 ${hue})`,
+                                    background: ac,
                                     boxShadow: active
-                                        ? `0 0 0 2px var(--background), 0 0 0 4px oklch(0.62 0.17 ${hue})`
+                                        ? `0 0 0 2px var(--background), 0 0 0 4px ${ac}`
                                         : undefined,
                                 }}
                             />
