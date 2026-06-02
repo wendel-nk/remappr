@@ -79,12 +79,16 @@ export function catStyle(cat: KeyCategory, mode: ColorMode): CategoryStyle {
     if (hue == null || mode === 'off') return NEUTRAL
     const vivid = mode === 'vivid'
     const sat = vivid ? 1 : 0.62
+    // Lightness is theme-mode-driven via CSS vars (see index.css `--cap-*-l`):
+    // dark mode keeps the design's deep faces + light legends; light mode flips to
+    // pale faces + dark legends. Hue + chroma stay fixed so the function colour
+    // coding means the same in both modes.
     return {
-        legend: `oklch(0.83 ${0.14 * (vivid ? 1 : 0.85)} ${hue})`,
-        face: `oklch(0.33 ${0.055 * sat} ${hue})`,
-        faceTop: `oklch(0.37 ${0.06 * sat} ${hue})`,
-        edge: `oklch(0.62 0.16 ${hue})`,
-        dot: `oklch(0.7 0.16 ${hue})`,
+        legend: `oklch(var(--cap-legend-l) ${0.14 * (vivid ? 1 : 0.85)} ${hue})`,
+        face: `oklch(var(--cap-face-l) ${0.055 * sat} ${hue})`,
+        faceTop: `oklch(var(--cap-face-top-l) ${0.06 * sat} ${hue})`,
+        edge: `oklch(var(--cap-edge-l) 0.16 ${hue})`,
+        dot: `oklch(var(--cap-dot-l) 0.16 ${hue})`,
     }
 }
 

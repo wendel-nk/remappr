@@ -6,16 +6,17 @@ import React, {
     useRef,
     useState,
 } from 'react'
-import { Minus, Plus, Maximize2 } from 'lucide-react'
+import { Maximize2, Minus, Plus } from 'lucide-react'
 import { HoldTapLabels, KeyButton } from './KeyButton.tsx'
 import { scalePosition } from '@/lib/scalePosition'
 import { LayoutZoom } from '@/lib/helpers'
-import type { KeyCategory, ColorMode } from '@/lib/keymap/keyCategory'
+import type { ColorMode, KeyCategory } from '@/lib/keymap/keyCategory'
 import type { CapStyle } from '@/stores/userSettingsStore'
 
 export type KeyPosition = PropsWithChildren<{
     id?: string
     header?: string
+    tapText?: string
     actionLabel?: string
     holdTap?: HoldTapLabels
     category?: KeyCategory

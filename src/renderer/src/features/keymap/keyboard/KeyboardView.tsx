@@ -2,7 +2,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { produce } from 'immer'
 import { toast } from 'sonner'
-import { ArrowRight, Eraser, Layers, RotateCcw, Wand2, X } from 'lucide-react'
+import {
+    ArrowRight,
+    Eraser,
+    Eye,
+    RotateCcw,
+    SquarePen,
+    Wand2,
+    X,
+} from 'lucide-react'
 import type { ActionType, KeyAction, Keymap } from '@firmware/types'
 import {
     type ClickModifiers,
@@ -10,7 +18,8 @@ import {
     PhysicalLayoutCanvas,
 } from './PhysicalLayoutCanvas'
 import { HidUsageLabel } from './HidUsageLabel'
-import type { HoldTapLabels } from './KeyButton'
+import { usageGlyph } from '@/lib/actions/hidUsages'
+import { type HoldTapLabels, KeyButton } from './KeyButton'
 import { KeyContextMenu } from './KeyContextMenu'
 import { LayerColorRail } from './LayerColorRail'
 import { CommandAssign } from './CommandAssign'
@@ -35,6 +44,7 @@ import { useKeypressDetection } from '@/hooks/use-keypress-detection'
 import type { KeypressDetectionConfig } from '@/lib/keypress/keypressDetector'
 import { resolveBindingLabels, type ResolvedHoldTapDescriptor } from '@firmware'
 import {
+    CATEGORY_META,
     categoryForBinding,
     faceCategoryForBinding,
     layerAccent,
@@ -98,6 +108,14 @@ interface KeyboardViewProps {
     multiSelection: Set<number>
     setMultiSelection: (next: Set<number>) => void
     workspace: WorkspaceMode
+    // Bottom-sheet picker visibility (workbench). Decoupled from selection so the
+    // stage can show a floating selected-key card with an Edit button once closed.
+    pickerOpen?: boolean
+    setPickerOpen?: (open: boolean) => void
+    // Pushes the resolved KeyPosition of the single selected key upward so the
+    // inspector panel can render the design's selected-key summary card (which
+    // needs the same tinted KeyButton preview the stage builds).
+    onSelectedKeyInfoChange?: (info: KeyPosition | undefined) => void
 }
 
 function holdTapToLabels(desc: ResolvedHoldTapDescriptor): HoldTapLabels {
@@ -122,6 +140,9 @@ export default function KeyboardView({
     multiSelection,
     setMultiSelection,
     workspace,
+    pickerOpen,
+    setPickerOpen,
+    onSelectedKeyInfoChange,
 }: KeyboardViewProps): JSX.Element {
     const { layouts, selectedPhysicalLayoutIndex } = useLayout()
     const { selectedLayerIndex, setSelectedLayerIndex } =
@@ -318,6 +339,10 @@ export default function KeyboardView({
         ).map((p) => ({
             id: p.id,
             header: p.header,
+            // Tap glyph text (e.g. "Q", "Vol+") for legend sizing — mirrors what
+            // HidUsageLabel renders, so KeyButton sizes the legend off the glyph
+            // length (design rule), not the action-type tag in `header`.
+            tapText: p.outOfRange ? '' : usageGlyph(p.bindingParam1!),
             actionLabel: p.actionLabel,
             holdTap: p.holdTap ? holdTapToLabels(p.holdTap) : undefined,
             // Face tint follows the tap key; the header tag + hold legend follow
@@ -454,6 +479,8 @@ export default function KeyboardView({
                 setSelectedKeyPosition(position)
                 // Command workspace: clicking a key opens the assign palette.
                 if (workspace === 'command') setPaletteOpen(true)
+                // Workbench/inspector: a click (re)opens the binding picker.
+                else setPickerOpen?.(true)
             }
         },
         [
@@ -463,6 +490,7 @@ export default function KeyboardView({
             setSelectedKeyPosition,
             setMultiSelection,
             workspace,
+            setPickerOpen,
         ],
     )
 
@@ -556,9 +584,14 @@ export default function KeyboardView({
     const clearSelection = useCallback((): void => {
         setMultiSelection(new Set())
         setSelectedKeyPosition(undefined)
+        setSelectedEncoder?.(undefined)
         setAssignOpen(false)
         setPaletteOpen(false)
-    }, [setMultiSelection, setSelectedKeyPosition])
+        // Drop DOM focus from the keycap; otherwise its focus ring lingers
+        // and reads as a still-selected key after Escape.
+        const active = document.activeElement as HTMLElement | null
+        if (active?.closest('[data-key="true"]')) active.blur()
+    }, [setMultiSelection, setSelectedKeyPosition, setSelectedEncoder])
 
     // Key Press action type (single HID slot) used for command-palette quick assign.
     const keyPressType = useMemo(
@@ -683,6 +716,28 @@ export default function KeyboardView({
     const layerName =
         keymap?.layers[displayLayerIndex]?.name || String(displayLayerIndex)
 
+    // Resolved KeyPosition for the single selected key (no multi-select), reused
+    // by the floating stage card and pushed up for the inspector's summary card.
+    const selectedKeyInfo =
+        selectedKeyPosition != null &&
+        selectedKeyPosition < keyCount &&
+        multiSelection.size === 0
+            ? positions[selectedKeyPosition]
+            : undefined
+
+    // Mirror the selected-key info to the parent so the inspector panel can render
+    // the same tinted preview without recomputing the (expensive) label nodes.
+    useEffect(() => {
+        onSelectedKeyInfoChange?.(selectedKeyInfo)
+    }, [selectedKeyInfo, onSelectedKeyInfoChange])
+
+    // Floating selected-key card: shown when a single key is selected but the
+    // bottom picker is closed (workbench/command). Edit reopens the picker.
+    const infoCardPos =
+        selectedKeyInfo && !pickerOpen && workspace !== 'inspector'
+            ? selectedKeyInfo
+            : undefined
+
     return (
         <>
             {layouts && keymap && (
@@ -704,9 +759,11 @@ export default function KeyboardView({
                         selectedPositions={multiSelection}
                         onPositionClicked={handlePositionClicked}
                         selectedEncoder={selectedEncoder}
-                        onEncoderClicked={(slot, dir): void =>
+                        onEncoderClicked={(slot, dir): void => {
                             setSelectedEncoder?.({ slot, dir })
-                        }
+                            if (workspace === 'command') setPaletteOpen(true)
+                            else setPickerOpen?.(true)
+                        }}
                         onPositionContextMenu={handlePositionContextMenu}
                         pressedKeys={liveView ? pressedKeys : EMPTY_KEYS}
                     />
@@ -737,17 +794,55 @@ export default function KeyboardView({
                             </span>
                         )}
                     </div>
-                    {/* Hover-peek banner (top-centre), separate from the layer pill. */}
+                    {/* Hover-peek banner (top-centre), tinted by the peeked layer's
+                        accent — matching the example's `accent(peek)` banner. */}
                     {isPeeking && (
-                        <div className="absolute top-3.5 left-1/2 z-[16] inline-flex -translate-x-1/2 items-center gap-1.5 rounded-full border bg-card px-3 py-1.5 text-xs font-bold text-amber-600 dark:text-amber-400 border-amber-500/50">
-                            <Layers className="size-3.5" /> Previewing{' '}
-                            {layerName}
+                        <div
+                            className="absolute top-3.5 left-1/2 z-[16] inline-flex -translate-x-1/2 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold text-foreground"
+                            style={{
+                                background: `color-mix(in oklch, ${layerAccent(displayLayerIndex)} 20%, var(--card))`,
+                                borderColor: layerAccent(displayLayerIndex),
+                            }}
+                        >
+                            <Eye className="size-3.5" /> Previewing {layerName}
                         </div>
                     )}
                     <StageControls
                         heatmapEnabled={heatmapEnabled}
                         onResetHeat={resetHeat}
                     />
+                    {/* pattern-check: skip — presentational floating selected-key card */}
+                    {infoCardPos && (
+                        <div className="fade-in absolute bottom-4 left-4 z-10 flex items-center gap-3 rounded-xl border border-border bg-card px-3.5 py-2.5 shadow-lg">
+                            <div className="relative size-12 shrink-0">
+                                <KeyButton
+                                    oneU={48}
+                                    selected
+                                    {...infoCardPos}
+                                />
+                            </div>
+                            <div className="text-xs leading-tight">
+                                <div className="font-semibold text-foreground">
+                                    {infoCardPos.header}
+                                </div>
+                                <div className="text-muted-foreground">
+                                    {
+                                        CATEGORY_META[
+                                            infoCardPos.category ?? 'alpha'
+                                        ]?.label
+                                    }{' '}
+                                    · {layerName} layer
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setPickerOpen?.(true)}
+                                className="ml-1 inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:opacity-90"
+                            >
+                                <SquarePen className="size-3.5" /> Edit
+                            </button>
+                        </div>
+                    )}
                     {multiSelection.size > 0 && (
                         <div className="absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2 rounded-full border border-border bg-background/90 px-2 py-1.5 shadow-lg backdrop-blur">
                             <span className="px-1.5 text-xs font-medium text-muted-foreground">

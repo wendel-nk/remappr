@@ -4,7 +4,13 @@ import {
     type KeyActionDraft,
     KeyActionPicker,
 } from '@/features/actions/KeyActionPicker'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import {
+    type CSSProperties,
+    useCallback,
+    useEffect,
+    useMemo,
+    useState,
+} from 'react'
 import undoRedoStore from '@/stores/undoRedoStore'
 import useConnectionStore from '@/stores/connectionStore'
 import useLayerSelectionStore from '@/stores/layerSelectionStore'
@@ -14,6 +20,9 @@ import { Card, CardContent } from '@/ui/card'
 import { Button } from '@/ui/button'
 import { Modal } from '@/ui/modal'
 import { TapDanceTab } from '@/features/dynamic/tabs/TapDanceTab'
+import { KeyButton } from '@/features/keymap/keyboard/KeyButton'
+import type { KeyPosition } from '@/features/keymap/keyboard/PhysicalLayoutCanvas'
+import { CATEGORY_META } from '@/lib/keymap/keyCategory'
 import { toast } from 'sonner'
 
 const TAP_DANCE_KINDS: ReadonlySet<string> = new Set(['vial:tap-dance'])
@@ -38,6 +47,44 @@ interface BindingEditorProps {
     setSelectedEncoder?: (sel: EncoderSelection | undefined) => void
     // 'sheet' = bottom card (workbench); 'panel' = persistent right column (inspector).
     variant?: 'sheet' | 'panel'
+    // Sheet visibility is decoupled from selection: closing the sheet keeps the
+    // key selected (the stage shows a floating info card with an Edit button).
+    // Ignored by the 'panel' variant, which always reflects the selection.
+    pickerOpen?: boolean
+    setPickerOpen?: (open: boolean) => void
+    // Resolved preview of the selected key (panel variant only): drives the
+    // design's selected-key summary card at the top of the inspector.
+    selectedKeyInfo?: KeyPosition | undefined
+}
+
+// pattern-check: skip — presentational summary card, single caller, no abstraction
+/** Inspector header card: tinted KeyButton preview + tap/hold + category + layer. */
+function SelectedKeyCard({
+    info,
+    layerName,
+}: {
+    info: KeyPosition
+    layerName: string
+}): JSX.Element {
+    const category = CATEGORY_META[info.category ?? 'alpha']?.label
+    return (
+        <div className="mb-4 flex items-center gap-3 rounded-xl border bg-background p-3">
+            <div className="relative size-12 shrink-0">
+                <KeyButton oneU={48} selected {...info} />
+            </div>
+            <div className="min-w-0 leading-tight">
+                <div className="truncate text-sm font-bold text-foreground">
+                    {info.header}
+                </div>
+                <div className="truncate text-[11.5px] text-muted-foreground">
+                    {category}
+                </div>
+                <div className="text-[11px] text-muted-foreground">
+                    {layerName} layer
+                </div>
+            </div>
+        </div>
+    )
 }
 
 export function BindingEditor({
@@ -48,6 +95,9 @@ export function BindingEditor({
     selectedEncoder,
     setSelectedEncoder,
     variant = 'sheet',
+    pickerOpen,
+    setPickerOpen,
+    selectedKeyInfo,
 }: BindingEditorProps): JSX.Element {
     const doIt = undoRedoStore((s) => s.doIt)
     const { service } = useConnectionStore()
@@ -227,11 +277,23 @@ export function BindingEditor({
         [keymap],
     )
 
+    const panelLayerName =
+        keymap?.layers[effectiveLayerIndex]?.name || String(effectiveLayerIndex)
+
     // pattern-check: skip render branch + close helper, no abstraction warranted
-    const open = selectedKeyPosition !== undefined || !!selectedEncoder
+    const hasSelection = selectedKeyPosition !== undefined || !!selectedEncoder
+    // Panel (inspector) always mirrors the selection; the bottom sheet is gated
+    // on pickerOpen so it can be dismissed without losing the selection.
+    const open =
+        variant === 'panel' ? hasSelection : hasSelection && !!pickerOpen
     const closeEditor = (): void => {
-        setSelectedKeyPosition(undefined)
-        setSelectedEncoder?.(undefined)
+        if (variant === 'panel') {
+            setSelectedKeyPosition(undefined)
+            setSelectedEncoder?.(undefined)
+        } else {
+            // Keep the key selected; the stage's info card takes over.
+            setPickerOpen?.(false)
+        }
     }
 
     const [tapDanceEditOpen, setTapDanceEditOpen] = useState(false)
@@ -278,7 +340,17 @@ export function BindingEditor({
     return (
         <>
             {variant === 'panel' ? (
-                <aside className="row-start-1 flex h-full w-80 shrink-0 flex-col overflow-y-auto border-l bg-card">
+                <aside
+                    className="flex w-80 min-h-0 shrink-0 flex-col self-stretch overflow-y-auto overflow-x-hidden border-l bg-card"
+                    style={
+                        {
+                            // Disable the chip list's own scroll (inherited via CSS
+                            // var) so the aside is the single scroller — no nested
+                            // double scrollbar — and the list fills the panel.
+                            '--kc-picker-max-h': 'none',
+                        } as CSSProperties
+                    }
+                >
                     <div className="flex items-center justify-between border-b px-4 py-2">
                         <span className="text-sm font-semibold">Inspector</span>
                         {open && (
@@ -292,9 +364,17 @@ export function BindingEditor({
                             </Button>
                         )}
                     </div>
-                    <div className="p-4">
+                    <div className="min-w-0 p-4">
                         {open ? (
-                            editorBody
+                            <>
+                                {selectedKeyInfo && (
+                                    <SelectedKeyCard
+                                        info={selectedKeyInfo}
+                                        layerName={panelLayerName}
+                                    />
+                                )}
+                                {editorBody}
+                            </>
                         ) : (
                             <p className="text-sm text-muted-foreground">
                                 Select a key to edit its action.

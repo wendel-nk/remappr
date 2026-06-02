@@ -61,9 +61,7 @@ export const HidUsageLabel = ({
                     ))}
                 </span>
             )}
-            {abbreviated && (
-                <span className="font-semibold">{abbreviated}</span>
-            )}
+            {abbreviated && <span className="font-bold">{abbreviated}</span>}
         </span>
     )
 }

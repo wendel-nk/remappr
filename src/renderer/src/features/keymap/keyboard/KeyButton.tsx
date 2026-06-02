@@ -1,8 +1,7 @@
 // Pattern check: Strategy (Tier 1) — applied — per-cap-style chrome (flat/sculpted/mono/
 // glass) is chosen at runtime from a style-builder map keyed by capStyle; each builder
 // produces its own face/legend layout behind one CapChrome interface.
-import { Children, CSSProperties, PropsWithChildren } from 'react'
-import { KeyLabel } from './KeyLabel'
+import { CSSProperties, PropsWithChildren } from 'react'
 import { type HoldTapLabels } from './HoldTapKeyLabel'
 import useUserSettingsStore, { type CapStyle } from '@/stores/userSettingsStore'
 import useConnectionStore from '@/stores/connectionStore'
@@ -28,6 +27,10 @@ interface KeyButtonProps {
     oneU: number
     hoverZoom?: boolean
     header?: string
+    /** The tap glyph text (e.g. "Q", "Vol+") — used only to size the main legend
+     * the way the design does (≤2 chars → 0.44U, else 0.30U). Distinct from
+     * {@link header}, which is the action-type tag ("Key Press"). */
+    tapText?: string
     actionLabel?: string
     holdTap?: HoldTapLabels
     /** Face (cap-fill) category — tints the cap, the dot and the tap legend. */
@@ -106,13 +109,20 @@ function shiftLightness(
     )
 }
 
+// Neutral (no-category) caps follow the active theme + light/dark mode via the
+// CARD surface pair: `--card`/`--card-foreground` always track the mode (light
+// caps in light themes, dark in dark) AND are a guaranteed-contrasting pair in
+// every theme — unlike `--secondary`, which some themes (e.g. twitter) use as a
+// high-contrast accent that's inverted vs the mode. The face is nudged toward
+// the foreground so caps still stand out from the workbench background; faceTop
+// goes toward white for the top highlight, skirtBot toward black for depth.
 const NEUTRAL_FACES: Omit<FaceColors, 'heat'> = {
-    skirtTop: 'oklch(0.305 0 0)',
-    skirtBot: 'oklch(0.25 0 0)',
-    faceTop: 'oklch(0.35 0 0)',
-    face: 'oklch(0.30 0 0)',
-    legend: 'oklch(0.93 0 0)',
-    edge: 'oklch(0.46 0 0)',
+    skirtTop: 'color-mix(in oklch, var(--card) 90%, var(--foreground))',
+    skirtBot: 'color-mix(in oklch, var(--card) 88%, #000)',
+    faceTop: 'color-mix(in oklch, var(--card) 86%, #fff)',
+    face: 'color-mix(in oklch, var(--card) 90%, var(--foreground))',
+    legend: 'var(--card-foreground)',
+    edge: 'var(--border)',
     dot: null,
 }
 
@@ -138,7 +148,9 @@ function resolveFaceColors(
     if (!cs.face) return { ...NEUTRAL_FACES, heat: false }
     return {
         skirtTop: cs.face,
-        skirtBot: shiftLightness(cs.face, -0.05, 0.18),
+        // color-mix (not shiftLightness) so it still darkens when the face is a
+        // CSS-var-based oklch (its lightness isn't a literal to regex-shift).
+        skirtBot: `color-mix(in oklch, ${cs.face} 88%, #000)`,
         faceTop: cs.faceTop ?? cs.face,
         face: cs.face,
         legend: cs.legend,
@@ -243,6 +255,7 @@ export const KeyButton = ({
     multiSelected = false,
     pressed = false,
     header,
+    tapText,
     actionLabel,
     oneU,
     hoverZoom = true,
@@ -259,11 +272,15 @@ export const KeyButton = ({
     ...props
 }: PropsWithChildren<KeyButtonProps>): JSX.Element => {
     const size = makeSize(props, oneU)
-    // Match the design prototype: a plain tap legend fills ~0.44U, but when a
-    // hold legend shares the cap the tap shrinks to ~0.34U and the hold to
-    // ~0.175U so the two never collide.
-    const maxChildFontSize = Math.max(10, oneU * (holdTap ? 0.34 : 0.44))
-    const maxHoldFontSize = Math.max(8, oneU * 0.175)
+    // Font sizing ported 1:1 from the design's KeyCap (KeyCap.jsx:70-72): a plain
+    // tap legend fills 0.44U, a >2-char tap shrinks to 0.30U, and a tap sharing the
+    // cap with a hold legend shrinks to 0.34U (hold 0.175U) so the two never collide.
+    const tapLen = tapText ? tapText.length : 0
+    const maxChildFontSize = Math.max(
+        11,
+        oneU * (holdTap ? 0.34 : tapLen > 2 ? 0.3 : 0.44),
+    )
+    const maxHoldFontSize = Math.max(7, oneU * 0.175)
     const firmware = useConnectionStore((s) => s.service?.deviceInfo.firmware)
     const keyDisplayModeMap = useUserSettingsStore((s) => s.keyDisplayMode)
     const capStyleSetting = useUserSettingsStore((s) => s.capStyle)
@@ -279,7 +296,8 @@ export const KeyButton = ({
     const effectiveHeader =
         keyDisplayMode === 'binding' && actionLabel ? actionLabel : header
     const isBindingMode = keyDisplayMode === 'binding' && !!actionLabel
-    const headerFontPx = Math.max(6, Math.round(oneU / 8))
+    // KeyCap.jsx:71 — header tag is 0.135U (min 6px), not rounded.
+    const headerFontPx = Math.max(6, oneU * 0.135)
     const tooltipParts = [
         header,
         actionLabel ? `(${actionLabel})` : '',
@@ -338,19 +356,18 @@ export const KeyButton = ({
             ? `color-mix(in oklch, ${accentLegend} 92%, transparent)`
             : 'color-mix(in oklch, var(--foreground) 44%, transparent)'
 
+    // Main legend — rendered at a fixed size (KeyCap.jsx:170-177), not auto-fit:
+    // the design sizes the tap glyph directly from oneU so it reads identically
+    // at every zoom. Colour / weight / letter-spacing / text-shadow come from the
+    // wrapper below and are inherited.
     const tapNode = holdTap ? holdTap.tap : props.children
-    const children = Children.map(
-        [tapNode],
-        (c): React.ReactElement => (
-            <KeyLabel
-                maxFontSize={maxChildFontSize}
-                minFontSize={4}
-                className={`flex-1 ${chrome.mono ? 'font-mono' : 'font-keycap'}`}
-                hoverZoom={hoverZoom}
-            >
-                {c}
-            </KeyLabel>
-        ),
+    const mainLegend = (
+        <span
+            className={`leading-none ${chrome.mono ? 'font-mono' : 'font-keycap'}`}
+            style={{ fontSize: maxChildFontSize, lineHeight: 1 }}
+        >
+            {tapNode}
+        </span>
     )
 
     const buttonEl = (
@@ -396,11 +413,15 @@ export const KeyButton = ({
                             className={`leading-none whitespace-nowrap overflow-hidden ${
                                 chrome.mono || isBindingMode
                                     ? 'font-mono uppercase'
-                                    : ''
+                                    : 'font-keycap'
                             }`}
                             style={{
                                 fontSize: `${headerFontPx}px`,
                                 fontWeight: 700,
+                                letterSpacing:
+                                    chrome.mono || isBindingMode
+                                        ? '.04em'
+                                        : '.01em',
                                 color: headerColor,
                             }}
                         >
@@ -429,13 +450,18 @@ export const KeyButton = ({
                     className="flex-1 flex items-center justify-center min-h-0"
                     style={{
                         color: legendColor,
+                        // KeyCap.jsx:172-174 — main legend is 700 (mono 600); a
+                        // >2-char tap tightens to -.01em. Set on the wrapper so the
+                        // KeyLabel text inherits it.
+                        fontWeight: chrome.mono ? 600 : 700,
+                        letterSpacing: tapLen > 2 ? '-.01em' : 0,
                         textShadow:
                             capStyle === 'sculpted' && !F.heat
                                 ? '0 1px 1px rgba(0,0,0,.35)'
                                 : 'none',
                     }}
                 >
-                    {children}
+                    {mainLegend}
                 </div>
 
                 {/* hold legend */}

@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react'
 import KeyboardView from '@/features/keymap/keyboard/KeyboardView'
+import type { KeyPosition } from '@/features/keymap/keyboard/PhysicalLayoutCanvas'
 import { BindingEditor } from './BindingEditor'
 import useKeymapStore from '@/stores/keymapStore'
 import useUserSettingsStore from '@/stores/userSettingsStore'
@@ -16,6 +17,15 @@ export function KeymapEditor(): JSX.Element {
     const [multiSelection, setMultiSelection] = useState<Set<number>>(
         () => new Set(),
     )
+    // Picker visibility is decoupled from selection: closing the picker keeps the
+    // key selected (a floating info card stays, with an Edit button to reopen),
+    // and Escape clears the selection entirely. Mirrors the design's pickerOpen.
+    const [pickerOpen, setPickerOpen] = useState(false)
+    // Resolved preview of the selected key, surfaced by KeyboardView, so the
+    // inspector panel can show the design's selected-key summary card.
+    const [selectedKeyInfo, setSelectedKeyInfo] = useState<
+        KeyPosition | undefined
+    >(undefined)
 
     const { keymap, setKeymap } = useKeymapStore()
 
@@ -23,6 +33,7 @@ export function KeymapEditor(): JSX.Element {
         (p: number | undefined): void => {
             setSelectedKeyPositionRaw(p)
             if (p !== undefined) setSelectedEncoderRaw(undefined)
+            else setPickerOpen(false)
         },
         [],
     )
@@ -30,6 +41,7 @@ export function KeymapEditor(): JSX.Element {
         (e: EncoderSelection | undefined): void => {
             setSelectedEncoderRaw(e)
             if (e) setSelectedKeyPositionRaw(undefined)
+            else setPickerOpen(false)
         },
         [],
     )
@@ -46,6 +58,9 @@ export function KeymapEditor(): JSX.Element {
             multiSelection={multiSelection}
             setMultiSelection={setMultiSelection}
             workspace={workspace}
+            pickerOpen={pickerOpen}
+            setPickerOpen={setPickerOpen}
+            onSelectedKeyInfoChange={setSelectedKeyInfo}
         />
     )
 
@@ -61,6 +76,9 @@ export function KeymapEditor(): JSX.Element {
                     setSelectedKeyPosition={setSelectedKeyPosition}
                     selectedEncoder={selectedEncoder}
                     setSelectedEncoder={setSelectedEncoder}
+                    pickerOpen={pickerOpen}
+                    setPickerOpen={setPickerOpen}
+                    selectedKeyInfo={selectedKeyInfo}
                 />
             </div>
         )
@@ -77,6 +95,8 @@ export function KeymapEditor(): JSX.Element {
                     setSelectedKeyPosition={setSelectedKeyPosition}
                     selectedEncoder={selectedEncoder}
                     setSelectedEncoder={setSelectedEncoder}
+                    pickerOpen={pickerOpen}
+                    setPickerOpen={setPickerOpen}
                 />
             )}
         </div>
