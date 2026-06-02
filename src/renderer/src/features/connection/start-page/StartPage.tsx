@@ -16,6 +16,7 @@ import { useConnection } from '@/hooks/use-connection'
 import { ConnectionStatusBanner } from './ConnectionStatusBanner'
 import { TransportSection } from './TransportSection'
 import { FeatureCard } from './FeatureCard'
+import { BuilderCard } from './BuilderCard'
 
 interface StartPageProps {
     onTransportCreated: (
@@ -121,7 +122,7 @@ export function StartPage({
                         onRequestNew={requestNew}
                     />
 
-                    <div className="mt-6 grid gap-6 md:grid-cols-2">
+                    <div className="mt-6 grid gap-6 md:grid-cols-3">
                         <FeatureCard
                             title="Try Demo Mode"
                             description="Explore Remappr with a simulated keyboard - no device required."
@@ -143,6 +144,7 @@ export function StartPage({
                                 </Button>
                             }
                         />
+                        <BuilderCard />
                         <FeatureCard
                             title="Get the desktop app"
                             description="Download the latest Remappr build for your operating system."
