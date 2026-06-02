@@ -10,7 +10,7 @@
         "node": ">=20"
     },
     "scripts": {
-        "dev": "vite --port 5174",
+        "dev": "vite",
         "tauri-dev": "pnpm tauri dev",
         "build": "vite build",
         "lint": "eslint . --report-unused-disable-directives",

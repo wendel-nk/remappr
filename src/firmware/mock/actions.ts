@@ -5,6 +5,8 @@ export const MOCK_KIND_TRANSPARENT = 'mock:trans'
 export const MOCK_KIND_KEYPRESS = 'mock:kp'
 export const MOCK_KIND_LAYER_MOMENTARY = 'mock:mo'
 export const MOCK_KIND_LAYER_TOGGLE = 'mock:tog'
+export const MOCK_KIND_MOD_TAP = 'mock:mt'
+export const MOCK_KIND_LAYER_TAP = 'mock:lt'
 
 // Renderer (`HidUsageLabel`, `KeycodePickerGrid`) consumes ZMK-style encoded
 // usages: (page << 16) | id. Keep the mock adapter on the same encoding so
@@ -103,12 +105,53 @@ export function buildMockActionTypes(maxLayers: number): ActionType[] {
                 },
             ],
         },
+        {
+            id: MOCK_KIND_MOD_TAP,
+            displayName: 'Mod-Tap',
+            description: 'Tap for the key, hold for a modifier',
+            slots: [
+                { label: 'Tap', kind: 'hid', values: HID_VALUES() },
+                { label: 'Hold', kind: 'modifier', values: MOD_USAGES },
+            ],
+        },
+        {
+            id: MOCK_KIND_LAYER_TAP,
+            displayName: 'Layer-Tap',
+            description: 'Tap for the key, hold to activate a layer',
+            slots: [
+                { label: 'Tap', kind: 'hid', values: HID_VALUES() },
+                {
+                    label: 'Hold',
+                    kind: 'layer',
+                    range: { min: 0, max: maxLayers - 1 },
+                },
+            ],
+        },
     ]
 }
 
 const HID_LABELS = new Map<number, string>(
     HID_VALUES().map((v) => [v.value, v.label]),
 )
+
+// Modifier choices for the Mod-Tap hold slot (left-hand variants). Stored as
+// encoded HID usages so the renderer's HidUsageLabel can draw the hold glyph.
+export const MOD_USAGES: { value: number; label: string }[] = [
+    { value: HID_KP(0xe0), label: 'Ctrl' },
+    { value: HID_KP(0xe1), label: 'Shift' },
+    { value: HID_KP(0xe2), label: 'Alt' },
+    { value: HID_KP(0xe3), label: 'Gui' },
+]
+const MOD_LABELS = new Map<number, string>(
+    MOD_USAGES.map((m) => [m.value, m.label]),
+)
+
+const encodeUsage = (raw: number): number =>
+    raw >= 1 << 16 ? raw : HID_KP(raw)
+const usageDesc = (encoded: number): string =>
+    MOD_LABELS.get(encoded) ??
+    HID_LABELS.get(encoded) ??
+    `0x${encoded.toString(16)}`
 
 // ZMK convention (see src/firmware/zmk/actions.ts buildKeyLabel):
 //   - label.primary       → behavior displayName (e.g. "Key Press") — shown
@@ -152,6 +195,53 @@ function labelFor(
             primary: 'Toggle Layer',
             secondary: layerNames[layer] ?? `L${layer}`,
             bindingPrefix: 'tog',
+        }
+    }
+    if (kind === MOCK_KIND_MOD_TAP) {
+        const tapParam = encodeUsage(params[0] ?? 0)
+        const holdParam = encodeUsage(params[1] ?? HID_KP(0xe0))
+        const tapDesc = HID_LABELS.get(tapParam) ?? `0x${tapParam.toString(16)}`
+        const holdDesc = usageDesc(holdParam)
+        const tooltip = `Mod-Tap\nTap: ${tapDesc}\nHold: ${holdDesc}`
+        return {
+            primary: 'Mod-Tap',
+            bindingPrefix: '&mt',
+            description: tooltip,
+            holdTap: {
+                actionTypeName: 'Mod-Tap',
+                actionLabel: '&mt',
+                tapParam,
+                tapDesc,
+                holdNodeKind: 'usage',
+                holdParam,
+                holdUsageDesc: holdDesc,
+                tooltip,
+            },
+        }
+    }
+    if (kind === MOCK_KIND_LAYER_TAP) {
+        const tapParam = encodeUsage(params[0] ?? 0)
+        const layer = params[1] ?? 0
+        const tapDesc = HID_LABELS.get(tapParam) ?? `0x${tapParam.toString(16)}`
+        const layerName = layerNames[layer]
+        const holdDesc = layerName ?? `L${layer}`
+        const tooltip = `Layer-Tap\nTap: ${tapDesc}\nHold: ${holdDesc}`
+        return {
+            primary: 'Layer-Tap',
+            bindingPrefix: '&lt',
+            description: tooltip,
+            holdTap: {
+                actionTypeName: 'Layer-Tap',
+                actionLabel: '&lt',
+                tapParam,
+                tapDesc,
+                holdNodeKind: 'layer',
+                holdParam: layer,
+                holdLayerName: layerName,
+                holdLayerMomentary: holdDesc,
+                holdLayerLabel: holdDesc,
+                tooltip,
+            },
         }
     }
     return { primary: '?' }

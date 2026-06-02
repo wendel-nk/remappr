@@ -1,5 +1,6 @@
 // Pattern check: no GoF pattern (-) — rejected — codemod renaming UsageId to CatalogEntry, field references Label→label/Id→id; pure type swap.
 import type { CatalogEntry } from '@firmware/catalog/types'
+import type { KeyCategory } from '@/lib/keymap/keyCategory'
 
 export enum Mods {
     LeftControl = 0x01,
@@ -60,10 +61,13 @@ const matchTier = (
     prefix: number,
     contains: number,
 ): number =>
-    s === lq ? exact
-    : prefix && s.startsWith(lq) ? prefix
-    : contains && s.includes(lq) ? contains
-    : 0
+    s === lq
+        ? exact
+        : prefix && s.startsWith(lq)
+          ? prefix
+          : contains && s.includes(lq)
+            ? contains
+            : 0
 
 function scoreEntry(entry: CatalogEntry, lq: string): number {
     return Math.max(
@@ -152,4 +156,58 @@ export function maxBottomForPositioned(withPositions: CatalogEntry[]): number {
         if (bottomPosition > maxBottom) maxBottom = bottomPosition
     })
     return maxBottom
+}
+
+// pattern-check: skip — pure data-grouping helper, single caller, table-driven
+// Named keycode sections (design handoff PICKER_KEYBOARD ordering). Each section
+// collects one or more function categories. Entries whose category isn't listed
+// fall into a trailing "Other" bucket so nothing is dropped.
+export const KEYCODE_SECTIONS: ReadonlyArray<{
+    title: string
+    cats: readonly KeyCategory[]
+}> = [
+    { title: 'Modifiers', cats: ['mod'] },
+    { title: 'Numbers & Symbols', cats: ['num', 'punct'] },
+    { title: 'Letters', cats: ['alpha'] },
+    { title: 'Editing & Whitespace', cats: ['edit', 'space', 'nav'] },
+    { title: 'Function & System', cats: ['system'] },
+    { title: 'Layers', cats: ['layer'] },
+    { title: 'Media', cats: ['media'] },
+    { title: 'Mouse', cats: ['mouse'] },
+]
+
+export interface KeycodeSection {
+    title: string
+    entries: CatalogEntry[]
+}
+
+/**
+ * Bucket catalog entries into the ordered {@link KEYCODE_SECTIONS} by their
+ * function category (resolved via `catOf`). Empty sections are omitted; any
+ * entry whose category isn't claimed by a section lands in a final "Other".
+ */
+export function groupEntriesIntoSections(
+    entries: CatalogEntry[],
+    catOf: (entry: CatalogEntry) => KeyCategory,
+): KeycodeSection[] {
+    const catToTitle = new Map<KeyCategory, string>()
+    KEYCODE_SECTIONS.forEach(({ title, cats }) =>
+        cats.forEach((c) => catToTitle.set(c, title)),
+    )
+    const OTHER = 'Other'
+    const buckets = new Map<string, CatalogEntry[]>()
+    for (const entry of entries) {
+        const title = catToTitle.get(catOf(entry)) ?? OTHER
+        const bucket = buckets.get(title)
+        if (bucket) bucket.push(entry)
+        else buckets.set(title, [entry])
+    }
+    const ordered: KeycodeSection[] = []
+    for (const { title } of KEYCODE_SECTIONS) {
+        const entries = buckets.get(title)
+        if (entries?.length) ordered.push({ title, entries })
+    }
+    const other = buckets.get(OTHER)
+    if (other?.length) ordered.push({ title: OTHER, entries: other })
+    return ordered
 }

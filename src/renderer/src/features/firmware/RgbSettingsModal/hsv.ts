@@ -21,14 +21,14 @@ export function hexToBytes(text: string): Uint8Array | null {
     return out
 }
 
-interface Rgb {
+export interface Rgb {
     r: number
     g: number
     b: number
 }
 
 // HSV (each 0..255 per Keychron wire format) → RGB (each 0..255).
-function hsvToRgb({ h, s, v }: HsvColor): Rgb {
+export function hsvToRgb({ h, s, v }: HsvColor): Rgb {
     const hh = (h / 255) * 6
     const ss = s / 255
     const vv = v / 255
@@ -64,14 +64,8 @@ export function hsvToHex(c: HsvColor): string {
     return `#${h(r)}${h(g)}${h(b)}`
 }
 
-// #rrggbb → HsvColor (each 0..255 per Keychron wire format). Returns null on parse error.
-export function hexToHsv(hex: string): HsvColor | null {
-    const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim())
-    if (!m) return null
-    const n = parseInt(m[1], 16)
-    const r = (n >> 16) & 0xff
-    const g = (n >> 8) & 0xff
-    const b = n & 0xff
+// RGB (each 0..255) → HsvColor (each 0..255 per Keychron wire format).
+export function rgbToHsv({ r, g, b }: Rgb): HsvColor {
     const rr = r / 255
     const gg = g / 255
     const bb = b / 255
@@ -93,4 +87,12 @@ export function hexToHsv(hex: string): HsvColor | null {
         s: Math.round(s * 255),
         v: Math.round(v * 255),
     }
+}
+
+// #rrggbb → HsvColor (each 0..255 per Keychron wire format). Returns null on parse error.
+export function hexToHsv(hex: string): HsvColor | null {
+    const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim())
+    if (!m) return null
+    const n = parseInt(m[1], 16)
+    return rgbToHsv({ r: (n >> 16) & 0xff, g: (n >> 8) & 0xff, b: n & 0xff })
 }

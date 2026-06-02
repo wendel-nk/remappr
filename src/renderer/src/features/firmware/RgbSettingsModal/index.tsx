@@ -1,12 +1,15 @@
-// pattern-check: skip — Keychron RGB settings modal shell; tabs orchestration only
+// pattern-check: skip — Keychron RGB settings modal shell; sidebar-nav orchestration only
 import { useEffect, useState } from 'react'
+import { CircleDot, Grid3x3, Layers, Lightbulb, Save, Sun } from 'lucide-react'
 
 import useConnectionStore from '@/stores/connectionStore'
 import { saveWithToast } from '@/lib/saveWithToast'
+import { cn } from '@/lib/cn'
 import { Modal } from '@/ui/modal'
 import { Button } from '@/ui/button'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/ui/tabs'
+import { ScrollArea } from '@/ui/scroll-area'
 
+import { BacklightPanel } from './BacklightPanel'
 import { BytesEditor } from './BytesEditor'
 import { MixedPanel } from './MixedPanel'
 import { PerKeyPanel } from './PerKeyPanel'
@@ -16,9 +19,19 @@ interface Props {
     onClose: () => void
 }
 
+type RgbSection = 'backlight' | 'perkey' | 'mixed' | 'indicators'
+
+const SECTIONS: { id: RgbSection; label: string; icon: typeof Sun }[] = [
+    { id: 'backlight', label: 'Backlight', icon: Sun },
+    { id: 'perkey', label: 'Per-key RGB', icon: Grid3x3 },
+    { id: 'mixed', label: 'Mix RGB', icon: Layers },
+    { id: 'indicators', label: 'Indicator Light', icon: CircleDot },
+]
+
 export function RgbSettingsModal({ opened, onClose }: Props): JSX.Element {
     const rgb = useConnectionStore((s) => s.service?.rgb)
 
+    const [section, setSection] = useState<RgbSection>('backlight')
     const [ledCount, setLedCount] = useState<number | null>(null)
     const [indicatorsRaw, setIndicatorsRaw] = useState<Uint8Array>(
         new Uint8Array(),
@@ -75,37 +88,93 @@ export function RgbSettingsModal({ opened, onClose }: Props): JSX.Element {
         if (r) setIndicatorsRaw(r.raw)
     }
 
+    const ledPreview = Array.from({ length: Math.min(ledCount ?? 0, 36) })
+
     return (
         <Modal
             opened={opened}
             onClose={onClose}
             title="RGB Settings"
-            customModalBoxClass="sm:max-w-2xl"
+            subtitle={
+                ledCount === null
+                    ? 'Backlight effects'
+                    : `Backlight effects · ${ledCount} LEDs`
+            }
+            headerIcon={<Lightbulb />}
+            customModalBoxClass="w-11/14 max-w-3xl"
             showFooter={false}
-        >
-            <div className="flex flex-col gap-3 p-1 text-sm">
-                <div className="flex items-center gap-3">
-                    <span className="text-xs">
-                        <span className="font-semibold">LED count:</span>{' '}
-                        {ledCount === null ? '…' : ledCount}
+            footer={
+                <>
+                    <span className="mr-auto text-xs text-muted-foreground">
+                        Writes apply to the connected keyboard
                     </span>
+                    <Button variant="outline" onClick={onClose}>
+                        Close
+                    </Button>
                     <Button
-                        size="sm"
                         onClick={save}
                         disabled={loading}
-                        className="ml-auto"
+                        className="flex items-center gap-1.5"
                     >
+                        <Save className="size-3.5" />
                         Save to keyboard
                     </Button>
-                </div>
+                </>
+            }
+        >
+            <div className="flex min-h-[26rem] gap-4 text-sm">
+                {/* sidebar nav */}
+                <aside className="w-44 shrink-0 border-r pr-2">
+                    <nav className="flex flex-col gap-0.5">
+                        {SECTIONS.map(({ id, label, icon: Icon }) => {
+                            // pattern-check: skip — presentational nav button map
+                            const active = section === id
+                            return (
+                                <button
+                                    key={id}
+                                    type="button"
+                                    onClick={(): void => setSection(id)}
+                                    aria-current={active ? 'page' : undefined}
+                                    className={cn(
+                                        'flex items-center gap-2 rounded-md px-3 py-2 text-left text-[13px] font-medium transition-colors',
+                                        active
+                                            ? 'bg-accent text-accent-foreground'
+                                            : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
+                                    )}
+                                >
+                                    <Icon className="size-4 shrink-0" />
+                                    {label}
+                                </button>
+                            )
+                        })}
+                    </nav>
 
-                <Tabs defaultValue="indicators">
-                    <TabsList>
-                        <TabsTrigger value="indicators">Indicators</TabsTrigger>
-                        <TabsTrigger value="perkey">Per-key</TabsTrigger>
-                        <TabsTrigger value="mixed">Mixed</TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="indicators">
+                    {/* LED layout preview */}
+                    {ledPreview.length > 0 && (
+                        <div className="mt-4 px-1">
+                            <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                                LED layout · {ledCount}
+                            </p>
+                            <div className="flex flex-wrap gap-1">
+                                {ledPreview.map((_, i) => (
+                                    <span
+                                        key={i}
+                                        className="size-2.5 rounded-[3px] bg-primary/60 shadow-[0_0_6px] shadow-primary/40"
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </aside>
+
+                {/* active section */}
+                <ScrollArea className="max-h-[60vh] flex-1 pr-2">
+                    {section === 'backlight' && <BacklightPanel rgb={rgb} />}
+                    {section === 'perkey' && (
+                        <PerKeyPanel rgb={rgb} ledCount={ledCount ?? 0} />
+                    )}
+                    {section === 'mixed' && <MixedPanel rgb={rgb} />}
+                    {section === 'indicators' && (
                         <BytesEditor
                             label="Indicators"
                             bytes={indicatorsRaw}
@@ -113,14 +182,8 @@ export function RgbSettingsModal({ opened, onClose }: Props): JSX.Element {
                             onReload={reloadIndicators}
                             onWrite={writeIndicators}
                         />
-                    </TabsContent>
-                    <TabsContent value="perkey">
-                        <PerKeyPanel rgb={rgb} ledCount={ledCount ?? 0} />
-                    </TabsContent>
-                    <TabsContent value="mixed">
-                        <MixedPanel rgb={rgb} />
-                    </TabsContent>
-                </Tabs>
+                    )}
+                </ScrollArea>
             </div>
         </Modal>
     )

@@ -1,14 +1,14 @@
 // pattern-check: skip — form tab composing shared primitives
 import { useState } from 'react'
+import { ArrowRight } from 'lucide-react'
 
 import type { ComboEntry, KeyboardService } from '@firmware'
 import { Button } from '@/ui/button'
-import { FieldGroup } from '@/ui/field'
 
 import { saveWithToast } from '@/lib/saveWithToast'
 
+import { EntryCard, HexChip, Pair } from '../_shared/EntryCard'
 import { IndexInput } from '../_shared/IndexInput'
-import { NumField } from '../_shared/NumField'
 import { useDynamicEntry } from '../_shared/useDynamicEntry'
 
 interface Props {
@@ -46,9 +46,9 @@ export function ComboTab({ service, count, opened }: Props): JSX.Element {
         )
 
     return (
-        <FieldGroup className="space-y-3">
+        <div className="space-y-4">
             <IndexInput
-                label="Index"
+                label="Entry"
                 value={idx}
                 count={count}
                 onChange={setIdx}
@@ -58,24 +58,44 @@ export function ComboTab({ service, count, opened }: Props): JSX.Element {
             )}
             {entry && (
                 <>
-                    {entry.keys.map((k, i) => (
-                        <NumField
-                            key={i}
-                            label={`Key ${i + 1}`}
-                            value={k}
-                            onChange={(v) => setKey(i as 0 | 1 | 2 | 3, v)}
-                        />
-                    ))}
-                    <NumField
-                        label="Output"
-                        value={entry.output}
-                        onChange={(v) => setEntry({ ...entry, output: v })}
-                    />
+                    <EntryCard index={idx} accentHue={210}>
+                        <Pair label="Trigger keys">
+                            <div className="flex items-center gap-1.5">
+                                {entry.keys.map((k, i) => (
+                                    <div
+                                        key={i}
+                                        className="flex items-center gap-1.5"
+                                    >
+                                        {i > 0 && (
+                                            <span className="font-bold text-muted-foreground">
+                                                +
+                                            </span>
+                                        )}
+                                        <HexChip
+                                            value={k}
+                                            onChange={(v) =>
+                                                setKey(i as 0 | 1 | 2 | 3, v)
+                                            }
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                        </Pair>
+                        <ArrowRight className="mb-2 size-3.5 text-muted-foreground" />
+                        <Pair label="Output">
+                            <HexChip
+                                value={entry.output}
+                                onChange={(v) =>
+                                    setEntry({ ...entry, output: v })
+                                }
+                            />
+                        </Pair>
+                    </EntryCard>
                     <Button onClick={save} size="sm">
                         Save
                     </Button>
                 </>
             )}
-        </FieldGroup>
+        </div>
     )
 }

@@ -1,7 +1,9 @@
-// pattern-check: skip optional tooltip enrichment props on existing button component — mechanical prop extension
-import { CSSProperties } from 'react'
-import { Tooltip, TooltipTrigger, TooltipContent } from '@/ui/tooltip'
-import { Button } from '@/ui/button'
+// pattern-check: skip — presentational chip; category tint comes from the
+// existing catStyle() lookup, no new logic/abstraction.
+import { CSSProperties, useState } from 'react'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/ui/tooltip'
+import type { ColorMode } from '@/lib/keymap/keyCategory'
+import { categoryForUsage, catStyle } from '@/lib/keymap/keyCategory'
 
 interface KeycodeButtonProps {
     value?: number
@@ -9,11 +11,8 @@ interface KeycodeButtonProps {
     name?: string
     aliases?: string[]
     notes?: string
-    width?: number
-    height?: number
-    x: number
-    y: number
     baseKeyValue?: number
+    colorMode?: ColorMode
     onSelect: (keyCode: number) => void
     // Bypass the value/onSelect path. Used by behavior-ref tiles
     // (ZMK runtime &macro_* / &combo_*) which emit a complete
@@ -28,25 +27,54 @@ export default function KeycodeButton({
     name,
     aliases,
     notes,
-    width = 50,
-    height = 50,
-    x,
-    y,
     baseKeyValue,
+    colorMode = 'subtle',
     onSelect,
     onClickOverride,
     isSelected = false,
 }: KeycodeButtonProps): JSX.Element {
-    const keySize = 50
+    const [hovered, setHovered] = useState(false)
+
+    // Full category-tinted face (gradient + legend colour), matching the
+    // design handoff's KcButton. Neutral categories (alpha/space) fall back
+    // to --secondary so letters read as plain caps.
+    const cat = value && value !== 0 ? categoryForUsage(value) : 'alpha'
+    const cs = catStyle(cat, colorMode)
+    const tinted = !!cs.face
+
+    const tintedBorder = `color-mix(in oklch, ${cs.edge} 40%, transparent)`
+    const restingBorder = isSelected
+        ? 'var(--primary)'
+        : tinted
+          ? tintedBorder
+          : 'var(--border)'
 
     const style: CSSProperties = {
-        position: 'absolute',
-        top: `${y * keySize}px`,
-        left: `${x * keySize}px`,
-        width: `${width - 2}px`,
-        height: `${height - 2}px`,
-        overflow: 'hidden',
-        border: isSelected ? '2px solid blue' : '1px solid gray',
+        minWidth: 44,
+        height: 42,
+        padding: '0 10px',
+        borderRadius: 8,
+        cursor: 'pointer',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        whiteSpace: 'nowrap',
+        fontWeight: 600,
+        fontSize: 13,
+        fontFamily:
+            cat === 'alpha'
+                ? 'var(--font-keycap, Inter, sans-serif)'
+                : 'var(--font-mono, "JetBrains Mono", monospace)',
+        background: tinted
+            ? `linear-gradient(180deg, ${cs.faceTop}, ${cs.face})`
+            : 'var(--secondary)',
+        border: `1px solid ${hovered || isSelected ? 'var(--primary)' : restingBorder}`,
+        color: tinted ? cs.legend : 'var(--foreground)',
+        transform: hovered ? 'translateY(-2px)' : 'none',
+        boxShadow: isSelected
+            ? '0 0 0 1px var(--primary), 0 0 0 4px color-mix(in oklch, var(--primary) 25%, transparent)'
+            : 'none',
+        transition: 'transform .12s ease, border-color .12s ease',
     }
 
     const handleClick = (): void => {
@@ -54,9 +82,7 @@ export default function KeycodeButton({
             onClickOverride()
             return
         }
-        if (value !== undefined) {
-            onSelect(value)
-        }
+        if (value !== undefined) onSelect(value)
     }
 
     const aliasLine = aliases && aliases.length > 0 ? aliases.join(' · ') : null
@@ -64,18 +90,18 @@ export default function KeycodeButton({
     return (
         <Tooltip>
             <TooltipTrigger asChild>
-                <Button
-                    variant="outline"
-                    size="icon"
+                <button
+                    type="button"
                     aria-pressed={isSelected}
-                    className={`absolute aspect-square ${isSelected ? 'bg-accent text-accent-foreground' : ''}`}
                     style={style}
                     value={value}
                     data-base-key-value={baseKeyValue}
+                    onMouseEnter={() => setHovered(true)}
+                    onMouseLeave={() => setHovered(false)}
                     onClick={handleClick}
                 >
                     {label}
-                </Button>
+                </button>
             </TooltipTrigger>
             <TooltipContent>
                 <div className="font-medium">{name ?? label}</div>

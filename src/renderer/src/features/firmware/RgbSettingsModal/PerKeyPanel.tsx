@@ -6,7 +6,8 @@ import { saveWithToast } from '@/lib/saveWithToast'
 import { Button } from '@/ui/button'
 import { Input } from '@/ui/input'
 
-import { hexToHsv, hsvToCss, hsvToHex } from './hsv'
+import { hsvToCss } from './hsv'
+import { ColorPicker } from './ColorPicker'
 
 const PER_KEY_BATCH_MAX = 9
 
@@ -172,48 +173,15 @@ export function PerKeyPanel({ rgb, ledCount }: Props): JSX.Element {
             <div className="grid grid-cols-12 gap-1">{grid}</div>
 
             {cur !== null && selected !== null && (
-                <div className="rounded border p-3">
-                    <div className="mb-2 flex items-center gap-2 text-xs">
-                        <span className="font-semibold">LED {selected}</span>
-                        <span
-                            className="inline-block h-5 w-5 rounded border"
-                            style={{ backgroundColor: hsvToCss(cur) }}
-                        />
-                        <input
-                            type="color"
-                            value={hsvToHex(cur)}
-                            onChange={(e): void => {
-                                const next = hexToHsv(e.currentTarget.value)
-                                if (next) updateLocal(selected, next)
-                            }}
-                            aria-label="Pick color"
-                            className="ml-auto h-6 w-10 cursor-pointer rounded border bg-transparent p-0"
-                        />
+                <div className="rounded-xl border p-3">
+                    <div className="mb-3 text-xs font-semibold">
+                        LED {selected}
                     </div>
-                    {(['h', 's', 'v'] as const).map((ch) => (
-                        <label
-                            key={ch}
-                            className="flex items-center gap-2 text-xs"
-                        >
-                            <span className="w-4 uppercase">{ch}</span>
-                            <input
-                                type="range"
-                                min={0}
-                                max={255}
-                                value={cur[ch]}
-                                onChange={(e): void =>
-                                    updateLocal(selected, {
-                                        [ch]: Number(e.currentTarget.value),
-                                    })
-                                }
-                                className="flex-1"
-                            />
-                            <span className="w-10 text-right tabular-nums">
-                                {cur[ch]}
-                            </span>
-                        </label>
-                    ))}
-                    <div className="mt-2 flex gap-2">
+                    <ColorPicker
+                        value={cur}
+                        onChange={(next): void => updateLocal(selected, next)}
+                    />
+                    <div className="mt-3 flex gap-2">
                         <Button
                             size="sm"
                             onClick={(): void => {

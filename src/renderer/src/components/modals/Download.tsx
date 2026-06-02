@@ -88,34 +88,53 @@ export function Download({ opened, onClose }: DownloadProps): JSX.Element {
         <Modal
             opened={opened}
             onClose={onClose}
-            customModalBoxClass="w-11/14 max-w-4xl"
+            title="Configuration Export"
+            subtitle="Generate, download or copy your keymap config"
+            headerIcon={<DownloadIcon />}
+            customModalBoxClass="w-11/14 max-w-2xl"
             type="icon"
             icon={<DownloadIcon />}
             variant="ghost"
+            showFooter={false}
         >
             <div className="space-y-6">
-                <div className="space-y-4">
-                    <h3 className="text-lg font-semibold">
-                        Configuration Export{' '}
-                        <span className={'text-red-600'}>
-                            (This is not a functional system yet!!)
-                        </span>
-                    </h3>
-                    <p className="text-sm text-muted-foreground">
-                        Generate firmware configuration files for your keyboard
-                        layout. The file format is determined by the connected
-                        firmware adapter.
-                    </p>
-
-                    {!isConnected && (
-                        <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-                            <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                                Connect to a keyboard to generate configuration
-                                files
-                            </p>
+                {/* device / status */}
+                <div className="flex items-center gap-3 rounded-xl border bg-background p-4">
+                    <span
+                        data-ready={isConnected}
+                        className="size-2 shrink-0 rounded-full bg-muted-foreground data-[ready=true]:bg-emerald-500 data-[ready=true]:shadow-[0_0_8px] data-[ready=true]:shadow-emerald-500/60"
+                    />
+                    <div className="flex-1">
+                        <div className="text-[13px] font-semibold">
+                            {isConnected
+                                ? 'Configuration ready'
+                                : 'No keyboard connected'}
                         </div>
+                        <div className="text-xs text-muted-foreground">
+                            {isConnected
+                                ? `${keymap?.layers?.length ?? 0} layers · ${
+                                      service?.capabilities.exportFormats.join(
+                                          ', ',
+                                      ) || 'no'
+                                  } export format${
+                                      (service?.capabilities.exportFormats
+                                          .length ?? 0) === 1
+                                          ? ''
+                                          : 's'
+                                  }`
+                                : 'Connect a keyboard to generate config files'}
+                        </div>
+                    </div>
+                    {isConnected && (
+                        <FileText className="size-4 text-emerald-500" />
                     )}
+                </div>
 
+                {/* export */}
+                <div>
+                    <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                        Export
+                    </p>
                     <div className="flex flex-wrap gap-2">
                         <Button
                             onClick={handleGenerateConfig}
@@ -123,7 +142,7 @@ export function Download({ opened, onClose }: DownloadProps): JSX.Element {
                             className="flex items-center gap-2"
                         >
                             <DownloadIcon className="h-4 w-4" />
-                            Download Config Files
+                            Download .config
                         </Button>
                         <Button
                             onClick={handleCopyToClipboard}
@@ -132,56 +151,33 @@ export function Download({ opened, onClose }: DownloadProps): JSX.Element {
                             className="flex items-center gap-2"
                         >
                             <Copy className="h-4 w-4" />
-                            Copy Primary File to Clipboard
+                            Copy keymap
                         </Button>
                     </div>
-
-                    {isConnected && (
-                        <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-                            <div className="flex items-center gap-2 mb-2">
-                                <FileText className="h-4 w-4 text-green-600" />
-                                <span className="text-sm font-medium text-green-800 dark:text-green-200">
-                                    Configuration Ready
-                                </span>
-                            </div>
-                            <p className="text-sm text-green-700 dark:text-green-300">
-                                Found {keymap?.layers?.length ?? 0} layers.
-                                Export formats:{' '}
-                                {service?.capabilities.exportFormats.join(
-                                    ', ',
-                                ) ?? 'none'}
-                            </p>
-                        </div>
-                    )}
                 </div>
 
                 <Separator />
 
-                <div className="space-y-4">
-                    <h3 className="text-lg font-semibold">
-                        Usage Instructions
-                    </h3>
-                    <div className="space-y-3 text-sm text-muted-foreground">
-                        <div>
-                            <strong>1. Generate Configuration:</strong> Click
-                            &quot;Download Config Files&quot; to get your
-                            firmware configuration files.
-                        </div>
-                        <div>
-                            <strong>2. Copy to firmware repo:</strong> Place the
-                            downloaded files in your firmware configuration
-                            repository.
-                        </div>
-                        <div>
-                            <strong>3. Build Firmware:</strong> Push to your
-                            firmware build pipeline to produce a flashable
-                            artifact.
-                        </div>
-                        <div>
-                            <strong>4. Flash Keyboard:</strong> Download and
-                            flash the built firmware to your keyboard.
-                        </div>
-                    </div>
+                {/* instructions */}
+                <div>
+                    <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                        Flash to your keyboard
+                    </p>
+                    <ol className="space-y-2.5 text-sm text-muted-foreground">
+                        {[
+                            'Download the firmware config files above.',
+                            'Place them in your firmware configuration repository.',
+                            'Push to your firmware build pipeline to produce a flashable artifact.',
+                            'Download and flash the built firmware to your keyboard.',
+                        ].map((step, i) => (
+                            <li key={i} className="flex gap-3">
+                                <span className="grid size-5 shrink-0 place-items-center rounded-full bg-secondary font-mono text-[11px] font-bold text-foreground">
+                                    {i + 1}
+                                </span>
+                                <span className="pt-0.5">{step}</span>
+                            </li>
+                        ))}
+                    </ol>
                 </div>
             </div>
         </Modal>

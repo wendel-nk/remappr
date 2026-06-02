@@ -6,12 +6,12 @@ export interface PhysicalLayoutPositionLocation {
     ry?: number
 }
 
+// pattern-check: skip — removing a layer-promoting field from an existing interface
 export interface ScaledPositionStyle {
     top: number
     left: number
     transformOrigin: string
     transform: string
-    willChange: 'transform'
 }
 
 export function scalePosition(
@@ -35,6 +35,5 @@ export function scalePosition(
         left,
         transformOrigin,
         transform,
-        willChange: 'transform',
     }
 }

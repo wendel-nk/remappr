@@ -1,14 +1,14 @@
 // pattern-check: skip — form tab composing shared primitives
 import { useState } from 'react'
+import { ArrowRight } from 'lucide-react'
 
 import type { KeyboardService, TapDanceEntry } from '@firmware'
 import { Button } from '@/ui/button'
-import { FieldGroup } from '@/ui/field'
 
 import { saveWithToast } from '@/lib/saveWithToast'
 
+import { EntryCard, HexChip, NumChip, Pair } from '../_shared/EntryCard'
 import { IndexInput } from '../_shared/IndexInput'
-import { NumField } from '../_shared/NumField'
 import { useDynamicEntry } from '../_shared/useDynamicEntry'
 
 // pattern-check: skip optional defaultIndex prop add to existing component — mechanical extension
@@ -47,9 +47,9 @@ export function TapDanceTab({
         )
 
     return (
-        <FieldGroup className="space-y-3">
+        <div className="space-y-4">
             <IndexInput
-                label="Index"
+                label="Entry"
                 value={idx}
                 count={count}
                 onChange={setIdx}
@@ -59,36 +59,57 @@ export function TapDanceTab({
             )}
             {entry && (
                 <>
-                    <NumField
-                        label="On Tap"
-                        value={entry.onTap}
-                        onChange={(v) => setEntry({ ...entry, onTap: v })}
-                    />
-                    <NumField
-                        label="On Hold"
-                        value={entry.onHold}
-                        onChange={(v) => setEntry({ ...entry, onHold: v })}
-                    />
-                    <NumField
-                        label="On Double"
-                        value={entry.onDoubleTap}
-                        onChange={(v) => setEntry({ ...entry, onDoubleTap: v })}
-                    />
-                    <NumField
-                        label="On Tap-Hold"
-                        value={entry.onTapHold}
-                        onChange={(v) => setEntry({ ...entry, onTapHold: v })}
-                    />
-                    <NumField
-                        label="Term (ms)"
-                        value={entry.tappingTerm}
-                        onChange={(v) => setEntry({ ...entry, tappingTerm: v })}
-                    />
+                    <EntryCard index={idx} accentHue={286}>
+                        <Pair label="Tap">
+                            <HexChip
+                                value={entry.onTap}
+                                onChange={(v) =>
+                                    setEntry({ ...entry, onTap: v })
+                                }
+                            />
+                        </Pair>
+                        <ArrowRight className="mb-2 size-3.5 text-muted-foreground" />
+                        <Pair label="Hold">
+                            <HexChip
+                                value={entry.onHold}
+                                onChange={(v) =>
+                                    setEntry({ ...entry, onHold: v })
+                                }
+                            />
+                        </Pair>
+                        <Pair label="Double tap">
+                            <HexChip
+                                value={entry.onDoubleTap}
+                                onChange={(v) =>
+                                    setEntry({ ...entry, onDoubleTap: v })
+                                }
+                            />
+                        </Pair>
+                        <Pair label="Tap + Hold">
+                            <HexChip
+                                value={entry.onTapHold}
+                                onChange={(v) =>
+                                    setEntry({ ...entry, onTapHold: v })
+                                }
+                            />
+                        </Pair>
+                        <Pair label="Term">
+                            <NumChip
+                                value={entry.tappingTerm}
+                                onChange={(v) =>
+                                    setEntry({ ...entry, tappingTerm: v })
+                                }
+                            />
+                            <span className="text-[11px] text-muted-foreground">
+                                ms
+                            </span>
+                        </Pair>
+                    </EntryCard>
                     <Button onClick={save} size="sm">
                         Save
                     </Button>
                 </>
             )}
-        </FieldGroup>
+        </div>
     )
 }

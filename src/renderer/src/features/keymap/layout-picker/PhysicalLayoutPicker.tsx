@@ -1,15 +1,15 @@
-import { useCallback } from 'react'
+// pattern-check: skip — hover-preview restructure of layout chips, presentational only
+import { useCallback, useState } from 'react'
 import { Popover, PopoverTrigger, PopoverContent } from '@/ui/popover'
-import { PhysicalLayoutCanvas } from '../keyboard/PhysicalLayoutCanvas'
+import { LayerKeyboardPreview } from '../keyboard/LayerKeyboardPreview'
 import {
     SidebarGroupContent,
     SidebarGroupLabel,
     SidebarGroupAction,
     SidebarMenuButton,
 } from '@/ui/sidebar'
-import { Plus } from 'lucide-react'
-import { Button } from '@/ui/button'
-import type { PhysicalLayout, PhysicalLayoutKey } from '@firmware/types'
+import { Check, Cpu, Plus } from 'lucide-react'
+import type { PhysicalLayout } from '@firmware/types'
 
 export type PhysicalLayoutItem = Pick<PhysicalLayout, 'name' | 'keys'>
 
@@ -26,124 +26,106 @@ export const PhysicalLayoutPicker = ({
     selectedPhysicalLayoutIndex,
     onPhysicalLayoutClicked,
 }: PhysicalLayoutPickerProps): JSX.Element => {
+    // Which chip is hovered → its mini-keyboard preview popover is open.
+    const [hovered, setHovered] = useState<number | null>(null)
+
     const handleLayoutSelect = useCallback(
         (index: number): void => {
             onPhysicalLayoutClicked?.(index)
         },
         [onPhysicalLayoutClicked],
     )
-    // console.log( layouts )
+
     return (
         <SidebarGroupContent>
-            <SidebarGroupLabel>Layouts</SidebarGroupLabel>
+            <SidebarGroupLabel className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
+                Layouts
+            </SidebarGroupLabel>
             <SidebarGroupAction title="Add Layout">
                 <Plus /> <span className="sr-only">Add Layout</span>
             </SidebarGroupAction>
             {layouts && (
                 <div className="space-y-2">
-                    {layouts.map((layout, index) => (
-                        <div key={layout.name} className="w-full">
-                            <Popover>
+                    {layouts.map((layout, index) => {
+                        const selected = index === selectedPhysicalLayoutIndex
+                        return (
+                            <Popover key={layout.name} open={hovered === index}>
                                 <PopoverTrigger asChild>
-                                    <SidebarMenuButton>
-                                        <h3 className="font-medium">
-                                            {layout.name}
-                                        </h3>
-                                        <p className="text-sm text-muted-foreground">
-                                            {layout.keys.length} keys
-                                        </p>
+                                    <SidebarMenuButton
+                                        className="h-auto items-center gap-2.5 rounded-[10px] border px-2.5 py-2.5 data-[active=true]:bg-transparent"
+                                        style={
+                                            selected
+                                                ? {
+                                                      background:
+                                                          'color-mix(in oklch, var(--primary) 12%, var(--sidebar))',
+                                                      borderColor:
+                                                          'color-mix(in oklch, var(--primary) 32%, transparent)',
+                                                  }
+                                                : {
+                                                      borderColor:
+                                                          'var(--sidebar-border)',
+                                                  }
+                                        }
+                                        onMouseEnter={(): void =>
+                                            setHovered(index)
+                                        }
+                                        onMouseLeave={(): void =>
+                                            setHovered(null)
+                                        }
+                                        onClick={(): void =>
+                                            handleLayoutSelect(index)
+                                        }
+                                    >
+                                        <Cpu
+                                            className="size-4 shrink-0"
+                                            style={{
+                                                color: selected
+                                                    ? 'var(--primary)'
+                                                    : 'var(--muted-foreground)',
+                                            }}
+                                        />
+                                        <div className="min-w-0 flex-1">
+                                            <h3 className="truncate text-[13.5px] font-bold leading-tight">
+                                                {layout.name}
+                                            </h3>
+                                            <p className="truncate text-[11px] text-muted-foreground">
+                                                {layout.keys.length} keys ·
+                                                hover to preview
+                                            </p>
+                                        </div>
+                                        {selected && (
+                                            <Check
+                                                className="size-4 shrink-0"
+                                                style={{
+                                                    color: 'var(--primary)',
+                                                }}
+                                            />
+                                        )}
                                     </SidebarMenuButton>
                                 </PopoverTrigger>
-                                <PopoverContent>
-                                    <div className="space-y-4 ">
-                                        <div className="flex justify-center">
-                                            <PhysicalLayoutCanvas
-                                                oneU={20}
-                                                hoverZoom={false}
-                                                positions={layout.keys.map(
-                                                    (
-                                                        k: PhysicalLayoutKey,
-                                                        i,
-                                                    ) => ({
-                                                        id: `${layout.name}-${i}`,
-                                                        x: k.x / 100.0,
-                                                        y: k.y / 100.0,
-                                                        width: k.w / 100.0,
-                                                        height: k.h / 100.0,
-                                                        r: (k.r || 0) / 100.0,
-                                                        rx: (k.rx || 0) / 100.0,
-                                                        ry: (k.ry || 0) / 100.0,
-                                                    }),
-                                                )}
-                                            />
-                                        </div>
-                                        <Button
-                                            variant={
-                                                index ===
-                                                selectedPhysicalLayoutIndex
-                                                    ? 'default'
-                                                    : 'outline'
-                                            }
-                                            className="w-full"
-                                            onClick={() =>
-                                                handleLayoutSelect(index)
-                                            }
-                                        >
-                                            {index ===
-                                            selectedPhysicalLayoutIndex
-                                                ? 'Selected'
-                                                : 'Select Layout'}
-                                        </Button>
+                                <PopoverContent
+                                    side="right"
+                                    align="start"
+                                    sideOffset={12}
+                                    onOpenAutoFocus={(e): void =>
+                                        e.preventDefault()
+                                    }
+                                    className="pointer-events-none w-auto p-2"
+                                >
+                                    <div className="mb-1 px-1 text-[10.5px] font-bold uppercase tracking-[0.06em] text-muted-foreground">
+                                        {layout.name} · {layout.keys.length}{' '}
+                                        keys
+                                    </div>
+                                    <div className="flex justify-center">
+                                        <LayerKeyboardPreview
+                                            physicalLayoutIndex={index}
+                                            oneU={13}
+                                        />
                                     </div>
                                 </PopoverContent>
                             </Popover>
-                            {/*	<Popover>*/}
-                            {/*<PopoverTrigger>*/}
-                            {/*</PopoverTrigger>*/}
-                            {/*		<PopoverDialog className="w-80 p-4">*/}
-                            {/*			<div className="space-y-4">*/}
-                            {/*				<div>*/}
-                            {/*					<h3 className="font-medium">{ layout.name }</h3>*/}
-                            {/*					<p className="text-sm text-muted-foreground">*/}
-                            {/*						{ layout.keys.length } keys*/}
-                            {/*					</p>*/}
-                            {/*				</div>*/}
-                            {/*				<div className="flex justify-center">*/}
-                            {/*					<PhysicalLayout*/}
-                            {/*						oneU={ 20 }*/}
-                            {/*						hoverZoom={ false }*/}
-                            {/*						positions={ layout.keys.map( ( {*/}
-                            {/*							x,*/}
-                            {/*							y,*/}
-                            {/*							width,*/}
-                            {/*							height,*/}
-                            {/*							r,*/}
-                            {/*							rx,*/}
-                            {/*							ry*/}
-                            {/*						}, i ) => ({*/}
-                            {/*							id: `${ layout.name }-${ i }`,*/}
-                            {/*							x: x / 100.0,*/}
-                            {/*							y: y / 100.0,*/}
-                            {/*							width: width / 100.0,*/}
-                            {/*							height: height / 100.0,*/}
-                            {/*							r: (r || 0) / 100.0,*/}
-                            {/*							rx: (rx || 0) / 100.0,*/}
-                            {/*							ry: (ry || 0) / 100.0*/}
-                            {/*						}) ) }*/}
-                            {/*					/>*/}
-                            {/*				</div>*/}
-                            {/*				<Button*/}
-                            {/*					variant={ index === selectedPhysicalLayoutIndex ? "default" : "outline" }*/}
-                            {/*					className="w-full"*/}
-                            {/*					onClick={ () => handleLayoutSelect( index ) }*/}
-                            {/*				>*/}
-                            {/*					{ index === selectedPhysicalLayoutIndex ? "Selected" : "Select Layout" }*/}
-                            {/*				</Button>*/}
-                            {/*			</div>*/}
-                            {/*		</PopoverDialog>*/}
-                            {/*	</Popover>*/}
-                        </div>
-                    ))}
+                        )
+                    })}
                 </div>
             )}
         </SidebarGroupContent>

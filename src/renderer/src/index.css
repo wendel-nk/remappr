@@ -13,6 +13,18 @@
         src: url('/Inter.woff2') format('woff2');
         font-display: fallback;
     }
+    @font-face {
+        font-family: 'JetBrains Mono';
+        src: url('/jetbrains-mono-latin-400-normal.woff2') format('woff2');
+        font-weight: 400;
+        font-display: fallback;
+    }
+    @font-face {
+        font-family: 'JetBrains Mono';
+        src: url('/jetbrains-mono-latin-700-normal.woff2') format('woff2');
+        font-weight: 700;
+        font-display: fallback;
+    }
 }
 
 /*html {*/
@@ -76,7 +88,7 @@
         'Noto Color Emoji';
     --font-serif: ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif;
     --font-mono:
-        ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+        'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
         'Liberation Mono', 'Courier New', monospace;
     --radius: 0.625rem;
     --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
@@ -94,6 +106,14 @@
     --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
     --tracking-normal: 0em;
     --spacing: 0.25rem;
+    /* Keycap face/legend lightness — flips with light/dark mode so the
+       function-coded caps (hue + chroma come from keyCategory.ts) stay legible
+       in both. Light mode: pale faces with dark legends. */
+    --cap-legend-l: 0.48;
+    --cap-face-l: 0.93;
+    --cap-face-top-l: 0.96;
+    --cap-edge-l: 0.55;
+    --cap-dot-l: 0.55;
 }
 
 .dark {
@@ -136,7 +156,7 @@
         'Noto Color Emoji';
     --font-serif: ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif;
     --font-mono:
-        ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+        'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
         'Liberation Mono', 'Courier New', monospace;
     --radius: 0.625rem;
     --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
@@ -152,6 +172,12 @@
     --shadow-xl:
         0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 8px 10px -1px hsl(0 0% 0% / 0.1);
     --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
+    /* Dark mode: deep faces with light legends (unchanged from the design). */
+    --cap-legend-l: 0.83;
+    --cap-face-l: 0.33;
+    --cap-face-top-l: 0.37;
+    --cap-edge-l: 0.62;
+    --cap-dot-l: 0.62;
 }
 
 @theme inline {
@@ -191,6 +217,8 @@
     --font-sans: var(--font-sans);
     --font-mono: var(--font-mono);
     --font-serif: var(--font-serif);
+    /* Keycap legend font — Inter is already bundled; mono caps reuse --font-mono. */
+    --font-keycap: 'Inter', var(--font-sans);
 
     --radius-sm: calc(var(--radius) - 4px);
     --radius-md: calc(var(--radius) - 2px);
@@ -217,21 +245,47 @@
         @apply bg-background text-foreground;
     }
 
-    /* Ensure crisp rendering for scaled elements */
-    [data-zoomer='true'] {
-        image-rendering: crisp-edges;
-        image-rendering: -webkit-optimize-contrast;
-        backface-visibility: hidden;
+    /* Workbench canvas backdrop — ported 1:1 from the design prototype.
+       A soft dual radial glow (primary at top, foreground at bottom) with a
+       dotted grid on top, masked to fade out toward the edges so the board
+       reads cleanly. No backface-visibility / image-rendering hints here: the
+       board zooms via a 2D transform, so promoting keycaps to fixed-resolution
+       GPU layers would scale a cached bitmap (blurry text). Letting the browser
+       re-rasterise the vector content keeps every zoom level crisp. */
+    .workbench-bg {
+        background:
+            radial-gradient(
+                120% 80% at 50% 0%,
+                color-mix(in oklch, var(--primary) 9%, transparent),
+                transparent 60%
+            ),
+            radial-gradient(
+                60% 50% at 50% 100%,
+                color-mix(in oklch, var(--foreground) 4%, transparent),
+                transparent 70%
+            );
+        position: relative;
     }
 
-    /* Offset shadcn sidebar below custom titlebar (electron only) */
-    body.app-electron [data-slot='sidebar-container'],
-    body.app-electron [data-slot='sidebar-gap'] {
-        top: 2.25rem !important;
-        height: calc(100svh - 2.25rem) !important;
-    }
-
-    body.app-electron [class~='group/sidebar-wrapper'] {
-        min-height: calc(100svh - 2.25rem) !important;
+    .workbench-bg::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background-image: radial-gradient(
+            color-mix(in oklch, var(--foreground) 7%, transparent) 1px,
+            transparent 1px
+        );
+        background-size: 26px 26px;
+        mask-image: radial-gradient(
+            80% 70% at 50% 45%,
+            #000 30%,
+            transparent 80%
+        );
+        -webkit-mask-image: radial-gradient(
+            80% 70% at 50% 45%,
+            #000 30%,
+            transparent 80%
+        );
+        pointer-events: none;
     }
 }

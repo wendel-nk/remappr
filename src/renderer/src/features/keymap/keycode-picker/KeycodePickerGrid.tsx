@@ -1,20 +1,20 @@
 // Pattern check: no GoF pattern (-) — rejected — picker rewrite to iterate catalog pages + use codec for canonical↔value translation; replaces legacy keyboards import flow.
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Key } from 'react-aria-components'
 import { toast } from 'sonner'
 import { hidUsagePageAndIdFromUsage } from '@/lib/actions/hidUsages'
 import {
-    maskMods,
     filterKeysBySearch,
-    splitKeysByPosition,
-    calculateContainerHeight,
-    maxBottomForPositioned,
+    groupEntriesIntoSections,
+    maskMods,
 } from '@/lib/keymap/keycodeGrid'
+import { categoryForUsage } from '@/lib/keymap/keyCategory'
 import { useKeycodeFilter } from '@/hooks/use-keycode-filter'
 import useConnectionStore from '@/stores/connectionStore'
+import useUserSettingsStore from '@/stores/userSettingsStore'
 import type { CatalogEntry } from '@firmware/catalog/types'
 import KeycodeButton from './KeycodeButton.tsx'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/ui/tabs'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/ui/tabs'
 import { Input } from '@/ui/input'
 
 interface KeycodePickerGridProps {
@@ -75,6 +75,7 @@ export function KeycodePickerGrid({
     } = useKeycodeFilter()
 
     const codec = useConnectionStore((s) => s.service?.codec)
+    const colorMode = useUserSettingsStore((s) => s.colorMode)
 
     const [modFlags, setModFlags] = useState<number>(0)
     const [baseKey, setBaseKey] = useState<number | undefined>(undefined)
@@ -171,9 +172,16 @@ export function KeycodePickerGrid({
     }
 
     return (
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <div className="flex items-center gap-4 mb-4">
-                <TabsList className="flex-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <Tabs
+            value={activeTab}
+            onValueChange={setActiveTab}
+            className="@container w-full min-w-0"
+        >
+            {/* Container-query layout: tabs + search sit on one row in a wide
+                surface (bottom sheet) and stack vertically in the narrow inspector
+                panel — never forcing a horizontal scrollbar. */}
+            <div className="mb-4 flex flex-col gap-2 @lg:flex-row @lg:items-center">
+                <TabsList className="flex h-auto min-w-0 flex-wrap @lg:flex-1">
                     {pages.map((page, index) => {
                         const match = pagesWithMatches[index]
                         const isDisabled =
@@ -194,30 +202,22 @@ export function KeycodePickerGrid({
                     placeholder="Search keycodes by label..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-64 flex-shrink-0 flex"
+                    className="w-full @lg:w-56 @lg:flex-none"
                 />
             </div>
 
+            {/* pattern-check: skip — presentational render swap (positioned grid → grouped chip sections); grouping logic is in the pure keycodeGrid helper */}
             {pages.map((page, index) => {
                 const filteredKeys = filterKeysBySearch(
                     page.entries,
                     searchQuery,
                 )
-                const { withPositions, withoutPositions } =
-                    splitKeysByPosition(filteredKeys)
-                const calculatedHeight = calculateContainerHeight(
-                    withPositions,
-                    withoutPositions,
-                )
-                const maxBottomPosition = maxBottomForPositioned(withPositions)
 
-                const renderEntry = (
+                const renderChip = (
                     entry: CatalogEntry,
-                    positioned: boolean,
+                    keyIndex: number,
                 ): JSX.Element => {
                     const entryValue = valueByEntryId.get(entry.id)
-                    const keyWidth = entry.w ? entry.w / 2 : 50
-                    const keyHeight = entry.h ? entry.h / 2 : 50
                     const behaviorKind = entry.behaviorRef?.kind
                     const displayOnlyClick = entry.displayOnly
                         ? (): void => {
@@ -231,17 +231,15 @@ export function KeycodePickerGrid({
                         (behaviorKind
                             ? () => onActionChosen?.(behaviorKind)
                             : undefined)
-                    const button = (
+                    return (
                         <KeycodeButton
+                            key={`${entry.id}-${keyIndex}`}
                             value={entryValue ?? 0}
                             label={entry.label}
                             name={entry.name}
                             aliases={entry.aliases}
                             notes={entry.notes}
-                            width={keyWidth}
-                            height={keyHeight}
-                            x={positioned ? (entry.x ?? 0) / 100 : 0}
-                            y={positioned ? (entry.y ?? 0) / 100 : 0}
+                            colorMode={colorMode}
                             baseKeyValue={entryValue ?? 0}
                             onSelect={handleKeySelect}
                             onClickOverride={overrideClick}
@@ -252,20 +250,16 @@ export function KeycodePickerGrid({
                             }
                         />
                     )
-                    if (positioned) return button
-                    return (
-                        <div
-                            style={{
-                                position: 'relative',
-                                width: `${keyWidth}px`,
-                                height: `${keyHeight}px`,
-                                flexShrink: 0,
-                            }}
-                        >
-                            {button}
-                        </div>
-                    )
                 }
+
+                // Keyboard-grid pages get the design's named category sections;
+                // flat-grid pages stay a single ungrouped wrap.
+                const sections =
+                    page.style === 'keyboard-grid'
+                        ? groupEntriesIntoSections(filteredKeys, (entry) =>
+                              categoryForUsage(valueByEntryId.get(entry.id)),
+                          )
+                        : [{ title: '', entries: filteredKeys }]
 
                 return (
                     <TabsContent
@@ -273,61 +267,52 @@ export function KeycodePickerGrid({
                         value={index.toString()}
                         className="mt-4"
                     >
+                        {
+                            // pattern-check: skip — presentational grouped chip-section render; logic in keycodeGrid helper
+                        }
                         <div
-                            className="relative p-6"
+                            className="px-2 py-1"
                             style={{
-                                minHeight: `${Math.min(calculatedHeight, CONTAINER_MAX_HEIGHT)}px`,
-                                maxHeight: `${CONTAINER_MAX_HEIGHT}px`,
+                                // Tall surfaces (inspector panel) set --kc-picker-max-h
+                                // so the chip list fills the column; the bottom sheet
+                                // falls back to the fixed cap.
+                                maxHeight: `var(--kc-picker-max-h, ${CONTAINER_MAX_HEIGHT}px)`,
                                 overflowY: 'auto',
                                 overflowX: 'hidden',
                             }}
                         >
-                            {withPositions.map((entry, keyIndex) => (
-                                <div key={`${entry.id}-${keyIndex}`}>
-                                    {renderEntry(entry, true)}
+                            <div className="mb-3 flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
+                                <span className="rounded-full bg-secondary px-2 py-0.5 tabular-nums text-foreground">
+                                    {filteredKeys.length}
+                                </span>
+                                {filteredKeys.length === 1 ? 'key' : 'keys'}
+                                {searchQuery.trim()
+                                    ? ' matched'
+                                    : ' in this tab'}
+                            </div>
+                            {sections.map((section) => (
+                                <div
+                                    key={section.title || 'all'}
+                                    className="mb-4"
+                                >
+                                    {section.title && (
+                                        <div className="mb-2 flex items-baseline gap-2">
+                                            <span className="text-[10.5px] font-bold uppercase tracking-wider text-muted-foreground">
+                                                {section.title}
+                                            </span>
+                                            <span className="text-[10px] tabular-nums text-muted-foreground/60">
+                                                {section.entries.length}
+                                            </span>
+                                        </div>
+                                    )}
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {section.entries.map(
+                                            (entry, keyIndex) =>
+                                                renderChip(entry, keyIndex),
+                                        )}
+                                    </div>
                                 </div>
                             ))}
-
-                            {withoutPositions.length > 0 && (
-                                <div
-                                    style={{
-                                        position:
-                                            withPositions.length > 0
-                                                ? 'absolute'
-                                                : 'relative',
-                                        top:
-                                            withPositions.length > 0
-                                                ? `${maxBottomPosition + 10}px`
-                                                : '0px',
-                                        left:
-                                            withPositions.length > 0
-                                                ? '0px'
-                                                : undefined,
-                                        display: 'flex',
-                                        flexWrap: 'wrap',
-                                        gap: '4px',
-                                        width: '100%',
-                                        maxWidth: '100%',
-                                    }}
-                                >
-                                    {withoutPositions.map((entry, keyIndex) => (
-                                        <div key={`${entry.id}-${keyIndex}`}>
-                                            {renderEntry(entry, false)}
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                            {calculatedHeight > CONTAINER_MAX_HEIGHT && (
-                                <div
-                                    style={{
-                                        position: 'relative',
-                                        width: '1px',
-                                        height: `${calculatedHeight - CONTAINER_MAX_HEIGHT}px`,
-                                        pointerEvents: 'none',
-                                        opacity: 0,
-                                    }}
-                                />
-                            )}
                         </div>
                     </TabsContent>
                 )

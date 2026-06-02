@@ -1,5 +1,6 @@
 import type { KeyCatalog } from './catalog/types'
 import type { KeycodeCodec } from './codec'
+import type { LightingCatalog } from './lighting'
 import type {
     ActionType,
     AdapterNotification,
@@ -131,6 +132,15 @@ export interface HsvColor {
     v: number
 }
 
+// pattern-check: skip — data contract field additions, no abstraction
+// Global backlight (RGB-matrix) effect state. `mode` indexes into RgbApi.effectNames.
+export interface RgbEffectState {
+    mode: number
+    brightness: number // 0..255
+    speed: number // 0..255
+    color: HsvColor
+}
+
 export interface RgbApi {
     getLedCount(): Promise<number>
 
@@ -139,6 +149,14 @@ export interface RgbApi {
     setIndicators(cfg: IndicatorConfig): Promise<void>
 
     save(): Promise<void>
+
+    // Backlight effect mode. Presence of effectCatalog + get/setEffect enables the
+    // "Backlight" tab; firmware that can't drive a global effect omits them.
+    effectCatalog?: LightingCatalog
+
+    getEffect?(): Promise<RgbEffectState>
+
+    setEffect?(state: RgbEffectState): Promise<void>
 
     getPerKeyType?(): Promise<number>
 

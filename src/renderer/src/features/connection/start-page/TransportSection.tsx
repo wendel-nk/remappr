@@ -74,15 +74,22 @@ export function TransportSection({
                         onSimpleConnect={onSimpleConnect}
                     />
                 ) : hasListableTransports && devices.length > 0 ? (
-                    <ListedDevices
-                        devices={devices}
-                        pairableTransports={pairableTransports}
-                        connectingDeviceId={connectingDeviceId}
-                        refreshing={refreshing}
-                        onConnect={onConnect}
-                        onRefresh={onRefresh}
-                        onRequestNew={onRequestNew}
-                    />
+                    <>
+                        <ListedDevices
+                            devices={devices}
+                            pairableTransports={pairableTransports}
+                            connectingDeviceId={connectingDeviceId}
+                            refreshing={refreshing}
+                            onConnect={onConnect}
+                            onRefresh={onRefresh}
+                            onRequestNew={onRequestNew}
+                        />
+                        <p className="mt-4 text-center text-xs text-muted-foreground">
+                            {devices.length} device
+                            {devices.length === 1 ? '' : 's'} found · click a
+                            card to open the editor
+                        </p>
+                    </>
                 ) : hasListableTransports ? (
                     <EmptyState
                         pairableTransports={pairableTransports}

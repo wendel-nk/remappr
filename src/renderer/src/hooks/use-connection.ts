@@ -5,6 +5,7 @@ import type { Transport } from '@firmware'
 import { UserCancelledError } from '@firmware'
 import type { TransportFactory } from '@/transport/types'
 import { getTransports, subscribeToTransportChanges } from '@/lib/transports'
+import useConnectionStore from '@/stores/connectionStore'
 import type {
     DeviceStatus,
     DeviceWithTransport,
@@ -142,6 +143,10 @@ export function useConnection(
             setStatus(device.id, 'connecting')
             try {
                 const rpc = await transport.pick_and_connect!.connect(device)
+                useConnectionStore.getState().setLastConnectedDevice({
+                    id: device.id,
+                    label: device.label,
+                })
                 onTransportCreated(rpc, transport.communication)
             } catch (e) {
                 console.error('Connection error:', e)
@@ -165,6 +170,7 @@ export function useConnection(
             }
             try {
                 const rpc = await transport.connect()
+                useConnectionStore.getState().setLastConnectedDevice(null)
                 if (rpc) onTransportCreated(rpc, transport.communication)
             } catch (e) {
                 reportConnectError(
@@ -184,6 +190,7 @@ export function useConnection(
             }
             try {
                 const rpc = await transport.request_new()
+                useConnectionStore.getState().setLastConnectedDevice(null)
                 if (rpc) onTransportCreated(rpc, transport.communication)
             } catch (e) {
                 if (

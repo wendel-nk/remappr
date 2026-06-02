@@ -10,6 +10,7 @@ import type {
     KeyboardService,
     MacroApi,
     RgbApi,
+    RgbEffectState,
 } from '@firmware/service'
 import type {
     ActionType,
@@ -31,12 +32,15 @@ import type {
     TapDanceEntry,
 } from '@firmware/types'
 import { LockedError, ProtocolError } from '@firmware/errors'
+import { RGB_MATRIX_CATALOG } from '@firmware/lighting'
 
 import {
     buildMockActionTypes,
     buildMockKeyAction,
     HID_KP,
     MOCK_KIND_KEYPRESS,
+    MOCK_KIND_LAYER_TAP,
+    MOCK_KIND_MOD_TAP,
     MOCK_KIND_TRANSPARENT,
     relabelLayer,
 } from './actions'
@@ -184,6 +188,12 @@ export class MockKeyboardService implements KeyboardService {
     ])
     private mixedRegions: Uint8Array = new Uint8Array([0x01, 0x02, 0x03, 0x04])
     private mixedEffect: Uint8Array = new Uint8Array([0x05, 0x06, 0x07, 0x08])
+    private rgbEffect: RgbEffectState = {
+        mode: 14, // Cycle Up Down (RGB_MATRIX_EFFECTS index)
+        brightness: 200,
+        speed: 128,
+        color: { h: 170, s: 255, v: 255 },
+    }
 
     constructor(opts: MockServiceOptions = {}) {
         this.deviceInfo = {
@@ -328,6 +338,15 @@ export class MockKeyboardService implements KeyboardService {
                 this.mixedEffect = b.slice()
                 this.markPending(true)
             },
+            effectCatalog: RGB_MATRIX_CATALOG,
+            getEffect: async () => ({
+                ...this.rgbEffect,
+                color: { ...this.rgbEffect.color },
+            }),
+            setEffect: async (state) => {
+                this.rgbEffect = { ...state, color: { ...state.color } }
+                this.markPending(true)
+            },
         }
     }
 
@@ -379,10 +398,18 @@ export class MockKeyboardService implements KeyboardService {
 
     private seedDefaultLayers(): void {
         const baseKeys = this.makeQwertyBase()
-        const lowerKeys = this.makeFiller(MOCK_KIND_TRANSPARENT)
         this.layers = [
             { id: this.nextLayerId++, name: 'Base', keys: baseKeys },
-            { id: this.nextLayerId++, name: 'Lower', keys: lowerKeys },
+            {
+                id: this.nextLayerId++,
+                name: 'Lower',
+                keys: this.makeFiller(MOCK_KIND_TRANSPARENT),
+            },
+            {
+                id: this.nextLayerId++,
+                name: 'Raise',
+                keys: this.makeFiller(MOCK_KIND_TRANSPARENT),
+            },
         ]
     }
 
@@ -445,32 +472,66 @@ export class MockKeyboardService implements KeyboardService {
             if (ch === '/') return HID_KP(0x38)
             return 0x00
         }
-        const thumbs = [
-            HID_KP(0x29), // Esc
-            HID_KP(0x2c), // Space
-            HID_KP(0x2b), // Tab
-            HID_KP(0x28), // Enter
-            HID_KP(0x2a), // Backspace
-            HID_KP(0x4c), // Delete
-        ]
-        const codes: number[] = [
-            ...left.map(hidFor),
-            ...thumbs.slice(0, 3),
-            ...right.map(hidFor),
-            ...thumbs.slice(3),
-        ]
-        if (codes.length !== MOCK_KEY_COUNT) {
-            throw new ProtocolError(
-                `Mock base layer key count mismatch: ${codes.length} vs ${MOCK_KEY_COUNT}`,
-            )
-        }
-        return codes.map((c) =>
+        // pattern-check: skip — pure demo seed data with local one-shot builders
+        // Modifier HID usages used by the home-row Mod-Taps.
+        const GUI = HID_KP(0xe3)
+        const ALT = HID_KP(0xe2)
+        const CTRL = HID_KP(0xe0)
+        const SHIFT = HID_KP(0xe1)
+        // Layer indices for the thumb Layer-Taps (Base 0, Lower 1, Raise 2).
+        const LOWER = 1
+        const RAISE = 2
+
+        const kp = (c: number): KeyAction =>
             buildMockKeyAction(
                 c === 0 ? MOCK_KIND_TRANSPARENT : MOCK_KIND_KEYPRESS,
                 c === 0 ? [] : [c],
                 this.layerNames(),
-            ),
-        )
+            )
+        const modTap = (ch: string, mod: number): KeyAction =>
+            buildMockKeyAction(MOCK_KIND_MOD_TAP, [hidFor(ch), mod])
+        const layerTap = (tap: number, layer: number): KeyAction =>
+            buildMockKeyAction(MOCK_KIND_LAYER_TAP, [tap, layer])
+
+        // Home-row Mod-Taps: A/Gui S/Alt D/Ctrl F/Shift  ·  J/Shift K/Ctrl L/Alt ;/Gui
+        const leftKeys: KeyAction[] = left.map((ch) => {
+            if (ch === 'A') return modTap('A', GUI)
+            if (ch === 'S') return modTap('S', ALT)
+            if (ch === 'D') return modTap('D', CTRL)
+            if (ch === 'F') return modTap('F', SHIFT)
+            return kp(hidFor(ch))
+        })
+        const rightKeys: KeyAction[] = right.map((ch) => {
+            if (ch === 'J') return modTap('J', SHIFT)
+            if (ch === 'K') return modTap('K', CTRL)
+            if (ch === 'L') return modTap('L', ALT)
+            if (ch === ';') return modTap(';', GUI)
+            return kp(hidFor(ch))
+        })
+
+        const leftThumbs: KeyAction[] = [
+            kp(HID_KP(0x29)), // Esc
+            layerTap(HID_KP(0x2c), RAISE), // Space / Raise
+            kp(HID_KP(0x2b)), // Tab
+        ]
+        const rightThumbs: KeyAction[] = [
+            kp(HID_KP(0x28)), // Enter
+            layerTap(HID_KP(0x2a), LOWER), // Backspace / Lower
+            kp(HID_KP(0x4c)), // Delete
+        ]
+
+        const keys: KeyAction[] = [
+            ...leftKeys,
+            ...leftThumbs,
+            ...rightKeys,
+            ...rightThumbs,
+        ]
+        if (keys.length !== MOCK_KEY_COUNT) {
+            throw new ProtocolError(
+                `Mock base layer key count mismatch: ${keys.length} vs ${MOCK_KEY_COUNT}`,
+            )
+        }
+        return keys
     }
 
     private requireUnlocked(): void {
