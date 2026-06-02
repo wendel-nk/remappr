@@ -10,7 +10,7 @@ import {
 } from '../index'
 
 const seedPath = fileURLToPath(
-    new URL('../../mock/seed.keymap.json5', import.meta.url),
+    new URL('../../mock/seed.keymap.json', import.meta.url),
 )
 const seed = readFileSync(seedPath, 'utf8')
 
@@ -31,10 +31,10 @@ describe('config schema', () => {
         expect(base.bindings[0]).toMatchObject({ type: 'key_press' })
         // "Ctrl+C" on the lower layer -> key_press with mods
         const lower = km.layers.find((l) => l.name === 'lower')!
-        const copy = lower.bindings[8]
+        const copy = lower.bindings[10]
         expect(copy).toMatchObject({ type: 'key_press', mods: ['LEFT_CTRL'] })
-        // layer_tap preset -> tap_hold with a layer hold
-        expect(base.bindings[12]).toMatchObject({
+        // layer_tap preset -> tap_hold with a layer hold (R-thumb Backspace/Lower)
+        expect(base.bindings[34]).toMatchObject({
             type: 'tap_hold',
             hold: { type: 'layer', layer: 'lower' },
             _preset: 'layer_tap',
@@ -52,7 +52,7 @@ describe('config schema', () => {
     })
 
     it('flags an unknown keycode with a precise path', () => {
-        const bad = seed.replace("'Q',", "'NOT_A_KEY',")
+        const bad = seed.replace('"Q",', '"NOT_A_KEY",')
         const res = safeParseSurface(bad)
         expect(res.success).toBe(false)
         if (!res.success) {

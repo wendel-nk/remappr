@@ -1,12 +1,11 @@
-// Pattern check: no GoF pattern (-) — rejected — canonical→surface denormalization + JSON5 emit; pure transformation, no abstraction.
+// Pattern check: no GoF pattern (-) — rejected — canonical→surface denormalization + JSON emit; pure transformation, no abstraction.
 //
-// Re-saves a canonical ConfigKeymap as friendly JSON5. Defaults to the compact,
+// Re-saves a canonical ConfigKeymap as friendly JSON. Defaults to the compact,
 // reads-like-English surface form (bare-string keys, "Ctrl+C" combos, presets,
 // friendly keycode names). Per-binding override: if the user originally wrote a
 // canonical id (or any alias) it is preserved via `_keySrc`. Top-level + object
 // key order is fixed so re-saves are stable diffs.
 
-import JSON5 from 'json5'
 import { friendlyName, resolveKeycode, type Modifier } from './keycodes'
 import type {
     CanonAction,
@@ -99,10 +98,28 @@ export function denormalizeAction(a: CanonAction): Surface {
         case 'lighting':
             return { type: 'lighting', target: a.target, action: a.action }
         case 'macro':
-            return { type: 'macro', ref: a.ref }
+            return {
+                type: 'macro',
+                ref: a.ref,
+                ...(a.param !== undefined
+                    ? { param: keyToken(a.param, a._paramSrc) }
+                    : {}),
+            }
         case 'tap_dance':
             return { type: 'tap_dance', ref: a.ref }
+        case 'key_toggle':
+            return { type: 'key_toggle', key: keyToken(a.key, a._keySrc) }
+        case 'ext_power':
+            return { type: 'ext_power', action: a.action }
+        case 'mouse_key':
+            return { type: 'mouse_key', button: a.button }
+        case 'mouse_move':
+            return { type: 'mouse_move', direction: a.direction }
+        case 'mouse_scroll':
+            return { type: 'mouse_scroll', direction: a.direction }
         default:
+            // soft_off | studio_unlock | grave_escape | key_repeat |
+            // caps_word | transparent | none | bootloader | reset
             return { type: a.type }
     }
 }
@@ -118,10 +135,12 @@ const denormalizeEncoder = (
 const denormalizeMacroStep = (s: CanonMacroStep): Record<string, unknown> => {
     if (s.type === 'wait') return { type: 'wait', ms: s.ms }
     if (s.type === 'text') return { type: 'text', text: s.text }
+    if (s.type === 'param' || s.type === 'pause_for_release')
+        return { type: s.type }
     return { type: s.type, key: keyToken(s.key, s._keySrc) }
 }
 
-/** Build the plain (surface-shaped) object that gets JSON5-stringified. */
+/** Build the plain (surface-shaped) object that gets JSON-stringified. */
 export function toSurfaceObject(km: ConfigKeymap): Record<string, unknown> {
     return {
         schemaVersion: km.schemaVersion,
@@ -199,6 +218,7 @@ export function toSurfaceObject(km: ConfigKeymap): Record<string, unknown> {
                   macros: km.macros.map((m) => ({
                       id: m.id,
                       ...(m.description ? { description: m.description } : {}),
+                      ...(m.params !== undefined ? { params: m.params } : {}),
                       steps: m.steps.map(denormalizeMacroStep),
                   })),
               }
@@ -206,7 +226,11 @@ export function toSurfaceObject(km: ConfigKeymap): Record<string, unknown> {
     }
 }
 
-/** Serialize a canonical ConfigKeymap to friendly JSON5 (2-space indent). */
+// pattern-check: skip — lib swap JSON5.stringify → built-in JSON.stringify
+/** Serialize a canonical ConfigKeymap to friendly JSON (2-space indent). The
+ *  surface sugar (bare-string keys, "Ctrl+C" combos, presets) is preserved in
+ *  the object shape; only JSON5's cosmetic syntax (comments, unquoted keys) is
+ *  gone — app-visible notes live in `description` fields instead. */
 export function serializeKeymap(km: ConfigKeymap): string {
-    return JSON5.stringify(toSurfaceObject(km), { space: 2, quote: '"' })
+    return JSON.stringify(toSurfaceObject(km), null, 2)
 }

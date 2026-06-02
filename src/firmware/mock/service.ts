@@ -37,15 +37,20 @@ import { RGB_MATRIX_CATALOG } from '@firmware/lighting'
 import {
     buildMockActionTypes,
     buildMockKeyAction,
-    HID_KP,
-    MOCK_KIND_KEYPRESS,
-    MOCK_KIND_LAYER_TAP,
-    MOCK_KIND_MOD_TAP,
     MOCK_KIND_TRANSPARENT,
     relabelLayer,
 } from './actions'
 import { mockCodec } from './codec'
 import { MOCK_CORNE_LAYOUT, MOCK_KEY_COUNT, MOCK_LAYOUTS } from './layout'
+import { lowerConfigToMock } from './configBridge'
+import { parseKeymap, type ConfigKeymap } from '@firmware/config'
+// Raw JSON source of the demo remappr.keymap — the config editor + download
+// modal's source of truth. `?raw` hands back the file verbatim as a string, so
+// it round-trips through parseKeymap unchanged. Parsed once: it both seeds the
+// runtime editing buffer (lowered below) and is served to the config store.
+import seedConfigSource from './seed.keymap.json?raw'
+
+const SEED_CONFIG: ConfigKeymap = parseKeymap(seedConfigSource)
 
 const MOCK_DYNAMIC_COUNTS: DynamicEntryCounts = {
     tapDance: 4,
@@ -397,20 +402,20 @@ export class MockKeyboardService implements KeyboardService {
     }
 
     private seedDefaultLayers(): void {
-        const baseKeys = this.makeQwertyBase()
-        this.layers = [
-            { id: this.nextLayerId++, name: 'Base', keys: baseKeys },
-            {
-                id: this.nextLayerId++,
-                name: 'Lower',
-                keys: this.makeFiller(MOCK_KIND_TRANSPARENT),
-            },
-            {
-                id: this.nextLayerId++,
-                name: 'Raise',
-                keys: this.makeFiller(MOCK_KIND_TRANSPARENT),
-            },
-        ]
+        // The runtime editing buffer is LOWERED from the seed config (source of
+        // truth). Rich config-only features (lighting/macros/…) lower to
+        // transparent here but survive in the config; edits raise back via
+        // raiseMockToConfig. Base mirrors the legacy QWERTY+home-row-mods demo.
+        const { layers } = lowerConfigToMock(SEED_CONFIG)
+        this.nextLayerId = 0
+        this.layers = layers.map((l) => {
+            if (l.keys.length !== MOCK_KEY_COUNT) {
+                throw new ProtocolError(
+                    `Seed layer "${l.name}" has ${l.keys.length} keys, expected ${MOCK_KEY_COUNT}`,
+                )
+            }
+            return { id: this.nextLayerId++, name: l.name, keys: l.keys }
+        })
     }
 
     private layerNames(): string[] {
@@ -421,117 +426,6 @@ export class MockKeyboardService implements KeyboardService {
         return Array.from({ length: MOCK_KEY_COUNT }, () =>
             buildMockKeyAction(kind, params, this.layerNames()),
         )
-    }
-
-    private makeQwertyBase(): KeyAction[] {
-        // Top row: q w e r t  y u i o p
-        // Home    : a s d f g  h j k l ;
-        // Bottom  : z x c v b  n m , . /
-        // Thumbs : esc spc tab  enter bspc del (mock)
-        const left = [
-            'Q',
-            'W',
-            'E',
-            'R',
-            'T',
-            'A',
-            'S',
-            'D',
-            'F',
-            'G',
-            'Z',
-            'X',
-            'C',
-            'V',
-            'B',
-        ]
-        const right = [
-            'Y',
-            'U',
-            'I',
-            'O',
-            'P',
-            'H',
-            'J',
-            'K',
-            'L',
-            ';',
-            'N',
-            'M',
-            ',',
-            '.',
-            '/',
-        ]
-        // HID usage codes (encoded as page<<16|id to match renderer + picker)
-        const hidFor = (ch: string): number => {
-            if (ch >= 'A' && ch <= 'Z')
-                return HID_KP(0x04 + (ch.charCodeAt(0) - 65))
-            if (ch === ';') return HID_KP(0x33)
-            if (ch === ',') return HID_KP(0x36)
-            if (ch === '.') return HID_KP(0x37)
-            if (ch === '/') return HID_KP(0x38)
-            return 0x00
-        }
-        // pattern-check: skip — pure demo seed data with local one-shot builders
-        // Modifier HID usages used by the home-row Mod-Taps.
-        const GUI = HID_KP(0xe3)
-        const ALT = HID_KP(0xe2)
-        const CTRL = HID_KP(0xe0)
-        const SHIFT = HID_KP(0xe1)
-        // Layer indices for the thumb Layer-Taps (Base 0, Lower 1, Raise 2).
-        const LOWER = 1
-        const RAISE = 2
-
-        const kp = (c: number): KeyAction =>
-            buildMockKeyAction(
-                c === 0 ? MOCK_KIND_TRANSPARENT : MOCK_KIND_KEYPRESS,
-                c === 0 ? [] : [c],
-                this.layerNames(),
-            )
-        const modTap = (ch: string, mod: number): KeyAction =>
-            buildMockKeyAction(MOCK_KIND_MOD_TAP, [hidFor(ch), mod])
-        const layerTap = (tap: number, layer: number): KeyAction =>
-            buildMockKeyAction(MOCK_KIND_LAYER_TAP, [tap, layer])
-
-        // Home-row Mod-Taps: A/Gui S/Alt D/Ctrl F/Shift  ·  J/Shift K/Ctrl L/Alt ;/Gui
-        const leftKeys: KeyAction[] = left.map((ch) => {
-            if (ch === 'A') return modTap('A', GUI)
-            if (ch === 'S') return modTap('S', ALT)
-            if (ch === 'D') return modTap('D', CTRL)
-            if (ch === 'F') return modTap('F', SHIFT)
-            return kp(hidFor(ch))
-        })
-        const rightKeys: KeyAction[] = right.map((ch) => {
-            if (ch === 'J') return modTap('J', SHIFT)
-            if (ch === 'K') return modTap('K', CTRL)
-            if (ch === 'L') return modTap('L', ALT)
-            if (ch === ';') return modTap(';', GUI)
-            return kp(hidFor(ch))
-        })
-
-        const leftThumbs: KeyAction[] = [
-            kp(HID_KP(0x29)), // Esc
-            layerTap(HID_KP(0x2c), RAISE), // Space / Raise
-            kp(HID_KP(0x2b)), // Tab
-        ]
-        const rightThumbs: KeyAction[] = [
-            kp(HID_KP(0x28)), // Enter
-            layerTap(HID_KP(0x2a), LOWER), // Backspace / Lower
-            kp(HID_KP(0x4c)), // Delete
-        ]
-
-        const keys: KeyAction[] = [
-            ...leftKeys,
-            ...leftThumbs,
-            ...rightKeys,
-            ...rightThumbs,
-        ]
-        if (keys.length !== MOCK_KEY_COUNT) {
-            throw new ProtocolError(
-                `Mock base layer key count mismatch: ${keys.length} vs ${MOCK_KEY_COUNT}`,
-            )
-        }
-        return keys
     }
 
     private requireUnlocked(): void {
@@ -782,6 +676,10 @@ export class MockKeyboardService implements KeyboardService {
                 ),
             },
         ]
+    }
+
+    async getConfigSource(): Promise<string | null> {
+        return seedConfigSource
     }
 
     onClosed(cb: ClosedHandler): () => void {

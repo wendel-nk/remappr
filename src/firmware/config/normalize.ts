@@ -114,11 +114,32 @@ export function normalizeAction(b: SurfaceAction): CanonAction {
         case 'lighting':
             return { type: 'lighting', target: b.target, action: b.action }
         case 'macro':
-            return { type: 'macro', ref: b.ref }
+            return {
+                type: 'macro',
+                ref: b.ref,
+                ...(b.param !== undefined
+                    ? { param: toCanonical(b.param), _paramSrc: b.param }
+                    : {}),
+            }
         case 'tap_dance':
             return { type: 'tap_dance', ref: b.ref }
+        case 'key_toggle':
+            return {
+                type: 'key_toggle',
+                key: toCanonical(b.key),
+                _keySrc: b.key,
+            }
+        case 'ext_power':
+            return { type: 'ext_power', action: b.action }
+        case 'mouse_key':
+            return { type: 'mouse_key', button: b.button }
+        case 'mouse_move':
+            return { type: 'mouse_move', direction: b.direction }
+        case 'mouse_scroll':
+            return { type: 'mouse_scroll', direction: b.direction }
         default:
-            // caps_word | transparent | none | bootloader | reset
+            // caps_word | transparent | none | bootloader | reset |
+            // soft_off | studio_unlock | grave_escape | key_repeat
             return { type: b.type }
     }
 }
@@ -138,6 +159,8 @@ function normalizeMacroStep(
 ): CanonMacroStep {
     if (s.type === 'wait') return { type: 'wait', ms: s.ms }
     if (s.type === 'text') return { type: 'text', text: s.text }
+    if (s.type === 'param') return { type: 'param' }
+    if (s.type === 'pause_for_release') return { type: 'pause_for_release' }
     return { type: s.type, key: toCanonical(s.key), _keySrc: s.key }
 }
 
@@ -197,6 +220,7 @@ export function normalizeKeymap(km: SurfaceKeymap): ConfigKeymap {
                   macros: km.macros.map((m) => ({
                       id: m.id,
                       ...(m.description ? { description: m.description } : {}),
+                      ...(m.params !== undefined ? { params: m.params } : {}),
                       steps: m.steps.map(normalizeMacroStep),
                   })),
               }
@@ -204,7 +228,7 @@ export function normalizeKeymap(km: SurfaceKeymap): ConfigKeymap {
     }
 }
 
-/** Parse + validate + normalize JSON5 source into the canonical ConfigKeymap. Throws on invalid. */
+/** Parse + validate + normalize JSON source into the canonical ConfigKeymap. Throws on invalid. */
 export function parseKeymap(source: string): ConfigKeymap {
     return normalizeKeymap(parseSurface(source))
 }

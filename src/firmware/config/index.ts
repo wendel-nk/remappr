@@ -78,6 +78,16 @@ export {
     registerCompiler,
 } from './compiler'
 
+export {
+    type ActionCategory,
+    type ActionMeta,
+    type PaletteGroup,
+    type PaletteKeycode,
+    ACTION_META,
+    getActionMeta,
+    KEYCODE_PALETTE,
+} from './editorMeta'
+
 // Side-effect imports: each concrete compiler self-registers on load.
 import './compilers/zmk'
 import './compilers/qmk'

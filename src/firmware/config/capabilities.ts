@@ -27,7 +27,14 @@ export const CAPABILITY_MATRIX: Record<Target, FirmwareCapabilities> = {
     zmk: {
         lighting: ['underglow', 'backlight'], // no per_key matrix control
         output: {
-            actions: ['usb', 'bluetooth', 'bluetooth_clear'],
+            actions: [
+                'usb',
+                'bluetooth',
+                'bluetooth_clear',
+                'bluetooth_next',
+                'bluetooth_prev',
+                'toggle',
+            ],
             profiles: true,
         },
         behaviors: {
@@ -54,7 +61,14 @@ export const CAPABILITY_MATRIX: Record<Target, FirmwareCapabilities> = {
     keychron: {
         lighting: ['underglow', 'backlight', 'per_key'],
         output: {
-            actions: ['usb', 'bluetooth', 'bluetooth_clear'],
+            actions: [
+                'usb',
+                'bluetooth',
+                'bluetooth_clear',
+                'bluetooth_next',
+                'bluetooth_prev',
+                'toggle',
+            ],
             profiles: true,
         }, // VIA/QMK + BLE
         behaviors: {

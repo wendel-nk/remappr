@@ -246,6 +246,12 @@ export interface KeyboardService {
 
     exportConfig(): Promise<ExportedFile[]>
 
+    /** Optional: raw `remappr.keymap` JSON this device seeds the config editor
+     *  from — the source-of-truth document the download modal compiles per
+     *  firmware. Demo/mock devices ship a seed; real adapters omit it until
+     *  raise-from-runtime (config ← live keymap) lands. */
+    getConfigSource?(): Promise<string | null>
+
     onClosed(cb: (reason?: unknown) => void): () => void
 
     disconnect(): Promise<void>

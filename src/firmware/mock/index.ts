@@ -12,6 +12,11 @@ export {
 } from './adapter'
 export { MockKeyboardService } from './service'
 export {
+    lowerConfigToMock,
+    raiseMockToConfig,
+    type LowerResult,
+} from './configBridge'
+export {
     MOCK_KIND_KEYPRESS,
     MOCK_KIND_TRANSPARENT,
     MOCK_KIND_LAYER_MOMENTARY,

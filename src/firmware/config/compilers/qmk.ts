@@ -39,6 +39,27 @@ const BL: Partial<Record<LightingAction, string>> = {
     brightness_down: 'BL_DOWN',
 }
 
+// pattern-check: skip — static keycode lookup tables for the QMK compiler
+const MOUSE_BTN: Record<string, string> = {
+    left: 'KC_MS_BTN1',
+    right: 'KC_MS_BTN2',
+    middle: 'KC_MS_BTN3',
+    mb4: 'KC_MS_BTN4',
+    mb5: 'KC_MS_BTN5',
+}
+const MOVE: Record<string, string> = {
+    up: 'KC_MS_UP',
+    down: 'KC_MS_DOWN',
+    left: 'KC_MS_LEFT',
+    right: 'KC_MS_RIGHT',
+}
+const SCRL: Record<string, string> = {
+    up: 'KC_MS_WH_UP',
+    down: 'KC_MS_WH_DOWN',
+    left: 'KC_MS_WH_LEFT',
+    right: 'KC_MS_WH_RIGHT',
+}
+
 interface Ctx {
     target: Target
     layerIndex: Map<string, number>
@@ -135,6 +156,30 @@ function emitKeycode(
         case 'tap_dance':
             ctx.diag.warn(
                 `tap-dance "${a.ref}" requires tap_dance_actions[]; emitted KC_NO`,
+                path,
+            )
+            return 'KC_NO'
+        case 'key_repeat':
+            return 'QK_REP'
+        case 'grave_escape':
+            return 'QK_GESC'
+        case 'mouse_key':
+            return MOUSE_BTN[a.button]
+        case 'mouse_move':
+            return MOVE[a.direction]
+        case 'mouse_scroll':
+            return SCRL[a.direction]
+        case 'key_toggle':
+            ctx.diag.warn(
+                'key-toggle has no standard QMK keycode; emitted the bare key',
+                path,
+            )
+            return qmkKeyName(a.key)
+        case 'soft_off':
+        case 'studio_unlock':
+        case 'ext_power':
+            ctx.diag.warn(
+                `"${a.type}" is ZMK-specific; no QMK keycode; emitted KC_NO`,
                 path,
             )
             return 'KC_NO'

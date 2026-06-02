@@ -1,6 +1,6 @@
 // Pattern check: no GoF pattern (-) — rejected — zod surface-schema definitions + a cross-reference validation pass; declarative data, no GoF abstraction.
 //
-// The SURFACE schema — what a user writes in remappr.keymap.json5. It is
+// The SURFACE schema — what a user writes in remappr.keymap.json. It is
 // permissive on spelling (bare-string keys, mod_tap/layer_tap presets, "Ctrl+C"
 // combo strings, a `layer` umbrella) and validates structure + cross-references.
 // `normalizeKeymap` (normalize.ts) lowers a parsed surface doc into the single
@@ -10,7 +10,6 @@
 // code editor's hover tooltips (Phase B), read off the schema at build time.
 
 import { z } from 'zod'
-import JSON5 from 'json5'
 import { MODIFIERS, isKnownKeycode, isKnownKeyToken } from './keycodes'
 
 /* ── leaf vocabularies ─────────────────────────────────────────────────── */
@@ -44,8 +43,27 @@ export const LightingActionSchema = z.enum([
 ])
 
 export const OutputActionSchema = z
-    .enum(['usb', 'bluetooth', 'bluetooth_clear'])
+    .enum([
+        'usb',
+        'bluetooth',
+        'bluetooth_clear',
+        'bluetooth_next',
+        'bluetooth_prev',
+        'toggle',
+    ])
     .describe('Output routing. Wireless (bluetooth*) needs a BLE backend.')
+
+export const PowerActionSchema = z
+    .enum(['toggle', 'on', 'off'])
+    .describe('External-power control (e.g. gating peripheral power / LEDs).')
+
+export const MouseButtonSchema = z
+    .enum(['left', 'right', 'middle', 'mb4', 'mb5'])
+    .describe('Pointer button to click.')
+
+export const DirectionSchema = z
+    .enum(['up', 'down', 'left', 'right'])
+    .describe('Pointer move / scroll direction.')
 
 export const LayerModeSchema = z
     .enum(['momentary', 'toggle', 'to', 'sticky'])
@@ -175,11 +193,43 @@ export const ActionObjectSchema = z.discriminatedUnion('type', [
     z.object({ type: z.literal('reset') }).describe('Reset the keyboard.'),
 
     z
-        .object({ type: z.literal('macro'), ref: z.string() })
-        .describe('Run a named macro.'),
+        .object({
+            type: z.literal('macro'),
+            ref: z.string(),
+            param: KeycodeSchema.optional(),
+        })
+        .describe('Run a named macro; `param` feeds a one-param macro.'),
     z
         .object({ type: z.literal('tap_dance'), ref: z.string() })
         .describe('Run a named tap-dance.'),
+
+    z
+        .object({ type: z.literal('soft_off') })
+        .describe('Power off until a hardware reset / dedicated on key.'),
+    z
+        .object({ type: z.literal('studio_unlock') })
+        .describe('Unlock the keyboard for ZMK Studio live editing.'),
+    z
+        .object({ type: z.literal('grave_escape') })
+        .describe('Esc normally; Shift/GUI + this sends grave/tilde.'),
+    z
+        .object({ type: z.literal('key_repeat') })
+        .describe('Repeat the previously pressed key.'),
+    z
+        .object({ type: z.literal('key_toggle'), key: KeycodeSchema })
+        .describe('Toggle a key: press once to latch down, again to release.'),
+    z
+        .object({ type: z.literal('ext_power'), action: PowerActionSchema })
+        .describe('Control external/peripheral power.'),
+    z
+        .object({ type: z.literal('mouse_key'), button: MouseButtonSchema })
+        .describe('Click a pointer button.'),
+    z
+        .object({ type: z.literal('mouse_move'), direction: DirectionSchema })
+        .describe('Move the pointer.'),
+    z
+        .object({ type: z.literal('mouse_scroll'), direction: DirectionSchema })
+        .describe('Scroll the pointer wheel.'),
 ])
 
 export const ActionSchema = z.union([KeyTokenSchema, ActionObjectSchema])
@@ -240,11 +290,21 @@ export const MacroStepSchema = z.discriminatedUnion('type', [
     z.object({ type: z.literal('release'), key: KeycodeSchema }),
     z.object({ type: z.literal('wait'), ms: z.number().int().nonnegative() }),
     z.object({ type: z.literal('text'), text: z.string() }),
+    z
+        .object({ type: z.literal('param') })
+        .describe("Forward the binding's argument (one-param macro)."),
+    z
+        .object({ type: z.literal('pause_for_release') })
+        .describe('Wait for the triggering key to be released.'),
 ])
 
 export const MacroSchema = z.object({
     id: z.string(),
     description: z.string().optional(),
+    params: z
+        .union([z.literal(0), z.literal(1)])
+        .optional()
+        .describe('Binding-cells: 0 = plain, 1 = one-param macro.'),
     steps: z.array(MacroStepSchema).min(1),
 })
 
@@ -398,9 +458,9 @@ export function migrate(raw: unknown): unknown {
     return raw
 }
 
-/** Parse + validate JSON5 source into a validated SURFACE doc. Throws on invalid. */
+/** Parse + validate JSON source into a validated SURFACE doc. Throws on invalid. */
 export function parseSurface(source: string): SurfaceKeymap {
-    return KeymapSchema.parse(migrate(JSON5.parse(source)))
+    return KeymapSchema.parse(migrate(JSON.parse(source)))
 }
 
 /** Non-throwing variant — returns the SafeParse result for UI error surfacing. */
@@ -409,14 +469,14 @@ export function safeParseSurface(
 ): z.ZodSafeParseResult<SurfaceKeymap> {
     let raw: unknown
     try {
-        raw = migrate(JSON5.parse(source))
+        raw = migrate(JSON.parse(source))
     } catch (e) {
         return {
             success: false,
             error: new z.ZodError([
                 {
                     code: 'custom',
-                    message: `JSON5 parse error: ${(e as Error).message}`,
+                    message: `JSON parse error: ${(e as Error).message}`,
                     path: [],
                     input: source,
                 },

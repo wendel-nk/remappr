@@ -30,9 +30,21 @@ export type LightingAction =
     | 'speed_up'
     | 'speed_down'
 
-export type OutputAction = 'usb' | 'bluetooth' | 'bluetooth_clear'
+export type OutputAction =
+    | 'usb'
+    | 'bluetooth'
+    | 'bluetooth_clear'
+    | 'bluetooth_next'
+    | 'bluetooth_prev'
+    | 'toggle'
 
 export type LayerMode = 'momentary' | 'toggle' | 'to' | 'sticky'
+
+export type PowerAction = 'toggle' | 'on' | 'off'
+
+export type MouseButton = 'left' | 'right' | 'middle' | 'mb4' | 'mb5'
+
+export type Direction = 'up' | 'down' | 'left' | 'right'
 
 export interface CanonKeyPress {
     type: 'key_press'
@@ -69,7 +81,16 @@ export type CanonAction =
     | { type: 'lighting'; target: LightingTarget; action: LightingAction }
     | { type: 'bootloader' }
     | { type: 'reset' }
-    | { type: 'macro'; ref: string }
+    | { type: 'soft_off' }
+    | { type: 'studio_unlock' }
+    | { type: 'grave_escape' }
+    | { type: 'key_repeat' }
+    | { type: 'key_toggle'; key: CanonicalKeyId; _keySrc?: string }
+    | { type: 'ext_power'; action: PowerAction }
+    | { type: 'mouse_key'; button: MouseButton }
+    | { type: 'mouse_move'; direction: Direction }
+    | { type: 'mouse_scroll'; direction: Direction }
+    | { type: 'macro'; ref: string; param?: CanonicalKeyId; _paramSrc?: string }
     | { type: 'tap_dance'; ref: string }
 
 export interface CanonGeometry {
@@ -127,10 +148,16 @@ export type CanonMacroStep =
     | { type: 'release'; key: CanonicalKeyId; _keySrc?: string }
     | { type: 'wait'; ms: number }
     | { type: 'text'; text: string }
+    /** Placeholder for the binding's argument in a one-param macro (&macro_param_1to1). */
+    | { type: 'param' }
+    /** Block until the triggering key is released (&macro_pause_for_release). */
+    | { type: 'pause_for_release' }
 
 export interface CanonMacro {
     id: string
     description?: string
+    /** Binding-cells: 0 = plain macro, 1 = one-param macro (a `param` step forwards the arg). */
+    params?: 0 | 1
     steps: CanonMacroStep[]
 }
 
