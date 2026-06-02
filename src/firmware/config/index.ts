@@ -69,3 +69,15 @@ export {
     supportsLighting,
     supportsOutput,
 } from './capabilities'
+
+export {
+    type CompileResult,
+    type KeymapCompiler,
+    getCompiler,
+    hasCompiler,
+    registerCompiler,
+} from './compiler'
+
+// Side-effect imports: each concrete compiler self-registers on load.
+import './compilers/zmk'
+import './compilers/qmk'

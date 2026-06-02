@@ -1,0 +1,204 @@
+// Pattern check: Strategy (Tier 1) — extended — concrete QMK KeymapCompiler registered into the Strategy registry; Keychron reuses this emitter (it runs the VIA/QMK stack).
+//
+// Emits a QMK keymap.c `keymaps[][MATRIX_ROWS][MATRIX_COLS]` table directly from
+// the canonical config. Combos / macros / tap-dance need extra C scaffolding
+// (process_record_user, tap_dance_actions, …) which v1 does not generate — those
+// emit a `warn` and a KC_NO placeholder so the table still compiles cleanly.
+
+import type { ExportedFile } from '../../types'
+import { supportsLighting, supportsOutput } from '../capabilities'
+import { runCompile, registerCompiler, type KeymapCompiler } from '../compiler'
+import type { DiagnosticBag } from '../diagnostics'
+import { QMK_MODTAP, QMK_MOD_FN, qmkKeyName } from '../names'
+import type {
+    CanonAction,
+    CanonKeyPress,
+    ConfigKeymap,
+    LightingAction,
+    Target,
+} from '../types'
+
+const RGB: Partial<Record<LightingAction, string>> = {
+    toggle: 'RGB_TOG',
+    brightness_up: 'RGB_VAI',
+    brightness_down: 'RGB_VAD',
+    hue_up: 'RGB_HUI',
+    hue_down: 'RGB_HUD',
+    saturation_up: 'RGB_SAI',
+    saturation_down: 'RGB_SAD',
+    effect_next: 'RGB_MOD',
+    effect_previous: 'RGB_RMOD',
+    speed_up: 'RGB_SPI',
+    speed_down: 'RGB_SPD',
+}
+const BL: Partial<Record<LightingAction, string>> = {
+    toggle: 'BL_TOGG',
+    on: 'BL_ON',
+    off: 'BL_OFF',
+    brightness_up: 'BL_UP',
+    brightness_down: 'BL_DOWN',
+}
+
+interface Ctx {
+    target: Target
+    layerIndex: Map<string, number>
+    diag: DiagnosticBag
+}
+
+function kp(a: CanonKeyPress): string {
+    let token = qmkKeyName(a.key)
+    for (const m of a.mods ?? []) token = `${QMK_MOD_FN[m]}(${token})`
+    return token
+}
+
+function emitKeycode(
+    a: CanonAction,
+    ctx: Ctx,
+    path: (string | number)[],
+): string {
+    const layerIdx = (name: string): number => ctx.layerIndex.get(name) ?? 0
+    switch (a.type) {
+        case 'key_press':
+            return kp(a)
+        case 'tap_hold':
+            return a.hold.type === 'modifier'
+                ? `${QMK_MODTAP[a.hold.modifier]}(${qmkKeyName(a.tap.key)})`
+                : `LT(${layerIdx(a.hold.layer)}, ${qmkKeyName(a.tap.key)})`
+        case 'layer':
+            return a.mode === 'momentary'
+                ? `MO(${layerIdx(a.layer)})`
+                : a.mode === 'toggle'
+                  ? `TG(${layerIdx(a.layer)})`
+                  : a.mode === 'to'
+                    ? `TO(${layerIdx(a.layer)})`
+                    : `OSL(${layerIdx(a.layer)})`
+        case 'sticky_key':
+            ctx.diag.warn(
+                'QMK one-shot applies to modifiers only; emitted the bare key',
+                path,
+            )
+            return qmkKeyName(a.key)
+        case 'caps_word':
+            return 'CW_TOGG'
+        case 'transparent':
+            return 'KC_TRNS'
+        case 'none':
+            return 'KC_NO'
+        case 'bootloader':
+            return 'QK_BOOT'
+        case 'reset':
+            return 'QK_RBT'
+        case 'output':
+            if (!supportsOutput(ctx.target, a.action)) {
+                ctx.diag.warn(
+                    `output "${a.action}" has no standard ${ctx.target} keycode; emitted KC_NO`,
+                    path,
+                )
+                return 'KC_NO'
+            }
+            return 'KC_NO' // usb is the implicit default on QMK; no dedicated keycode
+        case 'lighting': {
+            if (!supportsLighting(ctx.target, a.target)) {
+                ctx.diag.warn(
+                    `${a.target} lighting is unavailable on ${ctx.target}; emitted KC_NO`,
+                    path,
+                )
+                return 'KC_NO'
+            }
+            if (a.target === 'backlight') {
+                const t = BL[a.action]
+                if (!t) {
+                    ctx.diag.warn(
+                        `backlight has no "${a.action}" action on ${ctx.target}; emitted KC_NO`,
+                        path,
+                    )
+                    return 'KC_NO'
+                }
+                return t
+            }
+            const t = RGB[a.action]
+            if (!t) {
+                ctx.diag.warn(
+                    `RGB has no "${a.action}" action on ${ctx.target}; emitted RGB_TOG`,
+                    path,
+                )
+                return 'RGB_TOG'
+            }
+            return t
+        }
+        case 'macro':
+            ctx.diag.warn(
+                `macro "${a.ref}" requires hand-written C (process_record_user); emitted KC_NO`,
+                path,
+            )
+            return 'KC_NO'
+        case 'tap_dance':
+            ctx.diag.warn(
+                `tap-dance "${a.ref}" requires tap_dance_actions[]; emitted KC_NO`,
+                path,
+            )
+            return 'KC_NO'
+    }
+}
+
+function emit(target: Target, label: string) {
+    return (config: ConfigKeymap, diag: DiagnosticBag): ExportedFile[] => {
+        const ctx: Ctx = {
+            target,
+            layerIndex: new Map(config.layers.map((l, i) => [l.name, i])),
+            diag,
+        }
+        if (config.combos?.length)
+            diag.warn(
+                'combos are not yet generated for QMK; add them in rules.mk/keymap.c',
+                ['combos'],
+            )
+
+        const lines: string[] = []
+        lines.push(`// Generated by remappr — ${label} keymap.c`)
+        lines.push(
+            `// Device: ${config.keyboard.name}  ·  Layers: ${config.layers.length}`,
+        )
+        lines.push(``)
+        lines.push(`#include QMK_KEYBOARD_H`)
+        lines.push(``)
+        lines.push(
+            `const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {`,
+        )
+        config.layers.forEach((layer, li) => {
+            const cells = layer.bindings.map((b, bi) =>
+                emitKeycode(b, ctx, ['layers', li, 'bindings', bi]),
+            )
+            const wrapped: string[] = []
+            for (let i = 0; i < cells.length; i += 8) {
+                wrapped.push('        ' + cells.slice(i, i + 8).join(', '))
+            }
+            lines.push(`    [${li}] = LAYOUT( // ${layer.name}`)
+            lines.push(wrapped.join(',\n'))
+            lines.push(`    ),`)
+        })
+        lines.push(`};`)
+        lines.push(``)
+        return [
+            {
+                filename: 'keymap.c',
+                mime: 'text/x-c',
+                content: lines.join('\n'),
+            },
+        ]
+    }
+}
+
+export const qmkCompiler: KeymapCompiler = {
+    target: 'qmk',
+    compile: (config) => runCompile(config, emit('qmk', 'QMK')),
+}
+
+export const keychronCompiler: KeymapCompiler = {
+    target: 'keychron',
+    compile: (config) =>
+        runCompile(config, emit('keychron', 'Keychron (QMK/VIA)')),
+}
+
+registerCompiler(qmkCompiler)
+registerCompiler(keychronCompiler)
