@@ -6,6 +6,7 @@ import type { KeyCatalog } from '@firmware/catalog/types'
 import type { KeyboardService } from '@firmware/service'
 import type { LockState } from '@firmware/types'
 import useDynamicCatalogStore from '@/stores/dynamicCatalogStore'
+import useConfigStore from '@/stores/configStore'
 
 interface ConnectionState {
     service: KeyboardService | null
@@ -77,6 +78,22 @@ const useConnectionStore = create<ConnectionState>()(
                     .catch((err) =>
                         console.warn('dynamicCatalog refresh failed', err),
                     )
+                // Seed the config source-of-truth from the device, if it ships one.
+                if (service?.getConfigSource) {
+                    service
+                        .getConfigSource()
+                        .then((src) => {
+                            if (src)
+                                useConfigStore.getState().loadFromSource(src)
+                            else useConfigStore.getState().reset()
+                        })
+                        .catch((err) => {
+                            console.warn('getConfigSource failed', err)
+                            useConfigStore.getState().reset()
+                        })
+                } else {
+                    useConfigStore.getState().reset()
+                }
             },
             setLastConnectedDevice: (device) =>
                 set({ lastConnectedDevice: device }),
@@ -93,6 +110,7 @@ const useConnectionStore = create<ConnectionState>()(
                     keyCatalog: null,
                 })
                 useDynamicCatalogStore.getState().reset()
+                useConfigStore.getState().reset()
             },
             showConnectionModal: false,
             setShowConnectionModal: (visible) =>

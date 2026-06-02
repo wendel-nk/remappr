@@ -22,6 +22,7 @@ import { CoachmarkTour } from '@/features/onboarding/CoachmarkTour'
 import { UpdateNotification } from '@/components/UpdateNotification'
 import { TitleBar } from '@/layout/TitleBar'
 import { isElectron as isElectronEnv } from '@/transport'
+import { useConfigRuntimeSync } from '@/hooks/use-config-runtime-sync'
 
 function App(): JSX.Element {
     // pattern-check: skip — UI sweep, replace store-connection with store-service
@@ -34,6 +35,10 @@ function App(): JSX.Element {
         lockState,
     } = useConnectionStore()
     const { reset } = undoRedoStore()
+
+    // Raise visual-editor edits back into the config (source of truth) so the
+    // download modal compiles what the user sees. Mock/demo only.
+    useConfigRuntimeSync()
 
     const updateLockState = useCallback(async (): Promise<void> => {
         if (!service) return
