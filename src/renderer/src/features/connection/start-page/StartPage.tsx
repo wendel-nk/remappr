@@ -1,12 +1,14 @@
 // pattern-check: skip — UI shell, drops local devices state, delegates to useConnection
-import { Keyboard } from 'lucide-react'
+import { BookOpen, Keyboard } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Transport } from '@firmware'
 
 import { Button } from '@/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/ui/tooltip'
 import { GitHubIcon } from '@/components/GitHubIcon'
+import { DiscordIcon } from '@/components/DiscordIcon'
 import { DownloadLatestButton } from '@/components/DownloadLatestButton'
-import { APP_VERSION, REPO_URL } from '@/lib/constants'
+import { APP_VERSION, DISCORD_URL, REPO_URL } from '@/lib/constants'
 import { LicenseNoticeModal } from '@/components/modals/LicenseNoticeModal'
 import { Settings } from '@/components/modals/Settings'
 import { useConnection } from '@/hooks/use-connection'
@@ -67,6 +69,25 @@ export function StartPage({
                         >
                             <GitHubIcon className="h-5 w-5" />
                         </a>
+                        <a
+                            href={DISCORD_URL}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label="Join the Discord community"
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+                        >
+                            <DiscordIcon className="h-5 w-5" />
+                        </a>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <span className="inline-flex h-9 w-9 cursor-not-allowed items-center justify-center rounded-md text-muted-foreground/50">
+                                    <BookOpen className="h-5 w-5" />
+                                </span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Documentation — coming soon</p>
+                            </TooltipContent>
+                        </Tooltip>
                     </div>
                 </div>
             </header>

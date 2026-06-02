@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
     BarChart3,
+    BookOpen,
     Flame,
     Keyboard,
     Lightbulb,
@@ -22,7 +23,8 @@ import { MacroEditorModal } from '@/features/dynamic/MacroEditorModal'
 import { WirelessSettingsModal } from '@/features/firmware/WirelessSettingsModal'
 import { RgbSettingsModal } from '@/features/firmware/RgbSettingsModal'
 import { GitHubIcon } from '@/components/GitHubIcon'
-import { REPO_URL } from '@/lib/constants'
+import { DiscordIcon } from '@/components/DiscordIcon'
+import { DISCORD_URL, REPO_URL } from '@/lib/constants'
 import useConnectionStore from '@/stores/connectionStore'
 import undoRedoStore from '@/stores/undoRedoStore'
 import useHeatmapStore from '@/stores/heatmapStore'
@@ -327,6 +329,40 @@ export function Header(): JSX.Element {
                     </TooltipTrigger>
                     <TooltipContent>
                         <p>GitHub Repository</p>
+                    </TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button variant="ghost" size="icon" asChild>
+                            <a
+                                href={DISCORD_URL}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                aria-label="Join the Discord community"
+                            >
+                                <DiscordIcon className="h-4 w-4" />
+                            </a>
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        <p>Discord Community</p>
+                    </TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <div>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                disabled
+                                aria-label="Documentation (coming soon)"
+                            >
+                                <BookOpen className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        <p>Documentation — coming soon</p>
                     </TooltipContent>
                 </Tooltip>
 
