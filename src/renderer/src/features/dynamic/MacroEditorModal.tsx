@@ -1,5 +1,5 @@
 // pattern-check: skip — macro sequence editor with per-action inline switch
-import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, Plus, Sparkles, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 
 import type { KeyboardService, MacroAction } from '@firmware'
@@ -231,6 +231,8 @@ export function MacroEditorModal({
             opened={opened}
             onClose={onClose}
             title="Macro Editor"
+            subtitle="Record key sequences & timing"
+            headerIcon={<Sparkles />}
             xButton={true}
             isDismissable={true}
             showFooter={false}

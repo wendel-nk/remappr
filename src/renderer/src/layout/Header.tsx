@@ -27,6 +27,7 @@ import useConnectionStore from '@/stores/connectionStore'
 import undoRedoStore from '@/stores/undoRedoStore'
 import useHeatmapStore from '@/stores/heatmapStore'
 import useLiveViewStore from '@/stores/liveViewStore'
+import useLoadStatsStore from '@/stores/loadStatsStore'
 import { Settings } from '../components/modals/Settings.tsx'
 import { Download as DownloadModal } from '../components/modals/Download.tsx'
 import { SidebarTrigger } from '@/ui/sidebar'
@@ -50,13 +51,14 @@ export function Header(): JSX.Element {
     const toggleHeatmap = useHeatmapStore((s) => s.toggle)
     const liveOn = useLiveViewStore((s) => s.enabled)
     const toggleLive = useLiveViewStore((s) => s.toggle)
+    const loadOpen = useLoadStatsStore((s) => s.open)
+    const setLoadOpen = useLoadStatsStore((s) => s.setOpen)
 
     const [unsaved, setUnsaved] = useState<boolean>(false)
     const [dynOpen, setDynOpen] = useState(false)
     const [macroOpen, setMacroOpen] = useState(false)
     const [wirelessOpen, setWirelessOpen] = useState(false)
     const [rgbOpen, setRgbOpen] = useState(false)
-    const [loadOpen, setLoadOpen] = useState(false)
 
     useEffect(() => {
         if (!service) {

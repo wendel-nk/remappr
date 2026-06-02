@@ -1,15 +1,16 @@
 import React, { useEffect, useState } from 'react'
 import {
     Dialog,
-    DialogTrigger,
-    DialogContent,
-    DialogHeader,
-    DialogFooter,
-    DialogTitle,
-    DialogDescription,
     DialogClose,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
 } from '@/ui/dialog'
 import { Button } from '@/ui/button'
+import { cn } from '@/lib/cn'
 
 // Create a forwardRef wrapper for span
 const TextTrigger = React.forwardRef<
@@ -45,7 +46,13 @@ export interface ModernModalProps {
     close?: string | boolean
     success?: string | boolean
     title?: string
+    /** Design-style header: small line-icon shown in a tinted chip beside the title. */
+    headerIcon?: JSX.Element
+    /** Muted one-line caption under the title in the header. */
+    subtitle?: string
     description?: string
+    /** Custom footer content. Overrides the default Cancel/OK footer when provided. */
+    footer?: React.ReactNode
     children?: React.ReactNode
     isDismissable?: boolean
     showFooter?: boolean
@@ -65,7 +72,10 @@ export function Modal({
     success = 'OK',
     showFooter = true,
     title,
+    headerIcon,
+    subtitle,
     description,
+    footer,
     children,
     isDismissable = false,
 }: ModernModalProps): JSX.Element {
@@ -135,26 +145,59 @@ export function Modal({
                       }
                     : {})}
             >
-                <DialogHeader>
-                    <DialogTitle>{title}</DialogTitle>
-                    <DialogDescription>{description}</DialogDescription>
+                <DialogHeader
+                    className={cn(
+                        title || headerIcon
+                            ? 'flex-row items-center gap-3 space-y-0 border-b pb-4 text-left'
+                            : 'sr-only',
+                    )}
+                >
+                    {headerIcon && (
+                        <span className="grid size-9 shrink-0 place-items-center rounded-[10px] bg-primary/15 text-primary [&_svg]:size-[18px]">
+                            {headerIcon}
+                        </span>
+                    )}
+                    <div className="flex flex-col gap-0.5">
+                        <DialogTitle
+                            className={cn(headerIcon && 'text-base font-bold')}
+                        >
+                            {title}
+                        </DialogTitle>
+                        <DialogDescription
+                            className={cn(
+                                subtitle && 'text-xs',
+                                !(subtitle || description) && 'sr-only',
+                            )}
+                        >
+                            {subtitle ?? description}
+                        </DialogDescription>
+                    </div>
                 </DialogHeader>
                 {children}
-                {showFooter && (
-                    <DialogFooter>
-                        {close && (
-                            <DialogClose asChild>
-                                <Button variant="outline" onClick={handleClose}>
-                                    {close}
-                                </Button>
-                            </DialogClose>
-                        )}
-                        {success && (
-                            <Button type="submit" onClick={handleOk}>
-                                {success}
-                            </Button>
-                        )}
+                {footer ? (
+                    <DialogFooter className="border-t pt-4">
+                        {footer}
                     </DialogFooter>
+                ) : (
+                    showFooter && (
+                        <DialogFooter>
+                            {close && (
+                                <DialogClose asChild>
+                                    <Button
+                                        variant="outline"
+                                        onClick={handleClose}
+                                    >
+                                        {close}
+                                    </Button>
+                                </DialogClose>
+                            )}
+                            {success && (
+                                <Button type="submit" onClick={handleOk}>
+                                    {success}
+                                </Button>
+                            )}
+                        </DialogFooter>
+                    )
                 )}
             </DialogContent>
         </Dialog>

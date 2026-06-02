@@ -1,19 +1,19 @@
 // pattern-check: skip — form tab composing shared primitives
 import { useState } from 'react'
+import { ArrowRight } from 'lucide-react'
 
 import type {
+    KeyboardService,
     KeyOverrideEntry,
     KeyOverrideOptions,
-    KeyboardService,
 } from '@firmware'
 import { Button } from '@/ui/button'
-import { FieldGroup } from '@/ui/field'
 
 import { saveWithToast } from '@/lib/saveWithToast'
 
+import { EntryCard, HexChip, Pair } from '../_shared/EntryCard'
 import { IndexInput } from '../_shared/IndexInput'
-import { NumField } from '../_shared/NumField'
-import { OptionGrid, type OptionDef } from '../_shared/OptionGrid'
+import { type OptionDef, OptionGrid } from '../_shared/OptionGrid'
 import { useDynamicEntry } from '../_shared/useDynamicEntry'
 
 interface Props {
@@ -60,9 +60,9 @@ export function KeyOverrideTab({ service, count, opened }: Props): JSX.Element {
         )
 
     return (
-        <FieldGroup className="space-y-3">
+        <div className="space-y-4">
             <IndexInput
-                label="Index"
+                label="Entry"
                 value={idx}
                 count={count}
                 onChange={setIdx}
@@ -72,43 +72,64 @@ export function KeyOverrideTab({ service, count, opened }: Props): JSX.Element {
             )}
             {entry && (
                 <>
-                    <NumField
-                        label="Trigger"
-                        value={entry.trigger}
-                        onChange={(v) => setEntry({ ...entry, trigger: v })}
-                    />
-                    <NumField
-                        label="Replacement"
-                        value={entry.replacement}
-                        onChange={(v) => setEntry({ ...entry, replacement: v })}
-                    />
-                    <NumField
-                        label="Layer mask"
-                        value={entry.layers}
-                        onChange={(v) => setEntry({ ...entry, layers: v })}
-                    />
-                    <NumField
-                        label="Trigger mods"
-                        value={entry.triggerMods}
-                        mask={0xff}
-                        onChange={(v) => setEntry({ ...entry, triggerMods: v })}
-                    />
-                    <NumField
-                        label="Negative mods"
-                        value={entry.negativeModMask}
-                        mask={0xff}
-                        onChange={(v) =>
-                            setEntry({ ...entry, negativeModMask: v })
-                        }
-                    />
-                    <NumField
-                        label="Suppressed mods"
-                        value={entry.suppressedMods}
-                        mask={0xff}
-                        onChange={(v) =>
-                            setEntry({ ...entry, suppressedMods: v })
-                        }
-                    />
+                    <EntryCard index={idx} accentHue={152}>
+                        <Pair label="Trigger">
+                            <HexChip
+                                value={entry.trigger}
+                                onChange={(v) =>
+                                    setEntry({ ...entry, trigger: v })
+                                }
+                            />
+                        </Pair>
+                        <Pair label="With mods">
+                            <HexChip
+                                value={entry.triggerMods}
+                                mask={0xff}
+                                onChange={(v) =>
+                                    setEntry({ ...entry, triggerMods: v })
+                                }
+                            />
+                        </Pair>
+                        <ArrowRight className="mb-2 size-3.5 text-muted-foreground" />
+                        <Pair label="Replace with">
+                            <HexChip
+                                value={entry.replacement}
+                                onChange={(v) =>
+                                    setEntry({ ...entry, replacement: v })
+                                }
+                            />
+                        </Pair>
+                    </EntryCard>
+
+                    <EntryCard index={idx} accentHue={152}>
+                        <Pair label="Layer mask">
+                            <HexChip
+                                value={entry.layers}
+                                onChange={(v) =>
+                                    setEntry({ ...entry, layers: v })
+                                }
+                            />
+                        </Pair>
+                        <Pair label="Negative mods">
+                            <HexChip
+                                value={entry.negativeModMask}
+                                mask={0xff}
+                                onChange={(v) =>
+                                    setEntry({ ...entry, negativeModMask: v })
+                                }
+                            />
+                        </Pair>
+                        <Pair label="Suppressed mods">
+                            <HexChip
+                                value={entry.suppressedMods}
+                                mask={0xff}
+                                onChange={(v) =>
+                                    setEntry({ ...entry, suppressedMods: v })
+                                }
+                            />
+                        </Pair>
+                    </EntryCard>
+
                     <OptionGrid
                         options={KEY_OVERRIDE_OPTIONS}
                         value={entry.options}
@@ -119,6 +140,6 @@ export function KeyOverrideTab({ service, count, opened }: Props): JSX.Element {
                     </Button>
                 </>
             )}
-        </FieldGroup>
+        </div>
     )
 }

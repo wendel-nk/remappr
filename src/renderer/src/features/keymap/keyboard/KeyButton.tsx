@@ -8,10 +8,10 @@ import useUserSettingsStore, { type CapStyle } from '@/stores/userSettingsStore'
 import useConnectionStore from '@/stores/connectionStore'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/ui/tooltip'
 import {
-    catStyle,
     CATEGORY_META,
-    heatColor,
+    catStyle,
     type ColorMode,
+    heatColor,
     type KeyCategory,
 } from '@/lib/keymap/keyCategory'
 
@@ -360,7 +360,7 @@ export const KeyButton = ({
             data-zoomer={hoverZoom}
             title={richTooltip ? undefined : tooltip || undefined}
             style={{ ...chrome.style, ...pressedStyle, ...ringStyle }}
-            className={`relative transition-[box-shadow,transform] duration-100 box-border text-secondary-foreground grow flex flex-col items-center justify-center w-full h-full ${chrome.className} ${
+            className={`relative transition-[box-shadow] duration-100 box-border text-secondary-foreground grow flex flex-col items-center justify-center w-full h-full ${chrome.className} ${
                 pressed ? 'text-white translate-y-[2px]' : ''
             }`}
         >
@@ -463,7 +463,12 @@ export const KeyButton = ({
 
     return (
         <div
-            className={`group inline-flex flex-col items-center justify-center transition-transform duration-100 ease-[cubic-bezier(.2,.7,.3,1)] ${hoverZoom ? 'hover:scale-[1.06]' : ''}`}
+            // No `transition` on transform here: declaring one makes the browser
+            // pre-promote every keycap to its own fixed-resolution GPU layer, so a
+            // board-level zoom scales each cached bitmap (foggy text) until a hover
+            // re-rasterises that one key. The hover scale stays (instant), and with
+            // no per-key layers the whole board repaints crisp at any zoom.
+            className={`group inline-flex flex-col items-center justify-center ${hoverZoom ? 'hover:scale-[1.06]' : ''}`}
             data-zoomer={hoverZoom}
             style={size}
             {...props}

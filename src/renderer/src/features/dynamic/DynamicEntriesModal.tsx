@@ -1,4 +1,5 @@
 // pattern-check: skip — thin Modal+Tabs shell, per-tab content delegated
+import { Sliders } from 'lucide-react'
 import type { KeyboardService } from '@firmware'
 import { Modal } from '@/ui/modal'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/ui/tabs'
@@ -45,6 +46,9 @@ export function DynamicEntriesModal({
             opened={opened}
             onClose={onClose}
             title="Dynamic Entries"
+            subtitle="Tap-dance, combos, overrides & alt-repeat"
+            headerIcon={<Sliders />}
+            customModalBoxClass="w-11/14 max-w-2xl"
             xButton={true}
             isDismissable={true}
             showFooter={false}

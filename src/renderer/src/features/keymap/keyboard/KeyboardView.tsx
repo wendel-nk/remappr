@@ -2,12 +2,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { produce } from 'immer'
 import { toast } from 'sonner'
-import { Eraser, Layers, RotateCcw, Wand2, X } from 'lucide-react'
+import { ArrowRight, Eraser, Layers, RotateCcw, Wand2, X } from 'lucide-react'
 import type { ActionType, KeyAction, Keymap } from '@firmware/types'
 import {
-    PhysicalLayoutCanvas,
     type ClickModifiers,
     type KeyPosition,
+    PhysicalLayoutCanvas,
 } from './PhysicalLayoutCanvas'
 import { HidUsageLabel } from './HidUsageLabel'
 import type { HoldTapLabels } from './KeyButton'
@@ -27,6 +27,7 @@ import useLayerSelectionStore from '@/stores/layerSelectionStore'
 import useKeymapStore from '@/stores/keymapStore'
 import useClipboardStore from '@/stores/clipboardStore'
 import useHeatmapStore from '@/stores/heatmapStore'
+import useLoadStatsStore from '@/stores/loadStatsStore'
 import useLiveViewStore from '@/stores/liveViewStore'
 import useLayerPeekStore from '@/stores/layerPeekStore'
 import undoRedoStore from '@/stores/undoRedoStore'
@@ -687,19 +688,11 @@ export default function KeyboardView({
             {layouts && keymap && (
                 <div
                     data-coach="board"
-                    className="p-2 col-start-2 row-start-1 items-center justify-center relative min-w-0 flex h-full bg-accent"
+                    className="workbench-bg p-2 col-start-2 row-start-1 items-center justify-center relative min-w-0 flex h-full"
                 >
                     {/* // pattern-check: skip — presentational stage overlays (glow, layer pill, multi-select bar, assign modal) */}
-                    {/* Dotted workbench backdrop + soft radial glow behind the board. */}
-                    <div
-                        aria-hidden
-                        className="pointer-events-none absolute inset-0"
-                        style={{
-                            backgroundImage:
-                                'radial-gradient(circle at 50% 38%, color-mix(in oklch, var(--primary) 12%, transparent), transparent 60%), radial-gradient(color-mix(in oklch, var(--foreground) 14%, transparent) 1px, transparent 1px)',
-                            backgroundSize: '100% 100%, 22px 22px',
-                        }}
-                    />
+                    {/* Dotted workbench backdrop + soft radial glow is the .workbench-bg
+                        class (incl. its masked ::before dot grid), ported from the design. */}
                     <PhysicalLayoutCanvas
                         positions={positions}
                         oneU={48}
@@ -854,15 +847,18 @@ interface StageControlsProps {
     onResetHeat: () => void
 }
 
-// Heatmap legend (bottom, matching the design). The on/off toggles live in the
-// header toolbar (Flame / Zap); the stage only reflects and lets you reset counts.
+// pattern-check: skip — presentational legend, store read only, no abstraction
+// Heatmap legend (top-centre, matching the design): Less→More gradient, a reset,
+// and a "View load stats" link that opens the Typing-load modal. The on/off toggles
+// live in the header toolbar (Flame / Zap); the stage only reflects state.
 function StageControls({
     heatmapEnabled,
     onResetHeat,
 }: StageControlsProps): JSX.Element | null {
+    const openLoadStats = useLoadStatsStore((s) => s.setOpen)
     if (!heatmapEnabled) return null
     return (
-        <div className="absolute bottom-3 left-3 z-10 flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-[11px] font-semibold text-muted-foreground shadow-sm">
+        <div className="absolute top-3.5 left-1/2 z-[15] flex -translate-x-1/2 items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-[11px] font-semibold text-muted-foreground shadow-sm">
             <span>Less</span>
             <span
                 className="h-2 w-[110px] rounded-full"
@@ -880,6 +876,15 @@ function StageControls({
                 className="ml-0.5 rounded-full p-0.5 hover:text-foreground"
             >
                 <RotateCcw className="size-3" />
+            </button>
+            <span className="mx-0.5 h-3.5 w-px bg-border" />
+            <button
+                type="button"
+                onClick={(): void => openLoadStats(true)}
+                className="inline-flex items-center gap-1 font-bold text-primary hover:underline"
+            >
+                View load stats
+                <ArrowRight className="size-3" />
             </button>
         </div>
     )

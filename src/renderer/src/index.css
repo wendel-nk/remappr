@@ -231,10 +231,47 @@
         @apply bg-background text-foreground;
     }
 
-    /* Ensure crisp rendering for scaled elements */
-    [data-zoomer='true'] {
-        image-rendering: crisp-edges;
-        image-rendering: -webkit-optimize-contrast;
-        backface-visibility: hidden;
+    /* Workbench canvas backdrop — ported 1:1 from the design prototype.
+       A soft dual radial glow (primary at top, foreground at bottom) with a
+       dotted grid on top, masked to fade out toward the edges so the board
+       reads cleanly. No backface-visibility / image-rendering hints here: the
+       board zooms via a 2D transform, so promoting keycaps to fixed-resolution
+       GPU layers would scale a cached bitmap (blurry text). Letting the browser
+       re-rasterise the vector content keeps every zoom level crisp. */
+    .workbench-bg {
+        background:
+            radial-gradient(
+                120% 80% at 50% 0%,
+                color-mix(in oklch, var(--primary) 9%, transparent),
+                transparent 60%
+            ),
+            radial-gradient(
+                60% 50% at 50% 100%,
+                color-mix(in oklch, var(--foreground) 4%, transparent),
+                transparent 70%
+            );
+        position: relative;
+    }
+
+    .workbench-bg::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background-image: radial-gradient(
+            color-mix(in oklch, var(--foreground) 7%, transparent) 1px,
+            transparent 1px
+        );
+        background-size: 26px 26px;
+        mask-image: radial-gradient(
+            80% 70% at 50% 45%,
+            #000 30%,
+            transparent 80%
+        );
+        -webkit-mask-image: radial-gradient(
+            80% 70% at 50% 45%,
+            #000 30%,
+            transparent 80%
+        );
+        pointer-events: none;
     }
 }

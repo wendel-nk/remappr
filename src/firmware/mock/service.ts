@@ -10,6 +10,7 @@ import type {
     KeyboardService,
     MacroApi,
     RgbApi,
+    RgbEffectState,
 } from '@firmware/service'
 import type {
     ActionType,
@@ -31,6 +32,7 @@ import type {
     TapDanceEntry,
 } from '@firmware/types'
 import { LockedError, ProtocolError } from '@firmware/errors'
+import { RGB_MATRIX_CATALOG } from '@firmware/lighting'
 
 import {
     buildMockActionTypes,
@@ -186,6 +188,12 @@ export class MockKeyboardService implements KeyboardService {
     ])
     private mixedRegions: Uint8Array = new Uint8Array([0x01, 0x02, 0x03, 0x04])
     private mixedEffect: Uint8Array = new Uint8Array([0x05, 0x06, 0x07, 0x08])
+    private rgbEffect: RgbEffectState = {
+        mode: 14, // Cycle Up Down (RGB_MATRIX_EFFECTS index)
+        brightness: 200,
+        speed: 128,
+        color: { h: 170, s: 255, v: 255 },
+    }
 
     constructor(opts: MockServiceOptions = {}) {
         this.deviceInfo = {
@@ -328,6 +336,15 @@ export class MockKeyboardService implements KeyboardService {
             getMixedEffect: async () => this.mixedEffect.slice(),
             setMixedEffect: async (b) => {
                 this.mixedEffect = b.slice()
+                this.markPending(true)
+            },
+            effectCatalog: RGB_MATRIX_CATALOG,
+            getEffect: async () => ({
+                ...this.rgbEffect,
+                color: { ...this.rgbEffect.color },
+            }),
+            setEffect: async (state) => {
+                this.rgbEffect = { ...state, color: { ...state.color } }
                 this.markPending(true)
             },
         }

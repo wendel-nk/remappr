@@ -18,7 +18,7 @@ import useUserSettingsStore, {
     type KeyDisplayMode,
     type WorkspaceMode,
 } from '@/stores/userSettingsStore'
-import { useTheme, type Theme, type ThemeName } from '@/providers/ThemeProvider'
+import { type Theme, type ThemeName, useTheme } from '@/providers/ThemeProvider'
 import { GeneralSection } from './settings/GeneralSection'
 import { KeycapsSection } from './settings/KeycapsSection'
 import { WorkspaceSection } from './settings/WorkspaceSection'
@@ -116,6 +116,9 @@ export function Settings({ opened, onClose }: SettingsProps): JSX.Element {
             }}
             success="Done"
             close="Cancel"
+            title="Settings"
+            subtitle="Appearance, keycaps, workspace & device"
+            headerIcon={<SettingsIcon />}
             customModalBoxClass="w-11/14 max-w-4xl"
             type="icon"
             icon={<SettingsIcon />}

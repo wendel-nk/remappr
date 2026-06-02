@@ -1,5 +1,6 @@
 // pattern-check: skip — Keychron wireless settings modal; reads/writes through service.wireless facade
 import { useEffect, useState } from 'react'
+import { Wifi } from 'lucide-react'
 import { toast } from 'sonner'
 
 import type { WirelessStatus } from '@firmware'
@@ -110,7 +111,13 @@ export function WirelessSettingsModal({ opened, onClose }: Props): JSX.Element {
     }
 
     return (
-        <Modal opened={opened} onClose={onClose} title="Wireless Settings">
+        <Modal
+            opened={opened}
+            onClose={onClose}
+            title="Wireless Settings"
+            subtitle="Power, NKRO & connection"
+            headerIcon={<Wifi />}
+        >
             <div className="flex flex-col gap-4 p-2 text-sm">
                 <section className="flex flex-col gap-2">
                     <h3 className="font-semibold">Status</h3>

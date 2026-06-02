@@ -1,5 +1,6 @@
 // pattern-check: skip — form tab composing shared primitives
 import { useState } from 'react'
+import { ArrowRight } from 'lucide-react'
 
 import type {
     AltRepeatKeyEntry,
@@ -7,12 +8,11 @@ import type {
     KeyboardService,
 } from '@firmware'
 import { Button } from '@/ui/button'
-import { FieldGroup } from '@/ui/field'
 
 import { saveWithToast } from '@/lib/saveWithToast'
 
+import { EntryCard, HexChip, Pair } from '../_shared/EntryCard'
 import { IndexInput } from '../_shared/IndexInput'
-import { NumField } from '../_shared/NumField'
 import { type OptionDef, OptionGrid } from '../_shared/OptionGrid'
 import { useDynamicEntry } from '../_shared/useDynamicEntry'
 
@@ -57,9 +57,13 @@ export function AltRepeatKeyTab({ service, opened }: Props): JSX.Element {
         )
 
     return (
-        <FieldGroup className="space-y-3">
+        <div className="space-y-4">
+            <p className="text-xs text-muted-foreground">
+                Alternate Repeat sends a different key when you repeat the last
+                keypress — e.g. after “a”, repeat emits “o”.
+            </p>
             <IndexInput
-                label="Index"
+                label="Entry"
                 value={idx}
                 max={ARK_MAX}
                 onChange={setIdx}
@@ -69,22 +73,35 @@ export function AltRepeatKeyTab({ service, opened }: Props): JSX.Element {
             )}
             {entry && (
                 <>
-                    <NumField
-                        label="Keycode"
-                        value={entry.keycode}
-                        onChange={(v) => setEntry({ ...entry, keycode: v })}
-                    />
-                    <NumField
-                        label="Alt keycode"
-                        value={entry.altKeycode}
-                        onChange={(v) => setEntry({ ...entry, altKeycode: v })}
-                    />
-                    <NumField
-                        label="Allowed mods"
-                        value={entry.allowedMods}
-                        mask={0xff}
-                        onChange={(v) => setEntry({ ...entry, allowedMods: v })}
-                    />
+                    <EntryCard index={idx} accentHue={80}>
+                        <Pair label="After key">
+                            <HexChip
+                                value={entry.keycode}
+                                onChange={(v) =>
+                                    setEntry({ ...entry, keycode: v })
+                                }
+                            />
+                        </Pair>
+                        <ArrowRight className="mb-2 size-3.5 text-muted-foreground" />
+                        <Pair label="Repeat emits">
+                            <HexChip
+                                value={entry.altKeycode}
+                                onChange={(v) =>
+                                    setEntry({ ...entry, altKeycode: v })
+                                }
+                            />
+                        </Pair>
+                        <Pair label="Allowed mods">
+                            <HexChip
+                                value={entry.allowedMods}
+                                mask={0xff}
+                                onChange={(v) =>
+                                    setEntry({ ...entry, allowedMods: v })
+                                }
+                            />
+                        </Pair>
+                    </EntryCard>
+
                     <OptionGrid
                         options={ARK_OPTIONS}
                         value={entry.options}
@@ -95,6 +112,6 @@ export function AltRepeatKeyTab({ service, opened }: Props): JSX.Element {
                     </Button>
                 </>
             )}
-        </FieldGroup>
+        </div>
     )
 }
