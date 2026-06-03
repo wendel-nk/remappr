@@ -11,6 +11,10 @@ import {
     addKey,
     removeKey,
     updateKey,
+    snap,
+    addEncoder,
+    updateEncoder,
+    removeEncoder,
 } from './geometryEditor'
 
 describe('geometryEditor', () => {
@@ -140,5 +144,85 @@ describe('per-key geometry edits', () => {
             target: 'zmk',
         })
         expect(removeKey(one, 0)).toBe(one)
+    })
+})
+
+describe('snap', () => {
+    it('quantizes to the nearest step without float dust', () => {
+        expect(snap(0.31, 0.25)).toBe(0.25)
+        expect(snap(0.4, 0.25)).toBe(0.5)
+        expect(snap(0.3, 0.1)).toBe(0.3) // would be 0.30000000000000004 unrounded
+        expect(snap(2.6, 1)).toBe(3)
+    })
+
+    it('returns the value unchanged for a non-positive step', () => {
+        expect(snap(1.234, 0)).toBe(1.234)
+    })
+})
+
+describe('encoder slots', () => {
+    const base = (): ConfigKeymap =>
+        newBoardConfig({ name: 'E', rows: 1, cols: 2, target: 'zmk' })
+
+    it('addEncoder appends a slot, defaulting to the origin', () => {
+        const out = addEncoder(base())
+        expect(out.keyboard.encoders).toEqual([{ x: 0, y: 0 }])
+        const out2 = addEncoder(out, { x: 2, y: 1 })
+        expect(out2.keyboard.encoders).toEqual([
+            { x: 0, y: 0 },
+            { x: 2, y: 1 },
+        ])
+        expect(
+            parseKeymap(serializeKeymap(out2)).keyboard.encoders,
+        ).toHaveLength(2)
+    })
+
+    it('updateEncoder moves one slot, leaves others intact', () => {
+        const out = updateEncoder(
+            addEncoder(addEncoder(base()), { x: 1, y: 0 }),
+            1,
+            {
+                x: 3,
+            },
+        )
+        expect(out.keyboard.encoders).toEqual([
+            { x: 0, y: 0 },
+            { x: 3, y: 0 },
+        ])
+    })
+
+    it('removeEncoder splices the slot and its aligned per-layer binding', () => {
+        const seeded: ConfigKeymap = {
+            ...addEncoder(addEncoder(base())),
+            keyboard: {
+                ...addEncoder(addEncoder(base())).keyboard,
+            },
+            layers: base().layers.map((l) => ({
+                ...l,
+                encoders: [
+                    {
+                        cw: { type: 'transparent' },
+                        ccw: { type: 'transparent' },
+                    },
+                    {
+                        cw: { type: 'transparent' },
+                        ccw: { type: 'transparent' },
+                    },
+                ],
+            })),
+        }
+        const out = removeEncoder(seeded, 0)
+        expect(out.keyboard.encoders).toEqual([{ x: 0, y: 0 }])
+        expect(out.layers[0].encoders).toHaveLength(1)
+    })
+
+    it('removeEncoder drops the encoders field when the last slot goes', () => {
+        const out = removeEncoder(addEncoder(base()), 0)
+        expect(out.keyboard.encoders).toBeUndefined()
+    })
+
+    it('removeEncoder is a no-op for an out-of-range index', () => {
+        const seeded = addEncoder(base())
+        expect(removeEncoder(seeded, 5)).toBe(seeded)
     })
 })

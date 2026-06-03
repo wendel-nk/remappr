@@ -9,6 +9,7 @@
 // drag/resize per key is a later phase.
 
 import type {
+    CanonEncoderSlot,
     CanonGeometry,
     ConfigKeyboard,
     ConfigKeymap,
@@ -16,6 +17,13 @@ import type {
 } from '@firmware/config'
 
 export const MAX_GRID = 24
+
+/** Quantize a key-unit value to the nearest `step` (e.g. 0.25u), rounded to
+ *  avoid float dust like 0.30000000000000004. Used by the pixel-drag handles. */
+export function snap(value: number, step: number): number {
+    if (step <= 0) return value
+    return Math.round(Math.round(value / step) * step * 1e6) / 1e6
+}
 
 /** Clamp a requested grid dimension into 1..MAX_GRID (integer). */
 export function clampDim(n: number): number {
@@ -169,5 +177,61 @@ export function removeKey(config: ConfigKeymap, index: number): ConfigKeymap {
             ...(l.encoders ? { encoders: l.encoders } : {}),
         })),
         ...(combos ? { combos } : {}),
+    }
+}
+
+// Encoder PHYSICAL slots live on keyboard.encoders[]; their per-layer behavior
+// (cw/ccw/press) lives on layers[].encoders[] aligned by the same index. The
+// builder's geometry editor only places the physical slots — keeping the two
+// index-aligned is the helpers' job (add appends, remove splices both sides).
+
+/** Append a physical encoder slot. Defaults near the layout origin. */
+export function addEncoder(
+    config: ConfigKeymap,
+    slot?: CanonEncoderSlot,
+): ConfigKeymap {
+    const encoders = config.keyboard.encoders ?? []
+    const next: CanonEncoderSlot = slot ?? { x: 0, y: 0 }
+    return {
+        ...config,
+        keyboard: { ...config.keyboard, encoders: [...encoders, next] },
+    }
+}
+
+/** Move one encoder slot (patch x/y) — no structural change. */
+export function updateEncoder(
+    config: ConfigKeymap,
+    index: number,
+    patch: Partial<CanonEncoderSlot>,
+): ConfigKeymap {
+    const encoders = (config.keyboard.encoders ?? []).map((e, i) =>
+        i === index ? { ...e, ...patch } : e,
+    )
+    return {
+        ...config,
+        keyboard: { ...config.keyboard, encoders },
+    }
+}
+
+/** Remove the encoder slot at `index` and its aligned per-layer binding.
+ *  Drops the `encoders` field entirely when the last slot is removed. */
+export function removeEncoder(
+    config: ConfigKeymap,
+    index: number,
+): ConfigKeymap {
+    const current = config.keyboard.encoders
+    if (!current || index < 0 || index >= current.length) return config
+    const encoders = current.filter((_, i) => i !== index)
+    const keyboard = { ...config.keyboard }
+    if (encoders.length) keyboard.encoders = encoders
+    else delete keyboard.encoders
+    return {
+        ...config,
+        keyboard,
+        layers: config.layers.map((l) =>
+            l.encoders
+                ? { ...l, encoders: l.encoders.filter((_, i) => i !== index) }
+                : l,
+        ),
     }
 }
