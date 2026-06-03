@@ -38,6 +38,8 @@ import {
 import { zmkCodec } from './codec'
 import { behaviorsToActionTypes } from './actionTypes'
 import { zmkKeymapToNeutral } from './keymap'
+import { zmkNeutralToConfig } from './raise'
+import { serializeKeymap } from '@firmware/config'
 import { generateZMKConfigFile, generateZMKKeymapFile } from './export'
 
 const ZMK_CAPABILITIES: Capabilities = {
@@ -512,6 +514,30 @@ export class ZmkKeyboardService implements KeyboardService {
                 content: conf,
             },
         ]
+    }
+
+    // Raise the live keymap into the remappr config (source of truth) so the
+    // download modal can compile it per firmware (.keymap + .overlay) instead of
+    // falling back to the native exporter. Bindings the inverse can't model yet
+    // degrade to transparent and are logged — see ./raise.
+    async getConfigSource(): Promise<string | null> {
+        try {
+            const km = await this.getKeymap()
+            const { config, diagnostics } = zmkNeutralToConfig(
+                km,
+                this.deviceInfo,
+            )
+            if (diagnostics.length) {
+                console.warn(
+                    `[zmk] device→config raise: ${diagnostics.length} binding(s) not fully modeled`,
+                    diagnostics,
+                )
+            }
+            return serializeKeymap(config)
+        } catch (err) {
+            console.warn('[zmk] getConfigSource failed', err)
+            return null
+        }
     }
 
     async disconnect(): Promise<void> {
