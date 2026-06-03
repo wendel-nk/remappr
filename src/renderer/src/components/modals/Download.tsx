@@ -28,6 +28,7 @@ import {
 } from '@firmware/config'
 import type { ExportedFile } from '@firmware/types'
 import { createLogger } from '@shared/logger'
+import { CloudBuildPanel } from './CloudBuildPanel'
 
 const log = createLogger('Download')
 
@@ -299,6 +300,9 @@ export function Download({ opened, onClose }: DownloadProps): JSX.Element {
                                 </Button>
                             </div>
                         </div>
+
+                        <Separator />
+                        <CloudBuildPanel config={config} target={target} />
                     </>
                 )}
 
