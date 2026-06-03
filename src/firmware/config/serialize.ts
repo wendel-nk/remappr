@@ -7,6 +7,7 @@
 // key order is fixed so re-saves are stable diffs.
 
 import { friendlyName, resolveKeycode, type Modifier } from './keycodes'
+import { cloneHardware } from './normalize'
 import type {
     CanonAction,
     CanonEncoderBinding,
@@ -190,6 +191,11 @@ export function toSurfaceObject(km: ConfigKeymap): Record<string, unknown> {
                           y: e.y,
                       })),
                   }
+                : {}),
+            // hardware is already canonical (no surface sugar) — emit it as-is
+            // with stable key order via the same clone normalize uses.
+            ...(km.keyboard.hardware
+                ? { hardware: cloneHardware(km.keyboard.hardware) }
                 : {}),
         },
         layers: km.layers.map((l) => ({

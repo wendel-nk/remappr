@@ -219,11 +219,64 @@ export interface ConfigDefaults {
     comboTimeoutMs?: number
 }
 
+/** ZMK matrix `diode-direction`. */
+export type DiodeDirection = 'row2col' | 'col2row'
+
+/** A raw devicetree GPIO phandle+specifier, e.g.
+ *  `"&gpio0 4 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)"`. Stored verbatim — remappr
+ *  does not model SoC pin-mux; the builder UI composes these strings and the
+ *  compiler emits them unchanged into the kscan node. */
+export type GpioSpec = string
+
+/** A `zmk,kscan-gpio-matrix` definition. */
+export interface CanonMatrixKscan {
+    type: 'matrix'
+    diodeDirection: DiodeDirection
+    rowGpios: GpioSpec[]
+    colGpios: GpioSpec[]
+    debouncePressMs?: number
+    debounceReleaseMs?: number
+}
+
+/** A `zmk,kscan-gpio-direct` definition (one GPIO per key, no matrix). */
+export interface CanonDirectKscan {
+    type: 'direct'
+    inputGpios: GpioSpec[]
+    debouncePressMs?: number
+    debounceReleaseMs?: number
+}
+
+export type CanonKscan = CanonMatrixKscan | CanonDirectKscan
+
+/** The REAL electrical `zmk,matrix-transform`: one [row, col] per physical key,
+ *  in physical-layout / keymap-binding order. When present it REPLACES the
+ *  geometry-derived scaffold the compiler otherwise emits. */
+export interface CanonMatrixTransform {
+    rows: number
+    columns: number
+    /** [row, col] per key, in binding order. */
+    map: [number, number][]
+}
+
+/** Board hardware definition (kscan wiring + electrical transform + target).
+ *  Supplied by the Keyboard Builder; lets the ZMK compiler emit a flashable
+ *  config instead of the geometry-derived scaffold + "NOT GENERATED" checklist.
+ *  Everything is optional so a keymap-only config stays valid. */
+export interface ConfigHardware {
+    /** Zephyr board target (e.g. "nice_nano_v2", "seeeduino_xiao_ble"). */
+    board?: string
+    /** ZMK shield, when the keymap is a shield on a controller board. */
+    shield?: string
+    kscan?: CanonKscan
+    transform?: CanonMatrixTransform
+}
+
 export interface ConfigKeyboard {
     id: string
     name: string
     keys: CanonGeometry[]
     encoders?: CanonEncoderSlot[]
+    hardware?: ConfigHardware
 }
 
 /** Auto-activate `thenLayer` while every layer in `ifLayers` is active. */

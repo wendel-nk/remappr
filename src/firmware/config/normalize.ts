@@ -13,8 +13,71 @@ import type {
     CanonHoldTarget,
     CanonKeyPress,
     CanonMacroStep,
+    ConfigHardware,
     ConfigKeymap,
 } from './types'
+
+// Pattern check: no GoF pattern (-) — rejected — passthrough deep-clone of the
+// already-canonical hardware sub-object; pure data copy, no abstraction.
+// hardware has no surface sugar (GPIO specs + ints are canonical as-written), so
+// normalize just deep-copies it so the canonical doc owns no references.
+export function cloneHardware(hw: ConfigHardware): ConfigHardware {
+    return {
+        ...(hw.board !== undefined ? { board: hw.board } : {}),
+        ...(hw.shield !== undefined ? { shield: hw.shield } : {}),
+        ...(hw.kscan
+            ? {
+                  kscan:
+                      hw.kscan.type === 'matrix'
+                          ? {
+                                type: 'matrix',
+                                diodeDirection: hw.kscan.diodeDirection,
+                                rowGpios: [...hw.kscan.rowGpios],
+                                colGpios: [...hw.kscan.colGpios],
+                                ...(hw.kscan.debouncePressMs !== undefined
+                                    ? {
+                                          debouncePressMs:
+                                              hw.kscan.debouncePressMs,
+                                      }
+                                    : {}),
+                                ...(hw.kscan.debounceReleaseMs !== undefined
+                                    ? {
+                                          debounceReleaseMs:
+                                              hw.kscan.debounceReleaseMs,
+                                      }
+                                    : {}),
+                            }
+                          : {
+                                type: 'direct',
+                                inputGpios: [...hw.kscan.inputGpios],
+                                ...(hw.kscan.debouncePressMs !== undefined
+                                    ? {
+                                          debouncePressMs:
+                                              hw.kscan.debouncePressMs,
+                                      }
+                                    : {}),
+                                ...(hw.kscan.debounceReleaseMs !== undefined
+                                    ? {
+                                          debounceReleaseMs:
+                                              hw.kscan.debounceReleaseMs,
+                                      }
+                                    : {}),
+                            },
+              }
+            : {}),
+        ...(hw.transform
+            ? {
+                  transform: {
+                      rows: hw.transform.rows,
+                      columns: hw.transform.columns,
+                      map: hw.transform.map.map(
+                          ([r, c]) => [r, c] as [number, number],
+                      ),
+                  },
+              }
+            : {}),
+    }
+}
 
 // Validated upstream, so resolveKeycode never returns null here; `??` keeps TS
 // honest and degrades to the raw token rather than throwing.
@@ -193,6 +256,9 @@ export function normalizeKeymap(km: SurfaceKeymap): ConfigKeymap {
             keys: km.keyboard.keys.map((k) => ({ ...k })),
             ...(km.keyboard.encoders
                 ? { encoders: km.keyboard.encoders.map((e) => ({ ...e })) }
+                : {}),
+            ...(km.keyboard.hardware
+                ? { hardware: cloneHardware(km.keyboard.hardware) }
                 : {}),
         },
         layers: km.layers.map((l) => ({

@@ -388,6 +388,65 @@ export const ConditionalLayerSchema = z
         'Activate thenLayer while every layer in ifLayers is simultaneously active.',
     )
 
+/* ── board hardware (kscan wiring + electrical transform) ──────────────── */
+
+/** A raw devicetree GPIO phandle+specifier, kept verbatim. */
+export const GpioSpecSchema = z
+    .string()
+    .min(1)
+    .describe(
+        'Devicetree GPIO spec, e.g. "&gpio0 4 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)".',
+    )
+
+export const KscanSchema = z
+    .discriminatedUnion('type', [
+        z.object({
+            type: z.literal('matrix'),
+            diodeDirection: z.enum(['row2col', 'col2row']),
+            rowGpios: z.array(GpioSpecSchema).min(1),
+            colGpios: z.array(GpioSpecSchema).min(1),
+            debouncePressMs: z.number().int().nonnegative().optional(),
+            debounceReleaseMs: z.number().int().nonnegative().optional(),
+        }),
+        z.object({
+            type: z.literal('direct'),
+            inputGpios: z.array(GpioSpecSchema).min(1),
+            debouncePressMs: z.number().int().nonnegative().optional(),
+            debounceReleaseMs: z.number().int().nonnegative().optional(),
+        }),
+    ])
+    .describe(
+        'Key-scan wiring: matrix (row/col GPIOs) or direct (one per key).',
+    )
+
+export const MatrixTransformSchema = z
+    .object({
+        rows: z.number().int().positive(),
+        columns: z.number().int().positive(),
+        map: z
+            .array(
+                z.tuple([
+                    z.number().int().nonnegative(),
+                    z.number().int().nonnegative(),
+                ]),
+            )
+            .min(1),
+    })
+    .describe(
+        'Real electrical matrix-transform: [row, col] per key in binding order.',
+    )
+
+export const HardwareSchema = z
+    .object({
+        board: z.string().optional(),
+        shield: z.string().optional(),
+        kscan: KscanSchema.optional(),
+        transform: MatrixTransformSchema.optional(),
+    })
+    .describe(
+        'Board hardware (kscan + electrical transform + target) for a flashable export.',
+    )
+
 const BaseKeymapSchema = z.object({
     schemaVersion: z.literal(1),
     kind: z.literal('remappr.keymap'),
@@ -410,6 +469,7 @@ const BaseKeymapSchema = z.object({
         name: z.string(),
         keys: z.array(GeometrySchema).min(1),
         encoders: z.array(EncoderSchema).optional(),
+        hardware: HardwareSchema.optional(),
     }),
     layers: z.array(LayerSchema).min(1),
     combos: z.array(ComboSchema).optional(),
@@ -432,6 +492,58 @@ export const KeymapSchema = BaseKeymapSchema.superRefine((km, ctx) => {
     const holdTapIds = new Set((km.holdTaps ?? []).map((h) => h.id))
     const keyCount = km.keyboard.keys.length
     const encCount = km.keyboard.encoders?.length ?? 0
+
+    // Pattern check: no GoF pattern (-) — rejected — declarative cross-reference
+    // checks appended to the existing superRefine; data validation, no abstraction.
+    // hardware: the electrical transform must cover every key, its RC() indices
+    // must fit the declared matrix size, and (for a matrix kscan) that size must
+    // agree with the GPIO counts.
+    const hw = km.keyboard.hardware
+    if (hw?.transform) {
+        const { rows, columns, map } = hw.transform
+        if (map.length !== keyCount) {
+            ctx.addIssue({
+                code: 'custom',
+                message: `matrix-transform map has ${map.length} entries but the board has ${keyCount} keys`,
+                path: ['keyboard', 'hardware', 'transform', 'map'],
+            })
+        }
+        map.forEach(([r, c], i) => {
+            if (r >= rows || c >= columns) {
+                ctx.addIssue({
+                    code: 'custom',
+                    message: `matrix-transform entry RC(${r},${c}) is out of range for ${rows}×${columns}`,
+                    path: ['keyboard', 'hardware', 'transform', 'map', i],
+                })
+            }
+        })
+        if (hw.kscan?.type === 'matrix') {
+            if (hw.kscan.rowGpios.length !== rows) {
+                ctx.addIssue({
+                    code: 'custom',
+                    message: `matrix-transform declares ${rows} rows but kscan has ${hw.kscan.rowGpios.length} row GPIOs`,
+                    path: ['keyboard', 'hardware', 'transform', 'rows'],
+                })
+            }
+            if (hw.kscan.colGpios.length !== columns) {
+                ctx.addIssue({
+                    code: 'custom',
+                    message: `matrix-transform declares ${columns} columns but kscan has ${hw.kscan.colGpios.length} column GPIOs`,
+                    path: ['keyboard', 'hardware', 'transform', 'columns'],
+                })
+            }
+        }
+    }
+    if (
+        hw?.kscan?.type === 'direct' &&
+        hw.kscan.inputGpios.length !== keyCount
+    ) {
+        ctx.addIssue({
+            code: 'custom',
+            message: `direct kscan has ${hw.kscan.inputGpios.length} input GPIOs but the board has ${keyCount} keys`,
+            path: ['keyboard', 'hardware', 'kscan', 'inputGpios'],
+        })
+    }
 
     const layerRef = (name: string, path: (string | number)[]): void => {
         if (!layerNames.has(name)) {
