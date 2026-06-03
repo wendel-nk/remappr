@@ -37,6 +37,10 @@ export type LightingAction =
     | 'speed_up'
     | 'speed_down'
     | 'cycle'
+    // Value-carrying: 'color' sets an absolute HSB (underglow → RGB_COLOR_HSB);
+    // 'set' sets an absolute brightness level (backlight → BL_SET).
+    | 'color'
+    | 'set'
 
 export type OutputAction =
     | 'usb'
@@ -91,7 +95,17 @@ export type CanonAction =
     | { type: 'transparent' }
     | { type: 'none' }
     | { type: 'output'; action: OutputAction; profile?: number }
-    | { type: 'lighting'; target: LightingTarget; action: LightingAction }
+    | {
+          type: 'lighting'
+          target: LightingTarget
+          action: LightingAction
+          /** action 'color': absolute HSB (hue 0–360, saturation/brightness 0–100). */
+          hue?: number
+          saturation?: number
+          brightness?: number
+          /** action 'set': absolute brightness level 0–100. */
+          level?: number
+      }
     | { type: 'bootloader' }
     | { type: 'reset' }
     | { type: 'soft_off' }

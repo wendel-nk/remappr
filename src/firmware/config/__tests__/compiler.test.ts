@@ -593,3 +593,46 @@ describe('board hardware (kscan + electrical transform)', () => {
         expect(() => parseKeymap(bad)).toThrow(/input GPIOs/)
     })
 })
+
+describe('value-carrying lighting (HSB / BL_SET)', () => {
+    const LIGHT = `{
+        "schemaVersion": 1, "kind": "remappr.keymap",
+        "meta": { "name": "L", "target": "zmk" },
+        "keyboard": { "id": "l", "name": "L", "keys": [{"x":0,"y":0},{"x":1,"y":0}] },
+        "layers": [{ "name": "base", "bindings": [
+            { "type": "lighting", "target": "underglow", "action": "color", "hue": 120, "saturation": 100, "brightness": 80 },
+            { "type": "lighting", "target": "backlight", "action": "set", "level": 50 }
+        ] }]
+    }`
+
+    it('ZMK emits RGB_COLOR_HSB and BL_SET with their values', () => {
+        const dts = String(
+            getCompiler('zmk')
+                .compile(parseKeymap(LIGHT))
+                .files.find((f) => f.filename.endsWith('.keymap'))!.content,
+        )
+        expect(dts).toContain('&rgb_ug RGB_COLOR_HSB(120,100,80)')
+        expect(dts).toContain('&bl BL_SET 50')
+    })
+
+    it('round-trips the values through serialize → parse', () => {
+        const config = parseKeymap(LIGHT)
+        const reparsed = parseKeymap(serializeKeymap(config))
+        expect(reparsed.layers[0].bindings).toEqual(config.layers[0].bindings)
+    })
+
+    it('rejects "color" without a full HSB triple', () => {
+        const bad = LIGHT.replace('"hue": 120, ', '')
+        expect(() => parseKeymap(bad)).toThrow(/requires hue, saturation/)
+    })
+
+    it('rejects "set" without a level', () => {
+        const bad = LIGHT.replace(', "level": 50', '')
+        expect(() => parseKeymap(bad)).toThrow(/requires a level/)
+    })
+
+    it('QMK degrades color/set with warnings', () => {
+        const { diagnostics } = getCompiler('qmk').compile(parseKeymap(LIGHT))
+        expect(diagnostics.some((d) => d.level === 'warn')).toBe(true)
+    })
+})

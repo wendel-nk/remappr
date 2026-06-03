@@ -50,6 +50,8 @@ export const LightingActionSchema = z.enum([
     'speed_up',
     'speed_down',
     'cycle',
+    'color',
+    'set',
 ])
 
 export const OutputActionSchema = z
@@ -198,6 +200,10 @@ export const ActionObjectSchema = z.discriminatedUnion('type', [
         type: z.literal('lighting'),
         target: LightingTargetSchema,
         action: LightingActionSchema,
+        hue: z.number().int().min(0).max(360).optional(),
+        saturation: z.number().int().min(0).max(100).optional(),
+        brightness: z.number().int().min(0).max(100).optional(),
+        level: z.number().int().min(0).max(100).optional(),
     }),
 
     z
@@ -601,6 +607,31 @@ export const KeymapSchema = BaseKeymapSchema.superRefine((km, ctx) => {
                 message: `profile is only valid with action "bluetooth" or "bluetooth_disconnect"`,
                 path: [...p, 'profile'],
             })
+        }
+        if (b.type === 'lighting') {
+            // 'color' needs an HSB triple; 'set' needs a level (done here rather
+            // than on the object schema, which must stay a plain discriminated
+            // union member).
+            if (
+                b.action === 'color' &&
+                (b.hue === undefined ||
+                    b.saturation === undefined ||
+                    b.brightness === undefined)
+            ) {
+                ctx.addIssue({
+                    code: 'custom',
+                    message:
+                        'lighting action "color" requires hue, saturation and brightness',
+                    path: [...p, 'action'],
+                })
+            }
+            if (b.action === 'set' && b.level === undefined) {
+                ctx.addIssue({
+                    code: 'custom',
+                    message: 'lighting action "set" requires a level',
+                    path: [...p, 'action'],
+                })
+            }
         }
     }
 

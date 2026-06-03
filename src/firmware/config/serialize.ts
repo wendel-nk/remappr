@@ -98,7 +98,19 @@ export function denormalizeAction(a: CanonAction): Surface {
                 ...(a.profile !== undefined ? { profile: a.profile } : {}),
             }
         case 'lighting':
-            return { type: 'lighting', target: a.target, action: a.action }
+            return {
+                type: 'lighting',
+                target: a.target,
+                action: a.action,
+                ...(a.hue !== undefined ? { hue: a.hue } : {}),
+                ...(a.saturation !== undefined
+                    ? { saturation: a.saturation }
+                    : {}),
+                ...(a.brightness !== undefined
+                    ? { brightness: a.brightness }
+                    : {}),
+                ...(a.level !== undefined ? { level: a.level } : {}),
+            }
         case 'macro':
             return {
                 type: 'macro',

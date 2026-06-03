@@ -315,6 +315,8 @@ function emitBinding(
                 return '&none'
             }
             if (a.target === 'backlight') {
+                // BL_SET carries an absolute level; the rest are in the BL map.
+                if (a.action === 'set') return `&bl BL_SET ${a.level ?? 0}`
                 const t = BL[a.action]
                 if (!t) {
                     ctx.diag.warn(
@@ -324,6 +326,17 @@ function emitBinding(
                     return '&none'
                 }
                 return `&bl ${t}`
+            }
+            // underglow: RGB_COLOR_HSB carries an absolute hue/sat/brightness.
+            if (a.action === 'color') {
+                return `&rgb_ug RGB_COLOR_HSB(${a.hue ?? 0},${a.saturation ?? 0},${a.brightness ?? 0})`
+            }
+            if (a.action === 'set') {
+                ctx.diag.warn(
+                    'underglow has no absolute "set" on ZMK (BL_SET is backlight-only); emitted RGB_TOG',
+                    path,
+                )
+                return '&rgb_ug RGB_TOG'
             }
             return `&rgb_ug ${RGB_UG[a.action] ?? 'RGB_TOG'}`
         }

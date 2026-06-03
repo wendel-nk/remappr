@@ -177,7 +177,19 @@ export function normalizeAction(b: SurfaceAction): CanonAction {
                 ...(b.profile !== undefined ? { profile: b.profile } : {}),
             }
         case 'lighting':
-            return { type: 'lighting', target: b.target, action: b.action }
+            return {
+                type: 'lighting',
+                target: b.target,
+                action: b.action,
+                ...(b.hue !== undefined ? { hue: b.hue } : {}),
+                ...(b.saturation !== undefined
+                    ? { saturation: b.saturation }
+                    : {}),
+                ...(b.brightness !== undefined
+                    ? { brightness: b.brightness }
+                    : {}),
+                ...(b.level !== undefined ? { level: b.level } : {}),
+            }
         case 'macro':
             return {
                 type: 'macro',
