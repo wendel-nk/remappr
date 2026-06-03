@@ -14,10 +14,12 @@ import type {
     CanonAction,
     CanonKeyPress,
     CanonMacro,
+    CanonModMorph,
     CanonTapDance,
     ConfigKeymap,
     LightingAction,
 } from '../types'
+import type { Modifier } from '../keycodes'
 
 const RGB_UG: Partial<Record<LightingAction, string>> = {
     toggle: 'RGB_TOG',
@@ -40,6 +42,7 @@ const BL: Partial<Record<LightingAction, string>> = {
     off: 'BL_OFF',
     brightness_up: 'BL_INC',
     brightness_down: 'BL_DEC',
+    cycle: 'BL_CYCLE',
 }
 
 const EP: Record<'toggle' | 'on' | 'off', string> = {
@@ -68,6 +71,20 @@ const SCRL: Record<string, string> = {
 }
 
 const sanitize = (id: string): string => id.replace(/[^a-zA-Z0-9_]/g, '_')
+
+// ZMK modifier bitmask flags (dt-bindings/zmk/modifiers.h) for mod-morph `mods`.
+const MOD_FLAG: Record<Modifier, string> = {
+    LEFT_CTRL: 'MOD_LCTL',
+    LEFT_SHIFT: 'MOD_LSFT',
+    LEFT_ALT: 'MOD_LALT',
+    LEFT_GUI: 'MOD_LGUI',
+    RIGHT_CTRL: 'MOD_RCTL',
+    RIGHT_SHIFT: 'MOD_RSFT',
+    RIGHT_ALT: 'MOD_RALT',
+    RIGHT_GUI: 'MOD_RGUI',
+}
+const modFlags = (mods: Modifier[]): string =>
+    `(${mods.map((m) => MOD_FLAG[m]).join('|')})`
 
 // Board-hardware nodes remappr cannot derive from a keymap/geometry — the ZMK
 // connection never exposes them. Emitted as a checklist comment so the file is
@@ -147,9 +164,12 @@ function emitBinding(
         case 'output':
             if (a.action === 'usb') return '&out OUT_USB'
             if (a.action === 'toggle') return '&out OUT_TOG'
+            if (a.action === 'none') return '&out OUT_NONE'
             if (a.action === 'bluetooth_clear') return '&bt BT_CLR'
             if (a.action === 'bluetooth_next') return '&bt BT_NXT'
             if (a.action === 'bluetooth_prev') return '&bt BT_PRV'
+            if (a.action === 'bluetooth_disconnect')
+                return `&bt BT_DISC ${a.profile ?? 0}`
             return a.profile !== undefined
                 ? `&bt BT_SEL ${a.profile}`
                 : '&out OUT_BLE'
@@ -179,6 +199,8 @@ function emitBinding(
                 ? `&${sanitize(a.ref)} ${zmkKeyName(a.param)}`
                 : `&${sanitize(a.ref)}`
         case 'tap_dance':
+            return `&${sanitize(a.ref)}`
+        case 'mod_morph':
             return `&${sanitize(a.ref)}`
         case 'soft_off':
             return '&soft_off'
@@ -215,8 +237,12 @@ function emitMacros(macros: CanonMacro[], ctx: Ctx): string[] {
                 bindings.push(`<&macro_tap &kp ${zmkKeyName(s.key)}>`)
             else if (s.type === 'wait')
                 bindings.push(`<&macro_wait_time ${s.ms}>`)
+            else if (s.type === 'tap_time')
+                bindings.push(`<&macro_tap_time ${s.ms}>`)
             else if (s.type === 'param')
-                bindings.push(`<&macro_tap &macro_param_1to1>`)
+                bindings.push(
+                    `<&macro_tap &macro_param_${s.from ?? 1}to${s.to ?? 1}>`,
+                )
             else if (s.type === 'pause_for_release')
                 bindings.push(`<&macro_pause_for_release>`)
             else
@@ -225,17 +251,21 @@ function emitMacros(macros: CanonMacro[], ctx: Ctx): string[] {
                     ['macros'],
                 )
         }
-        // A one-param macro uses a distinct compatible + #binding-cells = <1>.
-        const oneParam =
-            m.params === 1 || m.steps.some((s) => s.type === 'param')
+        // #binding-cells: explicit `params`, else inferred from param steps
+        // (highest `from` used). 0 = plain, 1 = one-param, 2 = two-param.
+        const inferredCells = m.steps.reduce(
+            (n, s) => (s.type === 'param' ? Math.max(n, s.from ?? 1) : n),
+            0,
+        )
+        const cells = m.params ?? inferredCells
+        const suffix =
+            cells === 2 ? '-two-param' : cells === 1 ? '-one-param' : ''
         // A stub (no emittable steps) gets an inert &none + a visible TODO, so
         // the node is valid devicetree instead of an empty `bindings = ;`.
         const isStub = bindings.length === 0
         out.push(`        ${sanitize(m.id)}: ${sanitize(m.id)} {`)
-        out.push(
-            `            compatible = "zmk,behavior-macro${oneParam ? '-one-param' : ''}";`,
-        )
-        out.push(`            #binding-cells = <${oneParam ? 1 : 0}>;`)
+        out.push(`            compatible = "zmk,behavior-macro${suffix}";`)
+        out.push(`            #binding-cells = <${cells}>;`)
         if (isStub) {
             out.push(
                 `            /* TODO: stub — restore this macro's steps from your board source. */`,
@@ -309,6 +339,27 @@ function emitEncoderSensors(
     })
 
     return { behaviorLines, byLayer }
+}
+
+function emitModMorphs(morphs: CanonModMorph[], ctx: Ctx): string[] {
+    const out: string[] = ['    behaviors {']
+    for (const mm of morphs) {
+        const id = sanitize(mm.id)
+        const b0 = emitBinding(mm.bindings[0], ctx, ['modMorphs', mm.id, 0])
+        const b1 = emitBinding(mm.bindings[1], ctx, ['modMorphs', mm.id, 1])
+        out.push(
+            `        ${id}: ${id} {`,
+            `            compatible = "zmk,behavior-mod-morph";`,
+            `            #binding-cells = <0>;`,
+            `            bindings = <${b0}>, <${b1}>;`,
+            `            mods = <${modFlags(mm.mods)}>;`,
+        )
+        if (mm.keepMods?.length)
+            out.push(`            keep-mods = <${modFlags(mm.keepMods)}>;`)
+        out.push(`        };`)
+    }
+    out.push('    };')
+    return out
 }
 
 function emitTapDances(tds: CanonTapDance[], ctx: Ctx): string[] {
@@ -480,6 +531,8 @@ function emitKeymap(config: ConfigKeymap, diag: DiagnosticBag): ExportedFile[] {
     if (config.macros?.length) lines.push(...emitMacros(config.macros, ctx), ``)
     if (config.tapDances?.length)
         lines.push(...emitTapDances(config.tapDances, ctx), ``)
+    if (config.modMorphs?.length)
+        lines.push(...emitModMorphs(config.modMorphs, ctx), ``)
 
     // Encoders: build sensor-rotate behavior nodes (non-keypress pairs) up front,
     // then reference them per layer below.

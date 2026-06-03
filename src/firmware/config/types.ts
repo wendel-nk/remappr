@@ -29,6 +29,7 @@ export type LightingAction =
     | 'effect_previous'
     | 'speed_up'
     | 'speed_down'
+    | 'cycle'
 
 export type OutputAction =
     | 'usb'
@@ -36,7 +37,9 @@ export type OutputAction =
     | 'bluetooth_clear'
     | 'bluetooth_next'
     | 'bluetooth_prev'
+    | 'bluetooth_disconnect'
     | 'toggle'
+    | 'none'
 
 export type LayerMode = 'momentary' | 'toggle' | 'to' | 'sticky'
 
@@ -92,6 +95,7 @@ export type CanonAction =
     | { type: 'mouse_scroll'; direction: Direction }
     | { type: 'macro'; ref: string; param?: CanonicalKeyId; _paramSrc?: string }
     | { type: 'tap_dance'; ref: string }
+    | { type: 'mod_morph'; ref: string }
 
 export interface CanonGeometry {
     x: number
@@ -148,17 +152,30 @@ export type CanonMacroStep =
     | { type: 'release'; key: CanonicalKeyId; _keySrc?: string }
     | { type: 'wait'; ms: number }
     | { type: 'text'; text: string }
-    /** Placeholder for the binding's argument in a one-param macro (&macro_param_1to1). */
-    | { type: 'param' }
+    /** Forward a macro argument to the next behavior (&macro_param_<from>to<to>).
+     *  Defaults to 1→1 (the one-param case). */
+    | { type: 'param'; from?: 1 | 2; to?: 1 | 2 }
+    /** Override how long tapped behaviors are held (&macro_tap_time). */
+    | { type: 'tap_time'; ms: number }
     /** Block until the triggering key is released (&macro_pause_for_release). */
     | { type: 'pause_for_release' }
 
 export interface CanonMacro {
     id: string
     description?: string
-    /** Binding-cells: 0 = plain macro, 1 = one-param macro (a `param` step forwards the arg). */
-    params?: 0 | 1
+    /** Binding-cells: 0 = plain, 1 = one-param, 2 = two-param macro. */
+    params?: 0 | 1 | 2
     steps: CanonMacroStep[]
+}
+
+/** A `zmk,behavior-mod-morph`: `bindings[0]` normally, `bindings[1]` while any
+ *  `mods` modifier is held. `keepMods` passes those modifiers through. */
+export interface CanonModMorph {
+    id: string
+    description?: string
+    mods: Modifier[]
+    keepMods?: Modifier[]
+    bindings: [CanonAction, CanonAction]
 }
 
 export interface ConfigMeta {
@@ -198,5 +215,6 @@ export interface ConfigKeymap {
     combos?: CanonCombo[]
     tapDances?: CanonTapDance[]
     macros?: CanonMacro[]
+    modMorphs?: CanonModMorph[]
     conditionalLayers?: CanonConditionalLayer[]
 }

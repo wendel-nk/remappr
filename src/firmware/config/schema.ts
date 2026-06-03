@@ -40,6 +40,7 @@ export const LightingActionSchema = z.enum([
     'effect_previous',
     'speed_up',
     'speed_down',
+    'cycle',
 ])
 
 export const OutputActionSchema = z
@@ -49,7 +50,9 @@ export const OutputActionSchema = z
         'bluetooth_clear',
         'bluetooth_next',
         'bluetooth_prev',
+        'bluetooth_disconnect',
         'toggle',
+        'none',
     ])
     .describe('Output routing. Wireless (bluetooth*) needs a BLE backend.')
 
@@ -202,6 +205,11 @@ export const ActionObjectSchema = z.discriminatedUnion('type', [
     z
         .object({ type: z.literal('tap_dance'), ref: z.string() })
         .describe('Run a named tap-dance.'),
+    z
+        .object({ type: z.literal('mod_morph'), ref: z.string() })
+        .describe(
+            'Run a named mod-morph (sends one binding, or another while a modifier is held).',
+        ),
 
     z
         .object({ type: z.literal('soft_off') })
@@ -291,8 +299,20 @@ export const MacroStepSchema = z.discriminatedUnion('type', [
     z.object({ type: z.literal('wait'), ms: z.number().int().nonnegative() }),
     z.object({ type: z.literal('text'), text: z.string() }),
     z
-        .object({ type: z.literal('param') })
-        .describe("Forward the binding's argument (one-param macro)."),
+        .object({
+            type: z.literal('param'),
+            from: z.union([z.literal(1), z.literal(2)]).optional(),
+            to: z.union([z.literal(1), z.literal(2)]).optional(),
+        })
+        .describe(
+            'Forward a macro argument to the next behavior (&macro_param_<from>to<to>); defaults 1→1.',
+        ),
+    z
+        .object({
+            type: z.literal('tap_time'),
+            ms: z.number().int().positive(),
+        })
+        .describe('Override how long tapped behaviors are held.'),
     z
         .object({ type: z.literal('pause_for_release') })
         .describe('Wait for the triggering key to be released.'),
@@ -302,11 +322,23 @@ export const MacroSchema = z.object({
     id: z.string(),
     description: z.string().optional(),
     params: z
-        .union([z.literal(0), z.literal(1)])
+        .union([z.literal(0), z.literal(1), z.literal(2)])
         .optional()
-        .describe('Binding-cells: 0 = plain, 1 = one-param macro.'),
+        .describe('Binding-cells: 0 = plain, 1 = one-param, 2 = two-param.'),
     steps: z.array(MacroStepSchema).min(1),
 })
+
+export const ModMorphSchema = z
+    .object({
+        id: z.string(),
+        description: z.string().optional(),
+        mods: z.array(ModifierSchema).min(1),
+        keepMods: z.array(ModifierSchema).optional(),
+        bindings: z.tuple([ActionSchema, ActionSchema]),
+    })
+    .describe(
+        'Mod-morph: bindings[0] normally, bindings[1] while any `mods` modifier is held.',
+    )
 
 export const ConditionalLayerSchema = z
     .object({
@@ -344,6 +376,7 @@ const BaseKeymapSchema = z.object({
     combos: z.array(ComboSchema).optional(),
     tapDances: z.array(TapDanceSchema).optional(),
     macros: z.array(MacroSchema).optional(),
+    modMorphs: z.array(ModMorphSchema).optional(),
     conditionalLayers: z.array(ConditionalLayerSchema).optional(),
 })
 
@@ -355,6 +388,7 @@ export const KeymapSchema = BaseKeymapSchema.superRefine((km, ctx) => {
     const layerNames = new Set(km.layers.map((l) => l.name))
     const macroIds = new Set((km.macros ?? []).map((m) => m.id))
     const danceIds = new Set((km.tapDances ?? []).map((t) => t.id))
+    const morphIds = new Set((km.modMorphs ?? []).map((m) => m.id))
     const keyCount = km.keyboard.keys.length
     const encCount = km.keyboard.encoders?.length ?? 0
 
@@ -389,14 +423,22 @@ export const KeymapSchema = BaseKeymapSchema.superRefine((km, ctx) => {
                 path: [...p, 'ref'],
             })
         }
+        if (b.type === 'mod_morph' && !morphIds.has(b.ref)) {
+            ctx.addIssue({
+                code: 'custom',
+                message: `unknown mod-morph "${b.ref}"`,
+                path: [...p, 'ref'],
+            })
+        }
         if (
             b.type === 'output' &&
             b.action !== 'bluetooth' &&
+            b.action !== 'bluetooth_disconnect' &&
             b.profile !== undefined
         ) {
             ctx.addIssue({
                 code: 'custom',
-                message: `profile is only valid with action "bluetooth"`,
+                message: `profile is only valid with action "bluetooth" or "bluetooth_disconnect"`,
                 path: [...p, 'profile'],
             })
         }
@@ -445,6 +487,11 @@ export const KeymapSchema = BaseKeymapSchema.superRefine((km, ctx) => {
     ;(km.tapDances ?? []).forEach((td, ti) => {
         td.taps.forEach((t, tj) =>
             checkAction(t.action, ['tapDances', ti, 'taps', tj, 'action']),
+        )
+    })
+    ;(km.modMorphs ?? []).forEach((mm, mi) => {
+        mm.bindings.forEach((b, bi) =>
+            checkAction(b, ['modMorphs', mi, 'bindings', bi]),
         )
     })
     ;(km.conditionalLayers ?? []).forEach((cl, ci) => {

@@ -70,6 +70,7 @@ const OUT_CMD: Record<number, CanonAction> = {
     0: { type: 'output', action: 'toggle' }, // OUT_TOG
     1: { type: 'output', action: 'usb' }, // OUT_USB
     2: { type: 'output', action: 'bluetooth' }, // OUT_BLE
+    3: { type: 'output', action: 'none' }, // OUT_NONE
 }
 // ext_power.h — OFF=0, ON=1, TOGGLE=2.
 const EP_CMD: Record<number, CanonAction> = {
@@ -108,6 +109,7 @@ const BL_CMD: Record<number, CanonAction> = {
     2: { type: 'lighting', target: 'backlight', action: 'toggle' }, // BL_TOG
     3: { type: 'lighting', target: 'backlight', action: 'brightness_up' }, // BL_INC
     4: { type: 'lighting', target: 'backlight', action: 'brightness_down' }, // BL_DEC
+    5: { type: 'lighting', target: 'backlight', action: 'cycle' }, // BL_CYCLE
 }
 
 // pointing.h MOVE/SCRL pack two int16 as (X << 16) | (Y & 0xFFFF). Direction is
@@ -227,9 +229,15 @@ function raiseBinding(
             return { type: 'layer', mode, layer }
         }
         case '&bt':
-            // BT_SEL (3) selects a profile carried in param2.
+            // BT_SEL (3) / BT_DISC (5) select a profile carried in param2.
             if (p1 === 3)
                 return { type: 'output', action: 'bluetooth', profile: p2 }
+            if (p1 === 5)
+                return {
+                    type: 'output',
+                    action: 'bluetooth_disconnect',
+                    profile: p2,
+                }
             return BT_CMD[p1] ?? unmodeled(`&bt cmd ${p1}`)
         case '&out':
             return OUT_CMD[p1] ?? unmodeled(`&out cmd ${p1}`)

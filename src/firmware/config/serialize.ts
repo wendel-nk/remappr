@@ -107,6 +107,8 @@ export function denormalizeAction(a: CanonAction): Surface {
             }
         case 'tap_dance':
             return { type: 'tap_dance', ref: a.ref }
+        case 'mod_morph':
+            return { type: 'mod_morph', ref: a.ref }
         case 'key_toggle':
             return { type: 'key_toggle', key: keyToken(a.key, a._keySrc) }
         case 'ext_power':
@@ -135,8 +137,14 @@ const denormalizeEncoder = (
 const denormalizeMacroStep = (s: CanonMacroStep): Record<string, unknown> => {
     if (s.type === 'wait') return { type: 'wait', ms: s.ms }
     if (s.type === 'text') return { type: 'text', text: s.text }
-    if (s.type === 'param' || s.type === 'pause_for_release')
-        return { type: s.type }
+    if (s.type === 'tap_time') return { type: 'tap_time', ms: s.ms }
+    if (s.type === 'param')
+        return {
+            type: 'param',
+            ...(s.from !== undefined ? { from: s.from } : {}),
+            ...(s.to !== undefined ? { to: s.to } : {}),
+        }
+    if (s.type === 'pause_for_release') return { type: s.type }
     return { type: s.type, key: keyToken(s.key, s._keySrc) }
 }
 
@@ -220,6 +228,22 @@ export function toSurfaceObject(km: ConfigKeymap): Record<string, unknown> {
                       ...(m.description ? { description: m.description } : {}),
                       ...(m.params !== undefined ? { params: m.params } : {}),
                       steps: m.steps.map(denormalizeMacroStep),
+                  })),
+              }
+            : {}),
+        ...(km.modMorphs
+            ? {
+                  modMorphs: km.modMorphs.map((mm) => ({
+                      id: mm.id,
+                      ...(mm.description
+                          ? { description: mm.description }
+                          : {}),
+                      mods: [...mm.mods],
+                      ...(mm.keepMods ? { keepMods: [...mm.keepMods] } : {}),
+                      bindings: [
+                          denormalizeAction(mm.bindings[0]),
+                          denormalizeAction(mm.bindings[1]),
+                      ],
                   })),
               }
             : {}),

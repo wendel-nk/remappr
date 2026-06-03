@@ -123,6 +123,8 @@ export function normalizeAction(b: SurfaceAction): CanonAction {
             }
         case 'tap_dance':
             return { type: 'tap_dance', ref: b.ref }
+        case 'mod_morph':
+            return { type: 'mod_morph', ref: b.ref }
         case 'key_toggle':
             return {
                 type: 'key_toggle',
@@ -159,7 +161,13 @@ function normalizeMacroStep(
 ): CanonMacroStep {
     if (s.type === 'wait') return { type: 'wait', ms: s.ms }
     if (s.type === 'text') return { type: 'text', text: s.text }
-    if (s.type === 'param') return { type: 'param' }
+    if (s.type === 'param')
+        return {
+            type: 'param',
+            ...(s.from !== undefined ? { from: s.from } : {}),
+            ...(s.to !== undefined ? { to: s.to } : {}),
+        }
+    if (s.type === 'tap_time') return { type: 'tap_time', ms: s.ms }
     if (s.type === 'pause_for_release') return { type: 'pause_for_release' }
     return { type: s.type, key: toCanonical(s.key), _keySrc: s.key }
 }
@@ -222,6 +230,22 @@ export function normalizeKeymap(km: SurfaceKeymap): ConfigKeymap {
                       ...(m.description ? { description: m.description } : {}),
                       ...(m.params !== undefined ? { params: m.params } : {}),
                       steps: m.steps.map(normalizeMacroStep),
+                  })),
+              }
+            : {}),
+        ...(km.modMorphs
+            ? {
+                  modMorphs: km.modMorphs.map((mm) => ({
+                      id: mm.id,
+                      ...(mm.description
+                          ? { description: mm.description }
+                          : {}),
+                      mods: [...mm.mods],
+                      ...(mm.keepMods ? { keepMods: [...mm.keepMods] } : {}),
+                      bindings: [
+                          normalizeAction(mm.bindings[0]),
+                          normalizeAction(mm.bindings[1]),
+                      ] as [CanonAction, CanonAction],
                   })),
               }
             : {}),

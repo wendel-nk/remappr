@@ -159,6 +159,12 @@ function emitKeycode(
                 path,
             )
             return 'KC_NO'
+        case 'mod_morph':
+            ctx.diag.warn(
+                `mod-morph "${a.ref}" requires a custom QMK macro / Key Override; emitted KC_NO`,
+                path,
+            )
+            return 'KC_NO'
         case 'key_repeat':
             return 'QK_REP'
         case 'grave_escape':

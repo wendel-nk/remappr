@@ -277,3 +277,98 @@ describe('encoders / sensor-rotate', () => {
         expect(diagnostics.some((d) => /encoder/.test(d.message))).toBe(true)
     })
 })
+
+const TAILS = `{
+    "schemaVersion": 1, "kind": "remappr.keymap",
+    "meta": { "name": "Tails", "target": "zmk" },
+    "keyboard": { "id": "t", "name": "T", "keys": [
+        {"x":0,"y":0},{"x":1,"y":0},{"x":2,"y":0},{"x":3,"y":0}
+    ] },
+    "layers": [{ "name": "base", "bindings": [
+        { "type": "output", "action": "bluetooth_disconnect", "profile": 1 },
+        { "type": "output", "action": "none" },
+        { "type": "lighting", "target": "backlight", "action": "cycle" },
+        { "type": "macro", "ref": "swap" }
+    ] }],
+    "macros": [{
+        "id": "swap", "params": 2,
+        "steps": [
+            { "type": "param", "from": 2, "to": 1 },
+            { "type": "tap_time", "ms": 20 },
+            { "type": "param", "from": 1, "to": 1 }
+        ]
+    }]
+}`
+
+describe('enum tails + 2-param macros', () => {
+    it('emits BT_DISC, OUT_NONE, BL_CYCLE', () => {
+        const dts = String(
+            getCompiler('zmk')
+                .compile(parseKeymap(TAILS))
+                .files.find((f) => f.filename.endsWith('.keymap'))!.content,
+        )
+        expect(dts).toContain('&bt BT_DISC 1')
+        expect(dts).toContain('&out OUT_NONE')
+        expect(dts).toContain('&bl BL_CYCLE')
+    })
+
+    it('emits a two-param macro with param forwarding and tap_time', () => {
+        const dts = String(
+            getCompiler('zmk')
+                .compile(parseKeymap(TAILS))
+                .files.find((f) => f.filename.endsWith('.keymap'))!.content,
+        )
+        expect(dts).toContain('compatible = "zmk,behavior-macro-two-param"')
+        expect(dts).toContain('#binding-cells = <2>')
+        expect(dts).toContain('&macro_param_2to1')
+        expect(dts).toContain('&macro_tap_time 20')
+    })
+
+    it('round-trips through serialize', () => {
+        const cfg = parseKeymap(TAILS)
+        const re = parseKeymap(serializeKeymap(cfg))
+        expect(re.macros?.[0].params).toBe(2)
+        expect(re.macros?.[0].steps).toContainEqual({
+            type: 'param',
+            from: 2,
+            to: 1,
+        })
+    })
+})
+
+const MORPH = `{
+    "schemaVersion": 1, "kind": "remappr.keymap",
+    "meta": { "name": "Morph", "target": "zmk" },
+    "keyboard": { "id": "m", "name": "M", "keys": [{"x":0,"y":0}] },
+    "layers": [{ "name": "base", "bindings": [{ "type": "mod_morph", "ref": "dot_colon" }] }],
+    "modMorphs": [{
+        "id": "dot_colon",
+        "mods": ["LEFT_SHIFT", "RIGHT_SHIFT"],
+        "keepMods": ["LEFT_GUI"],
+        "bindings": [".", ":"]
+    }]
+}`
+
+describe('mod-morph', () => {
+    it('emits a zmk,behavior-mod-morph node with mod flags', () => {
+        const dts = String(
+            getCompiler('zmk')
+                .compile(parseKeymap(MORPH))
+                .files.find((f) => f.filename.endsWith('.keymap'))!.content,
+        )
+        expect(dts).toContain('compatible = "zmk,behavior-mod-morph"')
+        expect(dts).toContain('mods = <(MOD_LSFT|MOD_RSFT)>;')
+        expect(dts).toContain('keep-mods = <(MOD_LGUI)>;')
+        expect(dts).toContain('&dot_colon') // reference in the layer
+    })
+
+    it('QMK degrades mod-morph with a warning', () => {
+        const { diagnostics } = getCompiler('qmk').compile(parseKeymap(MORPH))
+        expect(diagnostics.some((d) => /mod-morph/.test(d.message))).toBe(true)
+    })
+
+    it('rejects a reference to an unknown mod-morph', () => {
+        const bad = MORPH.replace('"ref": "dot_colon"', '"ref": "nope"')
+        expect(() => parseKeymap(bad)).toThrow(/unknown mod-morph/)
+    })
+})

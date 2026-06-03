@@ -174,6 +174,34 @@ describe('zmkNeutralToConfig', () => {
         })
     })
 
+    it('decodes the enum-tail commands (OUT_NONE, BT_DISC, BL_CYCLE)', () => {
+        const { config } = zmkNeutralToConfig(
+            keymap([
+                {
+                    name: 'base',
+                    keys: [
+                        ka('&out', [3]), // OUT_NONE
+                        ka('&bt', [5, 2]), // BT_DISC profile 2
+                        ka('&bl', [5]), // BL_CYCLE
+                    ],
+                },
+            ]),
+            DEV,
+        )
+        const b = config.layers[0].bindings
+        expect(b[0]).toEqual({ type: 'output', action: 'none' })
+        expect(b[1]).toEqual({
+            type: 'output',
+            action: 'bluetooth_disconnect',
+            profile: 2,
+        })
+        expect(b[2]).toEqual({
+            type: 'lighting',
+            target: 'backlight',
+            action: 'cycle',
+        })
+    })
+
     it('degrades truly unmappable bindings to transparent with a diagnostic', () => {
         const { config, diagnostics } = zmkNeutralToConfig(
             // &kp with an undecodable usage → transparent
