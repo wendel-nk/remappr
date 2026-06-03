@@ -7,6 +7,7 @@
 export type {
     CanonAction,
     CanonEncoderBinding,
+    CanonGeometry,
     CanonHoldTarget,
     CanonKeyPress,
     CanonLayer,

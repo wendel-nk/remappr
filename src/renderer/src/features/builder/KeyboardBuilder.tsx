@@ -1,12 +1,15 @@
-// Pattern check: no GoF pattern (-) — rejected — container wiring the hardware
-// form to configStore via existing hooks; state plumbing, no abstraction.
+// Pattern check: no GoF pattern (-) — rejected — container wiring the new-board
+// and hardware forms to configStore via existing hooks; state plumbing, no
+// abstraction.
 //
-// The Keyboard Builder. Today it edits the connected/imported config's BOARD
-// HARDWARE (board + kscan wiring) so remappr can compile a flashable ZMK overlay
-// (real kscan + chosen + matrix-transform) instead of the geometry-derived
-// scaffold — see firmware/config/compilers/zmk.ts. The full from-scratch geometry
-// editor (placing keys/encoders into `keyboard.keys`) is a later phase; until then
-// the panel requires a loaded config to attach hardware to.
+// The Keyboard Builder. Two modes share one modal:
+//  • no config loaded → design a board FROM SCRATCH (NewBoardForm): a name +
+//    rows×cols grid seeds `keyboard.keys` and a base layer (newBoardConfig).
+//  • config loaded (just-created, connected, or imported) → define its BOARD
+//    HARDWARE (HardwareForm): kscan wiring so the ZMK compiler emits a flashable
+//    overlay (real kscan + chosen + matrix-transform) instead of the
+//    geometry-derived scaffold — see firmware/config/compilers/zmk.ts.
+// Free-form per-key drag/resize + an RC() transform editor are later phases.
 import { useState } from 'react'
 import { Hammer } from 'lucide-react'
 import { toast } from 'sonner'
@@ -20,6 +23,13 @@ import {
     hardwareToDraft,
     type HardwareDraft,
 } from './hardwareForm'
+import { NewBoardForm } from './NewBoardForm'
+import {
+    clampDim,
+    newBoardConfig,
+    EMPTY_BOARD_DRAFT,
+    type NewBoardDraft,
+} from './geometryEditor'
 
 interface KeyboardBuilderProps {
     opened: boolean
@@ -48,9 +58,10 @@ export function KeyboardBuilder({
     const [draft, setDraft] = useState<HardwareDraft>(() =>
         hardwareToDraft(config?.keyboard.hardware),
     )
+    const [board, setBoard] = useState<NewBoardDraft>(EMPTY_BOARD_DRAFT)
     const [error, setError] = useState<string | null>(null)
 
-    // Re-seed the draft from the current config on the closed→open transition,
+    // Re-seed both drafts from the current config on the closed→open transition,
     // adjusting state during render (React's sanctioned alternative to a
     // setState-in-effect) so a stale draft never flashes when the modal reopens.
     const [wasOpen, setWasOpen] = useState(opened)
@@ -58,77 +69,91 @@ export function KeyboardBuilder({
         setWasOpen(opened)
         if (opened) {
             setDraft(hardwareToDraft(config?.keyboard.hardware))
+            setBoard(EMPTY_BOARD_DRAFT)
             setError(null)
         }
     }
 
-    const save = (): void => {
+    // Round-trip through the validator so the schema's cross-checks gate the write.
+    const commit = (next: ConfigKeymap, ok: string): boolean => {
+        if (loadFromSource(serializeKeymap(next))) {
+            setError(null)
+            toast.success(ok)
+            return true
+        }
+        setError(useConfigStore.getState().error)
+        return false
+    }
+
+    const saveHardware = (): void => {
         if (!config) return
-        const next = withHardware(config, draft)
-        // Round-trip through the validator so the schema's cross-checks
-        // (transform vs key count, GPIO counts) gate the save.
-        const ok = loadFromSource(serializeKeymap(next))
-        if (ok) {
-            setError(null)
-            toast.success('Board hardware saved')
+        if (commit(withHardware(config, draft), 'Board hardware saved'))
             onClose()
-        } else {
-            setError(useConfigStore.getState().error)
-        }
     }
 
-    const footer = config ? (
+    // Create the from-scratch board, then stay open so the user flows straight
+    // into defining its hardware (config is now non-null → the hardware panel).
+    const createBoard = (): void => {
+        commit(
+            newBoardConfig({
+                name: board.name,
+                rows: clampDim(Number(board.rows)),
+                cols: clampDim(Number(board.cols)),
+                target: board.target,
+            }),
+            'Board created — now define its hardware',
+        )
+    }
+
+    const footer = (
         <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={onClose}>
-                Cancel
+                {config ? 'Cancel' : 'Close'}
             </Button>
-            <Button onClick={save}>Save hardware</Button>
+            {config ? (
+                <Button onClick={saveHardware}>Save hardware</Button>
+            ) : (
+                <Button onClick={createBoard}>Create board</Button>
+            )}
         </div>
-    ) : undefined
+    )
 
     return (
         <Modal
             opened={opened}
             onClose={onClose}
             title="Keyboard Builder"
-            subtitle="Define the board hardware for a flashable export"
+            subtitle={
+                config
+                    ? 'Define the board hardware for a flashable export'
+                    : 'Design a board from scratch'
+            }
             headerIcon={<Hammer />}
             customModalBoxClass="w-11/14 max-w-2xl"
-            showFooter={Boolean(config)}
             footer={footer}
         >
-            {config ? (
-                <div className="space-y-4">
+            <div className="space-y-4">
+                {config ? (
                     <HardwareForm
                         value={draft}
                         onChange={setDraft}
                         keyCount={config.keyboard.keys.length}
                     />
-                    {error && (
-                        <p className="rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                            {error}
+                ) : (
+                    <>
+                        <NewBoardForm value={board} onChange={setBoard} />
+                        <p className="text-xs text-muted-foreground">
+                            Or connect a keyboard / import a keymap to edit an
+                            existing board instead.
                         </p>
-                    )}
-                </div>
-            ) : (
-                <div className="grid place-items-center gap-3 py-12 text-center">
-                    <span className="grid size-12 place-items-center rounded-xl bg-primary/10 text-primary">
-                        <Hammer className="size-6" />
-                    </span>
-                    <div className="space-y-1">
-                        <p className="text-sm font-semibold">
-                            No keymap loaded
-                        </p>
-                        <p className="mx-auto max-w-sm text-xs text-muted-foreground">
-                            Connect a keyboard or import a keymap first, then
-                            the builder can attach its board hardware (kscan
-                            wiring, diode direction, debounce) for a flashable
-                            ZMK export. Building geometry from scratch is coming
-                            in a later release.
-                        </p>
-                    </div>
-                </div>
-            )}
+                    </>
+                )}
+                {error && (
+                    <p className="rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                        {error}
+                    </p>
+                )}
+            </div>
         </Modal>
     )
 }
