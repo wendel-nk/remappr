@@ -10,8 +10,10 @@ import type { ExportedFile } from '../../types'
 import type { DiagnosticBag } from '../diagnostics'
 import { runCompile, registerCompiler, type KeymapCompiler } from '../compiler'
 import { ZMK_MOD, ZMK_MOD_FN, zmkKeyName } from '../names'
+import { resolveKeycode } from '../keycodes'
 import type {
     CanonAction,
+    CanonHoldTapDef,
     CanonKeyPress,
     CanonMacro,
     CanonModMorph,
@@ -112,6 +114,56 @@ const NOT_GENERATED_BLOCK: string[] = [
 interface Ctx {
     layerIndex: Map<string, number>
     diag: DiagnosticBag
+    /** Hold-tap nodes generated for tap_holds carrying custom flavor/timing,
+     *  deduped by signature → id. Emitted as a behaviors block at the end. */
+    genHoldTaps: Map<string, { id: string; lines: string[] }>
+}
+
+// Our `resolve` enum predates `flavor`; map it to the ZMK flavor it approximates.
+const RESOLVE_TO_FLAVOR: Record<string, string> = {
+    'prefer-hold': 'hold-preferred',
+    'prefer-tap': 'tap-preferred',
+}
+
+// Generate (or reuse) a custom hold-tap node for a tap_hold with flavor/timing,
+// returning its label. &mt is `<&kp>,<&kp>`; &lt is `<&mo>,<&kp>`.
+function generateHoldTap(
+    a: Extract<CanonAction, { type: 'tap_hold' }>,
+    ctx: Ctx,
+): string {
+    const isLayer = a.hold.type === 'layer'
+    const flavor =
+        a.flavor ?? (a.resolve ? RESOLVE_TO_FLAVOR[a.resolve] : undefined)
+    const sig = JSON.stringify([
+        isLayer ? 'lt' : 'mt',
+        flavor ?? '',
+        a.tappingTermMs ?? '',
+        a.quickTapMs ?? '',
+    ])
+    const hit = ctx.genHoldTaps.get(sig)
+    if (hit) return hit.id
+    const id = `ht_${ctx.genHoldTaps.size}`
+    const lines = [
+        `        ${id}: ${id} {`,
+        `            compatible = "zmk,behavior-hold-tap";`,
+        `            #binding-cells = <2>;`,
+        `            bindings = <${isLayer ? '&mo' : '&kp'}>, <&kp>;`,
+    ]
+    if (flavor) lines.push(`            flavor = "${flavor}";`)
+    if (a.tappingTermMs !== undefined)
+        lines.push(`            tapping-term-ms = <${a.tappingTermMs}>;`)
+    if (a.quickTapMs !== undefined)
+        lines.push(`            quick-tap-ms = <${a.quickTapMs}>;`)
+    lines.push(`        };`)
+    ctx.genHoldTaps.set(sig, { id, lines })
+    return id
+}
+
+// A hold-tap param is a keycode token when it resolves, else emitted raw (e.g. a
+// layer index for an &mo/&lt inner binding).
+function holdTapParam(token: string): string {
+    const id = resolveKeycode(token)
+    return id ? zmkKeyName(id) : token
 }
 
 function kp(kpAction: CanonKeyPress): string {
@@ -137,10 +189,25 @@ function emitBinding(
     switch (a.type) {
         case 'key_press':
             return kp(a)
-        case 'tap_hold':
+        case 'tap_hold': {
+            const holdTok =
+                a.hold.type === 'modifier'
+                    ? ZMK_MOD[a.hold.modifier]
+                    : String(layerIdx(a.hold.layer))
+            const tapTok = zmkKeyName(a.tap.key)
+            // Custom flavor/timing → a dedicated generated hold-tap node;
+            // otherwise the global &mt / &lt.
+            const hasCustom =
+                a.flavor !== undefined ||
+                a.tappingTermMs !== undefined ||
+                a.quickTapMs !== undefined ||
+                a.resolve !== undefined
+            if (hasCustom)
+                return `&${generateHoldTap(a, ctx)} ${holdTok} ${tapTok}`
             return a.hold.type === 'modifier'
-                ? `&mt ${ZMK_MOD[a.hold.modifier]} ${zmkKeyName(a.tap.key)}`
-                : `&lt ${layerIdx(a.hold.layer)} ${zmkKeyName(a.tap.key)}`
+                ? `&mt ${holdTok} ${tapTok}`
+                : `&lt ${holdTok} ${tapTok}`
+        }
         case 'layer':
             return a.mode === 'momentary'
                 ? `&mo ${layerIdx(a.layer)}`
@@ -202,6 +269,8 @@ function emitBinding(
             return `&${sanitize(a.ref)}`
         case 'mod_morph':
             return `&${sanitize(a.ref)}`
+        case 'hold_tap':
+            return `&${sanitize(a.ref)} ${holdTapParam(a.holdParam)} ${holdTapParam(a.tapParam)}`
         case 'soft_off':
             return '&soft_off'
         case 'studio_unlock':
@@ -339,6 +408,38 @@ function emitEncoderSensors(
     })
 
     return { behaviorLines, byLayer }
+}
+
+function emitHoldTapDefs(defs: CanonHoldTapDef[]): string[] {
+    const out: string[] = ['    behaviors {']
+    for (const h of defs) {
+        const id = sanitize(h.id)
+        out.push(
+            `        ${id}: ${id} {`,
+            `            compatible = "zmk,behavior-hold-tap";`,
+            `            #binding-cells = <2>;`,
+            `            bindings = <${h.bindings[0]}>, <${h.bindings[1]}>;`,
+        )
+        if (h.flavor) out.push(`            flavor = "${h.flavor}";`)
+        if (h.tappingTermMs !== undefined)
+            out.push(`            tapping-term-ms = <${h.tappingTermMs}>;`)
+        if (h.quickTapMs !== undefined)
+            out.push(`            quick-tap-ms = <${h.quickTapMs}>;`)
+        if (h.requirePriorIdleMs !== undefined)
+            out.push(
+                `            require-prior-idle-ms = <${h.requirePriorIdleMs}>;`,
+            )
+        if (h.holdTriggerKeyPositions?.length)
+            out.push(
+                `            hold-trigger-key-positions = <${h.holdTriggerKeyPositions.join(' ')}>;`,
+            )
+        if (h.holdTriggerOnRelease)
+            out.push(`            hold-trigger-on-release;`)
+        if (h.retroTap) out.push(`            retro-tap;`)
+        out.push(`        };`)
+    }
+    out.push('    };')
+    return out
 }
 
 function emitModMorphs(morphs: CanonModMorph[], ctx: Ctx): string[] {
@@ -507,6 +608,7 @@ function emitKeymap(config: ConfigKeymap, diag: DiagnosticBag): ExportedFile[] {
     const ctx: Ctx = {
         layerIndex: new Map(config.layers.map((l, i) => [l.name, i])),
         diag,
+        genHoldTaps: new Map(),
     }
 
     const lines: string[] = []
@@ -533,6 +635,8 @@ function emitKeymap(config: ConfigKeymap, diag: DiagnosticBag): ExportedFile[] {
         lines.push(...emitTapDances(config.tapDances, ctx), ``)
     if (config.modMorphs?.length)
         lines.push(...emitModMorphs(config.modMorphs, ctx), ``)
+    if (config.holdTaps?.length)
+        lines.push(...emitHoldTapDefs(config.holdTaps), ``)
 
     // Encoders: build sensor-rotate behavior nodes (non-keypress pairs) up front,
     // then reference them per layer below.
@@ -610,6 +714,16 @@ function emitKeymap(config: ConfigKeymap, diag: DiagnosticBag): ExportedFile[] {
         lines.push(`        };`)
     })
     lines.push(`    };`)
+
+    // Hold-tap nodes generated for custom-flavor/timing tap_holds above. Emitted
+    // after the keymap (devicetree resolves the &ht_N labels regardless of order).
+    if (ctx.genHoldTaps.size) {
+        lines.push(``)
+        lines.push(`    behaviors {`)
+        for (const g of ctx.genHoldTaps.values()) lines.push(...g.lines)
+        lines.push(`    };`)
+    }
+
     lines.push(`};`)
     lines.push(``)
 

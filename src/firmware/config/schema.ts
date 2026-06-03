@@ -22,6 +22,15 @@ export const ResolveSchema = z
         'Tap/hold interrupt policy. timeout = decide by timer; prefer-hold = hold if another key is pressed in-window; prefer-tap = tap unless held past the timer uninterrupted.',
     )
 
+export const FlavorSchema = z
+    .enum([
+        'hold-preferred',
+        'balanced',
+        'tap-preferred',
+        'tap-unless-interrupted',
+    ])
+    .describe('Hold-tap interrupt flavor (ZMK devicetree value).')
+
 export const LightingTargetSchema = z
     .enum(['underglow', 'backlight', 'per_key'])
     .describe('Lighting axis — firmware-gated (per_key is QMK/Keychron only).')
@@ -120,6 +129,7 @@ const tapHoldTimings = {
     tappingTermMs: z.number().int().positive().optional(),
     quickTapMs: z.number().int().nonnegative().optional(),
     resolve: ResolveSchema.optional(),
+    flavor: FlavorSchema.optional(),
 }
 
 /* ── the surface action union ──────────────────────────────────────────── */
@@ -209,6 +219,16 @@ export const ActionObjectSchema = z.discriminatedUnion('type', [
         .object({ type: z.literal('mod_morph'), ref: z.string() })
         .describe(
             'Run a named mod-morph (sends one binding, or another while a modifier is held).',
+        ),
+    z
+        .object({
+            type: z.literal('hold_tap'),
+            ref: z.string(),
+            holdParam: z.string(),
+            tapParam: z.string(),
+        })
+        .describe(
+            'Invoke a named custom hold-tap; holdParam/tapParam feed its two inner bindings.',
         ),
 
     z
@@ -328,6 +348,25 @@ export const MacroSchema = z.object({
     steps: z.array(MacroStepSchema).min(1),
 })
 
+export const HoldTapDefSchema = z
+    .object({
+        id: z.string(),
+        description: z.string().optional(),
+        flavor: FlavorSchema.optional(),
+        tappingTermMs: z.number().int().positive().optional(),
+        quickTapMs: z.number().int().nonnegative().optional(),
+        requirePriorIdleMs: z.number().int().nonnegative().optional(),
+        holdTriggerKeyPositions: z
+            .array(z.number().int().nonnegative())
+            .optional(),
+        holdTriggerOnRelease: z.boolean().optional(),
+        retroTap: z.boolean().optional(),
+        bindings: z.tuple([z.string(), z.string()]),
+    })
+    .describe(
+        'Custom hold-tap: bindings are the two inner behavior tokens (e.g. "&kp", "&mo").',
+    )
+
 export const ModMorphSchema = z
     .object({
         id: z.string(),
@@ -377,6 +416,7 @@ const BaseKeymapSchema = z.object({
     tapDances: z.array(TapDanceSchema).optional(),
     macros: z.array(MacroSchema).optional(),
     modMorphs: z.array(ModMorphSchema).optional(),
+    holdTaps: z.array(HoldTapDefSchema).optional(),
     conditionalLayers: z.array(ConditionalLayerSchema).optional(),
 })
 
@@ -389,6 +429,7 @@ export const KeymapSchema = BaseKeymapSchema.superRefine((km, ctx) => {
     const macroIds = new Set((km.macros ?? []).map((m) => m.id))
     const danceIds = new Set((km.tapDances ?? []).map((t) => t.id))
     const morphIds = new Set((km.modMorphs ?? []).map((m) => m.id))
+    const holdTapIds = new Set((km.holdTaps ?? []).map((h) => h.id))
     const keyCount = km.keyboard.keys.length
     const encCount = km.keyboard.encoders?.length ?? 0
 
@@ -427,6 +468,13 @@ export const KeymapSchema = BaseKeymapSchema.superRefine((km, ctx) => {
             ctx.addIssue({
                 code: 'custom',
                 message: `unknown mod-morph "${b.ref}"`,
+                path: [...p, 'ref'],
+            })
+        }
+        if (b.type === 'hold_tap' && !holdTapIds.has(b.ref)) {
+            ctx.addIssue({
+                code: 'custom',
+                message: `unknown hold-tap "${b.ref}"`,
                 path: [...p, 'ref'],
             })
         }

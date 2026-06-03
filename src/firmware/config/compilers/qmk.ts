@@ -165,6 +165,12 @@ function emitKeycode(
                 path,
             )
             return 'KC_NO'
+        case 'hold_tap':
+            ctx.diag.warn(
+                `custom hold-tap "${a.ref}" has no direct QMK keycode; use MT()/LT() or a tap-hold config; emitted KC_NO`,
+                path,
+            )
+            return 'KC_NO'
         case 'key_repeat':
             return 'QK_REP'
         case 'grave_escape':

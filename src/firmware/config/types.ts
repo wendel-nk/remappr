@@ -13,6 +13,13 @@ export type Target = 'zmk' | 'qmk' | 'keychron'
 
 export type Resolve = 'timeout' | 'prefer-hold' | 'prefer-tap'
 
+/** ZMK hold-tap `flavor` (the devicetree string values). */
+export type HoldTapFlavor =
+    | 'hold-preferred'
+    | 'balanced'
+    | 'tap-preferred'
+    | 'tap-unless-interrupted'
+
 export type LightingTarget = 'underglow' | 'backlight' | 'per_key'
 
 export type LightingAction =
@@ -68,6 +75,9 @@ export interface CanonTapHold {
     tappingTermMs?: number
     quickTapMs?: number
     resolve?: Resolve
+    /** Interrupt flavor. When this or a timing is set, ZMK gets a dedicated
+     *  generated hold-tap node instead of the global &mt/&lt. */
+    flavor?: HoldTapFlavor
     /** How the user wrote it, so serialize can re-emit the preset form. */
     _preset?: 'mod_tap' | 'layer_tap'
 }
@@ -96,6 +106,7 @@ export type CanonAction =
     | { type: 'macro'; ref: string; param?: CanonicalKeyId; _paramSrc?: string }
     | { type: 'tap_dance'; ref: string }
     | { type: 'mod_morph'; ref: string }
+    | { type: 'hold_tap'; ref: string; holdParam: string; tapParam: string }
 
 export interface CanonGeometry {
     x: number
@@ -168,6 +179,22 @@ export interface CanonMacro {
     steps: CanonMacroStep[]
 }
 
+/** A custom `zmk,behavior-hold-tap`. `bindings` are the two inner behavior
+ *  tokens (e.g. "&kp", "&mo") invoked for hold and tap; a `hold_tap` action
+ *  reference passes the hold/tap params. */
+export interface CanonHoldTapDef {
+    id: string
+    description?: string
+    flavor?: HoldTapFlavor
+    tappingTermMs?: number
+    quickTapMs?: number
+    requirePriorIdleMs?: number
+    holdTriggerKeyPositions?: number[]
+    holdTriggerOnRelease?: boolean
+    retroTap?: boolean
+    bindings: [string, string]
+}
+
 /** A `zmk,behavior-mod-morph`: `bindings[0]` normally, `bindings[1]` while any
  *  `mods` modifier is held. `keepMods` passes those modifiers through. */
 export interface CanonModMorph {
@@ -216,5 +243,6 @@ export interface ConfigKeymap {
     tapDances?: CanonTapDance[]
     macros?: CanonMacro[]
     modMorphs?: CanonModMorph[]
+    holdTaps?: CanonHoldTapDef[]
     conditionalLayers?: CanonConditionalLayer[]
 }

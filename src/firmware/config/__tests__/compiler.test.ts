@@ -30,8 +30,11 @@ describe('keymap compilers', () => {
         expect(dts).toContain('compatible = "zmk,keymap"')
         expect(dts).toContain('&kp Q')
         expect(dts).toContain('&kp LC(C)') // "Ctrl+C" combo string
-        expect(dts).toContain('&lt 1') // layer_tap -> lower (index 1)
-        expect(dts).toContain('&mt LSHFT') // mod_tap -> Left Shift
+        // the seed's layer-taps set resolve: prefer-hold, so they get a generated
+        // hold-tap node (hold-preferred) instead of the global &lt
+        expect(dts).toContain('flavor = "hold-preferred"')
+        expect(dts).toMatch(/&ht_0 \d+ /) // layer-tap via generated node
+        expect(dts).toContain('&mt LSHFT') // plain mod_tap -> global &mt
         expect(dts).toContain('&mo 2') // momentary adjust (index 2)
         expect(dts).toContain('&bt BT_SEL 0')
         expect(dts).toContain('&rgb_ug RGB_TOG')
@@ -370,5 +373,92 @@ describe('mod-morph', () => {
     it('rejects a reference to an unknown mod-morph', () => {
         const bad = MORPH.replace('"ref": "dot_colon"', '"ref": "nope"')
         expect(() => parseKeymap(bad)).toThrow(/unknown mod-morph/)
+    })
+})
+
+const HT_INLINE = `{
+    "schemaVersion": 1, "kind": "remappr.keymap",
+    "meta": { "name": "HT", "target": "zmk" },
+    "keyboard": { "id": "h", "name": "H", "keys": [{"x":0,"y":0},{"x":1,"y":0}] },
+    "layers": [{ "name": "base", "bindings": [
+        { "type": "mod_tap", "tap": "A", "mod": "LEFT_SHIFT", "flavor": "balanced", "tappingTermMs": 200 },
+        { "type": "mod_tap", "tap": "B", "mod": "LEFT_SHIFT", "flavor": "balanced", "tappingTermMs": 200 }
+    ] }]
+}`
+
+const HT_DEF = `{
+    "schemaVersion": 1, "kind": "remappr.keymap",
+    "meta": { "name": "HTD", "target": "zmk" },
+    "keyboard": { "id": "hd", "name": "HD", "keys": [{"x":0,"y":0}] },
+    "layers": [{ "name": "base", "bindings": [
+        { "type": "hold_tap", "ref": "hm", "holdParam": "LEFT_SHIFT", "tapParam": "A" }
+    ] }],
+    "holdTaps": [{
+        "id": "hm", "flavor": "tap-preferred", "tappingTermMs": 280,
+        "holdTriggerKeyPositions": [1, 2], "retroTap": true,
+        "bindings": ["&kp", "&kp"]
+    }]
+}`
+
+describe('custom hold-tap', () => {
+    it('generates a hold-tap node for a tap_hold with flavor/timing and dedups it', () => {
+        const dts = String(
+            getCompiler('zmk')
+                .compile(parseKeymap(HT_INLINE))
+                .files.find((f) => f.filename.endsWith('.keymap'))!.content,
+        )
+        expect(dts).toContain('compatible = "zmk,behavior-hold-tap"')
+        expect(dts).toContain('flavor = "balanced";')
+        expect(dts).toContain('tapping-term-ms = <200>;')
+        // both identical tap_holds share one generated node (ht_0), no ht_1
+        expect(dts).toContain('ht_0:')
+        expect(dts).not.toContain('ht_1:')
+        expect((dts.match(/&ht_0 /g) ?? []).length).toBe(2)
+        // and it is NOT the global &mt
+        expect(dts).not.toMatch(/&mt LSHFT A/)
+    })
+
+    it('plain tap-holds (no flavor/timing) still use global &mt/&lt', () => {
+        const plain = `{
+            "schemaVersion": 1, "kind": "remappr.keymap",
+            "meta": { "name": "P", "target": "zmk" },
+            "keyboard": { "id": "p", "name": "P", "keys": [{"x":0,"y":0},{"x":1,"y":0}] },
+            "layers": [{ "name": "base", "bindings": [
+                { "type": "mod_tap", "tap": "A", "mod": "LEFT_SHIFT" },
+                { "type": "layer_tap", "tap": "SPACE", "layer": "base" }
+            ] }]
+        }`
+        const dts = String(
+            getCompiler('zmk')
+                .compile(parseKeymap(plain))
+                .files.find((f) => f.filename.endsWith('.keymap'))!.content,
+        )
+        expect(dts).toContain('&mt LSHFT A')
+        expect(dts).toContain('&lt 0 SPACE')
+        expect(dts).not.toContain('zmk,behavior-hold-tap')
+    })
+
+    it('emits a user-defined hold-tap node and references it', () => {
+        const dts = String(
+            getCompiler('zmk')
+                .compile(parseKeymap(HT_DEF))
+                .files.find((f) => f.filename.endsWith('.keymap'))!.content,
+        )
+        expect(dts).toContain('hm: hm {')
+        expect(dts).toContain('compatible = "zmk,behavior-hold-tap"')
+        expect(dts).toContain('flavor = "tap-preferred";')
+        expect(dts).toContain('hold-trigger-key-positions = <1 2>;')
+        expect(dts).toContain('retro-tap;')
+        expect(dts).toMatch(/&hm \S+ \S+/) // reference with two params
+    })
+
+    it('rejects a reference to an unknown hold-tap', () => {
+        const bad = HT_DEF.replace('"ref": "hm"', '"ref": "nope"')
+        expect(() => parseKeymap(bad)).toThrow(/unknown hold-tap/)
+    })
+
+    it('QMK degrades a custom hold-tap reference with a warning', () => {
+        const { diagnostics } = getCompiler('qmk').compile(parseKeymap(HT_DEF))
+        expect(diagnostics.some((d) => /hold-tap/.test(d.message))).toBe(true)
     })
 })

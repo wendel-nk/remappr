@@ -44,15 +44,17 @@ const timings = (a: {
     tappingTermMs?: number
     quickTapMs?: number
     resolve?: 'timeout' | 'prefer-hold' | 'prefer-tap'
+    flavor?: Extract<CanonAction, { type: 'tap_hold' }>['flavor']
 }): Pick<
     Extract<CanonAction, { type: 'tap_hold' }>,
-    'tappingTermMs' | 'quickTapMs' | 'resolve'
+    'tappingTermMs' | 'quickTapMs' | 'resolve' | 'flavor'
 > => ({
     ...(a.tappingTermMs !== undefined
         ? { tappingTermMs: a.tappingTermMs }
         : {}),
     ...(a.quickTapMs !== undefined ? { quickTapMs: a.quickTapMs } : {}),
     ...(a.resolve !== undefined ? { resolve: a.resolve } : {}),
+    ...(a.flavor !== undefined ? { flavor: a.flavor } : {}),
 })
 
 export function normalizeAction(b: SurfaceAction): CanonAction {
@@ -125,6 +127,13 @@ export function normalizeAction(b: SurfaceAction): CanonAction {
             return { type: 'tap_dance', ref: b.ref }
         case 'mod_morph':
             return { type: 'mod_morph', ref: b.ref }
+        case 'hold_tap':
+            return {
+                type: 'hold_tap',
+                ref: b.ref,
+                holdParam: b.holdParam,
+                tapParam: b.tapParam,
+            }
         case 'key_toggle':
             return {
                 type: 'key_toggle',
@@ -246,6 +255,41 @@ export function normalizeKeymap(km: SurfaceKeymap): ConfigKeymap {
                           normalizeAction(mm.bindings[0]),
                           normalizeAction(mm.bindings[1]),
                       ] as [CanonAction, CanonAction],
+                  })),
+              }
+            : {}),
+        ...(km.holdTaps
+            ? {
+                  holdTaps: km.holdTaps.map((h) => ({
+                      id: h.id,
+                      ...(h.description ? { description: h.description } : {}),
+                      ...(h.flavor ? { flavor: h.flavor } : {}),
+                      ...(h.tappingTermMs !== undefined
+                          ? { tappingTermMs: h.tappingTermMs }
+                          : {}),
+                      ...(h.quickTapMs !== undefined
+                          ? { quickTapMs: h.quickTapMs }
+                          : {}),
+                      ...(h.requirePriorIdleMs !== undefined
+                          ? { requirePriorIdleMs: h.requirePriorIdleMs }
+                          : {}),
+                      ...(h.holdTriggerKeyPositions
+                          ? {
+                                holdTriggerKeyPositions: [
+                                    ...h.holdTriggerKeyPositions,
+                                ],
+                            }
+                          : {}),
+                      ...(h.holdTriggerOnRelease !== undefined
+                          ? { holdTriggerOnRelease: h.holdTriggerOnRelease }
+                          : {}),
+                      ...(h.retroTap !== undefined
+                          ? { retroTap: h.retroTap }
+                          : {}),
+                      bindings: [h.bindings[0], h.bindings[1]] as [
+                          string,
+                          string,
+                      ],
                   })),
               }
             : {}),

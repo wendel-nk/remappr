@@ -54,6 +54,7 @@ const withTimings = (
         : {}),
     ...(a.quickTapMs !== undefined ? { quickTapMs: a.quickTapMs } : {}),
     ...(a.resolve !== undefined ? { resolve: a.resolve } : {}),
+    ...(a.flavor !== undefined ? { flavor: a.flavor } : {}),
 })
 
 export function denormalizeAction(a: CanonAction): Surface {
@@ -109,6 +110,13 @@ export function denormalizeAction(a: CanonAction): Surface {
             return { type: 'tap_dance', ref: a.ref }
         case 'mod_morph':
             return { type: 'mod_morph', ref: a.ref }
+        case 'hold_tap':
+            return {
+                type: 'hold_tap',
+                ref: a.ref,
+                holdParam: a.holdParam,
+                tapParam: a.tapParam,
+            }
         case 'key_toggle':
             return { type: 'key_toggle', key: keyToken(a.key, a._keySrc) }
         case 'ext_power':
@@ -244,6 +252,38 @@ export function toSurfaceObject(km: ConfigKeymap): Record<string, unknown> {
                           denormalizeAction(mm.bindings[0]),
                           denormalizeAction(mm.bindings[1]),
                       ],
+                  })),
+              }
+            : {}),
+        // pattern-check: skip — holdTaps passthrough, mirror of normalize.ts
+        ...(km.holdTaps
+            ? {
+                  holdTaps: km.holdTaps.map((h) => ({
+                      id: h.id,
+                      ...(h.description ? { description: h.description } : {}),
+                      ...(h.flavor ? { flavor: h.flavor } : {}),
+                      ...(h.tappingTermMs !== undefined
+                          ? { tappingTermMs: h.tappingTermMs }
+                          : {}),
+                      ...(h.quickTapMs !== undefined
+                          ? { quickTapMs: h.quickTapMs }
+                          : {}),
+                      ...(h.requirePriorIdleMs !== undefined
+                          ? { requirePriorIdleMs: h.requirePriorIdleMs }
+                          : {}),
+                      ...(h.holdTriggerKeyPositions
+                          ? {
+                                holdTriggerKeyPositions:
+                                    h.holdTriggerKeyPositions,
+                            }
+                          : {}),
+                      ...(h.holdTriggerOnRelease !== undefined
+                          ? { holdTriggerOnRelease: h.holdTriggerOnRelease }
+                          : {}),
+                      ...(h.retroTap !== undefined
+                          ? { retroTap: h.retroTap }
+                          : {}),
+                      bindings: [h.bindings[0], h.bindings[1]],
                   })),
               }
             : {}),
