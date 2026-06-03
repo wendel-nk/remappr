@@ -14,6 +14,7 @@ import { Settings } from '@/components/modals/Settings'
 import { useConnection } from '@/hooks/use-connection'
 
 import { ConnectionStatusBanner } from './ConnectionStatusBanner'
+import { ConfigReadyBanner } from './ConfigReadyBanner'
 import { TransportSection } from './TransportSection'
 import { FeatureCard } from './FeatureCard'
 import { BuilderCard } from './BuilderCard'
@@ -108,6 +109,8 @@ export function StartPage({
                             settings.
                         </p>
                     </div>
+
+                    <ConfigReadyBanner />
 
                     <TransportSection
                         transports={transports}
