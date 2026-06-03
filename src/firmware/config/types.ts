@@ -182,6 +182,12 @@ export interface ConfigKeyboard {
     encoders?: CanonEncoderSlot[]
 }
 
+/** Auto-activate `thenLayer` while every layer in `ifLayers` is active. */
+export interface CanonConditionalLayer {
+    ifLayers: string[]
+    thenLayer: string
+}
+
 export interface ConfigKeymap {
     schemaVersion: 1
     kind: 'remappr.keymap'
@@ -192,4 +198,5 @@ export interface ConfigKeymap {
     combos?: CanonCombo[]
     tapDances?: CanonTapDance[]
     macros?: CanonMacro[]
+    conditionalLayers?: CanonConditionalLayer[]
 }

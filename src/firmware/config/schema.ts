@@ -308,6 +308,15 @@ export const MacroSchema = z.object({
     steps: z.array(MacroStepSchema).min(1),
 })
 
+export const ConditionalLayerSchema = z
+    .object({
+        ifLayers: z.array(z.string()).min(1),
+        thenLayer: z.string(),
+    })
+    .describe(
+        'Activate thenLayer while every layer in ifLayers is simultaneously active.',
+    )
+
 const BaseKeymapSchema = z.object({
     schemaVersion: z.literal(1),
     kind: z.literal('remappr.keymap'),
@@ -335,6 +344,7 @@ const BaseKeymapSchema = z.object({
     combos: z.array(ComboSchema).optional(),
     tapDances: z.array(TapDanceSchema).optional(),
     macros: z.array(MacroSchema).optional(),
+    conditionalLayers: z.array(ConditionalLayerSchema).optional(),
 })
 
 /* ── cross-reference + structural checks ───────────────────────────────── */
@@ -436,6 +446,12 @@ export const KeymapSchema = BaseKeymapSchema.superRefine((km, ctx) => {
         td.taps.forEach((t, tj) =>
             checkAction(t.action, ['tapDances', ti, 'taps', tj, 'action']),
         )
+    })
+    ;(km.conditionalLayers ?? []).forEach((cl, ci) => {
+        cl.ifLayers.forEach((ln, li) =>
+            layerRef(ln, ['conditionalLayers', ci, 'ifLayers', li]),
+        )
+        layerRef(cl.thenLayer, ['conditionalLayers', ci, 'thenLayer'])
     })
 })
 

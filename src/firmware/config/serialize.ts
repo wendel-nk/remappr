@@ -223,6 +223,14 @@ export function toSurfaceObject(km: ConfigKeymap): Record<string, unknown> {
                   })),
               }
             : {}),
+        ...(km.conditionalLayers
+            ? {
+                  conditionalLayers: km.conditionalLayers.map((cl) => ({
+                      ifLayers: [...cl.ifLayers],
+                      thenLayer: cl.thenLayer,
+                  })),
+              }
+            : {}),
     }
 }
 

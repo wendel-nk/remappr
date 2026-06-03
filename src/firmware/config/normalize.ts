@@ -225,6 +225,14 @@ export function normalizeKeymap(km: SurfaceKeymap): ConfigKeymap {
                   })),
               }
             : {}),
+        ...(km.conditionalLayers
+            ? {
+                  conditionalLayers: km.conditionalLayers.map((cl) => ({
+                      ifLayers: [...cl.ifLayers],
+                      thenLayer: cl.thenLayer,
+                  })),
+              }
+            : {}),
     }
 }
 
