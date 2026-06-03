@@ -6,6 +6,7 @@ import {
     Copy,
     Download as DownloadIcon,
     FileText,
+    Package,
     Upload,
 } from 'lucide-react'
 import { Modal } from '@/ui/modal'
@@ -15,9 +16,11 @@ import { toast } from 'sonner'
 import useConnectionStore from '@/stores/connectionStore'
 import useConfigStore from '@/stores/configStore'
 import { downloadExports, exportedContentToString } from '@/lib/blob'
+import { zipStore } from '@/lib/zip'
 import {
     type CompileResult,
     type Target,
+    buildProjectBundle,
     formatPath,
     getCompiler,
     resolveAllowedTargets,
@@ -88,6 +91,30 @@ export function Download({ opened, onClose }: DownloadProps): JSX.Element {
         if (!result) return
         downloadExports(result.files)
         toast.success(`${TARGET_LABELS[target]} config downloaded`)
+    }
+
+    // Phase-1 zero-dependency fallback: the ENTIRE repo skeleton (config + CI
+    // workflow + README) as one .zip, ready to push to GitHub or build locally.
+    const handleDownloadBundle = (): void => {
+        if (!config) return
+        const bundle = buildProjectBundle(config, target)
+        const zip = zipStore(
+            bundle.files.map((f) => ({
+                path: `${bundle.rootName}/${f.filename}`,
+                data:
+                    typeof f.content === 'string'
+                        ? new TextEncoder().encode(f.content)
+                        : f.content,
+            })),
+        )
+        downloadExports([
+            {
+                filename: `${bundle.rootName}.zip`,
+                mime: 'application/zip',
+                content: zip,
+            },
+        ])
+        toast.success('Full project bundle downloaded')
     }
 
     const handleCopy = async (): Promise<void> => {
@@ -245,6 +272,15 @@ export function Download({ opened, onClose }: DownloadProps): JSX.Element {
                                     Download {TARGET_LABELS[target]} config
                                 </Button>
                                 <Button
+                                    onClick={handleDownloadBundle}
+                                    disabled={!canCompile}
+                                    variant="outline"
+                                    className="flex items-center gap-2"
+                                >
+                                    <Package className="h-4 w-4" />
+                                    Download full project (.zip)
+                                </Button>
+                                <Button
                                     onClick={handleCopy}
                                     disabled={!canCompile}
                                     variant="outline"
@@ -325,10 +361,10 @@ export function Download({ opened, onClose }: DownloadProps): JSX.Element {
                     </p>
                     <ol className="space-y-2.5 text-sm text-muted-foreground">
                         {[
-                            'Download the firmware config files above.',
-                            'Place them in your firmware configuration repository.',
-                            'Push to your firmware build pipeline to produce a flashable artifact.',
-                            'Download and flash the built firmware to your keyboard.',
+                            'Download "full project (.zip)" for a ready-to-build repo (config + CI workflow + README), or just the config files.',
+                            'Push the project to a new GitHub repository.',
+                            'GitHub Actions builds it automatically — or build locally per the README.',
+                            'Download the firmware artifact and flash it to your keyboard.',
                         ].map((step, i) => (
                             <li key={i} className="flex gap-3">
                                 <span className="grid size-5 shrink-0 place-items-center rounded-full bg-secondary font-mono text-[11px] font-bold text-foreground">

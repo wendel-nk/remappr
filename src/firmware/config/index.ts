@@ -86,6 +86,8 @@ export {
     registerCompiler,
 } from './compiler'
 
+export { type ProjectBundle, buildProjectBundle } from './bundle'
+
 export {
     type ActionCategory,
     type ActionMeta,
