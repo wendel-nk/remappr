@@ -60,7 +60,12 @@ export function verifyLicense(key: string | null): boolean {
     return licenseKeyHash(key) === EXPECTED_LICENSE_HASH
 }
 
-/** The single entitlement gate the app reads. Defaults to `false` for everyone. */
+// Pattern check: no GoF pattern (-) — rejected — one dev-bypass conditional added
+// to the existing entitlement gate; no new symbol, no abstraction.
+/** The single entitlement gate the app reads. Defaults to `false` for everyone.
+ *  Dev bypass: a local dev build (not test, not production) unlocks premium so
+ *  the owner can work on gated features without a key; shipped builds stay gated. */
 export function hasPremium(): boolean {
+    if (import.meta.env.DEV && import.meta.env.MODE !== 'test') return true
     return verifyLicense(getLicenseKey())
 }
