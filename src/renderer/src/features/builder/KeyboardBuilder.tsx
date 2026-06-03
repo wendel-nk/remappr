@@ -1,21 +1,21 @@
-// Pattern check: no GoF pattern (-) — rejected — container wiring the new-board
-// and hardware forms to configStore via existing hooks; state plumbing, no
-// abstraction.
+// Pattern check: no GoF pattern (-) — rejected — container wiring the new-board,
+// geometry and hardware editors to configStore via existing hooks; state
+// plumbing, no abstraction.
 //
 // The Keyboard Builder. Two modes share one modal:
 //  • no config loaded → design a board FROM SCRATCH (NewBoardForm): a name +
 //    rows×cols grid seeds `keyboard.keys` and a base layer (newBoardConfig).
-//  • config loaded (just-created, connected, or imported) → define its BOARD
-//    HARDWARE (HardwareForm): kscan wiring so the ZMK compiler emits a flashable
-//    overlay (real kscan + chosen + matrix-transform) instead of the
-//    geometry-derived scaffold — see firmware/config/compilers/zmk.ts.
-// Free-form per-key drag/resize + an RC() transform editor are later phases.
+//  • config loaded (created, connected, or imported) → edit it in two tabs:
+//    Geometry (free-form per-key x/y/w/h/rotation, add/remove) and Hardware
+//    (kscan wiring → a flashable ZMK overlay). Each tab saves through the
+//    validator. See firmware/config/compilers/zmk.ts.
 import { useState } from 'react'
 import { Hammer } from 'lucide-react'
 import { toast } from 'sonner'
 import { serializeKeymap, type ConfigKeymap } from '@firmware/config'
 import { Modal } from '@/ui/modal'
 import { Button } from '@/ui/button'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/ui/tabs'
 import useConfigStore from '@/stores/configStore'
 import { HardwareForm } from './HardwareForm'
 import {
@@ -24,6 +24,7 @@ import {
     type HardwareDraft,
 } from './hardwareForm'
 import { NewBoardForm } from './NewBoardForm'
+import { GeometryEditor } from './GeometryEditor'
 import {
     clampDim,
     newBoardConfig,
@@ -35,6 +36,8 @@ interface KeyboardBuilderProps {
     opened: boolean
     onClose: () => void
 }
+
+type Tab = 'geometry' | 'hardware'
 
 // Drop the hardware key, then re-add it only when the draft produced one — so a
 // cleared form removes the block instead of leaving a stale one.
@@ -59,20 +62,27 @@ export function KeyboardBuilder({
         hardwareToDraft(config?.keyboard.hardware),
     )
     const [board, setBoard] = useState<NewBoardDraft>(EMPTY_BOARD_DRAFT)
+    // Working geometry copy (edited locally until saved); falls back to the store
+    // config when null (e.g. right after a board is created).
+    const [geo, setGeo] = useState<ConfigKeymap | null>(null)
+    const [tab, setTab] = useState<Tab>('geometry')
     const [error, setError] = useState<string | null>(null)
 
-    // Re-seed both drafts from the current config on the closed→open transition,
-    // adjusting state during render (React's sanctioned alternative to a
-    // setState-in-effect) so a stale draft never flashes when the modal reopens.
+    // Re-seed editor state from the current config on the closed→open transition
+    // (React's sanctioned alternative to a setState-in-effect).
     const [wasOpen, setWasOpen] = useState(opened)
     if (opened !== wasOpen) {
         setWasOpen(opened)
         if (opened) {
             setDraft(hardwareToDraft(config?.keyboard.hardware))
             setBoard(EMPTY_BOARD_DRAFT)
+            setGeo(null)
+            setTab('geometry')
             setError(null)
         }
     }
+
+    const workingGeo = geo ?? config
 
     // Round-trip through the validator so the schema's cross-checks gate the write.
     const commit = (next: ConfigKeymap, ok: string): boolean => {
@@ -85,14 +95,7 @@ export function KeyboardBuilder({
         return false
     }
 
-    const saveHardware = (): void => {
-        if (!config) return
-        if (commit(withHardware(config, draft), 'Board hardware saved'))
-            onClose()
-    }
-
-    // Create the from-scratch board, then stay open so the user flows straight
-    // into defining its hardware (config is now non-null → the hardware panel).
+    // Create the from-scratch board, then stay open so the user keeps editing.
     const createBoard = (): void => {
         commit(
             newBoardConfig({
@@ -101,20 +104,36 @@ export function KeyboardBuilder({
                 cols: clampDim(Number(board.cols)),
                 target: board.target,
             }),
-            'Board created — now define its hardware',
+            'Board created — now edit geometry + hardware',
         )
     }
+
+    const save = (): void => {
+        if (!config) {
+            createBoard()
+            return
+        }
+        if (tab === 'geometry') {
+            if (workingGeo && commit(workingGeo, 'Geometry saved')) setGeo(null)
+        } else if (
+            commit(withHardware(config, draft), 'Board hardware saved')
+        ) {
+            // keep open so geometry + hardware can be set in one session
+        }
+    }
+
+    const saveLabel = !config
+        ? 'Create board'
+        : tab === 'geometry'
+          ? 'Save geometry'
+          : 'Save hardware'
 
     const footer = (
         <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={onClose}>
-                {config ? 'Cancel' : 'Close'}
+                Close
             </Button>
-            {config ? (
-                <Button onClick={saveHardware}>Save hardware</Button>
-            ) : (
-                <Button onClick={createBoard}>Create board</Button>
-            )}
+            <Button onClick={save}>{saveLabel}</Button>
         </div>
     )
 
@@ -125,7 +144,7 @@ export function KeyboardBuilder({
             title="Keyboard Builder"
             subtitle={
                 config
-                    ? 'Define the board hardware for a flashable export'
+                    ? 'Edit geometry and board hardware'
                     : 'Design a board from scratch'
             }
             headerIcon={<Hammer />}
@@ -133,12 +152,26 @@ export function KeyboardBuilder({
             footer={footer}
         >
             <div className="space-y-4">
-                {config ? (
-                    <HardwareForm
-                        value={draft}
-                        onChange={setDraft}
-                        keyCount={config.keyboard.keys.length}
-                    />
+                {config && workingGeo ? (
+                    <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
+                        <TabsList>
+                            <TabsTrigger value="geometry">Geometry</TabsTrigger>
+                            <TabsTrigger value="hardware">Hardware</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="geometry" className="pt-4">
+                            <GeometryEditor
+                                value={workingGeo}
+                                onChange={setGeo}
+                            />
+                        </TabsContent>
+                        <TabsContent value="hardware" className="pt-4">
+                            <HardwareForm
+                                value={draft}
+                                onChange={setDraft}
+                                keyCount={workingGeo.keyboard.keys.length}
+                            />
+                        </TabsContent>
+                    </Tabs>
                 ) : (
                     <>
                         <NewBoardForm value={board} onChange={setBoard} />

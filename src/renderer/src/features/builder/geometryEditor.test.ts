@@ -1,12 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import { serializeKeymap, parseKeymap } from '@firmware/config'
 import { getCompiler } from '@firmware/config'
+import type { ConfigKeymap } from '@firmware/config'
 import {
     clampDim,
     gridKeys,
     newBoardConfig,
     slugifyId,
     MAX_GRID,
+    addKey,
+    removeKey,
+    updateKey,
 } from './geometryEditor'
 
 describe('geometryEditor', () => {
@@ -60,5 +64,81 @@ describe('geometryEditor', () => {
         expect(overlay.match(/RC\(\d+,\d+\)/g)).toHaveLength(40)
         expect(overlay).toContain('rows = <4>;')
         expect(overlay).toContain('columns = <10>;')
+    })
+})
+
+describe('per-key geometry edits', () => {
+    // 2×2 grid (4 keys, 1 base layer) with a hand-authored transform + combos.
+    const base = (): ConfigKeymap => {
+        const c = newBoardConfig({ name: 'B', rows: 2, cols: 2, target: 'zmk' })
+        return {
+            ...c,
+            keyboard: {
+                ...c.keyboard,
+                hardware: {
+                    transform: {
+                        rows: 2,
+                        columns: 2,
+                        map: [
+                            [0, 0],
+                            [0, 1],
+                            [1, 0],
+                            [1, 1],
+                        ],
+                    },
+                },
+            },
+            combos: [
+                {
+                    name: 'a',
+                    keys: [1, 3],
+                    action: { type: 'transparent' },
+                },
+                {
+                    name: 'b',
+                    keys: [0, 3],
+                    action: { type: 'transparent' },
+                },
+            ],
+        }
+    }
+
+    it('updateKey changes one key, leaves bindings intact', () => {
+        const out = updateKey(base(), 0, { x: 5, w: 2 })
+        expect(out.keyboard.keys[0]).toMatchObject({ x: 5, w: 2 })
+        expect(out.keyboard.keys[1].x).toBe(1)
+        expect(out.layers[0].bindings).toHaveLength(4)
+    })
+
+    it('addKey appends a key + transparent binding and drops the manual transform', () => {
+        const out = addKey(base())
+        expect(out.keyboard.keys).toHaveLength(5)
+        expect(out.layers[0].bindings).toHaveLength(5)
+        expect(out.layers[0].bindings[4]).toEqual({ type: 'transparent' })
+        expect(out.keyboard.hardware).toBeUndefined() // transform-only hw dropped
+        // still valid
+        expect(parseKeymap(serializeKeymap(out)).keyboard.keys).toHaveLength(5)
+    })
+
+    it('removeKey drops the binding, fixes combos, and drops the transform', () => {
+        const out = removeKey(base(), 1)
+        expect(out.keyboard.keys).toHaveLength(3)
+        expect(out.layers[0].bindings).toHaveLength(3)
+        // combo 'a' referenced key 1 → removed; 'b' [0,3] → [0,2]
+        expect(out.combos).toEqual([
+            { name: 'b', keys: [0, 2], action: { type: 'transparent' } },
+        ])
+        expect(out.keyboard.hardware).toBeUndefined()
+        expect(parseKeymap(serializeKeymap(out)).keyboard.keys).toHaveLength(3)
+    })
+
+    it('removeKey refuses to delete the last key', () => {
+        const one = newBoardConfig({
+            name: 'O',
+            rows: 1,
+            cols: 1,
+            target: 'zmk',
+        })
+        expect(removeKey(one, 0)).toBe(one)
     })
 })

@@ -8,7 +8,12 @@
 // grid RC() map — so no separate transform editor is needed for grids. Free-form
 // drag/resize per key is a later phase.
 
-import type { CanonGeometry, ConfigKeymap, Target } from '@firmware/config'
+import type {
+    CanonGeometry,
+    ConfigKeyboard,
+    ConfigKeymap,
+    Target,
+} from '@firmware/config'
 
 export const MAX_GRID = 24
 
@@ -83,5 +88,86 @@ export function newBoardConfig(opts: NewBoardOptions): ConfigKeymap {
                 bindings: keys.map(() => ({ type: 'transparent' as const })),
             },
         ],
+    }
+}
+
+// Pattern check: no GoF pattern (-) — rejected — pure config-edit functions that
+// keep keys / per-layer bindings / combos consistent; immutable data transforms.
+
+// A structural edit (add/remove key) invalidates a hand-authored electrical
+// transform (its map no longer matches the key set), so drop it and let the
+// compiler re-derive from geometry. Returns hardware-less keyboard if that was
+// the only hardware field.
+function withoutTransform(kb: ConfigKeyboard): ConfigKeyboard {
+    if (!kb.hardware?.transform) return kb
+    const hardware = { ...kb.hardware }
+    delete hardware.transform
+    const next = { ...kb }
+    if (Object.keys(hardware).length) next.hardware = hardware
+    else delete next.hardware
+    return next
+}
+
+/** Replace one key's geometry (position/size/rotation) — no structural change. */
+export function updateKey(
+    config: ConfigKeymap,
+    index: number,
+    patch: Partial<CanonGeometry>,
+): ConfigKeymap {
+    const keys = config.keyboard.keys.map((k, i) =>
+        i === index ? { ...k, ...patch } : k,
+    )
+    return { ...config, keyboard: { ...config.keyboard, keys } }
+}
+
+/** Append a key (+ a transparent binding on every layer). */
+export function addKey(
+    config: ConfigKeymap,
+    key?: CanonGeometry,
+): ConfigKeymap {
+    const keys = config.keyboard.keys
+    const last = keys[keys.length - 1]
+    const newKey: CanonGeometry = key ?? {
+        x: last ? last.x + 1 : 0,
+        y: last ? last.y : 0,
+        w: 1,
+        h: 1,
+        r: 0,
+    }
+    return {
+        ...config,
+        keyboard: withoutTransform({
+            ...config.keyboard,
+            keys: [...keys, newKey],
+        }),
+        layers: config.layers.map((l) => ({
+            ...l,
+            bindings: [...l.bindings, { type: 'transparent' as const }],
+        })),
+    }
+}
+
+/** Remove the key at `index` (+ its per-layer binding); fix combo key positions.
+ *  No-op if it would leave zero keys. */
+export function removeKey(config: ConfigKeymap, index: number): ConfigKeymap {
+    if (config.keyboard.keys.length <= 1) return config
+    const keys = config.keyboard.keys.filter((_, i) => i !== index)
+    const combos = config.combos
+        ? config.combos
+              .filter((c) => !c.keys.includes(index))
+              .map((c) => ({
+                  ...c,
+                  keys: c.keys.map((k) => (k > index ? k - 1 : k)),
+              }))
+        : undefined
+    return {
+        ...config,
+        keyboard: withoutTransform({ ...config.keyboard, keys }),
+        layers: config.layers.map((l) => ({
+            ...l,
+            bindings: l.bindings.filter((_, i) => i !== index),
+            ...(l.encoders ? { encoders: l.encoders } : {}),
+        })),
+        ...(combos ? { combos } : {}),
     }
 }
