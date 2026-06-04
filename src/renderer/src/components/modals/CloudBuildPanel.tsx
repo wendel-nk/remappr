@@ -5,7 +5,7 @@
 // GitHub repo (their Actions minutes, they own the artifact), poll the run, then
 // download the built firmware. The zero-dep "Download .zip" path stays the
 // fallback; this just automates push → build → fetch with a personal token.
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Cloud, ExternalLink, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -17,11 +17,8 @@ import { Button } from '@/ui/button'
 import { Input } from '@/ui/input'
 import { Label } from '@/ui/label'
 import { downloadExports } from '@/lib/blob'
-import {
-    createGithubBuildClient,
-    getStoredToken,
-    setStoredToken,
-} from '@/lib/githubBuild'
+import { createGithubBuildClient } from '@/lib/githubBuild'
+import { GITHUB_TOKEN_KEY, getSecret, setSecret } from '@/lib/secretStore'
 import { createLogger } from '@shared/logger'
 
 const log = createLogger('CloudBuild')
@@ -42,7 +39,17 @@ export function CloudBuildPanel({
     config,
     target,
 }: CloudBuildPanelProps): JSX.Element {
-    const [token, setToken] = useState(getStoredToken)
+    const [token, setToken] = useState('')
+    // Load the stored token asynchronously (safeStorage IPC on desktop).
+    useEffect(() => {
+        let live = true
+        getSecret(GITHUB_TOKEN_KEY).then((t) => {
+            if (live && t) setToken(t)
+        })
+        return () => {
+            live = false
+        }
+    }, [])
     const defaultRepo = buildProjectBundle(config, target).rootName
     const [repo, setRepo] = useState(defaultRepo)
     const [phase, setPhase] = useState<Phase>('idle')
@@ -57,7 +64,7 @@ export function CloudBuildPanel({
             toast.error('Enter a GitHub token first')
             return
         }
-        setStoredToken(token)
+        await setSecret(GITHUB_TOKEN_KEY, token)
         setArtifactUrl(null)
         setRunUrl(null)
         const client = createGithubBuildClient(token)
@@ -67,7 +74,7 @@ export function CloudBuildPanel({
             setMessage('Creating / opening repository…')
             const { owner, name, defaultBranch } = await client.ensureRepo(repo)
             setMessage('Pushing project files…')
-            await client.commitFiles(
+            const { commitSha } = await client.commitFiles(
                 owner,
                 name,
                 defaultBranch,
@@ -85,7 +92,9 @@ export function CloudBuildPanel({
             setMessage('Waiting for the build to start…')
             await sleep(POLL_INTERVAL_MS) // let Actions register the push
             for (let i = 0; i < MAX_POLLS; i++) {
-                const r = await client.getLatestRun(owner, name)
+                // Scope polling to the commit we just pushed so a stale prior
+                // run can't be mistaken for this build's result.
+                const r = await client.getLatestRun(owner, name, commitSha)
                 if (r) {
                     setRunUrl(r.htmlUrl)
                     if (r.status === 'completed') {

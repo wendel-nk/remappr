@@ -10,7 +10,6 @@
 // which only reads this app's own GitHub Releases for self-update.)
 
 const API = 'https://api.github.com'
-const TOKEN_KEY = 'remappr.githubToken'
 
 export interface BundleFile {
     /** Path within the repo, e.g. "config/board.keymap". */
@@ -31,23 +30,8 @@ export interface Artifact {
     archiveDownloadUrl: string
 }
 
-/** Read/write the locally-stored token (owner tool — localStorage is fine). */
-export function getStoredToken(): string {
-    try {
-        return localStorage.getItem(TOKEN_KEY) ?? ''
-    } catch {
-        return ''
-    }
-}
-export function setStoredToken(token: string): void {
-    try {
-        if (token) localStorage.setItem(TOKEN_KEY, token)
-        else localStorage.removeItem(TOKEN_KEY)
-    } catch {
-        /* storage unavailable — non-fatal */
-    }
-}
-
+// pattern-check: skip — remove localStorage token helpers; token now lives in
+// lib/secretStore (safeStorage on desktop). Interface below is unchanged.
 export interface GithubBuildClient {
     getUser(): Promise<{ login: string }>
     ensureRepo(
@@ -61,7 +45,13 @@ export interface GithubBuildClient {
         files: BundleFile[],
         message: string,
     ): Promise<{ commitSha: string }>
-    getLatestRun(owner: string, repo: string): Promise<WorkflowRun | null>
+    /** Latest workflow run, optionally scoped to a specific pushed commit
+     *  (`headSha`) so polling never latches onto a stale prior run. */
+    getLatestRun(
+        owner: string,
+        repo: string,
+        headSha?: string,
+    ): Promise<WorkflowRun | null>
     listArtifacts(
         owner: string,
         repo: string,
@@ -167,7 +157,14 @@ export function createGithubBuildClient(
     const getLatestRun: GithubBuildClient['getLatestRun'] = async (
         owner,
         repo,
+        headSha,
     ) => {
+        // Scope to the just-pushed commit when known: otherwise the newest run
+        // might be a leftover from a previous push (whose stale "completed"
+        // conclusion would end polling against the wrong build).
+        const query = headSha
+            ? `?head_sha=${encodeURIComponent(headSha)}&per_page=1`
+            : `?per_page=1`
         const res = await req<{
             workflow_runs: {
                 id: number
@@ -175,7 +172,7 @@ export function createGithubBuildClient(
                 conclusion: string | null
                 html_url: string
             }[]
-        }>('GET', `/repos/${owner}/${repo}/actions/runs?per_page=1`)
+        }>('GET', `/repos/${owner}/${repo}/actions/runs${query}`)
         const run = res.workflow_runs[0]
         if (!run) return null
         return {

@@ -64,6 +64,12 @@ export const IpcChannels = {
     WINDOW_MAXIMIZE_TOGGLE: 'window:maximize-toggle',
     WINDOW_CLOSE: 'window:close',
     WINDOW_IS_MAXIMIZED: 'window:is-maximized',
+
+    // Secret storage (OS-encrypted via safeStorage) — e.g. the GitHub token,
+    // kept out of plain localStorage.
+    SECRET_GET: 'secret:get',
+    SECRET_SET: 'secret:set',
+    SECRET_DELETE: 'secret:delete',
 } as const
 
 /** Event channels (main pushes to renderer) */
@@ -167,6 +173,18 @@ export interface IpcInvokeMap {
     }
     [IpcChannels.WINDOW_IS_MAXIMIZED]: {
         params: void
+        result: boolean
+    }
+    [IpcChannels.SECRET_GET]: {
+        params: { key: string }
+        result: string | null
+    }
+    [IpcChannels.SECRET_SET]: {
+        params: { key: string; value: string }
+        result: boolean
+    }
+    [IpcChannels.SECRET_DELETE]: {
+        params: { key: string }
         result: boolean
     }
 }

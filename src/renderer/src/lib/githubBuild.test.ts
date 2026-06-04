@@ -119,6 +119,32 @@ describe('githubBuild client', () => {
         })
     })
 
+    it('getLatestRun scopes to a head_sha when given', async () => {
+        const c = createGithubBuildClient(
+            'tok',
+            router({
+                'GET /repos/ann/kb/actions/runs?head_sha=abc123&per_page=1':
+                    () =>
+                        json({
+                            workflow_runs: [
+                                {
+                                    id: 9,
+                                    status: 'in_progress',
+                                    conclusion: null,
+                                    html_url: 'http://run/9',
+                                },
+                            ],
+                        }),
+            }),
+        )
+        expect(await c.getLatestRun('ann', 'kb', 'abc123')).toEqual({
+            id: 9,
+            status: 'in_progress',
+            conclusion: null,
+            htmlUrl: 'http://run/9',
+        })
+    })
+
     it('listArtifacts maps archive_download_url', async () => {
         const c = createGithubBuildClient(
             'tok',
