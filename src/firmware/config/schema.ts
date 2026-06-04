@@ -278,6 +278,12 @@ export const GeometrySchema = z.object({
     r: z.number().default(0),
     rx: z.number().optional(),
     ry: z.number().optional(),
+    variant: z
+        .string()
+        .optional()
+        .describe(
+            'Physical-layout variant id this key belongs to ("" = common).',
+        ),
 })
 
 export const EncoderSchema = z.object({ x: z.number(), y: z.number() })
@@ -453,6 +459,32 @@ export const HardwareSchema = z
         'Board hardware (kscan + electrical transform + target) for a flashable export.',
     )
 
+/* ── builder board metadata (lighting + layout variants) ───────────────── */
+
+export const LightingSchema = z
+    .object({
+        underglow: z
+            .object({
+                effect: z.string().optional(),
+                hue: z.number().int().min(0).max(360).optional(),
+                brightness: z.number().int().min(0).max(100).optional(),
+            })
+            .optional(),
+        backlight: z
+            .object({
+                brightness: z.number().int().min(0).max(100).optional(),
+                breathing: z.boolean().optional(),
+            })
+            .optional(),
+    })
+    .describe(
+        'Board-level lighting config from the builder (export-only metadata).',
+    )
+
+export const LayoutSchema = z
+    .object({ id: z.string(), name: z.string() })
+    .describe('A named physical-layout variant; keys tag in via `variant`.')
+
 const BaseKeymapSchema = z.object({
     schemaVersion: z.literal(1),
     kind: z.literal('remappr.keymap'),
@@ -462,6 +494,14 @@ const BaseKeymapSchema = z.object({
         version: z.string().optional(),
         description: z.string().optional(),
         target: z.enum(['zmk', 'qmk', 'keychron']).nullable().default(null),
+        vendorId: z
+            .string()
+            .optional()
+            .describe('USB vendor id, hex string e.g. "0xFEED".'),
+        productId: z
+            .string()
+            .optional()
+            .describe('USB product id, hex string e.g. "0x0001".'),
     }),
     defaults: z
         .object({
@@ -476,6 +516,14 @@ const BaseKeymapSchema = z.object({
         keys: z.array(GeometrySchema).min(1),
         encoders: z.array(EncoderSchema).optional(),
         hardware: HardwareSchema.optional(),
+        firmware: z
+            .array(z.string())
+            .optional()
+            .describe(
+                'Raw builder firmware targets (qmk/via/vial/zmk); via/vial compile via QMK.',
+            ),
+        lighting: LightingSchema.optional(),
+        layouts: z.array(LayoutSchema).optional(),
     }),
     layers: z.array(LayerSchema).min(1),
     combos: z.array(ComboSchema).optional(),

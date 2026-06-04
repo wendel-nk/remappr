@@ -130,6 +130,9 @@ export interface CanonGeometry {
     r: number
     rx?: number
     ry?: number
+    /** Physical-layout variant id this key belongs to ("" / absent = common to
+     *  all variants). Set by the builder; compilers ignore unknown variants. */
+    variant?: string
 }
 
 export interface CanonEncoderSlot {
@@ -225,6 +228,10 @@ export interface ConfigMeta {
     version?: string
     description?: string
     target: Target | null
+    /** USB vendor id, hex string e.g. "0xFEED" (builder identity). */
+    vendorId?: string
+    /** USB product id, hex string e.g. "0x0001" (builder identity). */
+    productId?: string
 }
 
 export interface ConfigDefaults {
@@ -285,12 +292,49 @@ export interface ConfigHardware {
     transform?: CanonMatrixTransform
 }
 
+/** RGB underglow board-level config (builder metadata; export-only for now). */
+export interface CanonUnderglow {
+    /** Effect name (e.g. "solid", "breathe", "rainbow") — firmware-specific. */
+    effect?: string
+    /** Hue 0–360. */
+    hue?: number
+    /** Brightness 0–100. */
+    brightness?: number
+}
+
+/** Per-key backlight board-level config (builder metadata; export-only for now). */
+export interface CanonBacklight {
+    /** Brightness 0–100. */
+    brightness?: number
+    breathing?: boolean
+}
+
+/** Board lighting metadata supplied by the builder. Compilers emit lighting
+ *  *actions*; this board-level config is additive (export-only) for now. */
+export interface CanonLighting {
+    underglow?: CanonUnderglow
+    backlight?: CanonBacklight
+}
+
+/** A named physical-layout variant (keys tag into it via `CanonGeometry.variant`). */
+export interface CanonLayout {
+    id: string
+    name: string
+}
+
 export interface ConfigKeyboard {
     id: string
     name: string
     keys: CanonGeometry[]
     encoders?: CanonEncoderSlot[]
     hardware?: ConfigHardware
+    /** Raw multi-select firmware targets from the builder (qmk/via/vial/zmk).
+     *  Looser than `meta.target`; via/vial compile through the QMK family. */
+    firmware?: string[]
+    /** Board-level lighting config (builder). */
+    lighting?: CanonLighting
+    /** Physical-layout variants (builder); keys tag in via `variant`. */
+    layouts?: CanonLayout[]
 }
 
 /** Auto-activate `thenLayer` while every layer in `ifLayers` is active. */

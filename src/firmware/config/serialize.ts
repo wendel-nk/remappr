@@ -7,7 +7,7 @@
 // key order is fixed so re-saves are stable diffs.
 
 import { friendlyName, resolveKeycode, type Modifier } from './keycodes'
-import { cloneHardware } from './normalize'
+import { cloneHardware, cloneLighting } from './normalize'
 import type {
     CanonAction,
     CanonEncoderBinding,
@@ -182,6 +182,8 @@ export function toSurfaceObject(km: ConfigKeymap): Record<string, unknown> {
                 ? { description: km.meta.description }
                 : {}),
             target: km.meta.target,
+            ...(km.meta.vendorId ? { vendorId: km.meta.vendorId } : {}),
+            ...(km.meta.productId ? { productId: km.meta.productId } : {}),
         },
         ...(km.defaults ? { defaults: km.defaults } : {}),
         keyboard: {
@@ -195,6 +197,7 @@ export function toSurfaceObject(km: ConfigKeymap): Record<string, unknown> {
                 ...(k.r !== 0 ? { r: k.r } : {}),
                 ...(k.rx !== undefined ? { rx: k.rx } : {}),
                 ...(k.ry !== undefined ? { ry: k.ry } : {}),
+                ...(k.variant ? { variant: k.variant } : {}),
             })),
             ...(km.keyboard.encoders
                 ? {
@@ -208,6 +211,15 @@ export function toSurfaceObject(km: ConfigKeymap): Record<string, unknown> {
             // with stable key order via the same clone normalize uses.
             ...(km.keyboard.hardware
                 ? { hardware: cloneHardware(km.keyboard.hardware) }
+                : {}),
+            ...(km.keyboard.firmware
+                ? { firmware: [...km.keyboard.firmware] }
+                : {}),
+            ...(km.keyboard.lighting
+                ? { lighting: cloneLighting(km.keyboard.lighting) }
+                : {}),
+            ...(km.keyboard.layouts
+                ? { layouts: km.keyboard.layouts.map((l) => ({ ...l })) }
                 : {}),
         },
         layers: km.layers.map((l) => ({

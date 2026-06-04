@@ -12,10 +12,21 @@ import type {
     CanonEncoderBinding,
     CanonHoldTarget,
     CanonKeyPress,
+    CanonLighting,
     CanonMacroStep,
     ConfigHardware,
     ConfigKeymap,
 } from './types'
+
+// Pattern check: no GoF pattern (-) — rejected — passthrough deep-clone of the
+// already-canonical lighting sub-object; pure data copy, no abstraction.
+/** Deep-copy the builder's board lighting metadata (no surface sugar). */
+export function cloneLighting(l: CanonLighting): CanonLighting {
+    return {
+        ...(l.underglow ? { underglow: { ...l.underglow } } : {}),
+        ...(l.backlight ? { backlight: { ...l.backlight } } : {}),
+    }
+}
 
 // Pattern check: no GoF pattern (-) — rejected — passthrough deep-clone of the
 // already-canonical hardware sub-object; pure data copy, no abstraction.
@@ -271,6 +282,15 @@ export function normalizeKeymap(km: SurfaceKeymap): ConfigKeymap {
                 : {}),
             ...(km.keyboard.hardware
                 ? { hardware: cloneHardware(km.keyboard.hardware) }
+                : {}),
+            ...(km.keyboard.firmware
+                ? { firmware: [...km.keyboard.firmware] }
+                : {}),
+            ...(km.keyboard.lighting
+                ? { lighting: cloneLighting(km.keyboard.lighting) }
+                : {}),
+            ...(km.keyboard.layouts
+                ? { layouts: km.keyboard.layouts.map((l) => ({ ...l })) }
                 : {}),
         },
         layers: km.layers.map((l) => ({

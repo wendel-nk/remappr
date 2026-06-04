@@ -86,6 +86,66 @@ describe('config schema', () => {
     })
 })
 
+describe('builder metadata fields', () => {
+    const builderConfig = JSON.stringify({
+        schemaVersion: 1,
+        kind: 'remappr.keymap',
+        meta: {
+            name: 'B',
+            target: 'zmk',
+            vendorId: '0xFEED',
+            productId: '0x0001',
+        },
+        keyboard: {
+            id: 'b',
+            name: 'B',
+            keys: [
+                { x: 0, y: 0, variant: 'left' },
+                { x: 1, y: 0 },
+            ],
+            firmware: ['qmk', 'via', 'vial', 'zmk'],
+            lighting: {
+                underglow: { effect: 'solid', hue: 200, brightness: 80 },
+                backlight: { brightness: 50, breathing: true },
+            },
+            layouts: [{ id: 'left', name: 'Left' }],
+        },
+        layers: [{ name: 'base', bindings: ['Q', 'W'] }],
+    })
+
+    it('parses + carries the builder fields into the canonical doc', () => {
+        const km = parseKeymap(builderConfig)
+        expect(km.meta.vendorId).toBe('0xFEED')
+        expect(km.meta.productId).toBe('0x0001')
+        expect(km.keyboard.firmware).toEqual(['qmk', 'via', 'vial', 'zmk'])
+        expect(km.keyboard.lighting?.underglow?.hue).toBe(200)
+        expect(km.keyboard.lighting?.backlight?.breathing).toBe(true)
+        expect(km.keyboard.keys[0].variant).toBe('left')
+        expect(km.keyboard.keys[1].variant).toBeUndefined()
+        expect(km.keyboard.layouts).toEqual([{ id: 'left', name: 'Left' }])
+    })
+
+    it('round-trips the builder fields losslessly', () => {
+        const once = parseKeymap(builderConfig)
+        const text = serializeKeymap(once)
+        const twice = parseKeymap(text)
+        expect(stripHints(twice)).toEqual(stripHints(once))
+        expect(serializeKeymap(twice)).toEqual(text)
+    })
+
+    it('omits the new fields when absent (old configs stay clean)', () => {
+        const km = parseKeymap(serializeKeymap(parseKeymap(seed)))
+        expect(km.meta.vendorId).toBeUndefined()
+        expect(km.meta.productId).toBeUndefined()
+        expect(km.keyboard.firmware).toBeUndefined()
+        expect(km.keyboard.lighting).toBeUndefined()
+        expect(km.keyboard.layouts).toBeUndefined()
+        expect(km.keyboard.keys.some((k) => k.variant !== undefined)).toBe(
+            false,
+        )
+    })
+})
+
 // Recursively drop `_keySrc` / `_preset` serialize hints for structural equality.
 function stripHints(v: unknown): unknown {
     if (Array.isArray(v)) return v.map(stripHints)
