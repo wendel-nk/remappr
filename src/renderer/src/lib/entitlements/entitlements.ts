@@ -10,6 +10,41 @@
 
 const LICENSE_STORAGE_KEY = 'remappr.licenseKey'
 
+// Pattern check: no GoF pattern (-) — rejected — string-literal stage flag plus
+// pure predicates over the existing entitlement stub; no abstraction warranted.
+
+/** Lifecycle stage of the builder. `alpha`/`beta` are FREE for everyone; `ga`
+ *  (general availability) is the paid premium feature. */
+export type BuilderStage = 'alpha' | 'beta' | 'ga'
+
+/**
+ * Current builder stage. While `alpha` or `beta`, the builder is FREE for
+ * everyone — no license key, no account. It's still a *premium feature*: the UI
+ * says so and explains that monetization (account sign-in) lands at `ga`, once
+ * it's fully working and compatible with every supported firmware. Bump to `ga`
+ * when billing ships; access then falls back to `hasPremium()` / the license gate.
+ */
+const BUILDER_STAGE: BuilderStage = 'alpha'
+
+/** The builder's current lifecycle stage (drives badge label + "free" copy). */
+export function getBuilderStage(): BuilderStage {
+    return BUILDER_STAGE
+}
+
+/** Whether the builder is in a free pre-release stage (alpha or beta). */
+export function isBuilderFree(): boolean {
+    return BUILDER_STAGE === 'alpha' || BUILDER_STAGE === 'beta'
+}
+
+/**
+ * The gate the builder entry reads. During alpha/beta everyone gets in; at `ga`
+ * it collapses to the premium entitlement. Keeping this separate from
+ * `hasPremium()` means bumping `BUILDER_STAGE` is the only change to start charging.
+ */
+export function hasBuilderAccess(): boolean {
+    return isBuilderFree() || hasPremium()
+}
+
 /**
  * Fingerprint of the accepted license key. Default `'00000000'` matches no real
  * key, so premium is off for everyone. To unlock locally: run

@@ -34,6 +34,7 @@ import {
 import { toast } from 'sonner'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/ui/tooltip'
 import useBuilderStore, { type SnapMode } from '@/stores/builderStore'
+import { useBuilderStage } from '@/hooks/use-premium'
 import useConfigStore from '@/stores/configStore'
 import {
     addKey,
@@ -233,6 +234,8 @@ function BuildButton({
 
 // pattern-check: skip — remove dead SOON const; FullScreenBuilder unchanged
 export function FullScreenBuilder(): JSX.Element {
+    // pattern-check: skip — single hook-read line, no new abstraction
+    const stage = useBuilderStage()
     const setOpen = useBuilderStore((s) => s.setOpen)
     const snapMode = useBuilderStore((s) => s.snapMode)
     const setSnapMode = useBuilderStore((s) => s.setSnapMode)
@@ -389,6 +392,18 @@ export function FullScreenBuilder(): JSX.Element {
                         <span className="text-[14.5px] font-extrabold">
                             Builder
                         </span>
+                        {stage !== 'ga' && (
+                            <span
+                                className="inline-flex items-baseline gap-1 rounded-full px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wide text-emerald-600 dark:text-emerald-400"
+                                style={{
+                                    background:
+                                        'color-mix(in oklch, var(--primary) 12%, transparent)',
+                                }}
+                                title="Free during alpha & beta — premium (account required) once every firmware is supported"
+                            >
+                                {stage} · Free
+                            </span>
+                        )}
                         <span className="text-[11px] font-semibold text-muted-foreground">
                             {dims.rows}×{dims.cols} · {keyCount} keys
                         </span>

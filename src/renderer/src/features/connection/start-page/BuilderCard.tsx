@@ -1,27 +1,38 @@
 // Pattern check: no GoF pattern (-) — rejected — presentational start-page CTA
-// banner gated on usePremium(); opens the full-screen builder via builderStore.
+// banner gated on builder access; opens the full-screen builder via builderStore.
 //
 // The "Create a keyboard" entry, ported 1:1 from the design prototype's
-// full-width gradient banner. Visible to everyone (doubles as an upsell), but
-// the builder only opens with a premium entitlement — otherwise it toasts the
-// locked state. Opening flips builderStore.open; App swaps the start page for
-// the full-screen <FullScreenBuilder/>.
-import { ArrowRight, Lock, Ruler } from 'lucide-react'
+// full-width gradient banner. The builder is a premium feature, but during the
+// alpha/beta pre-release it's FREE for everyone — useBuilderAccess() returns true,
+// so the CTA always opens it. The badge/copy say "<stage> · free" and flag that
+// monetization (account sign-in) lands at GA, once it's fully working across every
+// firmware. At GA, access falls back to the premium entitlement and this toasts
+// the locked state instead. Opening flips builderStore.open; App swaps the start
+// page for the full-screen <FullScreenBuilder/>.
+import { ArrowRight, Lock, Ruler, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
-import { usePremium } from '@/hooks/use-premium'
+import { useBuilderAccess, useBuilderStage } from '@/hooks/use-premium'
 import useBuilderStore from '@/stores/builderStore'
 
 export function BuilderCard(): JSX.Element {
-    const premium = usePremium()
+    const access = useBuilderAccess()
+    const stage = useBuilderStage()
+    const free = stage !== 'ga'
     const setOpen = useBuilderStore((s) => s.setOpen)
 
     const onOpen = (): void => {
-        if (!premium) {
-            toast.info('Build from scratch is premium', {
+        if (!access) {
+            toast.info('The keyboard builder is a premium feature', {
                 description:
-                    'The keyboard builder is owner-only for now. A license key unlocks it locally.',
+                    'Sign in to an account to unlock it once monetization is live.',
             })
             return
+        }
+        if (free) {
+            toast.info(`Welcome to the builder ${stage}`, {
+                description:
+                    'Free while in alpha & beta. It becomes a premium feature (account required) once it fully supports every firmware.',
+            })
         }
         setOpen(true)
     }
@@ -61,15 +72,36 @@ export function BuilderCard(): JSX.Element {
                     >
                         BUILDER
                     </span>
+                    {free && (
+                        <span
+                            className="inline-flex items-center gap-1 rounded-full px-[7px] py-0.5 text-[10px] font-bold uppercase text-emerald-600 dark:text-emerald-400"
+                            style={{
+                                background:
+                                    'color-mix(in oklch, var(--primary) 10%, transparent)',
+                            }}
+                        >
+                            <Sparkles size={10} /> {stage} · FREE
+                        </span>
+                    )}
                 </div>
                 <div className="mt-1 text-[13px] text-muted-foreground">
                     Design a board from scratch — layout, matrix &amp; firmware.
                     Import KLE, start from a preset, then export a build-ready
                     config.
+                    {free ? (
+                        <>
+                            {' '}
+                            <span className="text-foreground/80">
+                                Premium feature — free during alpha &amp; beta.
+                                Once it fully supports every firmware it&apos;ll
+                                require an account.
+                            </span>
+                        </>
+                    ) : null}
                 </div>
             </div>
             <span className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-primary px-4 py-2.5 text-[13px] font-semibold text-primary-foreground">
-                {premium ? (
+                {access ? (
                     <>
                         Open builder <ArrowRight size={15} />
                     </>
