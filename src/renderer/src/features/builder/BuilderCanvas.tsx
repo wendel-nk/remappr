@@ -581,6 +581,7 @@ export function BuilderCanvas(): JSX.Element {
                                 category={legend?.category}
                                 accentCategory={legend?.accentCategory}
                                 holdTap={legend?.holdTap}
+                                mods={legend?.mods}
                                 showHeaderTag={
                                     !!(legend?.header || bindingCode)
                                 }

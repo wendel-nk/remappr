@@ -14,6 +14,23 @@ describe('builderCapProps', () => {
         expect(builderCapProps(undefined)).toBeNull()
         expect(builderCapProps({ type: 'none' })).not.toBeNull()
     })
+
+    it('exposes chord modifiers as deduped chips (not folded into the header)', () => {
+        const legend = builderCapProps({
+            type: 'key_press',
+            key: 'C',
+            mods: ['LEFT_CTRL', 'RIGHT_CTRL', 'LEFT_SHIFT'],
+        })
+        expect(legend?.header).toBe('Key Press')
+        expect(legend?.mods).toEqual(['Ctrl', 'Shift'])
+        expect(legend?.accentCategory).toBe('mod')
+    })
+
+    it('leaves mods undefined for an unmodified key-press', () => {
+        const legend = builderCapProps({ type: 'key_press', key: 'A' })
+        expect(legend?.mods).toBeUndefined()
+        expect(legend?.header).toBe('Key Press')
+    })
 })
 
 describe('builderBindingCode', () => {

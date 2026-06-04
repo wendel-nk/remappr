@@ -17,12 +17,16 @@ import { categoryForUsage, type KeyCategory } from '@/lib/keymap/keyCategory'
 import type { HoldTapLabels } from '@/features/keymap/keyboard/KeyButton'
 import { ENUM_ACTIONS, type EnumKind } from './builderActionTypes'
 
+// pattern-check: skip — additive optional field on existing CapLegend data interface
 export interface CapLegend {
     tapText: string
     header?: string
     category: KeyCategory
     accentCategory?: KeyCategory
     holdTap?: HoldTapLabels
+    /** Chord modifiers (e.g. ["Ctrl","Shift"]) — rendered as chips above the
+     *  legend by KeyButton. Present only for a modified key-press. */
+    mods?: string[]
 }
 
 const MOD_SHORT: Record<Modifier, string> = {
@@ -195,11 +199,14 @@ export function builderCapProps(a: CanonAction | undefined): CapLegend | null {
         case 'key_press':
             return {
                 tapText: keyGlyph(a.key),
-                header: a.mods?.length
-                    ? a.mods.map((m) => MOD_SHORT[m]).join('+') + '+'
-                    : 'Key Press',
+                header: 'Key Press',
                 category: keyCat(a.key),
                 accentCategory: a.mods?.length ? 'mod' : undefined,
+                // Dedupe L/R variants by short name (Ctrl/Shift/Alt/Gui) so a
+                // chord shows one chip per modifier, like the design.
+                mods: a.mods?.length
+                    ? [...new Set(a.mods.map((m) => MOD_SHORT[m]))]
+                    : undefined,
             }
         case 'sticky_key':
             return {

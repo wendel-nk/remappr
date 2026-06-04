@@ -56,7 +56,10 @@ const KEY_ABBREVIATIONS: Readonly<Record<string, string>> = {
     end: 'End',
     return: 'Ret',
     enter: 'Ent',
-    space: '␣',
+    // U+2294 (⊔), not U+2423 (␣): the open-box symbol has pathological font
+    // metrics in the keycap font (renders ~4× tall, breaking cap layout); the
+    // square-cup glyph reads the same and sizes normally. Matches the design.
+    space: '⊔',
     tab: 'Tab',
 }
 

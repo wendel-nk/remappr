@@ -1,8 +1,15 @@
-// Pattern check: Strategy (Tier 1) — applied — per-cap-style chrome (flat/sculpted/mono/
+// Pattern check: Strategy (Tier 1) — extended — per-cap-style chrome (flat/sculpted/mono/
 // glass) is chosen at runtime from a style-builder map keyed by capStyle; each builder
-// produces its own face/legend layout behind one CapChrome interface.
+// produces its own skirt/face/content geometry behind one CapChrome interface.
+//
+// Anatomy ported from the "Unified Keycap" (RKey) design: header top-left, a
+// centred legend, modifier CHIPS stacked above the legend for chords (joined by
+// "+"), and a tap-hold split into TAP + a "HOLD" eyebrow zone divided by a tinted
+// rule. The cap surfaces stay THEME-AWARE (FaceColors below) rather than RKey's
+// fixed grey, so caps still follow the active theme + light/dark mode.
 import { CSSProperties, PropsWithChildren } from 'react'
 import { type HoldTapLabels } from './HoldTapKeyLabel'
+import { glyphNode } from './keyGlyph'
 import useUserSettingsStore, { type CapStyle } from '@/stores/userSettingsStore'
 import useConnectionStore from '@/stores/connectionStore'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/ui/tooltip'
@@ -16,7 +23,23 @@ import {
 
 export type { HoldTapLabels }
 
-// pattern-check: skip — additive optional prop on existing KeyButtonProps interface
+// Modifier name → glyph, matching the RKey design's MODS table. Names arrive from
+// the binding mappers (e.g. builderCapProps' MOD_SHORT: "Ctrl"/"Shift"/"Gui").
+const MOD_GLYPH: Record<string, string> = {
+    Ctrl: '⌃',
+    Control: '⌃',
+    Shift: '⇧',
+    Alt: '⌥',
+    Opt: '⌥',
+    Option: '⌥',
+    Gui: '◆',
+    Super: '◆',
+    Win: '◆',
+    Meta: '◆',
+    Cmd: '⌘',
+}
+
+// pattern-check: skip — additive optional props on existing KeyButtonProps interface
 interface KeyButtonProps {
     selected?: boolean
     /** Part of an active multi-selection (distinct accent ring from `selected`). */
@@ -28,11 +51,19 @@ interface KeyButtonProps {
     hoverZoom?: boolean
     header?: string
     /** The tap glyph text (e.g. "Q", "Vol+") — used only to size the main legend
-     * the way the design does (≤2 chars → 0.44U, else 0.30U). Distinct from
-     * {@link header}, which is the action-type tag ("Key Press"). */
+     * the way the design does (≤1 char → 0.46U, ≤3 → 0.34U, else 0.24U). Distinct
+     * from {@link header}, which is the action-type tag ("Key Press"). */
     tapText?: string
     actionLabel?: string
     holdTap?: HoldTapLabels
+    /** Modifier names for a CHORD (e.g. ["Ctrl","Shift"]) — rendered as chips
+     *  stacked above the legend, joined by "+". Mutually exclusive with holdTap. */
+    mods?: string[]
+    /** Shifted dual-legend symbol (e.g. "!") shown small in the top-right corner. */
+    shift?: string
+    /** Which edge the TAP legend sits on for a tap-hold; "top" (default) puts the
+     *  tap above the HOLD zone, "bottom" flips them. */
+    tapPos?: 'top' | 'bottom'
     /** Face (cap-fill) category — tints the cap, the dot and the tap legend. */
     category?: KeyCategory
     /**
@@ -80,10 +111,9 @@ function makeSize(
 }
 
 // pattern-check: skip — verbatim port of the design's face/chrome helpers, pure mappers
-// Resolved cap-surface colours, ported 1:1 from the design's KeyCap.computeFaces:
-// every style consumes the same concrete set (skirt + face gradients, legend,
-// edge, dot). Neutral keys use a fixed dark-grey set so the caps look like real
-// (dark) keycaps in any theme — exactly the prototype.
+// Resolved cap-surface colours: every style consumes the same concrete set (skirt
+// + face gradients, legend, edge, dot). Neutral keys use a theme-driven set so
+// caps follow the active theme + light/dark mode.
 interface FaceColors {
     skirtTop: string
     skirtBot: string
@@ -112,10 +142,9 @@ function shiftLightness(
 // Neutral (no-category) caps follow the active theme + light/dark mode via the
 // CARD surface pair: `--card`/`--card-foreground` always track the mode (light
 // caps in light themes, dark in dark) AND are a guaranteed-contrasting pair in
-// every theme — unlike `--secondary`, which some themes (e.g. twitter) use as a
-// high-contrast accent that's inverted vs the mode. The face is nudged toward
-// the foreground so caps still stand out from the workbench background; faceTop
-// goes toward white for the top highlight, skirtBot toward black for depth.
+// every theme. The face is nudged toward the foreground so caps still stand out
+// from the workbench background; faceTop goes toward white for the top highlight,
+// skirtBot toward black for depth.
 const NEUTRAL_FACES: Omit<FaceColors, 'heat'> = {
     skirtTop: 'color-mix(in oklch, var(--card) 90%, var(--foreground))',
     skirtBot: 'color-mix(in oklch, var(--card) 88%, #000)',
@@ -163,16 +192,20 @@ function resolveFaceColors(
 interface CapChrome {
     /** Tailwind classes applied to the cap button. */
     className: string
-    /** Inline style for the cap surface. */
+    /** Inline style for the skirt surface. */
     style: CSSProperties
-    /** Sculpted "face" element rendered above the skirt. */
+    /** Sculpted "lit face" element rendered above the skirt. */
     face?: CSSProperties
     /** Left accent bar (mono style). */
     accentBar?: CSSProperties
+    /** Position/padding for the content layer (header + body). */
+    content: CSSProperties
     mono: boolean
 }
 
-// One builder per cap style — ported verbatim from the design's KeyCap.
+// One builder per cap style. Geometry follows the RKey design (rad = 0.16U,
+// faceRad = 0.115U, inner face inset, content padding); surfaces stay theme-aware
+// through the FaceColors above.
 const CAP_CHROME: Record<
     'flat' | 'sculpted' | 'mono' | 'glass',
     (F: FaceColors, oneU: number) => CapChrome
@@ -180,34 +213,44 @@ const CAP_CHROME: Record<
     flat: (F, oneU) => ({
         className: '',
         style: {
-            borderRadius: Math.max(4, oneU * 0.12),
+            borderRadius: Math.max(5, Math.round(oneU * 0.16)),
             background: F.heat
                 ? F.face
                 : `linear-gradient(180deg, ${F.faceTop}, ${F.face})`,
             border: `1px solid ${F.heat ? F.edge : 'var(--border)'}`,
-            boxShadow: 'inset 0 1px 0 rgba(255,255,255,.06)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,.05)',
         },
+        content: { inset: 0, padding: oneU * 0.115 },
         mono: false,
     }),
     sculpted: (F, oneU) => {
-        const rad = Math.max(5, oneU * 0.15)
+        const rad = Math.max(5, Math.round(oneU * 0.16))
+        const faceRad = Math.max(4, Math.round(oneU * 0.115))
         return {
             className: '',
             style: {
                 borderRadius: rad,
                 background: `linear-gradient(180deg, ${F.skirtTop}, ${F.skirtBot})`,
-                boxShadow: `0 ${oneU * 0.045}px ${oneU * 0.11}px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.05)`,
+                boxShadow: `0 ${oneU * 0.05}px ${oneU * 0.11}px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.06)`,
             },
             face: {
                 position: 'absolute',
-                top: oneU * 0.07,
+                top: oneU * 0.05,
+                left: oneU * 0.055,
+                right: oneU * 0.055,
+                bottom: oneU * 0.11,
+                borderRadius: faceRad,
+                background: F.heat
+                    ? F.face
+                    : `linear-gradient(180deg, ${F.faceTop}, ${F.face})`,
+                boxShadow:
+                    'inset 0 1px 0 rgba(255,255,255,.07), 0 1px 2px rgba(0,0,0,.3)',
+            },
+            content: {
+                top: oneU * 0.065,
                 left: oneU * 0.085,
                 right: oneU * 0.085,
-                bottom: oneU * 0.155,
-                borderRadius: rad * 0.7,
-                background: `linear-gradient(180deg, ${F.faceTop}, ${F.face})`,
-                boxShadow:
-                    'inset 0 1px 0 rgba(255,255,255,.10), 0 1px 2px rgba(0,0,0,.28)',
+                bottom: oneU * 0.125,
             },
             mono: false,
         }
@@ -215,7 +258,7 @@ const CAP_CHROME: Record<
     mono: (F, oneU) => ({
         className: '',
         style: {
-            borderRadius: Math.max(4, oneU * 0.11),
+            borderRadius: Math.max(4, Math.round(oneU * 0.12)),
             background: F.heat ? F.face : 'oklch(0.245 0 0)',
             border: '1px solid var(--border)',
             overflow: 'hidden',
@@ -232,12 +275,13 @@ const CAP_CHROME: Record<
                       background: F.edge,
                       borderRadius: '3px 0 0 3px',
                   },
+        content: { inset: 0, padding: oneU * 0.1, paddingLeft: oneU * 0.2 },
         mono: true,
     }),
     glass: (F, oneU) => ({
         className: '',
         style: {
-            borderRadius: Math.max(5, oneU * 0.16),
+            borderRadius: Math.max(5, Math.round(oneU * 0.16)),
             background: F.heat
                 ? F.face
                 : `linear-gradient(160deg, color-mix(in oklch, ${F.faceTop} 70%, transparent), color-mix(in oklch, ${F.face} 46%, transparent))`,
@@ -246,6 +290,7 @@ const CAP_CHROME: Record<
             boxShadow:
                 'inset 0 1px 0 rgba(255,255,255,.18), 0 6px 18px rgba(0,0,0,.32)',
         },
+        content: { inset: 0, padding: oneU * 0.11 },
         mono: false,
     }),
 }
@@ -260,6 +305,9 @@ export const KeyButton = ({
     oneU,
     hoverZoom = true,
     holdTap,
+    mods,
+    shift,
+    tapPos = 'top',
     category = 'alpha',
     accentCategory,
     heat = null,
@@ -272,15 +320,44 @@ export const KeyButton = ({
     ...props
 }: PropsWithChildren<KeyButtonProps>): JSX.Element => {
     const size = makeSize(props, oneU)
-    // Font sizing ported 1:1 from the design's KeyCap (KeyCap.jsx:70-72): a plain
-    // tap legend fills 0.44U, a >2-char tap shrinks to 0.30U, and a tap sharing the
-    // cap with a hold legend shrinks to 0.34U (hold 0.175U) so the two never collide.
-    const tapLen = tapText ? tapText.length : 0
-    const maxChildFontSize = Math.max(
+    const S = oneU
+
+    // Type ramp, ported from the design reference: a plain tap legend fills 0.46U,
+    // a 2–3 char tap shrinks to 0.34U, longer to 0.24U. A tap that shares the cap
+    // with a HOLD zone or modifier chips uses the reference's 0.30U key (0.22U for
+    // longer text) — small enough to clear the divider, matching the mockup.
+    const tapLen = tapText
+        ? tapText.length
+        : typeof props.children === 'string'
+          ? props.children.length
+          : 1
+    const crowded = !!holdTap || !!(mods && mods.length)
+    const mainSize = Math.max(
         11,
-        oneU * (holdTap ? 0.34 : tapLen > 2 ? 0.3 : 0.44),
+        Math.round(
+            S *
+                (crowded
+                    ? tapLen > 2
+                        ? 0.22
+                        : 0.3
+                    : tapLen > 3
+                      ? 0.24
+                      : tapLen > 1
+                        ? 0.34
+                        : 0.46),
+        ),
     )
-    const maxHoldFontSize = Math.max(7, oneU * 0.175)
+    const headerSize = Math.max(8, Math.round(S * 0.098))
+    // Chip + HOLD metrics matched 1:1 to the design reference (--u = oneU). Low
+    // px floors only (legibility on tiny previews) — kept small so the HOLD zone
+    // stays proportional on editor-scale caps and short layer names don't truncate.
+    const eyebrow = Math.max(5, Math.round(S * 0.088))
+    const holdSize = Math.max(7, Math.round(S * 0.142))
+    const chipGlyph = Math.round(S * 0.112)
+    const chipLabel = Math.max(8, Math.round(S * 0.1))
+    const plusSize = Math.round(S * 0.128)
+    const shiftSize = Math.round(S * 0.13)
+
     const firmware = useConnectionStore((s) => s.service?.deviceInfo.firmware)
     const keyDisplayModeMap = useUserSettingsStore((s) => s.keyDisplayMode)
     const capStyleSetting = useUserSettingsStore((s) => s.capStyle)
@@ -296,8 +373,7 @@ export const KeyButton = ({
     const effectiveHeader =
         keyDisplayMode === 'binding' && actionLabel ? actionLabel : header
     const isBindingMode = keyDisplayMode === 'binding' && !!actionLabel
-    // KeyCap.jsx:71 — header tag is 0.135U (min 6px), not rounded.
-    const headerFontPx = Math.max(6, oneU * 0.135)
+
     const tooltipParts = [
         header,
         actionLabel ? `(${actionLabel})` : '',
@@ -316,18 +392,19 @@ export const KeyButton = ({
 
     const F = resolveFaceColors(category, colorMode, heat)
     const chrome = CAP_CHROME[capStyle](F, oneU)
-    const showDot = showCategoryDot && !!F.dot && !F.heat
+    const sculpted = capStyle === 'sculpted'
+    const showDot = showCategoryDot && !!F.dot && !F.heat && !shift
 
-    // Accent colour (header tag + hold legend). Falls back to the face category.
-    // Only categories with a hue (mod/layer/punct/…) tint the text; alpha/space
-    // and `off` mode leave it neutral — so a home-row mod's header is violet
-    // while its cap face stays grey.
+    // Accent colour (header tag + hold legend + chips). Falls back to the face
+    // category. Only categories with a hue tint the text; alpha/space and `off`
+    // mode leave it neutral — so a home-row mod's header is violet while its cap
+    // face stays grey.
     const accentCat = accentCategory ?? category
     const accentColored =
         colorMode !== 'off' && CATEGORY_META[accentCat]?.hue != null
-    const accentLegend = accentColored
-        ? catStyle(accentCat, colorMode).legend
-        : null
+    const accentStyle = accentColored ? catStyle(accentCat, colorMode) : null
+    const accentLegend = accentStyle?.legend ?? null
+    const accentEdge = accentStyle?.edge ?? F.edge
 
     // Selected ring + pressed (live) state stack on top of the cap chrome.
     const ringStyle: CSSProperties = selected
@@ -356,19 +433,174 @@ export const KeyButton = ({
             ? `color-mix(in oklch, ${accentLegend} 92%, transparent)`
             : 'color-mix(in oklch, var(--foreground) 44%, transparent)'
 
-    // Main legend — rendered at a fixed size (KeyCap.jsx:170-177), not auto-fit:
-    // the design sizes the tap glyph directly from oneU so it reads identically
-    // at every zoom. Colour / weight / letter-spacing / text-shadow come from the
-    // wrapper below and are inherited.
+    // pattern-check: skip — render-body restructure (compose chips + tap-hold), no new abstraction
+    const tapTop = tapPos !== 'bottom'
     const tapNode = holdTap ? holdTap.tap : props.children
-    const mainLegend = (
-        <span
-            className={`leading-none ${chrome.mono ? 'font-mono' : 'font-keycap'}`}
-            style={{ fontSize: maxChildFontSize, lineHeight: 1 }}
+    const hasChips = !!(mods && mods.length)
+
+    // Modifier chips (chord) — rendered ABOVE the tap legend, joined by "+".
+    // Compose WITH a tap-hold (design's "mod-tap + chord": chips + tap + HOLD).
+    const chipInk = accentLegend ?? F.legend
+    const chipBg = `color-mix(in oklch, ${accentEdge} 26%, var(--card))`
+    const labeledChip = !!mods && mods.length === 1
+    const chipsRow = hasChips ? (
+        <div
+            className="flex shrink-0 items-center justify-center"
+            style={{ gap: S * 0.03 }}
         >
-            {tapNode}
-        </span>
+            {mods!.map((name, i) => (
+                <span
+                    key={i}
+                    style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: S * 0.022,
+                        padding: `${S * 0.012}px ${labeledChip ? S * 0.05 : S * 0.035}px`,
+                        borderRadius: 99,
+                        background: chipBg,
+                        color: chipInk,
+                        border: `1px solid color-mix(in oklch, ${accentEdge} 45%, transparent)`,
+                        lineHeight: 1,
+                    }}
+                >
+                    <span style={{ fontSize: chipGlyph, lineHeight: 1 }}>
+                        {MOD_GLYPH[name] ?? name}
+                    </span>
+                    {labeledChip ? (
+                        <span
+                            style={{
+                                fontSize: chipLabel,
+                                fontWeight: 700,
+                                letterSpacing: '.02em',
+                            }}
+                        >
+                            {name}
+                        </span>
+                    ) : null}
+                </span>
+            ))}
+            <span
+                style={{
+                    fontSize: plusSize,
+                    color: 'color-mix(in oklch, var(--foreground) 55%, transparent)',
+                    fontWeight: 600,
+                }}
+            >
+                +
+            </span>
+        </div>
+    ) : null
+
+    // Tap group = optional chips + the tap legend, filling the open area and
+    // centred (design `.keycap__tap`: flex-1, column, centred, gap 0.02U). The
+    // 0.30U crowded key + this centering keeps the glyph clear of the divider.
+    const tapGroup = (
+        <div
+            className="flex min-h-0 flex-1 flex-col items-center justify-center"
+            style={{ gap: hasChips ? S * 0.02 : 0 }}
+        >
+            {chipsRow}
+            <span
+                className={`flex items-center justify-center leading-none ${chrome.mono ? 'font-mono' : 'font-keycap'}`}
+                style={{
+                    fontSize: mainSize,
+                    lineHeight: 1,
+                    maxWidth: '100%',
+                    color: legendColor,
+                    fontWeight: chrome.mono ? 600 : 700,
+                    letterSpacing: tapLen > 2 ? '-.01em' : 0,
+                    textShadow:
+                        sculpted && !F.heat
+                            ? '0 1px 1px rgba(0,0,0,.35)'
+                            : 'none',
+                }}
+            >
+                {/* Substitute a Lucide icon for the bad-metric space glyph (builder
+                    passes the glyph as a string; the editor's HidUsageLabel already
+                    substitutes internally). */}
+                {typeof tapNode === 'string' ? glyphNode(tapNode) : tapNode}
+            </span>
+        </div>
     )
+
+    // ── body: tap group (+chips) optionally split by a HOLD zone ────────────
+    let body: React.ReactNode
+    if (holdTap) {
+        const holdStr =
+            typeof holdTap.hold === 'string' ? holdTap.hold : undefined
+        const hg = holdStr ? MOD_GLYPH[holdStr] : undefined
+        const holdTone = pressed
+            ? 'rgba(255,255,255,.85)'
+            : (accentLegend ?? F.legend)
+        // The "HOLD" eyebrow + value sit side-by-side per the design. On small
+        // editor caps (≲100px) a wide layer name ("lower") would push the value
+        // into an ellipsis, so the eyebrow is dropped there and the value alone is
+        // shown (still clearly the hold, by colour + position); big picker/inspector
+        // caps keep the full reference layout.
+        const showEyebrow = S >= 100
+        const holdZone = (
+            <div
+                key="h"
+                className="flex items-baseline justify-center max-w-full overflow-hidden"
+                style={{
+                    flexShrink: 0,
+                    gap: S * 0.05,
+                    paddingTop: tapTop ? S * 0.05 : 0,
+                    paddingBottom: tapTop ? 0 : S * 0.05,
+                }}
+            >
+                {showEyebrow ? (
+                    <span
+                        className="font-keycap shrink-0"
+                        style={{
+                            fontSize: eyebrow,
+                            fontWeight: 700,
+                            letterSpacing: '.12em',
+                            color: `color-mix(in oklch, ${holdTone} 62%, transparent)`,
+                        }}
+                    >
+                        HOLD
+                    </span>
+                ) : null}
+                <span
+                    className={`leading-none min-w-0 ${chrome.mono ? 'font-mono' : 'font-keycap'} overflow-hidden text-ellipsis whitespace-nowrap`}
+                    style={{
+                        fontSize: holdSize,
+                        fontWeight: 700,
+                        color: holdTone,
+                    }}
+                >
+                    {hg ? `${hg} ${holdStr}` : holdTap.hold}
+                </span>
+            </div>
+        )
+        const divider = (
+            <div
+                key="d"
+                style={{
+                    height: 1,
+                    alignSelf: 'stretch',
+                    margin: `0 ${S * 0.03}px`,
+                    background: `color-mix(in oklch, ${accentEdge} 38%, transparent)`,
+                }}
+            />
+        )
+        body = tapTop ? (
+            <>
+                {tapGroup}
+                {divider}
+                {holdZone}
+            </>
+        ) : (
+            <>
+                {holdZone}
+                {divider}
+                {tapGroup}
+            </>
+        )
+    } else {
+        body = tapGroup
+    }
 
     const buttonEl = (
         <button
@@ -381,32 +613,14 @@ export const KeyButton = ({
                 pressed ? 'text-white translate-y-[2px]' : ''
             }`}
         >
-            {chrome.face && <div style={chrome.face} aria-hidden />}
+            {chrome.face && !pressed && <div style={chrome.face} aria-hidden />}
             {chrome.accentBar && <div style={chrome.accentBar} aria-hidden />}
             {/* content layer (sits inside the lit face for sculpted) */}
-            <div
-                className="absolute flex flex-col"
-                style={
-                    capStyle === 'sculpted'
-                        ? {
-                              top: oneU * 0.085,
-                              left: oneU * 0.11,
-                              right: oneU * 0.11,
-                              bottom: oneU * 0.17,
-                          }
-                        : {
-                              inset: 0,
-                              padding: oneU * 0.1,
-                              paddingLeft: chrome.mono
-                                  ? oneU * 0.2
-                                  : oneU * 0.1,
-                          }
-                }
-            >
-                {/* header / category-dot row */}
+            <div className="absolute flex flex-col" style={chrome.content}>
+                {/* header / shift-or-dot row */}
                 <div
                     className="flex items-center justify-between leading-none"
-                    style={{ height: oneU * 0.16 }}
+                    style={{ height: S * 0.15, flexShrink: 0 }}
                 >
                     {showHeaderTag && !headerHidden && effectiveHeader ? (
                         <span
@@ -416,12 +630,12 @@ export const KeyButton = ({
                                     : 'font-keycap'
                             }`}
                             style={{
-                                fontSize: `${headerFontPx}px`,
+                                fontSize: `${headerSize}px`,
                                 fontWeight: 700,
                                 letterSpacing:
                                     chrome.mono || isBindingMode
                                         ? '.04em'
-                                        : '.01em',
+                                        : '.02em',
                                 color: headerColor,
                             }}
                         >
@@ -430,7 +644,20 @@ export const KeyButton = ({
                     ) : (
                         <span />
                     )}
-                    {showDot && (
+                    {shift ? (
+                        <span
+                            style={{
+                                fontSize: shiftSize,
+                                fontWeight: 700,
+                                lineHeight: 1,
+                                color:
+                                    catStyle('num', colorMode).legend ??
+                                    F.legend,
+                            }}
+                        >
+                            {shift}
+                        </span>
+                    ) : showDot ? (
                         <span
                             aria-hidden
                             style={{
@@ -442,47 +669,12 @@ export const KeyButton = ({
                                 boxShadow: `0 0 ${oneU * 0.12}px ${F.edge}`,
                             }}
                         />
+                    ) : (
+                        <span />
                     )}
                 </div>
 
-                {/* primary legend */}
-                <div
-                    className="flex-1 flex items-center justify-center min-h-0"
-                    style={{
-                        color: legendColor,
-                        // KeyCap.jsx:172-174 — main legend is 700 (mono 600); a
-                        // >2-char tap tightens to -.01em. Set on the wrapper so the
-                        // KeyLabel text inherits it.
-                        fontWeight: chrome.mono ? 600 : 700,
-                        letterSpacing: tapLen > 2 ? '-.01em' : 0,
-                        textShadow:
-                            capStyle === 'sculpted' && !F.heat
-                                ? '0 1px 1px rgba(0,0,0,.35)'
-                                : 'none',
-                    }}
-                >
-                    {mainLegend}
-                </div>
-
-                {/* hold legend */}
-                {holdTap && (
-                    <div
-                        className="flex items-end justify-center"
-                        style={{ height: oneU * 0.24 }}
-                    >
-                        <HoldLegend
-                            hold={holdTap.hold}
-                            color={
-                                pressed
-                                    ? 'rgba(255,255,255,.85)'
-                                    : (accentLegend ?? F.legend)
-                            }
-                            mono={chrome.mono}
-                            maxHoldFontSize={maxHoldFontSize}
-                            hoverZoom={hoverZoom}
-                        />
-                    </div>
-                )}
+                {body}
             </div>
         </button>
     )
@@ -522,39 +714,5 @@ export const KeyButton = ({
                 buttonEl
             )}
         </div>
-    )
-}
-
-function HoldLegend({
-    hold,
-    color,
-    mono,
-    maxHoldFontSize,
-}: {
-    hold: React.ReactNode
-    color: string
-    mono: boolean
-    maxHoldFontSize: number
-    hoverZoom?: boolean
-}): JSX.Element {
-    // The separator line is the span's own top border, so it spans only the
-    // hold word (plus a little side padding) and sits below the tap letter —
-    // matching the design. A full-width line would slice through the legend.
-    return (
-        <span
-            className={`max-w-full overflow-hidden text-ellipsis whitespace-nowrap leading-none ${
-                mono ? 'font-mono' : 'font-keycap'
-            }`}
-            style={{
-                color,
-                borderTop: `1px solid color-mix(in oklch, ${color} 35%, transparent)`,
-                paddingTop: 1,
-                paddingInline: maxHoldFontSize * 0.34,
-                fontSize: maxHoldFontSize,
-                fontWeight: 700,
-            }}
-        >
-            {hold}
-        </span>
     )
 }

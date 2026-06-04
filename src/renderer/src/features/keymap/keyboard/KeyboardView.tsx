@@ -18,7 +18,7 @@ import {
     PhysicalLayoutCanvas,
 } from './PhysicalLayoutCanvas'
 import { HidUsageLabel } from './HidUsageLabel'
-import { usageGlyph } from '@/lib/actions/hidUsages'
+import { usageGlyph, usageModifierNames } from '@/lib/actions/hidUsages'
 import { type HoldTapLabels, KeyButton } from './KeyButton'
 import { KeyContextMenu } from './KeyContextMenu'
 import { LayerColorRail } from './LayerColorRail'
@@ -120,7 +120,11 @@ interface KeyboardViewProps {
 
 function holdTapToLabels(desc: ResolvedHoldTapDescriptor): HoldTapLabels {
     const tap = (
-        <HidUsageLabel hid_usage={desc.tapParam} header={desc.actionTypeName} />
+        <HidUsageLabel
+            hid_usage={desc.tapParam}
+            header={desc.actionTypeName}
+            hideMods
+        />
     )
     const hold =
         desc.holdNodeKind === 'layer' ? (
@@ -345,6 +349,14 @@ export default function KeyboardView({
             tapText: p.outOfRange ? '' : usageGlyph(p.bindingParam1!),
             actionLabel: p.actionLabel,
             holdTap: p.holdTap ? holdTapToLabels(p.holdTap) : undefined,
+            // Chord modifiers (Ctrl/Shift/…) packed in the tap usage's high byte
+            // → rendered as chips by KeyButton (the inline "CS" line is suppressed
+            // via hideMods on the legend below). Mod-tap reads its tap param.
+            mods: (() => {
+                const u = p.holdTap ? p.holdTap.tapParam : p.bindingParam1
+                const names = u != null ? usageModifierNames(u) : []
+                return names.length ? names : undefined
+            })(),
             // Face tint follows the tap key; the header tag + hold legend follow
             // the hold/function category. A home-row mod is thus a neutral alpha
             // cap with a violet "Mod-Tap" tag — matching the design.
@@ -377,6 +389,7 @@ export default function KeyboardView({
                 <HidUsageLabel
                     hid_usage={p.bindingParam1!}
                     header={p.actionTypeName || 'Unknown'}
+                    hideMods
                 />
             ),
         }))

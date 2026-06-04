@@ -19,6 +19,8 @@ export type KeyPosition = PropsWithChildren<{
     tapText?: string
     actionLabel?: string
     holdTap?: HoldTapLabels
+    /** Chord modifier names (e.g. ["Ctrl","Shift"]) → chips above the legend. */
+    mods?: string[]
     category?: KeyCategory
     accentCategory?: KeyCategory
     heat?: number | null

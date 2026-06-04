@@ -64,3 +64,24 @@ export const usageGlyph = (usage: number, maxLength = 5): string => {
     )
     return short ? abbreviateKeyName(short, maxLength) : ''
 }
+
+// Implicit modifiers packed in a HID usage's high byte (bits 24–31). Maps each
+// set L/R pair to a friendly name (Ctrl/Shift/Alt/Gui), deduped — feeds the cap's
+// chord chips.
+const USAGE_MOD_BITS: Array<[number, string]> = [
+    [0x01, 'Ctrl'],
+    [0x02, 'Shift'],
+    [0x04, 'Alt'],
+    [0x08, 'Gui'],
+    [0x10, 'Ctrl'],
+    [0x20, 'Shift'],
+    [0x40, 'Alt'],
+    [0x80, 'Gui'],
+]
+export const usageModifierNames = (usage: number): string[] => {
+    const flags = (usage >> 24) & 0xff
+    if (!flags) return []
+    return [
+        ...new Set(USAGE_MOD_BITS.filter(([b]) => flags & b).map(([, n]) => n)),
+    ]
+}

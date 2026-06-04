@@ -252,6 +252,7 @@ function BindingSlotRow({
                     category={cap?.category}
                     accentCategory={cap?.accentCategory}
                     holdTap={cap?.holdTap}
+                    mods={cap?.mods}
                     showHeaderTag={!!(cap?.header || code)}
                 >
                     {cap && !cap.holdTap ? cap.tapText : undefined}
@@ -556,6 +557,7 @@ export function BuilderInspector(): JSX.Element {
                                 category={bindingCap?.category}
                                 accentCategory={bindingCap?.accentCategory}
                                 holdTap={bindingCap?.holdTap}
+                                mods={bindingCap?.mods}
                                 showHeaderTag={
                                     !!(bindingCap?.header || bindingCode)
                                 }
