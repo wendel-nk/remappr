@@ -12,11 +12,13 @@ import { categoryForUsage } from '@/lib/keymap/keyCategory'
 import { useKeycodeFilter } from '@/hooks/use-keycode-filter'
 import useConnectionStore from '@/stores/connectionStore'
 import useUserSettingsStore from '@/stores/userSettingsStore'
-import type { CatalogEntry } from '@firmware/catalog/types'
+import type { CatalogEntry, KeyCatalog } from '@firmware/catalog/types'
+import type { KeycodeCodec } from '@firmware/codec'
 import KeycodeButton from './KeycodeButton.tsx'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/ui/tabs'
 import { Input } from '@/ui/input'
 
+// pattern-check: skip additive optional codec-injection prop on existing data interface
 interface KeycodePickerGridProps {
     value?: number
     label?: string
@@ -27,6 +29,15 @@ interface KeycodePickerGridProps {
     // the slot/value flow and emits the behavior id directly so the
     // caller can switch the bound action type wholesale.
     onActionChosen?: (kind: string) => void
+    // Optional codec override. The editor leaves this unset and the grid
+    // reads the connected device's codec from the store; the deviceless
+    // Keyboard Builder injects a codec (the HID-usage mockCodec) so the
+    // same grid works with no connection.
+    codec?: KeycodeCodec
+    // Optional catalog override (firmware-filtered pages). The builder passes
+    // this so the grid shows only keys valid for the selected firmware; the
+    // editor omits it and the hook reads the connected device's catalog.
+    catalog?: KeyCatalog
 }
 
 const CONTAINER_MAX_HEIGHT = 350
@@ -64,6 +75,8 @@ export function KeycodePickerGrid({
     onValueChanged,
     onActionChosen,
     highlightedKeys,
+    codec: codecOverride,
+    catalog,
 }: KeycodePickerGridProps): JSX.Element {
     const {
         searchQuery,
@@ -72,9 +85,10 @@ export function KeycodePickerGrid({
         setActiveTab,
         pages,
         pagesWithMatches,
-    } = useKeycodeFilter()
+    } = useKeycodeFilter(catalog)
 
-    const codec = useConnectionStore((s) => s.service?.codec)
+    const storeCodec = useConnectionStore((s) => s.service?.codec)
+    const codec = codecOverride ?? storeCodec
     const colorMode = useUserSettingsStore((s) => s.colorMode)
 
     const [modFlags, setModFlags] = useState<number>(0)

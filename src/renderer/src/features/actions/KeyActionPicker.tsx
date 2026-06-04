@@ -2,6 +2,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import type { ActionSlot, ActionType, KeyAction } from '@firmware/types'
+import type { KeycodeCodec } from '@firmware/codec'
+import type { KeyCatalog } from '@firmware/catalog/types'
 import { ActionTypeSelector } from './ActionTypeSelector'
 import { ActionSlotsPicker } from './ActionSlotsPicker'
 import { SlotBar, type SlotDescriptor, type SlotKind } from './SlotBar'
@@ -12,11 +14,18 @@ export interface KeyActionDraft {
     params: number[]
 }
 
+// pattern-check: skip additive optional codec-injection prop on existing props interface
 export interface KeyActionPickerProps {
     action: KeyAction
     actionTypes: ActionType[]
     layers: { id: number; name: string }[]
     onChange: (draft: KeyActionDraft) => void
+    /** Optional codec override forwarded to the keycode grid; the deviceless
+     *  builder injects the HID-usage mockCodec so the grid works with no
+     *  connection. The editor omits it (grid reads the device codec). */
+    codec?: KeycodeCodec
+    /** Optional firmware-filtered catalog forwarded to the keycode grid. */
+    catalog?: KeyCatalog
 }
 
 function slotBarKind(slot: ActionSlot | undefined): SlotKind {
@@ -80,6 +89,8 @@ export const KeyActionPicker = ({
     actionTypes,
     layers,
     onChange,
+    codec,
+    catalog,
 }: KeyActionPickerProps): JSX.Element => {
     const [kind, setKind] = useState<string>(action.kind)
     const [params, setParams] = useState<number[]>([...action.params])
@@ -242,6 +253,8 @@ export const KeyActionPicker = ({
                         onSlotChanged={handleSlotChanged}
                         onActionChosen={handleTypeSelected}
                         highlightedKeys={highlightedKeys}
+                        codec={codec}
+                        catalog={catalog}
                     />
                 </div>
             )}

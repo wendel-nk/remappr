@@ -48,6 +48,8 @@ import { BuilderCanvas } from './BuilderCanvas'
 import { BuilderLayersPanel } from './BuilderLayersPanel'
 import { BuilderMetaForm } from './BuilderMetaForm'
 import { BuilderInspector } from './BuilderInspector'
+import { BindingPicker } from './BindingPicker'
+import { setBinding } from './builderInspectorOps'
 import { VariantBar } from './VariantBar'
 import { GridModal, KleModal, PresetModal, StartModal } from './BuilderModals'
 import { BuilderExportModal } from './BuilderExportModal'
@@ -250,6 +252,9 @@ export function FullScreenBuilder(): JSX.Element {
     const config = useConfigStore((s) => s.config)
     const setConfig = useConfigStore((s) => s.setConfig)
     const openInEditor = useBuilderStore((s) => s.openInEditor)
+    const binding = useBuilderStore((s) => s.binding)
+    const closeBinding = useBuilderStore((s) => s.closeBinding)
+    const activeLayer = useBuilderStore((s) => s.activeLayer)
     const [buildModal, setBuildModal] = useState<
         'preset' | 'grid' | 'kle' | null
     >(null)
@@ -551,6 +556,26 @@ export function FullScreenBuilder(): JSX.Element {
                                 : 'free-form'}
                         </span>
                     </div>
+                    {/* firmware-aware binding picker (bottom dock) */}
+                    {binding && config && (
+                        <BindingPicker
+                            target={binding}
+                            onClose={closeBinding}
+                            onPick={(action) => {
+                                if (binding.slot !== 'key') return
+                                const cfg = useConfigStore.getState().config
+                                if (!cfg) return
+                                commit(
+                                    setBinding(
+                                        cfg,
+                                        activeLayer,
+                                        binding.keyIndex,
+                                        action,
+                                    ),
+                                )
+                            }}
+                        />
+                    )}
                 </main>
 
                 {/* right dock — JSON config editor (480px) or inspector (296px) */}

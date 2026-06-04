@@ -1,5 +1,7 @@
 // Pattern check: no GoF pattern (-) — rejected — dispatches by slot.kind to existing renderers (HID/layer/enum/number); no abstraction needed.
 import type { ActionSlot } from '@firmware/types'
+import type { KeycodeCodec } from '@firmware/codec'
+import type { KeyCatalog } from '@firmware/catalog/types'
 import { KeycodePickerGrid } from '@/features/keymap/keycode-picker/KeycodePickerGrid'
 import {
     Select,
@@ -11,6 +13,7 @@ import {
 import { Label } from '@/ui/label'
 import { Input } from '@/ui/input'
 
+// pattern-check: skip additive optional codec prop forwarded to the grid
 export interface SlotValuePickerProps {
     slot: ActionSlot
     value?: number
@@ -18,6 +21,8 @@ export interface SlotValuePickerProps {
     highlightedKeys?: number[]
     onChange: (value?: number) => void
     onActionChosen?: (kind: string) => void
+    codec?: KeycodeCodec
+    catalog?: KeyCatalog
 }
 
 export const SlotValuePicker = ({
@@ -27,6 +32,8 @@ export const SlotValuePicker = ({
     highlightedKeys,
     onChange,
     onActionChosen,
+    codec,
+    catalog,
 }: SlotValuePickerProps): JSX.Element | null => {
     if (slot.kind === 'hid') {
         return (
@@ -36,6 +43,8 @@ export const SlotValuePicker = ({
                 label={slot.label}
                 value={value}
                 highlightedKeys={highlightedKeys}
+                codec={codec}
+                catalog={catalog}
             />
         )
     }

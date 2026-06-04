@@ -17,6 +17,19 @@ import useConnectionStore from '@/stores/connectionStore'
 
 export type SnapMode = 'grid' | 'free'
 
+// Pattern check: no GoF pattern (-) — rejected — additive plain data types +
+// zustand state for the picker-open target; discriminated slot string, no abstraction.
+/** Which binding slot the picker edits: a key's base binding, or an encoder's
+ *  clockwise / counter-clockwise / press slot (encoder slots land with the
+ *  encoder element; key is the only one wired today). */
+export type BindingSlot = 'key' | 'cw' | 'ccw' | 'press'
+
+/** The key (and slot) the binding picker is currently editing. */
+export interface BindingTarget {
+    keyIndex: number
+    slot: BindingSlot
+}
+
 /** Pan/zoom view, ported from the prototype: zoom is relative to the fitted
  *  board (1 = fit), pan is a viewport-px offset applied before scale. */
 export interface BuilderView {
@@ -46,13 +59,20 @@ interface BuilderState {
     /** Whether placement actually snaps. Switching the Seg sets it (grid→on,
      *  free→off); the standalone toolbar toggle flips it independently. */
     snapping: boolean
+    /** When on, manually changing a key's matrix row/col also snaps its position
+     *  to the whole-U grid (the design's "Snap to grid on row/col change"). */
+    snapOnWire: boolean
     view: BuilderView
     past: ConfigKeymap[]
     future: ConfigKeymap[]
     /** Snapshot armed at gesture start; consumed by the first liveCommit. */
     pending: ConfigKeymap | null
+    /** The key/slot the binding picker is editing, or null when it's closed. */
+    binding: BindingTarget | null
 
     setOpen: (open: boolean) => void
+    openBinding: (target: BindingTarget) => void
+    closeBinding: () => void
     setSelection: (selection: Set<number>) => void
     clearSelection: () => void
     setActiveLayer: (index: number) => void
@@ -62,6 +82,7 @@ interface BuilderState {
     toggleJson: () => void
     setSnapMode: (mode: SnapMode) => void
     toggleSnapping: () => void
+    toggleSnapOnWire: () => void
     setView: (patch: Partial<BuilderView>) => void
     resetView: () => void
 
@@ -97,10 +118,12 @@ const useBuilderStore = create<BuilderState>()(
         jsonOpen: false,
         snapMode: 'grid',
         snapping: true,
+        snapOnWire: false,
         view: DEFAULT_VIEW,
         past: [],
         future: [],
         pending: null,
+        binding: null,
 
         setOpen: (open) =>
             set(
@@ -117,8 +140,11 @@ const useBuilderStore = create<BuilderState>()(
                           past: [],
                           future: [],
                           pending: null,
+                          binding: null,
                       },
             ),
+        openBinding: (binding) => set({ binding }),
+        closeBinding: () => set({ binding: null }),
         setSelection: (selection) => set({ selection }),
         clearSelection: () => set({ selection: new Set<number>() }),
         setActiveLayer: (activeLayer) => set({ activeLayer }),
@@ -129,6 +155,7 @@ const useBuilderStore = create<BuilderState>()(
         setSnapMode: (snapMode) =>
             set({ snapMode, snapping: snapMode === 'grid' }),
         toggleSnapping: () => set((s) => ({ snapping: !s.snapping })),
+        toggleSnapOnWire: () => set((s) => ({ snapOnWire: !s.snapOnWire })),
         setView: (patch) => set((s) => ({ view: { ...s.view, ...patch } })),
         resetView: () => set({ view: DEFAULT_VIEW }),
 
