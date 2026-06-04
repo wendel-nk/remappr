@@ -18,7 +18,10 @@ import {
     Code2,
     Layers,
     Magnet,
+    Maximize2,
+    Minus,
     Move,
+    Plus,
     Redo2,
     Rocket,
     Ruler,
@@ -31,7 +34,13 @@ import { toast } from 'sonner'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/ui/tooltip'
 import useBuilderStore, { type SnapMode } from '@/stores/builderStore'
 import useConfigStore from '@/stores/configStore'
-import { newBoardConfig } from './geometryEditor'
+import {
+    duplicateKeys,
+    newBoardConfig,
+    removeKeys,
+    snap as snapStep,
+    updateKeys,
+} from './geometryEditor'
 import { BuilderCanvas } from './BuilderCanvas'
 
 /** Gradient brand badge (ruler glyph) shared with the start-page CTA. */
@@ -127,6 +136,55 @@ function SnapSeg({
     )
 }
 
+// Pattern check: no GoF pattern (-) — rejected — presentational zoom-control
+// cluster bound to builderStore.view; small UI component, no abstraction.
+/** Zoom −/percent/+/reset cluster, reading + writing builderStore.view. */
+function ZoomGroup(): JSX.Element {
+    const zoom = useBuilderStore((s) => s.view.zoom)
+    const setView = useBuilderStore((s) => s.setView)
+    const resetView = useBuilderStore((s) => s.resetView)
+    const clampZ = (z: number): number => Math.max(0.25, Math.min(4, z))
+    return (
+        <div
+            className="inline-flex items-center gap-px rounded-lg border border-border bg-card p-[3px]"
+            style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+        >
+            <button
+                type="button"
+                aria-label="Zoom out"
+                onClick={() => setView({ zoom: clampZ(zoom / 1.15) })}
+                className="grid size-6 place-items-center rounded text-muted-foreground hover:text-foreground"
+            >
+                <Minus size={15} />
+            </button>
+            <button
+                type="button"
+                aria-label="Reset view"
+                onClick={resetView}
+                className="min-w-[46px] text-center text-[12px] font-bold text-foreground"
+            >
+                {Math.round(zoom * 100)}%
+            </button>
+            <button
+                type="button"
+                aria-label="Zoom in"
+                onClick={() => setView({ zoom: clampZ(zoom * 1.15) })}
+                className="grid size-6 place-items-center rounded text-muted-foreground hover:text-foreground"
+            >
+                <Plus size={15} />
+            </button>
+            <button
+                type="button"
+                aria-label="Fit"
+                onClick={resetView}
+                className="grid size-6 place-items-center rounded text-muted-foreground hover:text-foreground"
+            >
+                <Maximize2 size={13} />
+            </button>
+        </div>
+    )
+}
+
 function SectionTitle({
     children,
 }: {
@@ -146,6 +204,10 @@ export function FullScreenBuilder(): JSX.Element {
     const snapMode = useBuilderStore((s) => s.snapMode)
     const setSnapMode = useBuilderStore((s) => s.setSnapMode)
     const selection = useBuilderStore((s) => s.selection)
+    const canUndo = useBuilderStore((s) => s.past.length > 0)
+    const canRedo = useBuilderStore((s) => s.future.length > 0)
+    const undo = useBuilderStore((s) => s.undo)
+    const redo = useBuilderStore((s) => s.redo)
     const config = useConfigStore((s) => s.config)
     const setConfig = useConfigStore((s) => s.setConfig)
 
@@ -163,6 +225,90 @@ export function FullScreenBuilder(): JSX.Element {
             )
         }
     }, [config, setConfig])
+
+    // Keyboard shortcuts (ported from the prototype): undo/redo, select-all,
+    // duplicate, delete, arrow-nudge, escape. Skipped while typing in a field.
+    useEffect(() => {
+        const onKey = (e: KeyboardEvent): void => {
+            const t = e.target as HTMLElement
+            if (
+                t.tagName === 'INPUT' ||
+                t.tagName === 'TEXTAREA' ||
+                t.isContentEditable
+            )
+                return
+            const store = useBuilderStore.getState()
+            const cfg = useConfigStore.getState().config
+            const mod = e.metaKey || e.ctrlKey
+            if (mod && (e.key === 'z' || e.key === 'Z')) {
+                e.preventDefault()
+                e.shiftKey ? store.redo() : store.undo()
+                return
+            }
+            if (mod && e.key === 'y') {
+                e.preventDefault()
+                store.redo()
+                return
+            }
+            if (e.key === 'Escape') {
+                store.clearSelection()
+                return
+            }
+            if (!cfg) return
+            if (mod && (e.key === 'a' || e.key === 'A')) {
+                e.preventDefault()
+                store.setSelection(new Set(cfg.keyboard.keys.map((_, i) => i)))
+                return
+            }
+            const sel = store.selection
+            if (mod && (e.key === 'd' || e.key === 'D')) {
+                e.preventDefault()
+                if (!sel.size) return
+                const { config: next, newIndices } = duplicateKeys(cfg, sel)
+                store.commit(next)
+                store.setSelection(new Set(newIndices))
+                return
+            }
+            if (!sel.size) return
+            if (e.key === 'Backspace' || e.key === 'Delete') {
+                e.preventDefault()
+                store.commit(removeKeys(cfg, sel))
+                store.clearSelection()
+                return
+            }
+            if (e.key.startsWith('Arrow')) {
+                e.preventDefault()
+                const step = e.shiftKey ? 1 : 0.25
+                const d: Record<string, [number, number]> = {
+                    ArrowLeft: [-step, 0],
+                    ArrowRight: [step, 0],
+                    ArrowUp: [0, -step],
+                    ArrowDown: [0, step],
+                }
+                const delta = d[e.key]
+                if (!delta) return
+                store.commit(
+                    updateKeys(cfg, (k, i) =>
+                        sel.has(i)
+                            ? {
+                                  ...k,
+                                  x: snapStep(k.x + delta[0], 0.001),
+                                  y: snapStep(k.y + delta[1], 0.001),
+                                  ...(k.rx !== undefined
+                                      ? { rx: k.rx + delta[0] }
+                                      : {}),
+                                  ...(k.ry !== undefined
+                                      ? { ry: k.ry + delta[1] }
+                                      : {}),
+                              }
+                            : k,
+                    ),
+                )
+            }
+        }
+        window.addEventListener('keydown', onKey)
+        return () => window.removeEventListener('keydown', onKey)
+    }, [])
 
     // Grid dimensions from geometry (no row/col fields yet — derive from extent).
     const dims = useMemo(() => {
@@ -209,12 +355,13 @@ export function FullScreenBuilder(): JSX.Element {
                         <Scan size={18} />
                     </ToolButton>
                     <div className="mx-0.5 h-[22px] w-px bg-border" />
-                    <ToolButton label="Undo" disabled>
+                    <ToolButton label="Undo" onClick={undo} disabled={!canUndo}>
                         <Undo2 size={18} />
                     </ToolButton>
-                    <ToolButton label="Redo" disabled>
+                    <ToolButton label="Redo" onClick={redo} disabled={!canRedo}>
                         <Redo2 size={18} />
                     </ToolButton>
+                    <ZoomGroup />
                     <div className="mx-0.5 h-[22px] w-px bg-border" />
                     <ToolButton label="Edit config JSON — coming soon" disabled>
                         <Code2 size={18} />
@@ -335,12 +482,13 @@ export function FullScreenBuilder(): JSX.Element {
                             </span>
                         ) : (
                             <span>
-                                Drag empty space to pan · scroll to zoom
+                                Drag to marquee · Space/middle-drag to pan ·
+                                scroll to zoom
                             </span>
                         )}
                         <span className="h-3.5 w-px bg-border" />
                         <span className="font-mono">
-                            {snapMode === 'grid' ? 'snap ¼U' : 'free-form'}
+                            {snapMode === 'grid' ? 'snap ⅛U' : 'free-form'}
                         </span>
                     </div>
                 </main>

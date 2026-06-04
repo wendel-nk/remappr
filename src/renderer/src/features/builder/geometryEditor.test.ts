@@ -11,6 +11,9 @@ import {
     addKey,
     removeKey,
     updateKey,
+    updateKeys,
+    duplicateKeys,
+    removeKeys,
     snap,
     addEncoder,
     updateEncoder,
@@ -144,6 +147,43 @@ describe('per-key geometry edits', () => {
             target: 'zmk',
         })
         expect(removeKey(one, 0)).toBe(one)
+    })
+
+    it('updateKeys maps selected keys, leaves bindings + transform untouched', () => {
+        const out = updateKeys(base(), (k, i) =>
+            i === 0 || i === 2 ? { ...k, x: k.x + 5 } : k,
+        )
+        expect(out.keyboard.keys[0].x).toBe(5)
+        expect(out.keyboard.keys[2].x).toBe(5)
+        expect(out.keyboard.keys[1].x).toBe(1)
+        expect(out.layers[0].bindings).toHaveLength(4)
+        // pure move keeps the hand-authored transform (positions don't break RC())
+        expect(out.keyboard.hardware?.transform).toBeDefined()
+    })
+
+    it('duplicateKeys appends offset copies + transparent bindings', () => {
+        const { config: out, newIndices } = duplicateKeys(base(), [0, 1])
+        expect(out.keyboard.keys).toHaveLength(6)
+        expect(newIndices).toEqual([4, 5])
+        expect(out.keyboard.keys[4]).toMatchObject({ x: 0.25, y: 0.25 })
+        expect(out.layers[0].bindings).toHaveLength(6)
+        expect(out.layers[0].bindings[4]).toEqual({ type: 'transparent' })
+        expect(out.keyboard.hardware).toBeUndefined() // structural edit drops transform
+        expect(parseKeymap(serializeKeymap(out)).keyboard.keys).toHaveLength(6)
+    })
+
+    it('removeKeys drops several keys + bindings and remaps combos', () => {
+        const out = removeKeys(base(), [0, 1])
+        expect(out.keyboard.keys).toHaveLength(2)
+        expect(out.layers[0].bindings).toHaveLength(2)
+        // combo 'a' [1,3] → key 1 dropped → removed; 'b' [0,3] → key 0 dropped → removed
+        expect(out.combos).toEqual([])
+        expect(parseKeymap(serializeKeymap(out)).keyboard.keys).toHaveLength(2)
+    })
+
+    it('removeKeys refuses to empty the board', () => {
+        const b = base()
+        expect(removeKeys(b, [0, 1, 2, 3])).toBe(b)
     })
 })
 

@@ -128,6 +128,84 @@ export function updateKey(
     return { ...config, keyboard: { ...config.keyboard, keys } }
 }
 
+// Pattern check: no GoF pattern (-) — rejected — additive pure multi-key config
+// transforms (map/duplicate/remove); immutable data edits, no abstraction.
+
+/** Map every key through `mapper` (immutable). Geometry-only — does not touch
+ *  the matrix transform, so callers that move/resize/rotate keys keep any
+ *  hand-authored transform intact (positions changing don't invalidate RC()). */
+export function updateKeys(
+    config: ConfigKeymap,
+    mapper: (key: CanonGeometry, index: number) => CanonGeometry,
+): ConfigKeymap {
+    const keys = config.keyboard.keys.map(mapper)
+    return { ...config, keyboard: { ...config.keyboard, keys } }
+}
+
+/** Duplicate the keys at `indices` (offset +0.25u) + their per-layer bindings.
+ *  Returns the new config and the indices of the freshly-appended copies. */
+export function duplicateKeys(
+    config: ConfigKeymap,
+    indices: Iterable<number>,
+): { config: ConfigKeymap; newIndices: number[] } {
+    const list = [...new Set(indices)].sort((a, b) => a - b)
+    const base = config.keyboard.keys.length
+    const dups = list
+        .map((i) => config.keyboard.keys[i])
+        .filter(Boolean)
+        .map((k) => ({ ...k, x: k.x + 0.25, y: k.y + 0.25 }))
+    if (!dups.length) return { config, newIndices: [] }
+    const newIndices = dups.map((_, j) => base + j)
+    return {
+        config: {
+            ...config,
+            keyboard: withoutTransform({
+                ...config.keyboard,
+                keys: [...config.keyboard.keys, ...dups],
+            }),
+            layers: config.layers.map((l) => ({
+                ...l,
+                bindings: [
+                    ...l.bindings,
+                    ...dups.map(() => ({ type: 'transparent' as const })),
+                ],
+            })),
+        },
+        newIndices,
+    }
+}
+
+/** Remove every key in `indices` (+ per-layer bindings); fix combo key refs.
+ *  No-op if it would leave zero keys. */
+export function removeKeys(
+    config: ConfigKeymap,
+    indices: Iterable<number>,
+): ConfigKeymap {
+    const drop = new Set(indices)
+    if (!drop.size) return config
+    if (config.keyboard.keys.length - drop.size < 1) return config
+    // Map old index → new index (or -1 if dropped) for combo remapping.
+    let next = 0
+    const remap = config.keyboard.keys.map((_, i) =>
+        drop.has(i) ? -1 : next++,
+    )
+    const keys = config.keyboard.keys.filter((_, i) => !drop.has(i))
+    const combos = config.combos
+        ? config.combos
+              .filter((c) => !c.keys.some((k) => drop.has(k)))
+              .map((c) => ({ ...c, keys: c.keys.map((k) => remap[k]) }))
+        : undefined
+    return {
+        ...config,
+        keyboard: withoutTransform({ ...config.keyboard, keys }),
+        layers: config.layers.map((l) => ({
+            ...l,
+            bindings: l.bindings.filter((_, i) => !drop.has(i)),
+        })),
+        ...(combos ? { combos } : {}),
+    }
+}
+
 /** Append a key (+ a transparent binding on every layer). */
 export function addKey(
     config: ConfigKeymap,
