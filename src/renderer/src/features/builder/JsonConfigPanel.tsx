@@ -14,7 +14,16 @@
 // describe() text as a reference.
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Editor, { type OnMount } from '@monaco-editor/react'
-import { Code2, Layers, RotateCcw, X } from 'lucide-react'
+import type { editor as MonacoEditor } from 'monaco-editor'
+import {
+    Check,
+    Code2,
+    Layers,
+    RotateCcw,
+    Search,
+    TriangleAlert,
+    X,
+} from 'lucide-react'
 import { buildConfigJsonSchema, serializeKeymap } from '@firmware/config'
 import useConfigStore from '@/stores/configStore'
 import { monaco } from './monacoSetup'
@@ -141,6 +150,13 @@ export function JsonConfigPanel({
     const [text, setText] = useState<string>(() =>
         config ? serializeKeymap(config) : '',
     )
+    const [search, setSearch] = useState('')
+    // Schema-validation summary, derived from Monaco's JSON markers.
+    const [issues, setIssues] = useState<{ count: number; line: number }>({
+        count: 0,
+        line: 0,
+    })
+    const editorRef = useRef<MonacoEditor.IStandaloneCodeEditor | null>(null)
     const focused = useRef(false)
     const debounce = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -159,6 +175,7 @@ export function JsonConfigPanel({
 
     const onMount: OnMount = (editor) => {
         installSchema()
+        editorRef.current = editor
         // @monaco-editor/react exposes no focus/blur props — listen on the
         // editor instance so config→editor refresh never clobbers live typing.
         editor.onDidFocusEditorText(() => {
@@ -171,6 +188,36 @@ export function JsonConfigPanel({
             const cfg = useConfigStore.getState().config
             if (cfg) setText(serializeKeymap(cfg))
         })
+        // Surface the JSON language service's schema-validation markers as a
+        // visible status, with the first error line.
+        const model = editor.getModel()
+        const refreshIssues = (): void => {
+            if (!model) return
+            const errs = monaco.editor
+                .getModelMarkers({ resource: model.uri })
+                .filter((m) => m.severity >= monaco.MarkerSeverity.Warning)
+            const line = errs.length
+                ? Math.min(...errs.map((m) => m.startLineNumber))
+                : 0
+            setIssues({ count: errs.length, line })
+        }
+        monaco.editor.onDidChangeMarkers(refreshIssues)
+        refreshIssues()
+    }
+
+    /** Insert a field name at the cursor (All-options click) + focus the editor. */
+    const insertField = (path: string): void => {
+        const editor = editorRef.current
+        if (!editor) return
+        const leaf = path.split(/[.[]/).filter(Boolean).pop() ?? path
+        const sel = editor.getSelection()
+        if (sel) {
+            editor.executeEdits('insert-field', [
+                { range: sel, text: `"${leaf}": `, forceMoveMarkers: true },
+            ])
+        }
+        editor.focus()
+        setTab('json')
     }
 
     // editor → config: debounce, then try to parse. loadFromSource updates the
@@ -192,10 +239,19 @@ export function JsonConfigPanel({
         }
     }
 
-    const fields = useMemo(
+    const allFields = useMemo(
         () => (tab === 'options' ? flattenSchema(buildConfigJsonSchema()) : []),
         [tab],
     )
+    const fields = useMemo(() => {
+        const q = search.trim().toLowerCase()
+        if (!q) return allFields
+        return allFields.filter(
+            (f) =>
+                f.path.toLowerCase().includes(q) ||
+                f.description.toLowerCase().includes(q),
+        )
+    }, [allFields, search])
 
     const tabBtn = (
         value: 'json' | 'options',
@@ -246,6 +302,28 @@ export function JsonConfigPanel({
 
             {tab === 'json' ? (
                 <>
+                    {/* prominent validation status (design parity) */}
+                    <div
+                        className={`flex items-center gap-1.5 border-b border-border px-3 py-1.5 text-[11.5px] font-semibold ${
+                            issues.count || error
+                                ? 'text-destructive'
+                                : 'text-emerald-500'
+                        }`}
+                    >
+                        {issues.count || error ? (
+                            <>
+                                <TriangleAlert size={13} />
+                                {issues.count
+                                    ? `${issues.count} issue${issues.count > 1 ? 's' : ''} · line ${issues.line}`
+                                    : 'Invalid JSON'}
+                            </>
+                        ) : (
+                            <>
+                                <Check size={13} />
+                                Valid · matches schema · applied live
+                            </>
+                        )}
+                    </div>
                     <div className="min-h-0 flex-1">
                         <Editor
                             language="json"
@@ -264,42 +342,67 @@ export function JsonConfigPanel({
                             }}
                         />
                     </div>
-                    <div className="border-t border-border px-3 py-2 text-[11.5px]">
-                        {error ? (
-                            <span className="text-destructive">{error}</span>
-                        ) : (
-                            <span className="text-muted-foreground">
-                                Ctrl/⌘+Space for field &amp; value suggestions ·
-                                edits sync to the canvas
-                            </span>
-                        )}
+                    <div className="border-t border-border px-3 py-2 text-[11.5px] text-muted-foreground">
+                        Ctrl/⌘+Space for suggestions · invalid values are
+                        underlined · edits sync to the canvas
                     </div>
                 </>
             ) : (
-                <div className="min-h-0 flex-1 overflow-y-auto p-3">
-                    <ul className="space-y-2">
-                        {fields.map((f) => (
-                            <li
-                                key={f.path}
-                                className="rounded-lg border border-border bg-background p-2.5"
-                            >
-                                <div className="flex items-baseline gap-2">
-                                    <code className="font-mono text-[12px] font-semibold text-foreground">
-                                        {f.path}
-                                    </code>
-                                    <span className="text-[10.5px] font-bold uppercase tracking-wide text-muted-foreground">
-                                        {f.type}
-                                    </span>
-                                </div>
-                                {f.description && (
-                                    <p className="mt-1 text-[11.5px] leading-relaxed text-muted-foreground">
-                                        {f.description}
-                                    </p>
-                                )}
-                            </li>
-                        ))}
-                    </ul>
-                </div>
+                <>
+                    {/* pattern-check: skip — presentational searchable options list, no logic */}
+                    <div className="border-b border-border p-2.5">
+                        <div className="flex items-center gap-2 rounded-lg border border-input bg-background px-2.5 py-1.5">
+                            <Search
+                                size={13}
+                                className="shrink-0 text-muted-foreground"
+                            />
+                            <input
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                placeholder="Search config options…"
+                                className="w-full bg-transparent text-[12px] text-foreground outline-none placeholder:text-muted-foreground"
+                            />
+                        </div>
+                    </div>
+                    <div className="min-h-0 flex-1 overflow-y-auto p-3">
+                        <ul className="space-y-1.5">
+                            {fields.map((f) => {
+                                const depth = (f.path.match(/[.[]/g) ?? [])
+                                    .length
+                                return (
+                                    <li key={f.path}>
+                                        <button
+                                            type="button"
+                                            onClick={() => insertField(f.path)}
+                                            title="Insert at cursor"
+                                            style={{ marginLeft: depth * 10 }}
+                                            className="w-full rounded-lg border border-border bg-background p-2.5 text-left transition-colors hover:border-primary"
+                                        >
+                                            <div className="flex items-baseline gap-2">
+                                                <code className="font-mono text-[12px] font-semibold text-foreground">
+                                                    {f.path.split(/[.[]/).pop()}
+                                                </code>
+                                                <span className="rounded bg-secondary px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wide text-muted-foreground">
+                                                    {f.type}
+                                                </span>
+                                            </div>
+                                            {f.description && (
+                                                <p className="mt-1 text-[11.5px] leading-relaxed text-muted-foreground">
+                                                    {f.description}
+                                                </p>
+                                            )}
+                                        </button>
+                                    </li>
+                                )
+                            })}
+                            {!fields.length && (
+                                <li className="px-1 py-4 text-center text-[12px] text-muted-foreground">
+                                    No options match “{search}”.
+                                </li>
+                            )}
+                        </ul>
+                    </div>
+                </>
             )}
         </div>
     )
