@@ -516,6 +516,15 @@ const BaseKeymapSchema = z.object({
         keys: z.array(GeometrySchema).min(1),
         encoders: z.array(EncoderSchema).optional(),
         hardware: HardwareSchema.optional(),
+        pins: z
+            .object({
+                rows: z.array(z.string()),
+                cols: z.array(z.string()),
+            })
+            .optional()
+            .describe(
+                'Friendly row/column GPIO labels (e.g. "GP4"), index-aligned to the transform.',
+            ),
         firmware: z
             .array(z.string())
             .optional()

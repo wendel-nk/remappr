@@ -212,6 +212,14 @@ export function toSurfaceObject(km: ConfigKeymap): Record<string, unknown> {
             ...(km.keyboard.hardware
                 ? { hardware: cloneHardware(km.keyboard.hardware) }
                 : {}),
+            ...(km.keyboard.pins
+                ? {
+                      pins: {
+                          rows: [...km.keyboard.pins.rows],
+                          cols: [...km.keyboard.pins.cols],
+                      },
+                  }
+                : {}),
             ...(km.keyboard.firmware
                 ? { firmware: [...km.keyboard.firmware] }
                 : {}),

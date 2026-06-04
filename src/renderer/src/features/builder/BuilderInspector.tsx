@@ -39,6 +39,7 @@ import {
     setKeyMatrix,
     setKeyVariant,
 } from './builderInspectorOps'
+import { colPins, rowPins } from './builderPins'
 
 const WIDTH_PRESETS = [1, 1.25, 1.5, 1.75, 2, 2.25, 2.75, 6.25]
 
@@ -268,6 +269,10 @@ export function BuilderInspector(): JSX.Element {
     const [row, col] = keyMatrix(config, index)
     const nRows = Math.max(t.rows, row + 1)
     const nCols = Math.max(t.columns, col + 1)
+    const rPins = rowPins(config)
+    const cPins = colPins(config)
+    const rPin = (i: number): string => rPins[i] ?? `GP${i}`
+    const cPin = (i: number): string => cPins[i] ?? `GP${i}`
     const layouts = config.keyboard.layouts ?? []
     const binding = config.layers[activeLayer]?.bindings[index]
     const layerName = config.layers[activeLayer]?.name ?? 'layer'
@@ -485,7 +490,7 @@ export function BuilderInspector(): JSX.Element {
                         >
                             {Array.from({ length: nRows }).map((_, i) => (
                                 <option key={i} value={i}>
-                                    Row {i}
+                                    Row {i} · {rPin(i)}
                                 </option>
                             ))}
                         </select>
@@ -507,7 +512,7 @@ export function BuilderInspector(): JSX.Element {
                         >
                             {Array.from({ length: nCols }).map((_, i) => (
                                 <option key={i} value={i}>
-                                    Col {i}
+                                    Col {i} · {cPin(i)}
                                 </option>
                             ))}
                         </select>
@@ -520,14 +525,14 @@ export function BuilderInspector(): JSX.Element {
                         className="font-mono text-[12.5px] font-bold"
                         style={{ color: 'oklch(0.72 0.17 35)' }}
                     >
-                        R{row}
+                        {rPin(row)}
                     </span>
                     <span className="text-muted-foreground">×</span>
                     <span
                         className="font-mono text-[12.5px] font-bold"
                         style={{ color: 'oklch(0.72 0.14 250)' }}
                     >
-                        C{col}
+                        {cPin(col)}
                     </span>
                 </div>
             </div>

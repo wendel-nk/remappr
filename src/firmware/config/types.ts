@@ -322,12 +322,24 @@ export interface CanonLayout {
     name: string
 }
 
+/** Friendly per-row / per-column GPIO pin labels shown in the builder (e.g.
+ *  "GP4"). Builder metadata, kept separate from `hardware.kscan` (the real
+ *  devicetree GpioSpec wiring) so editing a label here never corrupts ZMK
+ *  export; compilers map these to their firmware's pin syntax. `rows`/`cols`
+ *  are index-aligned to the electrical transform's rows/columns. */
+export interface ConfigPins {
+    rows: string[]
+    cols: string[]
+}
+
 export interface ConfigKeyboard {
     id: string
     name: string
     keys: CanonGeometry[]
     encoders?: CanonEncoderSlot[]
     hardware?: ConfigHardware
+    /** Friendly row/column GPIO labels (builder metadata). */
+    pins?: ConfigPins
     /** Raw multi-select firmware targets from the builder (qmk/via/vial/zmk).
      *  Looser than `meta.target`; via/vial compile through the QMK family. */
     firmware?: string[]

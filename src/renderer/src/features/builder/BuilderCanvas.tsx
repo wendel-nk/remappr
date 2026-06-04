@@ -20,6 +20,14 @@ import useConfigStore from '@/stores/configStore'
 import useBuilderStore from '@/stores/builderStore'
 import { snap as snapStep, updateKeys } from './geometryEditor'
 import { autoMatrix, splitInfo } from './builderMatrix'
+import {
+    addCol,
+    addRow,
+    colPins,
+    rowPins,
+    setColPin,
+    setRowPin,
+} from './builderPins'
 import { MatrixOverlay } from './MatrixOverlay'
 import type { CanonGeometry } from '@firmware/config'
 
@@ -652,16 +660,38 @@ export function BuilderCanvas(): JSX.Element {
                     )
                 })}
 
-                {matrixView && keys.length > 0 && (
+                {matrixView && keys.length > 0 && config && (
                     <MatrixOverlay
                         keys={keys}
                         transform={
-                            config?.keyboard.hardware?.transform ??
+                            config.keyboard.hardware?.transform ??
                             autoMatrix(keys)
                         }
                         oneU={oneU}
                         innerW={innerW}
                         innerH={innerH}
+                        rowPins={rowPins(config)}
+                        colPins={colPins(config)}
+                        onSetRowPin={(i, v) =>
+                            useBuilderStore
+                                .getState()
+                                .commit(setRowPin(config, i, v))
+                        }
+                        onSetColPin={(j, v) =>
+                            useBuilderStore
+                                .getState()
+                                .commit(setColPin(config, j, v))
+                        }
+                        onAddRow={() =>
+                            useBuilderStore
+                                .getState()
+                                .commit(addRow(config).config)
+                        }
+                        onAddCol={() =>
+                            useBuilderStore
+                                .getState()
+                                .commit(addCol(config).config)
+                        }
                     />
                 )}
 

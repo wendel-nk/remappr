@@ -27,6 +27,7 @@ export type {
     ConfigHardware,
     ConfigKeymap,
     ConfigKeyboard,
+    ConfigPins,
     ConfigDefaults,
     ConfigMeta,
     DiodeDirection,

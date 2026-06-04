@@ -1,12 +1,15 @@
-// Pattern check: no GoF pattern (-) — rejected — presentational SVG overlay that
-// draws each matrix row/column run + a row/col index label from the electrical
-// transform; pure render ported from app/builder/BuilderCanvas.jsx, no abstraction.
+// Pattern check: no GoF pattern (-) — rejected — presentational SVG overlay plus
+// two small inline-edit UI bits (pin chip / add-pin button); local state only,
+// no abstraction. Ported from app/builder/BuilderCanvas.jsx MatrixOverlay.
 //
 // The matrix-wiring overlay shown on the canvas when the toolbar Scan toggle is on.
 // It reads the board's [row,col]-per-key transform (index-aligned to keyboard.keys)
 // and draws, for each row and column, a dashed run connecting the caps wired to it,
-// plus a coloured index pin at the run's anchor. Read-only for now (per-key wiring
-// is edited in the inspector); editable GPIO pins land with the kscan editor.
+// plus an EDITABLE GPIO pin chip at the run's anchor (click to rename) and "+"
+// buttons to append an unused row / column. Drag-to-reposition the chips is not
+// ported — pin chip offsets have no home in the canonical config.
+import { useState } from 'react'
+import { Plus } from 'lucide-react'
 import type { CanonGeometry, CanonMatrixTransform } from '@firmware/config'
 
 const ROW_C = 'oklch(0.72 0.17 35)'
@@ -69,12 +72,24 @@ export function MatrixOverlay({
     oneU,
     innerW,
     innerH,
+    rowPins,
+    colPins,
+    onSetRowPin,
+    onSetColPin,
+    onAddRow,
+    onAddCol,
 }: {
     keys: CanonGeometry[]
     transform: CanonMatrixTransform
     oneU: number
     innerW: number
     innerH: number
+    rowPins: string[]
+    colPins: string[]
+    onSetRowPin: (i: number, label: string) => void
+    onSetColPin: (j: number, label: string) => void
+    onAddRow: () => void
+    onAddCol: () => void
 }): JSX.Element {
     const map = transform.map
     const rows = buildRuns(keys, (rc) => rc[0], map, oneU, true)
@@ -83,6 +98,15 @@ export function MatrixOverlay({
         x: (k.x + k.w / 2) * oneU,
         y: (k.y + k.h / 2) * oneU,
     })
+    // "+ add" buttons sit just past the last run on each axis.
+    const lastRowY = rows.length
+        ? Math.max(...rows.map((r) => r.anchor.y))
+        : oneU * 0.5
+    const firstRowX = rows.length ? rows[0].anchor.x : oneU * 0.5
+    const lastColX = cols.length
+        ? Math.max(...cols.map((c) => c.anchor.x))
+        : oneU * 0.5
+    const firstColY = cols.length ? cols[0].anchor.y : oneU * 0.5
     return (
         <>
             <svg
@@ -132,45 +156,123 @@ export function MatrixOverlay({
                 })}
             </svg>
             {rows.map((r) => (
-                <PinLabel
+                <EditablePin
                     key={r.key}
                     x={r.anchor.x - oneU * 0.36}
                     y={r.anchor.y}
                     color={ROW_C}
-                    label={`R${r.id}`}
+                    label={rowPins[r.id] ?? `GP${r.id}`}
+                    onCommit={(v) => onSetRowPin(r.id, v)}
                 />
             ))}
             {cols.map((c) => (
-                <PinLabel
+                <EditablePin
                     key={c.key}
                     x={c.anchor.x}
                     y={c.anchor.y - oneU * 0.28}
                     color={COL_C}
-                    label={`C${c.id}`}
+                    label={colPins[c.id] ?? `GP${c.id}`}
+                    onCommit={(v) => onSetColPin(c.id, v)}
                 />
             ))}
+            <AddPinBtn
+                x={firstRowX}
+                y={lastRowY + oneU * 0.7}
+                color={ROW_C}
+                label="Add a matrix row"
+                onClick={onAddRow}
+            />
+            <AddPinBtn
+                x={lastColX + oneU * 0.7}
+                y={firstColY}
+                color={COL_C}
+                label="Add a matrix column"
+                onClick={onAddCol}
+            />
         </>
     )
 }
 
-/** A small coloured row/column index chip at a run anchor. */
-function PinLabel({
+/** A GPIO pin chip at a run anchor: click to rename, Enter/blur commits, Esc cancels. */
+function EditablePin({
     x,
     y,
     color,
     label,
+    onCommit,
 }: {
     x: number
     y: number
     color: string
     label: string
+    onCommit: (label: string) => void
 }): JSX.Element {
+    // pattern-check: skip lint-fix refactor, no new logic
+    const [edit, setEdit] = useState<string | null>(null)
+    const commit = (): void => {
+        if (edit !== null && edit.trim() && edit !== label)
+            onCommit(edit.trim())
+        setEdit(null)
+    }
     return (
         <span
-            className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 rounded-md border bg-card px-1.5 py-0.5 font-mono text-[11px] font-bold"
+            className="absolute -translate-x-1/2 -translate-y-1/2"
+            style={{ left: x, top: y, zIndex: 28 }}
+        >
+            {edit !== null ? (
+                <input
+                    ref={(el) => el?.focus()}
+                    value={edit}
+                    onChange={(e) => setEdit(e.target.value)}
+                    onBlur={commit}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter') commit()
+                        if (e.key === 'Escape') setEdit(null)
+                    }}
+                    className="w-14 rounded-md border bg-card px-1 py-0.5 text-center font-mono text-[11px] font-bold outline-none"
+                    style={{ borderColor: color, color }}
+                />
+            ) : (
+                <button
+                    type="button"
+                    onClick={() => setEdit(label)}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    title="Click to set the GPIO pin"
+                    className="cursor-pointer rounded-md border bg-card px-1.5 py-0.5 font-mono text-[11px] font-bold whitespace-nowrap"
+                    style={{ borderColor: color, color }}
+                >
+                    {label}
+                </button>
+            )}
+        </span>
+    )
+}
+
+/** A dashed "+" button to append an unused matrix row / column. */
+function AddPinBtn({
+    x,
+    y,
+    color,
+    label,
+    onClick,
+}: {
+    x: number
+    y: number
+    color: string
+    label: string
+    onClick: () => void
+}): JSX.Element {
+    return (
+        <button
+            type="button"
+            title={label}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={onClick}
+            className="absolute grid size-[22px] -translate-x-1/2 -translate-y-1/2 cursor-pointer place-items-center rounded-md border border-dashed bg-card"
             style={{ left: x, top: y, borderColor: color, color, zIndex: 28 }}
         >
-            {label}
-        </span>
+            <Plus size={13} />
+        </button>
     )
 }
