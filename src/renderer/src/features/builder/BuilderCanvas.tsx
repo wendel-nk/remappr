@@ -19,6 +19,8 @@ import { scalePosition } from '@/lib/scalePosition'
 import useConfigStore from '@/stores/configStore'
 import useBuilderStore from '@/stores/builderStore'
 import { snap as snapStep, updateKeys } from './geometryEditor'
+import { autoMatrix } from './builderMatrix'
+import { MatrixOverlay } from './MatrixOverlay'
 import type { CanonGeometry } from '@firmware/config'
 
 const Z_MIN = 0.25
@@ -61,6 +63,8 @@ export function BuilderCanvas(): JSX.Element {
     const selection = useBuilderStore((s) => s.selection)
     const snapMode = useBuilderStore((s) => s.snapMode)
     const view = useBuilderStore((s) => s.view)
+    const matrixView = useBuilderStore((s) => s.matrixView)
+    const activeVariant = useBuilderStore((s) => s.activeVariant)
 
     const ref = useRef<HTMLDivElement>(null)
     const [oneU, setOneU] = useState(64)
@@ -469,6 +473,12 @@ export function BuilderCanvas(): JSX.Element {
                 {keys.map((k, i) => {
                     const lone = selection.size === 1 && selection.has(i)
                     const sized = selection.has(i)
+                    // Dim keys tagged into a different variant when one is active.
+                    const dimmed =
+                        activeVariant !== '' &&
+                        k.variant !== undefined &&
+                        k.variant !== '' &&
+                        k.variant !== activeVariant
                     return (
                         <div
                             key={i}
@@ -478,6 +488,7 @@ export function BuilderCanvas(): JSX.Element {
                                 ...scalePosition(k, oneU),
                                 cursor: 'move',
                                 zIndex: sized ? 20 : 2,
+                                opacity: dimmed ? 0.25 : 1,
                             }}
                             onMouseDown={(e) => onKeyDown(i, e)}
                         >
@@ -579,6 +590,19 @@ export function BuilderCanvas(): JSX.Element {
                         </div>
                     )
                 })}
+
+                {matrixView && keys.length > 0 && (
+                    <MatrixOverlay
+                        keys={keys}
+                        transform={
+                            config?.keyboard.hardware?.transform ??
+                            autoMatrix(keys)
+                        }
+                        oneU={oneU}
+                        innerW={innerW}
+                        innerH={innerH}
+                    />
+                )}
 
                 {marquee && (
                     <div

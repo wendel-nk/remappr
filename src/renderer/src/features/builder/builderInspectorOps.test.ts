@@ -1,0 +1,131 @@
+// Pattern check: no GoF pattern (-) — rejected — unit tests for pure inspector ops
+// (per-key matrix / bulk / binding / variant); assertions over data, no abstraction.
+import { describe, expect, it } from 'vitest'
+import { parseKeymap, serializeKeymap } from '@firmware/config'
+import type { ConfigKeymap } from '@firmware/config'
+import { newBoardConfig } from './geometryEditor'
+import {
+    addLayout,
+    applyAutoMatrix,
+    bindingLabel,
+    bulkGeometry,
+    bulkNumberCols,
+    bulkSetRow,
+    ensureTransform,
+    keyMatrix,
+    parseBindingToken,
+    removeLayout,
+    renameLayout,
+    setBinding,
+    setKeyMatrix,
+    setKeyVariant,
+} from './builderInspectorOps'
+
+const grid = (rows: number, cols: number): ConfigKeymap =>
+    newBoardConfig({ name: 'B', rows, cols, target: 'zmk' })
+
+describe('builderInspectorOps — matrix', () => {
+    it('ensureTransform derives from position when none committed', () => {
+        const t = ensureTransform(grid(2, 3))
+        expect(t.rows).toBe(2)
+        expect(t.columns).toBe(3)
+        expect(t.map).toHaveLength(6)
+    })
+
+    it('applyAutoMatrix commits the derived transform', () => {
+        const out = applyAutoMatrix(grid(2, 3))
+        expect(out.keyboard.hardware?.transform?.rows).toBe(2)
+        expect(out.keyboard.hardware?.transform?.columns).toBe(3)
+        // valid against the schema (map length == key count, RC in range)
+        expect(
+            parseKeymap(serializeKeymap(out)).keyboard.hardware?.transform,
+        ).toBeDefined()
+    })
+
+    it('setKeyMatrix materialises + grows the transform', () => {
+        const out = setKeyMatrix(grid(2, 2), 0, 4, 5)
+        expect(keyMatrix(out, 0)).toEqual([4, 5])
+        expect(out.keyboard.hardware?.transform?.rows).toBe(5)
+        expect(out.keyboard.hardware?.transform?.columns).toBe(6)
+        expect(parseKeymap(serializeKeymap(out)).keyboard.keys).toHaveLength(4)
+    })
+
+    it('bulkSetRow sets the row for every selected key', () => {
+        const out = bulkSetRow(grid(2, 2), [0, 1], 3)
+        expect(keyMatrix(out, 0)[0]).toBe(3)
+        expect(keyMatrix(out, 1)[0]).toBe(3)
+        expect(out.keyboard.hardware?.transform?.rows).toBe(4)
+    })
+
+    it('bulkNumberCols numbers selected columns left→right from a start', () => {
+        const out = bulkNumberCols(grid(1, 3), [0, 1, 2], 5)
+        expect(keyMatrix(out, 0)[1]).toBe(5)
+        expect(keyMatrix(out, 1)[1]).toBe(6)
+        expect(keyMatrix(out, 2)[1]).toBe(7)
+        expect(out.keyboard.hardware?.transform?.columns).toBe(8)
+    })
+})
+
+describe('builderInspectorOps — bulk geometry', () => {
+    it('left aligns selected keys to the min X', () => {
+        const out = bulkGeometry(grid(1, 3), [1, 2], 'left')
+        expect(out.keyboard.keys[1].x).toBe(1)
+        expect(out.keyboard.keys[2].x).toBe(1)
+        expect(out.keyboard.keys[0].x).toBe(0) // untouched
+    })
+
+    it('size1 resets selected keys to 1U', () => {
+        const seed = bulkGeometry(grid(1, 2), [0], 'size1')
+        expect(seed.keyboard.keys[0]).toMatchObject({ w: 1, h: 1 })
+    })
+})
+
+describe('builderInspectorOps — bindings', () => {
+    it('parseBindingToken handles keycodes, combos, specials, and rejects junk', () => {
+        expect(parseBindingToken('A')).toMatchObject({ type: 'key_press' })
+        expect(parseBindingToken('Ctrl+C')).toMatchObject({ type: 'key_press' })
+        expect(parseBindingToken('trans')).toEqual({ type: 'transparent' })
+        expect(parseBindingToken('')).toEqual({ type: 'transparent' })
+        expect(parseBindingToken('none')).toEqual({ type: 'none' })
+        expect(parseBindingToken('NOPE_XYZ')).toBeNull()
+    })
+
+    it('bindingLabel round-trips a key_press to a friendly token', () => {
+        const a = parseBindingToken('A')!
+        expect(bindingLabel(a)).toBe('A')
+        expect(bindingLabel({ type: 'transparent' })).toBe('▽')
+        expect(bindingLabel(undefined)).toBe('▽')
+    })
+
+    it('setBinding replaces one binding on the active layer only', () => {
+        const out = setBinding(grid(1, 2), 0, 1, parseBindingToken('B')!)
+        expect(out.layers[0].bindings[1]).toMatchObject({ type: 'key_press' })
+        expect(out.layers[0].bindings[0]).toEqual({ type: 'transparent' })
+        expect(
+            parseKeymap(serializeKeymap(out)).layers[0].bindings,
+        ).toHaveLength(2)
+    })
+})
+
+describe('builderInspectorOps — variants', () => {
+    it('addLayout appends a variant and returns its id', () => {
+        const { config, id } = addLayout(grid(1, 2))
+        expect(config.keyboard.layouts).toHaveLength(1)
+        expect(config.keyboard.layouts?.[0].id).toBe(id)
+    })
+
+    it('renameLayout renames by id', () => {
+        const { config, id } = addLayout(grid(1, 2))
+        const out = renameLayout(config, id, 'Split space')
+        expect(out.keyboard.layouts?.[0].name).toBe('Split space')
+    })
+
+    it('setKeyVariant tags a key; removeLayout drops it + clears the tag', () => {
+        const { config, id } = addLayout(grid(1, 2))
+        const tagged = setKeyVariant(config, 0, id)
+        expect(tagged.keyboard.keys[0].variant).toBe(id)
+        const removed = removeLayout(tagged, id)
+        expect(removed.keyboard.layouts).toBeUndefined()
+        expect(removed.keyboard.keys[0].variant).toBeUndefined()
+    })
+})

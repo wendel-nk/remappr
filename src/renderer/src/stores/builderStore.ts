@@ -33,6 +33,10 @@ interface BuilderState {
     selection: Set<number>
     /** Active layer index (left-panel layers list; clamped to layers length). */
     activeLayer: number
+    /** Active physical-layout variant id ('' = show all / common keys). */
+    activeVariant: string
+    /** Whether the matrix-wiring overlay is shown on the canvas. */
+    matrixView: boolean
     /** Snap-to-grid vs free-form placement (toolbar Seg toggle). */
     snapMode: SnapMode
     view: BuilderView
@@ -45,6 +49,8 @@ interface BuilderState {
     setSelection: (selection: Set<number>) => void
     clearSelection: () => void
     setActiveLayer: (index: number) => void
+    setActiveVariant: (id: string) => void
+    toggleMatrixView: () => void
     setSnapMode: (mode: SnapMode) => void
     setView: (patch: Partial<BuilderView>) => void
     resetView: () => void
@@ -72,6 +78,8 @@ const useBuilderStore = create<BuilderState>()(
         open: false,
         selection: new Set<number>(),
         activeLayer: 0,
+        activeVariant: '',
+        matrixView: false,
         snapMode: 'grid',
         view: DEFAULT_VIEW,
         past: [],
@@ -86,6 +94,8 @@ const useBuilderStore = create<BuilderState>()(
                           open,
                           selection: new Set<number>(),
                           activeLayer: 0,
+                          activeVariant: '',
+                          matrixView: false,
                           view: DEFAULT_VIEW,
                           past: [],
                           future: [],
@@ -95,6 +105,8 @@ const useBuilderStore = create<BuilderState>()(
         setSelection: (selection) => set({ selection }),
         clearSelection: () => set({ selection: new Set<number>() }),
         setActiveLayer: (activeLayer) => set({ activeLayer }),
+        setActiveVariant: (activeVariant) => set({ activeVariant }),
+        toggleMatrixView: () => set((s) => ({ matrixView: !s.matrixView })),
         setSnapMode: (snapMode) => set({ snapMode }),
         setView: (patch) => set((s) => ({ view: { ...s.view, ...patch } })),
         resetView: () => set({ view: DEFAULT_VIEW }),

@@ -46,6 +46,8 @@ import { matrixDims } from './builderMatrix'
 import { BuilderCanvas } from './BuilderCanvas'
 import { BuilderLayersPanel } from './BuilderLayersPanel'
 import { BuilderMetaForm } from './BuilderMetaForm'
+import { BuilderInspector } from './BuilderInspector'
+import { VariantBar } from './VariantBar'
 import { GridModal, KleModal, PresetModal } from './BuilderModals'
 
 /** Gradient brand badge (ruler glyph) shared with the start-page CTA. */
@@ -228,6 +230,8 @@ export function FullScreenBuilder(): JSX.Element {
     const snapMode = useBuilderStore((s) => s.snapMode)
     const setSnapMode = useBuilderStore((s) => s.setSnapMode)
     const selection = useBuilderStore((s) => s.selection)
+    const matrixView = useBuilderStore((s) => s.matrixView)
+    const toggleMatrixView = useBuilderStore((s) => s.toggleMatrixView)
     const canUndo = useBuilderStore((s) => s.past.length > 0)
     const canRedo = useBuilderStore((s) => s.future.length > 0)
     const undo = useBuilderStore((s) => s.undo)
@@ -342,11 +346,6 @@ export function FullScreenBuilder(): JSX.Element {
     const dims = matrixDims(config)
     const keyCount = config?.keyboard.keys.length ?? 0
 
-    const single =
-        selection.size === 1 && config
-            ? config.keyboard.keys[[...selection][0]]
-            : null
-
     return (
         <div className="flex h-full flex-col bg-background">
             {/* ===== toolbar ===== */}
@@ -371,7 +370,11 @@ export function FullScreenBuilder(): JSX.Element {
 
                 <div className="flex items-center gap-2">
                     <SnapSeg value={snapMode} onChange={setSnapMode} />
-                    <ToolButton label="Matrix wiring view" disabled>
+                    <ToolButton
+                        label="Matrix wiring view"
+                        active={matrixView}
+                        onClick={toggleMatrixView}
+                    >
                         <Scan size={18} />
                     </ToolButton>
                     <div className="mx-0.5 h-[22px] w-px bg-border" />
@@ -476,6 +479,10 @@ export function FullScreenBuilder(): JSX.Element {
                 {/* canvas */}
                 <main className="workbench-bg relative min-w-0 flex-1">
                     <BuilderCanvas />
+                    {/* layout-variant bar (top-centre) */}
+                    <div className="pointer-events-none absolute left-1/2 top-3.5 -translate-x-1/2">
+                        <VariantBar />
+                    </div>
                     {/* status / hint bar */}
                     <div
                         className="pointer-events-none absolute bottom-3.5 left-1/2 flex -translate-x-1/2 items-center gap-3.5 rounded-full border border-border px-3.5 py-2 text-[12px] text-muted-foreground shadow-lg backdrop-blur-md"
@@ -503,45 +510,12 @@ export function FullScreenBuilder(): JSX.Element {
 
                 {/* right inspector */}
                 <aside className="flex w-[296px] shrink-0 flex-col overflow-y-auto border-l border-border bg-sidebar">
+                    {/* pattern-check: skip — swap inspector stub for the BuilderInspector component */}
                     <div className="flex items-center gap-2 border-b border-border px-4 py-3">
                         <SlidersHorizontal size={15} className="text-primary" />
                         <span className="text-[13px] font-bold">Inspector</span>
                     </div>
-                    {single ? (
-                        <div className="space-y-3 p-4 text-sm">
-                            <div className="text-[12px] font-semibold text-muted-foreground">
-                                Key #{[...selection][0]}
-                            </div>
-                            <dl className="grid grid-cols-2 gap-x-3 gap-y-1.5 font-mono text-[12px]">
-                                <dt className="text-muted-foreground">X</dt>
-                                <dd>{single.x}</dd>
-                                <dt className="text-muted-foreground">Y</dt>
-                                <dd>{single.y}</dd>
-                                <dt className="text-muted-foreground">W</dt>
-                                <dd>{single.w}</dd>
-                                <dt className="text-muted-foreground">H</dt>
-                                <dd>{single.h}</dd>
-                                <dt className="text-muted-foreground">R</dt>
-                                <dd>{single.r}°</dd>
-                            </dl>
-                            <p className="text-[12px] leading-relaxed text-muted-foreground">
-                                Editing controls arrive in a later phase.
-                            </p>
-                        </div>
-                    ) : (
-                        <div className="p-6 text-center">
-                            <div className="mx-auto mb-3 grid size-12 place-items-center rounded-xl border border-dashed border-border text-muted-foreground">
-                                <SlidersHorizontal size={18} />
-                            </div>
-                            <div className="text-sm font-semibold">
-                                Nothing selected
-                            </div>
-                            <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
-                                Click a key to inspect its size, position &amp;
-                                matrix.
-                            </p>
-                        </div>
-                    )}
+                    <BuilderInspector />
                 </aside>
             </div>
 
