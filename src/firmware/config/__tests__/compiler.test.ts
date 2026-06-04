@@ -275,11 +275,56 @@ describe('encoders / sensor-rotate', () => {
         expect(dts).toMatch(/sensor-bindings = <&inc_dec_kp[^;]*&sr_0_1>;/)
     })
 
-    it('QMK warns encoders are not generated', () => {
-        const { diagnostics } = getCompiler('qmk').compile(parseKeymap(ENC))
+    it('QMK emits encoder_map (guarded) + warns to enable it', () => {
+        const { files, diagnostics } = getCompiler('qmk').compile(
+            parseKeymap(ENC),
+        )
+        const c = String(files.find((f) => f.filename === 'keymap.c')!.content)
+        expect(c).toContain('#ifdef ENCODER_MAP_ENABLE')
+        expect(c).toContain('encoder_map[][NUM_ENCODERS][2]')
+        expect(c).toContain('ENCODER_CCW_CW(')
         expect(diagnostics.some((d) => /encoder/.test(d.message))).toBe(true)
     })
+
+    it('QMK encoder_map sources per-key encoderBindings too', () => {
+        const c = String(
+            getCompiler('qmk')
+                .compile(parseKeymap(ENC_PERKEY))
+                .files.find((f) => f.filename === 'keymap.c')!.content,
+        )
+        expect(c).toContain('encoder_map[][NUM_ENCODERS][2]')
+        // two encoders → two ENCODER_CCW_CW cells on the base layer
+        expect(c).toMatch(/\[0\] = \{ ENCODER_CCW_CW\(.*ENCODER_CCW_CW\(.*\},/)
+    })
+
+    it('emits sensor-bindings from per-key encoderBindings (element model)', () => {
+        const dts = String(
+            getCompiler('zmk')
+                .compile(parseKeymap(ENC_PERKEY))
+                .files.find((f) => f.filename.endsWith('.keymap'))!.content,
+        )
+        // key 0 (keypress pair) → inc_dec_kp; key 1 (lighting) → sensor-rotate
+        expect(dts).toContain('&inc_dec_kp')
+        expect(dts).toContain('sr_0_k1: sr_0_k1 {')
+        expect(dts).toContain('&rgb_ug RGB_BRI')
+        // both encoders appear in the layer's sensor-bindings, key-index ordered
+        expect(dts).toMatch(/sensor-bindings = <&inc_dec_kp[^;]*&sr_0_k1>;/)
+    })
 })
+
+const ENC_PERKEY = `{
+    "schemaVersion": 1, "kind": "remappr.keymap",
+    "meta": { "name": "EncPK", "target": "zmk" },
+    "keyboard": { "id": "e", "name": "E", "keys": [
+        {"x":0,"y":0,"element":"encoder"},
+        {"x":1,"y":0,"element":"encoder"}
+    ] },
+    "layers": [{ "name": "base", "bindings": ["A","B"], "encoderBindings": {
+        "0": { "cw": "Up", "ccw": "Down" },
+        "1": { "cw": { "type": "lighting", "target": "underglow", "action": "brightness_up" },
+               "ccw": { "type": "lighting", "target": "underglow", "action": "brightness_down" } }
+    } }]
+}`
 
 const TAILS = `{
     "schemaVersion": 1, "kind": "remappr.keymap",

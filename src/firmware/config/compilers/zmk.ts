@@ -441,49 +441,84 @@ function emitEncoderSensors(
     const byLayer = new Map<number, string>()
     let warnedPress = false
 
+    // pattern-check: skip local cw/ccw pair → sensor token closure, no abstraction
+    // A cw/ccw pair → one sensor-binding token: the built-in &inc_dec_kp for a
+    // keypress/keypress pair, else a generated zmk,behavior-sensor-rotate node.
+    const pairToken = (
+        cw: CanonAction,
+        ccw: CanonAction,
+        idBase: string,
+        path: (string | number)[],
+    ): string => {
+        if (cw.type === 'key_press' && ccw.type === 'key_press') {
+            return `&inc_dec_kp ${zmkKeyName(cw.key)} ${zmkKeyName(ccw.key)}`
+        }
+        const id = `sr_${idBase}`
+        const cwTok = emitBinding(cw, ctx, [...path, 'cw'])
+        const ccwTok = emitBinding(ccw, ctx, [...path, 'ccw'])
+        behaviorLines.push(
+            `        ${id}: ${id} {`,
+            `            compatible = "zmk,behavior-sensor-rotate";`,
+            `            #sensor-binding-cells = <0>;`,
+            `            bindings = <${cwTok}>, <${ccwTok}>;`,
+            `        };`,
+        )
+        return `&${id}`
+    }
+    const warnPress = (path: (string | number)[]): void => {
+        if (warnedPress) return
+        ctx.diag.warn(
+            'encoder press is a regular matrix key in ZMK, not a sensor binding; place it in the layer bindings instead',
+            path,
+        )
+        warnedPress = true
+    }
+
+    // Per-key encoder model: positions tagged element:'encoder', in index order.
+    // The sensor index is this order, so every layer that binds ANY encoder must
+    // emit a token for ALL of them (missing → transparent) to stay aligned.
+    const trans: CanonAction = { type: 'transparent' }
+    const encoderKeys = config.keyboard.keys
+        .map((k, i) => (k.element === 'encoder' ? i : -1))
+        .filter((i) => i >= 0)
+
     config.layers.forEach((layer, li) => {
-        if (!layer.encoders?.length) return
         const tokens: string[] = []
-        layer.encoders.forEach((e, ei) => {
-            if (e.press && !warnedPress) {
-                ctx.diag.warn(
-                    'encoder press is a regular matrix key in ZMK, not a sensor binding; place it in the layer bindings instead',
-                    ['layers', li, 'encoders', ei, 'press'],
-                )
-                warnedPress = true
-            }
-            if (e.cw.type === 'key_press' && e.ccw.type === 'key_press') {
-                tokens.push(
-                    `&inc_dec_kp ${zmkKeyName(e.cw.key)} ${zmkKeyName(e.ccw.key)}`,
-                )
-                return
-            }
-            // Generate a sensor-rotate node for the non-keypress pair.
-            const id = `sr_${li}_${ei}`
-            const cw = emitBinding(e.cw, ctx, [
-                'layers',
-                li,
-                'encoders',
-                ei,
-                'cw',
-            ])
-            const ccw = emitBinding(e.ccw, ctx, [
-                'layers',
-                li,
-                'encoders',
-                ei,
-                'ccw',
-            ])
-            behaviorLines.push(
-                `        ${id}: ${id} {`,
-                `            compatible = "zmk,behavior-sensor-rotate";`,
-                `            #sensor-binding-cells = <0>;`,
-                `            bindings = <${cw}>, <${ccw}>;`,
-                `        };`,
+        // Legacy slot-indexed encoders[] (aligned to keyboard.encoders[]).
+        layer.encoders?.forEach((e, ei) => {
+            if (e.press) warnPress(['layers', li, 'encoders', ei, 'press'])
+            tokens.push(
+                pairToken(e.cw, e.ccw, `${li}_${ei}`, [
+                    'layers',
+                    li,
+                    'encoders',
+                    ei,
+                ]),
             )
-            tokens.push(`&${id}`)
         })
-        byLayer.set(li, tokens.join(' '))
+        // Per-key encoderBindings (builder element model).
+        if (
+            encoderKeys.length &&
+            Object.keys(layer.encoderBindings ?? {}).length
+        ) {
+            encoderKeys.forEach((ki) => {
+                const e = layer.encoderBindings?.[ki] ?? {
+                    cw: trans,
+                    ccw: trans,
+                }
+                if (e.press)
+                    warnPress(['layers', li, 'encoderBindings', ki, 'press'])
+                tokens.push(
+                    pairToken(e.cw, e.ccw, `${li}_k${ki}`, [
+                        'layers',
+                        li,
+                        'encoderBindings',
+                        ki,
+                    ]),
+                )
+            })
+        }
+        if (tokens.length) byLayer.set(li, tokens.join(' '))
     })
 
     return { behaviorLines, byLayer }
