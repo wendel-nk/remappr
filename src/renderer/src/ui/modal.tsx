@@ -135,7 +135,13 @@ export function Modal({
                 </DialogTrigger>
             )}
             <DialogContent
-                className={customModalBoxClass}
+                // Design-prototype modal chrome: top-aligned (not vertically
+                // centered), 16px radius, soft drop shadow, body scrolls when tall.
+                // twMerge lets these override the shadcn Dialog base classes.
+                className={cn(
+                    'top-[7vh] max-h-[86vh] translate-y-0 overflow-y-auto rounded-2xl shadow-[0_30px_70px_-20px_rgba(0,0,0,0.7)]',
+                    customModalBoxClass,
+                )}
                 showCloseButton={xButton}
                 {...(isDismissable
                     ? {
