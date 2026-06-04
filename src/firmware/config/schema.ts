@@ -307,6 +307,7 @@ export const LayerSchema = z.object({
     description: z.string().optional(),
     bindings: z.array(ActionSchema),
     encoders: z.array(EncoderBindingSchema).optional(),
+    encoderBindings: z.record(z.string(), EncoderBindingSchema).optional(),
 })
 
 export const ComboSchema = z.object({
@@ -727,6 +728,27 @@ export const KeymapSchema = BaseKeymapSchema.superRefine((km, ctx) => {
             checkAction(e.ccw, ['layers', li, 'encoders', ei, 'ccw'])
             if (e.press)
                 checkAction(e.press, ['layers', li, 'encoders', ei, 'press'])
+        })
+        Object.entries(layer.encoderBindings ?? {}).forEach(([k, e]) => {
+            const ki = Number(k)
+            if (!Number.isInteger(ki) || ki < 0 || ki >= keyCount) {
+                ctx.addIssue({
+                    code: 'custom',
+                    message: `layer "${layer.name}" has an encoder binding for key ${k}, out of range 0..${keyCount - 1}`,
+                    path: ['layers', li, 'encoderBindings', k],
+                })
+                return
+            }
+            checkAction(e.cw, ['layers', li, 'encoderBindings', k, 'cw'])
+            checkAction(e.ccw, ['layers', li, 'encoderBindings', k, 'ccw'])
+            if (e.press)
+                checkAction(e.press, [
+                    'layers',
+                    li,
+                    'encoderBindings',
+                    k,
+                    'press',
+                ])
         })
     })
     ;(km.combos ?? []).forEach((combo, ci) => {

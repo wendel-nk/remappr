@@ -158,7 +158,15 @@ export interface CanonLayer {
     name: string
     description?: string
     bindings: CanonAction[]
+    /** Slot-indexed encoder bindings — index-aligned to `keyboard.encoders[]`.
+     *  The original ZMK-style parallel array, kept for boards that declare
+     *  encoder slots separately from keys. */
     encoders?: CanonEncoderBinding[]
+    /** Per-key encoder bindings, keyed by the position's index in
+     *  `keyboard.keys` (the key must have `element: "encoder"`). The builder's
+     *  element model writes here; lets a single physical position carry both a
+     *  base binding and rotary cw/ccw/press without a parallel slot array. */
+    encoderBindings?: Record<number, CanonEncoderBinding>
 }
 
 export interface CanonCombo {

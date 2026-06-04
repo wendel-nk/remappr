@@ -242,6 +242,16 @@ export function toSurfaceObject(km: ConfigKeymap): Record<string, unknown> {
             ...(l.encoders
                 ? { encoders: l.encoders.map(denormalizeEncoder) }
                 : {}),
+            ...(l.encoderBindings && Object.keys(l.encoderBindings).length
+                ? {
+                      encoderBindings: Object.fromEntries(
+                          Object.entries(l.encoderBindings).map(([k, e]) => [
+                              k,
+                              denormalizeEncoder(e),
+                          ]),
+                      ),
+                  }
+                : {}),
         })),
         ...(km.combos
             ? {

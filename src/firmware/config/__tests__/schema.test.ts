@@ -100,7 +100,13 @@ describe('builder metadata fields', () => {
             id: 'b',
             name: 'B',
             keys: [
-                { x: 0, y: 0, variant: 'left' },
+                {
+                    x: 0,
+                    y: 0,
+                    variant: 'left',
+                    element: 'encoder',
+                    pin: 'GP29',
+                },
                 { x: 1, y: 0 },
             ],
             firmware: ['qmk', 'via', 'vial', 'zmk'],
@@ -111,7 +117,13 @@ describe('builder metadata fields', () => {
             layouts: [{ id: 'left', name: 'Left' }],
             split: true,
         },
-        layers: [{ name: 'base', bindings: ['Q', 'W'] }],
+        layers: [
+            {
+                name: 'base',
+                bindings: ['Q', 'W'],
+                encoderBindings: { 0: { cw: 'A', ccw: 'B', press: 'C' } },
+            },
+        ],
     })
 
     it('parses + carries the builder fields into the canonical doc', () => {
@@ -122,9 +134,17 @@ describe('builder metadata fields', () => {
         expect(km.keyboard.lighting?.underglow?.hue).toBe(200)
         expect(km.keyboard.lighting?.backlight?.breathing).toBe(true)
         expect(km.keyboard.keys[0].variant).toBe('left')
+        expect(km.keyboard.keys[0].element).toBe('encoder')
+        expect(km.keyboard.keys[0].pin).toBe('GP29')
         expect(km.keyboard.keys[1].variant).toBeUndefined()
         expect(km.keyboard.layouts).toEqual([{ id: 'left', name: 'Left' }])
         expect(km.keyboard.split).toBe(true)
+        const base = km.layers[0]
+        expect(base.encoderBindings?.[0]).toMatchObject({
+            cw: { type: 'key_press' },
+            ccw: { type: 'key_press' },
+            press: { type: 'key_press' },
+        })
     })
 
     it('round-trips the builder fields losslessly', () => {
@@ -144,6 +164,13 @@ describe('builder metadata fields', () => {
         expect(km.keyboard.layouts).toBeUndefined()
         expect(km.keyboard.split).toBeUndefined()
         expect(km.keyboard.keys.some((k) => k.variant !== undefined)).toBe(
+            false,
+        )
+        expect(km.keyboard.keys.some((k) => k.element !== undefined)).toBe(
+            false,
+        )
+        expect(km.keyboard.keys.some((k) => k.pin !== undefined)).toBe(false)
+        expect(km.layers.some((l) => l.encoderBindings !== undefined)).toBe(
             false,
         )
     })

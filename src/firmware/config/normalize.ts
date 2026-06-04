@@ -311,6 +311,16 @@ export function normalizeKeymap(km: SurfaceKeymap): ConfigKeymap {
             ...(l.encoders
                 ? { encoders: l.encoders.map(normalizeEncoder) }
                 : {}),
+            ...(l.encoderBindings
+                ? {
+                      encoderBindings: Object.fromEntries(
+                          Object.entries(l.encoderBindings).map(([k, e]) => [
+                              k,
+                              normalizeEncoder(e),
+                          ]),
+                      ),
+                  }
+                : {}),
         })),
         ...(km.combos
             ? {
