@@ -11,6 +11,7 @@
 import type { ExportedFile } from '../types'
 import type { Diagnostic } from './diagnostics'
 import { getCompiler } from './compiler'
+import { resolveQmkPin } from './pinmaps'
 import type { CanonAction, ConfigKeymap, Target } from './types'
 
 export interface ProjectBundle {
@@ -180,12 +181,66 @@ const QMK_BUILD_WORKFLOW = [
     ``,
 ].join('\n')
 
+// Build the QMK `config.h` body, emitting pin #defines from the builder's
+// friendly pin labels: `keyboard.pins` → MATRIX_ROW_PINS/MATRIX_COL_PINS, else
+// per-key `pin` → DIRECT_PINS (one row; QMK wants a rows×cols grid, so warn).
+// QMK pin tokens are usually the silkscreen label already (resolveQmkPin falls
+// back to the label); unset pins become NO_PIN. Returns the extra diagnostics.
+function qmkConfigH(config: ConfigKeymap): {
+    content: string
+    diagnostics: Diagnostic[]
+} {
+    const board = config.keyboard.hardware?.board
+    const pins = config.keyboard.pins
+    const diagnostics: Diagnostic[] = []
+    const lines = [`#pragma once`, `// remappr keymap — generated pin map.`]
+
+    if (pins && pins.rows.length && pins.cols.length) {
+        const rows = pins.rows.map((p) => resolveQmkPin(board, p)).join(', ')
+        const cols = pins.cols.map((p) => resolveQmkPin(board, p)).join(', ')
+        lines.push(
+            `#define MATRIX_ROW_PINS { ${rows} }`,
+            `#define MATRIX_COL_PINS { ${cols} }`,
+            `// diode-direction assumed COL2ROW — verify against your wiring.`,
+            `#define DIODE_DIRECTION COL2ROW`,
+        )
+    } else {
+        const keyPins = config.keyboard.keys.map((k) => k.pin?.trim() ?? '')
+        if (keyPins.some((p) => p)) {
+            const tokens = keyPins.map((p) =>
+                p ? resolveQmkPin(board, p) : 'NO_PIN',
+            )
+            lines.push(
+                `// DIRECT_PINS as a single row — reshape into your MATRIX_ROWS×MATRIX_COLS grid.`,
+                `#define DIRECT_PINS {{ ${tokens.join(', ')} }}`,
+            )
+            diagnostics.push({
+                level: 'warn',
+                message:
+                    'DIRECT_PINS emitted as a single row; reshape into your MATRIX_ROWS×MATRIX_COLS grid in config.h',
+                path: ['keyboard', 'keys'],
+            })
+            if (keyPins.some((p) => !p))
+                diagnostics.push({
+                    level: 'warn',
+                    message:
+                        'some keys have no pin assigned — emitted as NO_PIN in DIRECT_PINS',
+                    path: ['keyboard', 'keys'],
+                })
+        } else {
+            lines.push(`// add #defines here`)
+        }
+    }
+    return { content: lines.join('\n') + '\n', diagnostics }
+}
+
 function qmkBundle(config: ConfigKeymap, target: Target): ProjectBundle {
     const kb = sanitize(config.keyboard.id || config.meta.name)
     const km = 'remappr'
     const { files: compiled, diagnostics } = getCompiler(target).compile(config)
     const keymapC = compiled.find((f) => f.filename.endsWith('.c'))
     const base = `keyboards/${kb}/keymaps/${km}`
+    const configH = qmkConfigH(config)
 
     const qmkJson = JSON.stringify(
         { userspace_version: '1.1', build_targets: [[kb, km]] },
@@ -222,16 +277,17 @@ function qmkBundle(config: ConfigKeymap, target: Target): ProjectBundle {
             `${base}/rules.mk`,
             `# remappr keymap — add feature toggles here\n`,
         ),
-        text(
-            `${base}/config.h`,
-            `#pragma once\n// remappr keymap — add #defines here\n`,
-        ),
+        text(`${base}/config.h`, configH.content),
         text(`qmk.json`, qmkJson + '\n'),
         text(`.github/workflows/build_binaries.yml`, QMK_BUILD_WORKFLOW),
         text(`README.md`, readme),
     ]
 
-    return { files, diagnostics, rootName: `${kb}-qmk-userspace` }
+    return {
+        files,
+        diagnostics: [...diagnostics, ...configH.diagnostics],
+        rootName: `${kb}-qmk-userspace`,
+    }
 }
 
 /** Build the full project bundle for a target. ZMK → zmk-config skeleton;

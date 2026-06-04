@@ -20,9 +20,11 @@ import type {
     CanonModMorph,
     CanonTapDance,
     ConfigKeymap,
+    DiodeDirection,
     LightingAction,
 } from '../types'
 import type { Modifier } from '../keycodes'
+import { resolveZmkPin, gpioSpec, type PinRole } from '../pinmaps'
 
 const RGB_UG: Partial<Record<LightingAction, string>> = {
     toggle: 'RGB_TOG',
@@ -163,6 +165,104 @@ function emitKscan(kscan: CanonKscan): string[] {
         out.push(`        debounce-release-ms = <${kscan.debounceReleaseMs}>;`)
     out.push(`    };`)
     return out
+}
+
+// Emit a devicetree GPIO-list property, resolving each FRIENDLY pin label via the
+// board pin map. Resolved labels become a real `<&phandle pin FLAGS>` spec;
+// unresolved ones (unknown board/label, or a missing per-key pin) become a TODO
+// comment line + a `warn`, so the build clearly flags what the user must fill.
+function resolvedGpioListProp(
+    name: string,
+    labels: string[],
+    board: string | undefined,
+    role: PinRole,
+    diag: DiagnosticBag,
+): string[] {
+    const lines = [`        ${name}`]
+    let firstReal = true
+    labels.forEach((label, i) => {
+        const trimmed = label.trim()
+        const core = trimmed ? resolveZmkPin(board, trimmed) : null
+        if (core) {
+            lines.push(
+                `            ${firstReal ? '=' : ','} <${gpioSpec(core, role)}>`,
+            )
+            firstReal = false
+        } else if (!trimmed) {
+            diag.warn(
+                `${name}: position ${i} has no pin assigned — add the GpioSpec manually`,
+                ['keyboard', 'pins'],
+            )
+            lines.push(
+                `            /* [${i}] no pin assigned — add ${firstReal ? '=' : ','} <&gpio0 N FLAGS> */`,
+            )
+        } else {
+            diag.warn(
+                `pin "${trimmed}" not resolvable for board ${board ?? '(unset)'} — fill the ${name} GpioSpec manually`,
+                ['keyboard', 'pins'],
+            )
+            lines.push(
+                `            /* "${trimmed}" — no GpioSpec for board ${board ?? '(unset)'}; add ${firstReal ? '=' : ','} <&gpio0 N FLAGS> */`,
+            )
+        }
+    })
+    lines.push(`            ;`)
+    return lines
+}
+
+// Synthesize a `kscan0` node from the builder's FRIENDLY pin labels when no
+// explicit `hardware.kscan` was supplied: `keyboard.pins` (row/col labels) →
+// matrix, else per-key `pin` → direct. Returns null when there are no pins to
+// work with (caller then emits the geometry-only scaffold). `pins` carries no
+// diode direction, so a matrix assumes the ZMK-common `col2row`.
+function emitSynthKscan(
+    config: ConfigKeymap,
+    diag: DiagnosticBag,
+): string[] | null {
+    const board = config.keyboard.hardware?.board
+    const pins = config.keyboard.pins
+    if (pins && pins.rows.length && pins.cols.length) {
+        const dir: DiodeDirection = 'col2row'
+        const rowRole: PinRole = dir === 'col2row' ? 'input' : 'output'
+        const colRole: PinRole = dir === 'col2row' ? 'output' : 'input'
+        return [
+            `    kscan0: kscan {`,
+            `        compatible = "zmk,kscan-gpio-matrix";`,
+            `        /* diode-direction assumed "${dir}" — remappr pin labels carry none; verify. */`,
+            `        diode-direction = "${dir}";`,
+            ...resolvedGpioListProp(
+                'row-gpios',
+                pins.rows,
+                board,
+                rowRole,
+                diag,
+            ),
+            ...resolvedGpioListProp(
+                'col-gpios',
+                pins.cols,
+                board,
+                colRole,
+                diag,
+            ),
+            `    };`,
+        ]
+    }
+    const keyPins = config.keyboard.keys.map((k) => k.pin ?? '')
+    if (keyPins.some((p) => p.trim())) {
+        return [
+            `    kscan0: kscan {`,
+            `        compatible = "zmk,kscan-gpio-direct";`,
+            ...resolvedGpioListProp(
+                'input-gpios',
+                keyPins,
+                board,
+                'direct',
+                diag,
+            ),
+            `    };`,
+        ]
+    }
+    return null
 }
 
 // `chosen` node wiring the generated kscan + physical-layout. The transform is
@@ -708,30 +808,43 @@ function emitOverlay(config: ConfigKeymap, diag: DiagnosticBag): ExportedFile {
     })
 
     const transform = emitMatrixTransform(config, diag)
-    const hasKscan = Boolean(hw?.kscan)
+    // Real kscan wins; else synthesize one from friendly pin labels.
+    const explicitKscan = hw?.kscan ? emitKscan(hw.kscan) : null
+    const synthKscan = explicitKscan ? null : emitSynthKscan(config, diag)
+    const kscanLines = explicitKscan ?? synthKscan
+    const hasKscan = kscanLines != null
 
     const target = [
         ...(hw?.board ? [` * Target board: ${hw.board}.`] : []),
         ...(hw?.shield ? [` * Shield: ${hw.shield}.`] : []),
     ]
-    const header = hasKscan
+    const header = synthKscan
         ? [
               `/* Generated by remappr — ZMK overlay for ${config.keyboard.name}.`,
               ...target,
-              ` * Physical layout, electrical matrix-transform, kscan and chosen`,
-              ` * nodes are generated from the builder's hardware definition.`,
-              ` * Remaining SoC/peripheral nodes (pinctrl, LED drivers, …) are`,
-              ` * board-specific — see the checklist below. */`,
+              ` * Physical layout, matrix-transform, chosen and a kscan SYNTHESIZED`,
+              ` * from the builder's friendly pin labels are generated. Verify the`,
+              ` * pin assignments + diode-direction, and add SoC/peripheral nodes`,
+              ` * (pinctrl, LED drivers, …) from your board overlay. */`,
           ]
-        : [
-              `/* Generated by remappr — ZMK physical layout for ${config.keyboard.name}.`,
-              ...target,
-              ` * Key geometry + a geometry-DERIVED matrix-transform are generated.`,
-              ` * Remaining hardware nodes (kscan, pinctrl, backlight/underglow`,
-              ` * drivers) are board-specific — keep them in your board/shield overlay.`,
-              ` * The matrix-transform RC() map is a scaffold from physical position,`,
-              ` * NOT the real kscan wiring — verify it before flashing. */`,
-          ]
+        : hasKscan
+          ? [
+                `/* Generated by remappr — ZMK overlay for ${config.keyboard.name}.`,
+                ...target,
+                ` * Physical layout, electrical matrix-transform, kscan and chosen`,
+                ` * nodes are generated from the builder's hardware definition.`,
+                ` * Remaining SoC/peripheral nodes (pinctrl, LED drivers, …) are`,
+                ` * board-specific — see the checklist below. */`,
+            ]
+          : [
+                `/* Generated by remappr — ZMK physical layout for ${config.keyboard.name}.`,
+                ...target,
+                ` * Key geometry + a geometry-DERIVED matrix-transform are generated.`,
+                ` * Remaining hardware nodes (kscan, pinctrl, backlight/underglow`,
+                ` * drivers) are board-specific — keep them in your board/shield overlay.`,
+                ` * The matrix-transform RC() map is a scaffold from physical position,`,
+                ` * NOT the real kscan wiring — verify it before flashing. */`,
+            ]
 
     const lines = [
         ...header,
@@ -751,7 +864,7 @@ function emitOverlay(config: ConfigKeymap, diag: DiagnosticBag): ExportedFile {
         `    };`,
         ``,
         ...transform.lines,
-        ...(hw?.kscan ? [``, ...emitKscan(hw.kscan)] : []),
+        ...(kscanLines ? [``, ...kscanLines] : []),
         `};`,
         ``,
         ...notGeneratedBlock(hasKscan),

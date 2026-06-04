@@ -96,6 +96,16 @@ export {
 export { type ProjectBundle, buildProjectBundle } from './bundle'
 
 export {
+    type PinRole,
+    ZMK_PIN_MAPS,
+    QMK_PIN_ALIASES,
+    resolveZmkPin,
+    resolveQmkPin,
+    gpioSpec,
+    hasZmkPinMap,
+} from './pinmaps'
+
+export {
     type ActionCategory,
     type ActionMeta,
     type PaletteGroup,
