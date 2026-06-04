@@ -6,7 +6,7 @@
 // serialized Remappr configs under localStorage `remappr.boards`, so a designed
 // board can be saved, reopened, or removed without a backend. Loading a board
 // routes through configStore.loadFromSource (parse + validate in one place).
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Layers, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Modal } from '@/ui/modal'
@@ -30,11 +30,20 @@ export function LibraryModal({
 }: LibraryModalProps): JSX.Element {
     const config = useConfigStore((s) => s.config)
     const loadFromSource = useConfigStore((s) => s.loadFromSource)
-    const [boards, setBoards] = useState<BoardEntry[]>(loadBoards)
+    // Derive the list from localStorage, re-read whenever the modal (re)opens —
+    // the toolbar Save writes the library from outside this component, so a
+    // mount-time read would go stale — or after an in-modal mutation bumps `rev`.
+    const [rev, setRev] = useState(0)
+    const boards = useMemo<BoardEntry[]>(
+        () => loadBoards(),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [open, rev],
+    )
 
     const handleSave = (): void => {
         if (!config) return
-        setBoards(saveBoard(config))
+        saveBoard(config)
+        setRev((r) => r + 1)
         toast.success(`Saved "${config.meta.name}" to your library`)
     }
 
@@ -48,7 +57,8 @@ export function LibraryModal({
     }
 
     const handleDelete = (entry: BoardEntry): void => {
-        setBoards(deleteBoard(entry.id))
+        deleteBoard(entry.id)
+        setRev((r) => r + 1)
         toast.success(`Removed "${entry.name}"`)
     }
 
