@@ -333,3 +333,12 @@
 ::selection {
     background: color-mix(in oklch, var(--primary) 40%, transparent);
 }
+
+/* Design-prototype modal overlay blur. Keyed on Radix/shadcn's stable
+   data-slot attribute rather than editing the generated ui/dialog.tsx, so a
+   `shadcn add dialog` regen can't wipe it. */
+[data-slot='dialog-overlay'],
+[data-slot='alert-dialog-overlay'] {
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+}
