@@ -3,6 +3,7 @@
 import type { Discovery, FirmwareAdapter, Probe } from '@firmware/adapter'
 import type { KeyboardService } from '@firmware/service'
 import type { Transport } from '@firmware/transport'
+import type { ConfigKeymap } from '@firmware/config'
 
 import { MockKeyboardService } from './service'
 
@@ -71,4 +72,16 @@ export async function connectMock(): Promise<KeyboardService> {
     const transport = createMockTransport()
     const ctrl = new AbortController()
     return mockAdapter.connect(transport, ctrl.signal)
+}
+
+// Pattern check: Factory Method (Tier 1) — extended — sibling of connectMock
+// above; a thin factory producing a seeded MockKeyboardService for the handoff.
+/**
+ * Builder "Open in editor" handoff: a demo KeyboardService seeded from a
+ * specific board config rather than the static Corne demo, so the editor opens
+ * on exactly the keyboard the user just designed. The service's getConfigSource
+ * serializes this config, which (re)seeds configStore as the source of truth.
+ */
+export function connectMockWithConfig(config: ConfigKeymap): KeyboardService {
+    return new MockKeyboardService({ seedConfig: config })
 }

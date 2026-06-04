@@ -22,7 +22,7 @@ import type {
     Modifier,
 } from '@firmware/config'
 import { DiagnosticBag, type Diagnostic } from '@firmware/config'
-import type { KeyAction, Layer } from '@firmware/types'
+import type { KeyAction, Layer, PhysicalLayout } from '@firmware/types'
 import {
     buildMockKeyAction,
     HID_KP,
@@ -269,4 +269,27 @@ export function raiseMockToConfig(
     })
 
     return { ...prevConfig, layers }
+}
+
+/* ── geometry: config → runtime physical layout ────────────────────────── */
+
+/**
+ * Lower the config's canonical geometry (units, degrees) into a runtime
+ * PhysicalLayout (centi-units, centi-degrees) so a mock service seeded from a
+ * builder board renders that board's shape in the editor instead of the static
+ * Corne demo. The key order matches `config.keyboard.keys` (and thus each
+ * layer's bindings), so position indices line up across the bridge.
+ */
+export function configToPhysicalLayout(config: ConfigKeymap): PhysicalLayout {
+    const U = 100
+    const keys = config.keyboard.keys.map((k) => ({
+        x: Math.round(k.x * U),
+        y: Math.round(k.y * U),
+        w: Math.round((k.w || 1) * U),
+        h: Math.round((k.h || 1) * U),
+        ...(k.r ? { r: Math.round(k.r * U) } : {}),
+        ...(k.rx !== undefined ? { rx: Math.round(k.rx * U) } : {}),
+        ...(k.ry !== undefined ? { ry: Math.round(k.ry * U) } : {}),
+    }))
+    return { id: 0, name: config.meta.name || 'Custom', keys }
 }

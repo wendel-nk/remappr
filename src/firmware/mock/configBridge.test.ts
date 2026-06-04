@@ -3,7 +3,11 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { parseKeymap, resolveKeycode } from '@firmware/config'
-import { lowerConfigToMock, raiseMockToConfig } from './configBridge'
+import {
+    configToPhysicalLayout,
+    lowerConfigToMock,
+    raiseMockToConfig,
+} from './configBridge'
 import {
     HID_KP,
     MOCK_KIND_KEYPRESS,
@@ -73,6 +77,35 @@ describe('configBridge.lowerConfigToMock', () => {
                     d.level === 'warn' && /not representable/.test(d.message),
             ),
         ).toBe(true)
+    })
+})
+
+describe('configBridge.configToPhysicalLayout', () => {
+    it('scales config units (U) to runtime centi-units, preserving key order', () => {
+        const layout = configToPhysicalLayout(config)
+        expect(layout.keys).toHaveLength(config.keyboard.keys.length)
+        const k0 = config.keyboard.keys[0]
+        expect(layout.keys[0]).toMatchObject({
+            x: Math.round(k0.x * 100),
+            y: Math.round(k0.y * 100),
+            w: Math.round((k0.w || 1) * 100),
+            h: Math.round((k0.h || 1) * 100),
+        })
+    })
+
+    it('carries rotation (degrees → centi-degrees) only when present', () => {
+        const rotated = {
+            ...config,
+            keyboard: {
+                ...config.keyboard,
+                keys: [{ x: 1, y: 2, w: 1, h: 1, r: 8, rx: 1.5, ry: 2.5 }],
+            },
+        }
+        const [k] = configToPhysicalLayout(rotated).keys
+        expect(k).toMatchObject({ r: 800, rx: 150, ry: 250 })
+        // A flat key omits rotation fields entirely.
+        const flat = configToPhysicalLayout(config).keys[0]
+        expect(flat.r).toBeUndefined()
     })
 })
 

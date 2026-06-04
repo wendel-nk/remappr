@@ -11,7 +11,9 @@
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
 import type { ConfigKeymap } from '@firmware/config'
+import { connectMockWithConfig } from '@firmware'
 import useConfigStore from '@/stores/configStore'
+import useConnectionStore from '@/stores/connectionStore'
 
 export type SnapMode = 'grid' | 'free'
 
@@ -66,6 +68,10 @@ interface BuilderState {
     endGesture: () => void
     undo: () => void
     redo: () => void
+
+    /** "Open in editor" handoff: spin up a demo service seeded from the current
+     *  config and close the builder, so App's service branch shows the editor. */
+    openInEditor: () => void
 }
 
 const pushCapped = (
@@ -158,6 +164,23 @@ const useBuilderStore = create<BuilderState>()(
                 future: s.future.slice(1),
             }))
             useConfigStore.getState().setConfig(nextCfg)
+        },
+
+        openInEditor: () => {
+            const cfg = useConfigStore.getState().config
+            if (!cfg) return
+            const service = connectMockWithConfig(cfg)
+            const conn = useConnectionStore.getState()
+            // Mirror App's demo-connect lifecycle: clear the connection when the
+            // service closes. setService re-seeds configStore from the service's
+            // getConfigSource (the serialized board), keeping it source-of-truth.
+            service.onClosed(() => {
+                useConnectionStore.getState().setDeviceName(null)
+                useConnectionStore.getState().setService(null)
+            })
+            conn.setDeviceName(service.deviceInfo.name)
+            conn.setService(service)
+            get().setOpen(false)
         },
     })),
 )

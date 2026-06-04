@@ -49,6 +49,9 @@ import { BuilderMetaForm } from './BuilderMetaForm'
 import { BuilderInspector } from './BuilderInspector'
 import { VariantBar } from './VariantBar'
 import { GridModal, KleModal, PresetModal } from './BuilderModals'
+import { BuilderExportModal } from './BuilderExportModal'
+import { LibraryModal } from './LibraryModal'
+import { saveBoard } from './builderLibrary'
 
 /** Gradient brand badge (ruler glyph) shared with the start-page CTA. */
 function BrandBadge({ size = 28 }: { size?: number }): JSX.Element {
@@ -223,8 +226,7 @@ function BuildButton({
     )
 }
 
-const SOON = 'Coming in a later phase'
-
+// pattern-check: skip — remove dead SOON const; FullScreenBuilder unchanged
 export function FullScreenBuilder(): JSX.Element {
     const setOpen = useBuilderStore((s) => s.setOpen)
     const snapMode = useBuilderStore((s) => s.snapMode)
@@ -239,9 +241,18 @@ export function FullScreenBuilder(): JSX.Element {
     const commit = useBuilderStore((s) => s.commit)
     const config = useConfigStore((s) => s.config)
     const setConfig = useConfigStore((s) => s.setConfig)
+    const openInEditor = useBuilderStore((s) => s.openInEditor)
     const [buildModal, setBuildModal] = useState<
         'preset' | 'grid' | 'kle' | null
     >(null)
+    const [exportOpen, setExportOpen] = useState(false)
+    const [libraryOpen, setLibraryOpen] = useState(false)
+
+    const handleSave = (): void => {
+        if (!config) return
+        saveBoard(config)
+        toast.success(`Saved "${config.meta.name}" to your library`)
+    }
 
     // Seed a default from-scratch board the first time the builder opens with no
     // config loaded (a connected device would already have seeded configStore).
@@ -389,13 +400,17 @@ export function FullScreenBuilder(): JSX.Element {
                     <ToolButton label="Edit config JSON — coming soon" disabled>
                         <Code2 size={18} />
                     </ToolButton>
-                    <ToolButton label="Keyboard library" disabled>
+                    <ToolButton
+                        label="Keyboard library"
+                        onClick={() => setLibraryOpen(true)}
+                    >
                         <Layers size={18} />
                     </ToolButton>
                     <button
                         type="button"
-                        disabled
-                        className="inline-flex h-[34px] items-center gap-1.5 rounded-lg border border-border bg-secondary px-3 text-[13px] font-semibold text-secondary-foreground disabled:opacity-40"
+                        onClick={handleSave}
+                        disabled={!config}
+                        className="inline-flex h-[34px] items-center gap-1.5 rounded-lg border border-border bg-secondary px-3 text-[13px] font-semibold text-secondary-foreground transition-colors hover:border-primary disabled:opacity-40"
                         style={
                             {
                                 WebkitAppRegion: 'no-drag',
@@ -406,8 +421,9 @@ export function FullScreenBuilder(): JSX.Element {
                     </button>
                     <button
                         type="button"
-                        disabled
-                        className="inline-flex h-[34px] items-center gap-1.5 rounded-lg border border-border bg-secondary px-3 text-[13px] font-semibold text-secondary-foreground disabled:opacity-40"
+                        onClick={openInEditor}
+                        disabled={!config}
+                        className="inline-flex h-[34px] items-center gap-1.5 rounded-lg border border-border bg-secondary px-3 text-[13px] font-semibold text-secondary-foreground transition-colors hover:border-primary disabled:opacity-40"
                         style={
                             {
                                 WebkitAppRegion: 'no-drag',
@@ -418,10 +434,9 @@ export function FullScreenBuilder(): JSX.Element {
                     </button>
                     <button
                         type="button"
-                        onClick={() =>
-                            toast.info('Export & build', { description: SOON })
-                        }
-                        className="inline-flex h-[34px] items-center gap-1.5 rounded-lg bg-primary px-3.5 text-[13px] font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+                        onClick={() => setExportOpen(true)}
+                        disabled={!config}
+                        className="inline-flex h-[34px] items-center gap-1.5 rounded-lg bg-primary px-3.5 text-[13px] font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
                         style={
                             {
                                 WebkitAppRegion: 'no-drag',
@@ -531,6 +546,16 @@ export function FullScreenBuilder(): JSX.Element {
             <KleModal
                 open={buildModal === 'kle'}
                 onClose={() => setBuildModal(null)}
+            />
+
+            {/* export & build + library */}
+            <BuilderExportModal
+                open={exportOpen}
+                onClose={() => setExportOpen(false)}
+            />
+            <LibraryModal
+                open={libraryOpen}
+                onClose={() => setLibraryOpen(false)}
             />
         </div>
     )

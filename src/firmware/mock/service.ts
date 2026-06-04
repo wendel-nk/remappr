@@ -41,9 +41,13 @@ import {
     relabelLayer,
 } from './actions'
 import { mockCodec } from './codec'
-import { MOCK_CORNE_LAYOUT, MOCK_KEY_COUNT, MOCK_LAYOUTS } from './layout'
-import { lowerConfigToMock } from './configBridge'
-import { parseKeymap, type ConfigKeymap } from '@firmware/config'
+import { MOCK_CORNE_LAYOUT, MOCK_LAYOUTS } from './layout'
+import { configToPhysicalLayout, lowerConfigToMock } from './configBridge'
+import {
+    parseKeymap,
+    serializeKeymap,
+    type ConfigKeymap,
+} from '@firmware/config'
 // Raw JSON source of the demo remappr.keymap — the config editor + download
 // modal's source of truth. `?raw` hands back the file verbatim as a string, so
 // it round-trips through parseKeymap unchanged. Parsed once: it both seeds the
@@ -130,6 +134,10 @@ type ClosedHandler = (reason?: unknown) => void
 interface MockServiceOptions {
     deviceInfo?: Partial<DeviceInfo>
     initiallyLocked?: boolean
+    /** Seed the runtime from a specific config (builder "Open in editor"
+     *  handoff) instead of the static Corne demo. The physical layout, key
+     *  count, and getConfigSource() all derive from this board. */
+    seedConfig?: ConfigKeymap
 }
 
 export class MockKeyboardService implements KeyboardService {
@@ -166,7 +174,11 @@ export class MockKeyboardService implements KeyboardService {
     )
 
     private layers: Layer[] = []
-    private layouts: PhysicalLayout[] = MOCK_LAYOUTS.map((l) => ({ ...l }))
+    private layouts: PhysicalLayout[]
+    /** Source config the runtime is seeded from (static demo or a builder board). */
+    private readonly seedCfg: ConfigKeymap
+    /** Per-layer key count — derived from the seed geometry, not a fixed Corne. */
+    private readonly keyCount: number
     private activeLayoutId = 0
     private lockState: LockState
     private pendingChanges = false
@@ -201,8 +213,15 @@ export class MockKeyboardService implements KeyboardService {
     }
 
     constructor(opts: MockServiceOptions = {}) {
+        this.seedCfg = opts.seedConfig ?? SEED_CONFIG
+        this.keyCount = this.seedCfg.keyboard.keys.length
+        this.layouts = opts.seedConfig
+            ? [configToPhysicalLayout(opts.seedConfig)]
+            : MOCK_LAYOUTS.map((l) => ({ ...l }))
         this.deviceInfo = {
-            name: opts.deviceInfo?.name ?? 'Mock Corne',
+            name:
+                opts.deviceInfo?.name ??
+                (opts.seedConfig ? opts.seedConfig.meta.name : 'Mock Corne'),
             firmware: 'mock',
             firmwareVersion: opts.deviceInfo?.firmwareVersion ?? '0.0.0',
             serialNumber: opts.deviceInfo?.serialNumber ?? 'MOCK-0001',
@@ -406,12 +425,12 @@ export class MockKeyboardService implements KeyboardService {
         // truth). Rich config-only features (lighting/macros/…) lower to
         // transparent here but survive in the config; edits raise back via
         // raiseMockToConfig. Base mirrors the legacy QWERTY+home-row-mods demo.
-        const { layers } = lowerConfigToMock(SEED_CONFIG)
+        const { layers } = lowerConfigToMock(this.seedCfg)
         this.nextLayerId = 0
         this.layers = layers.map((l) => {
-            if (l.keys.length !== MOCK_KEY_COUNT) {
+            if (l.keys.length !== this.keyCount) {
                 throw new ProtocolError(
-                    `Seed layer "${l.name}" has ${l.keys.length} keys, expected ${MOCK_KEY_COUNT}`,
+                    `Seed layer "${l.name}" has ${l.keys.length} keys, expected ${this.keyCount}`,
                 )
             }
             return { id: this.nextLayerId++, name: l.name, keys: l.keys }
@@ -423,7 +442,7 @@ export class MockKeyboardService implements KeyboardService {
     }
 
     private makeFiller(kind: string, params: number[] = []): KeyAction[] {
-        return Array.from({ length: MOCK_KEY_COUNT }, () =>
+        return Array.from({ length: this.keyCount }, () =>
             buildMockKeyAction(kind, params, this.layerNames()),
         )
     }
@@ -514,7 +533,7 @@ export class MockKeyboardService implements KeyboardService {
         this.requireUnlocked()
         const idx = this.layerIndexById(layerId)
         if (idx < 0) throw new ProtocolError(`Unknown layer id: ${layerId}`)
-        if (position < 0 || position >= MOCK_KEY_COUNT) {
+        if (position < 0 || position >= this.keyCount) {
             throw new ProtocolError(`Position out of range: ${position}`)
         }
         const layer = this.layers[idx]
@@ -679,7 +698,12 @@ export class MockKeyboardService implements KeyboardService {
     }
 
     async getConfigSource(): Promise<string | null> {
-        return seedConfigSource
+        // The static demo returns its verbatim source (comments + formatting
+        // preserved); a builder-seeded board serializes its own config so the
+        // editor's source-of-truth is the board the user just designed.
+        return this.seedCfg === SEED_CONFIG
+            ? seedConfigSource
+            : serializeKeymap(this.seedCfg)
     }
 
     onClosed(cb: ClosedHandler): () => void {

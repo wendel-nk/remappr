@@ -7,6 +7,7 @@ registerAdapter(mockAdapter)
 export {
     mockAdapter,
     connectMock,
+    connectMockWithConfig,
     createMockTransport,
     MOCK_TRANSPORT_LABEL,
 } from './adapter'
