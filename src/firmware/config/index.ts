@@ -60,6 +60,7 @@ export {
     type SurfaceAction,
 } from './schema'
 
+export { buildConfigJsonSchema } from './jsonSchema'
 export { normalizeAction, normalizeKeymap, parseKeymap } from './normalize'
 export {
     denormalizeAction,

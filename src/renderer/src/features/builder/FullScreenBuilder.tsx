@@ -52,6 +52,7 @@ import { GridModal, KleModal, PresetModal } from './BuilderModals'
 import { BuilderExportModal } from './BuilderExportModal'
 import { LibraryModal } from './LibraryModal'
 import { saveBoard } from './builderLibrary'
+import { JsonConfigPanel } from './JsonConfigPanel'
 
 /** Gradient brand badge (ruler glyph) shared with the start-page CTA. */
 function BrandBadge({ size = 28 }: { size?: number }): JSX.Element {
@@ -234,6 +235,9 @@ export function FullScreenBuilder(): JSX.Element {
     const selection = useBuilderStore((s) => s.selection)
     const matrixView = useBuilderStore((s) => s.matrixView)
     const toggleMatrixView = useBuilderStore((s) => s.toggleMatrixView)
+    const jsonOpen = useBuilderStore((s) => s.jsonOpen)
+    const toggleJson = useBuilderStore((s) => s.toggleJson)
+    const setJsonOpen = useBuilderStore((s) => s.setJsonOpen)
     const canUndo = useBuilderStore((s) => s.past.length > 0)
     const canRedo = useBuilderStore((s) => s.future.length > 0)
     const undo = useBuilderStore((s) => s.undo)
@@ -397,7 +401,11 @@ export function FullScreenBuilder(): JSX.Element {
                     </ToolButton>
                     <ZoomGroup />
                     <div className="mx-0.5 h-[22px] w-px bg-border" />
-                    <ToolButton label="Edit config JSON — coming soon" disabled>
+                    <ToolButton
+                        label="Edit config JSON"
+                        active={jsonOpen}
+                        onClick={toggleJson}
+                    >
                         <Code2 size={18} />
                     </ToolButton>
                     <ToolButton
@@ -523,15 +531,26 @@ export function FullScreenBuilder(): JSX.Element {
                     </div>
                 </main>
 
-                {/* right inspector */}
-                <aside className="flex w-[296px] shrink-0 flex-col overflow-y-auto border-l border-border bg-sidebar">
-                    {/* pattern-check: skip — swap inspector stub for the BuilderInspector component */}
-                    <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-                        <SlidersHorizontal size={15} className="text-primary" />
-                        <span className="text-[13px] font-bold">Inspector</span>
-                    </div>
-                    <BuilderInspector />
-                </aside>
+                {/* right dock — JSON config editor (480px) or inspector (296px) */}
+                {/* pattern-check: skip — conditional dock render, presentational */}
+                {jsonOpen ? (
+                    <aside className="flex w-[480px] shrink-0 flex-col border-l border-border bg-sidebar">
+                        <JsonConfigPanel onClose={() => setJsonOpen(false)} />
+                    </aside>
+                ) : (
+                    <aside className="flex w-[296px] shrink-0 flex-col overflow-y-auto border-l border-border bg-sidebar">
+                        <div className="flex items-center gap-2 border-b border-border px-4 py-3">
+                            <SlidersHorizontal
+                                size={15}
+                                className="text-primary"
+                            />
+                            <span className="text-[13px] font-bold">
+                                Inspector
+                            </span>
+                        </div>
+                        <BuilderInspector />
+                    </aside>
+                )}
             </div>
 
             {/* build-from modals */}

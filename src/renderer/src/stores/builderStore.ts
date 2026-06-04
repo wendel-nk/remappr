@@ -39,6 +39,8 @@ interface BuilderState {
     activeVariant: string
     /** Whether the matrix-wiring overlay is shown on the canvas. */
     matrixView: boolean
+    /** Whether the right dock shows the JSON config editor instead of the inspector. */
+    jsonOpen: boolean
     /** Snap-to-grid vs free-form placement (toolbar Seg toggle). */
     snapMode: SnapMode
     view: BuilderView
@@ -53,6 +55,8 @@ interface BuilderState {
     setActiveLayer: (index: number) => void
     setActiveVariant: (id: string) => void
     toggleMatrixView: () => void
+    setJsonOpen: (open: boolean) => void
+    toggleJson: () => void
     setSnapMode: (mode: SnapMode) => void
     setView: (patch: Partial<BuilderView>) => void
     resetView: () => void
@@ -86,6 +90,7 @@ const useBuilderStore = create<BuilderState>()(
         activeLayer: 0,
         activeVariant: '',
         matrixView: false,
+        jsonOpen: false,
         snapMode: 'grid',
         view: DEFAULT_VIEW,
         past: [],
@@ -102,6 +107,7 @@ const useBuilderStore = create<BuilderState>()(
                           activeLayer: 0,
                           activeVariant: '',
                           matrixView: false,
+                          jsonOpen: false,
                           view: DEFAULT_VIEW,
                           past: [],
                           future: [],
@@ -113,6 +119,8 @@ const useBuilderStore = create<BuilderState>()(
         setActiveLayer: (activeLayer) => set({ activeLayer }),
         setActiveVariant: (activeVariant) => set({ activeVariant }),
         toggleMatrixView: () => set((s) => ({ matrixView: !s.matrixView })),
+        setJsonOpen: (jsonOpen) => set({ jsonOpen }),
+        toggleJson: () => set((s) => ({ jsonOpen: !s.jsonOpen })),
         setSnapMode: (snapMode) => set({ snapMode }),
         setView: (patch) => set((s) => ({ view: { ...s.view, ...patch } })),
         resetView: () => set({ view: DEFAULT_VIEW }),
