@@ -20,6 +20,7 @@ import {
     removeTransform,
     renameLayout,
     setBinding,
+    setEncoderBinding,
     setKeyMatrix,
     setKeyVariant,
 } from './builderInspectorOps'
@@ -132,6 +133,40 @@ describe('builderInspectorOps — bindings', () => {
         expect(
             parseKeymap(serializeKeymap(out)).layers[0].bindings,
         ).toHaveLength(2)
+    })
+
+    it('setEncoderBinding seeds cw/ccw transparent then sets the slot', () => {
+        // First touch (cw) lazily creates the entry; the untouched ccw defaults
+        // to transparent and press stays absent.
+        const out = setEncoderBinding(
+            grid(1, 2),
+            0,
+            1,
+            'cw',
+            parseBindingToken('A')!,
+        )
+        const entry = out.layers[0].encoderBindings?.[1]
+        expect(entry?.cw).toMatchObject({ type: 'key_press' })
+        expect(entry?.ccw).toEqual({ type: 'transparent' })
+        expect(entry?.press).toBeUndefined()
+        // Other keys + layers untouched.
+        expect(out.layers[0].encoderBindings?.[0]).toBeUndefined()
+        // A second slot (press) preserves the existing cw.
+        const out2 = setEncoderBinding(
+            out,
+            0,
+            1,
+            'press',
+            parseBindingToken('B')!,
+        )
+        const e2 = out2.layers[0].encoderBindings?.[1]
+        expect(e2?.cw).toMatchObject({ type: 'key_press' })
+        expect(e2?.press).toMatchObject({ type: 'key_press' })
+        // Round-trips through the schema (string-keyed encoderBindings).
+        expect(
+            parseKeymap(serializeKeymap(out2)).layers[0].encoderBindings?.[1]
+                ?.press,
+        ).toBeDefined()
     })
 })
 

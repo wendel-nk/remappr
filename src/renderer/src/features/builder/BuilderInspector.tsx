@@ -27,7 +27,7 @@ import { KeyButton } from '@/features/keymap/keyboard/KeyButton'
 import { Switch } from '@/ui/switch'
 import useBuilderStore from '@/stores/builderStore'
 import useConfigStore from '@/stores/configStore'
-import type { CanonGeometry } from '@firmware/config'
+import type { CanonAction, CanonGeometry } from '@firmware/config'
 import { duplicateKeys, removeKeys, snap as snapStep } from './geometryEditor'
 import {
     applyAutoMatrix,
@@ -40,10 +40,12 @@ import {
     patchKey,
     removeTransform,
     setBinding,
+    setEncoderBinding,
     setKeyMatrix,
     setKeyVariant,
+    type EncoderSlot,
 } from './builderInspectorOps'
-import { builderCapProps } from './builderCapProps'
+import { builderCapProps, builderBindingCode } from './builderCapProps'
 import { colPins, rowPins } from './builderPins'
 
 const WIDTH_PRESETS = [1, 1.25, 1.5, 1.75, 2, 2.25, 2.75, 6.25]
@@ -201,6 +203,89 @@ function BulkBtn({
         >
             {icon} {label}
         </button>
+    )
+}
+
+/** The three rotary slots of an encoder, in display order. */
+const ENCODER_SLOTS: { slot: EncoderSlot; label: string }[] = [
+    { slot: 'cw', label: 'Rotate ↻ (CW)' },
+    { slot: 'ccw', label: 'Rotate ↺ (CCW)' },
+    { slot: 'press', label: 'Press' },
+]
+
+// pattern-check: skip presentational cap-preview + edit/clear row, reuses capProps, no logic
+/** One compact binding row: a cap preview + slot label + edit / clear. Shared by
+ *  the encoder rotary slots (cw / ccw / press); opening edits route through the
+ *  same firmware-aware picker as a key binding. */
+function BindingSlotRow({
+    action,
+    label,
+    onEdit,
+    onClear,
+}: {
+    action: CanonAction | undefined
+    label: string
+    onEdit: () => void
+    onClear: () => void
+}): JSX.Element {
+    const cap = builderCapProps(action)
+    const code = builderBindingCode(action)
+    return (
+        <div className="flex items-center gap-2.5 rounded-lg border border-border bg-background p-2">
+            <button
+                type="button"
+                onClick={onEdit}
+                aria-label={`Edit ${label}`}
+                className="relative shrink-0"
+                style={{ width: 38, height: 38 }}
+            >
+                <KeyButton
+                    oneU={38}
+                    width={1}
+                    height={1}
+                    hoverZoom={false}
+                    tapText={cap?.tapText}
+                    header={cap?.header}
+                    actionLabel={code}
+                    category={cap?.category}
+                    accentCategory={cap?.accentCategory}
+                    holdTap={cap?.holdTap}
+                    showHeaderTag={!!(cap?.header || code)}
+                >
+                    {cap && !cap.holdTap ? cap.tapText : undefined}
+                </KeyButton>
+            </button>
+            <div className="min-w-0 flex-1">
+                <div className="text-[10.5px] font-bold uppercase tracking-[0.06em] text-muted-foreground">
+                    {label}
+                </div>
+                <div className="truncate text-[12.5px] font-bold">
+                    {cap?.tapText ?? '▽'}
+                </div>
+            </div>
+            <button
+                type="button"
+                onClick={onEdit}
+                aria-label={`Edit ${label} binding`}
+                className="grid size-8 place-items-center rounded-lg border text-foreground transition-colors"
+                style={{
+                    background:
+                        'color-mix(in oklch, var(--primary) 16%, var(--background))',
+                    borderColor:
+                        'color-mix(in oklch, var(--primary) 45%, transparent)',
+                }}
+            >
+                <Pencil size={13} />
+            </button>
+            <button
+                type="button"
+                onClick={onClear}
+                aria-label={`Clear ${label} binding`}
+                className="grid size-8 place-items-center rounded-lg border border-border text-muted-foreground hover:text-foreground"
+            >
+                <X size={14} />
+            </button>
+        </div>
     )
 }
 
@@ -377,6 +462,7 @@ export function BuilderInspector(): JSX.Element {
     const layouts = config.keyboard.layouts ?? []
     const binding = config.layers[activeLayer]?.bindings[index]
     const bindingCap = builderCapProps(binding)
+    const bindingCode = builderBindingCode(binding)
     const layerName = config.layers[activeLayer]?.name ?? 'layer'
     const element: 'key' | 'encoder' | 'slider' = key.element ?? 'key'
     const setElement = (el: 'key' | 'encoder' | 'slider'): void =>
@@ -404,10 +490,35 @@ export function BuilderInspector(): JSX.Element {
             <ElementTabs element={element} onSelect={setElement} />
 
             {element === 'encoder' && (
-                <ElementNote
-                    label={`Encoder rotary · ${layerName}`}
-                    text="Clockwise / counter-clockwise / press bindings are coming next — the firmware-aware picker already supports the encoder slots. Wire its pins below."
-                />
+                <div>
+                    <MiniLabel>Encoder rotary · {layerName}</MiniLabel>
+                    <div className="flex flex-col gap-2">
+                        {ENCODER_SLOTS.map(({ slot, label }) => (
+                            <BindingSlotRow
+                                key={slot}
+                                label={label}
+                                action={
+                                    config.layers[activeLayer]
+                                        ?.encoderBindings?.[index]?.[slot]
+                                }
+                                onEdit={() =>
+                                    openBinding({ keyIndex: index, slot })
+                                }
+                                onClear={() =>
+                                    commit(
+                                        setEncoderBinding(
+                                            config,
+                                            activeLayer,
+                                            index,
+                                            slot,
+                                            { type: 'transparent' },
+                                        ),
+                                    )
+                                }
+                            />
+                        ))}
+                    </div>
+                </div>
             )}
             {element === 'slider' && (
                 <ElementNote
@@ -438,10 +549,13 @@ export function BuilderInspector(): JSX.Element {
                                 hoverZoom={false}
                                 tapText={bindingCap?.tapText}
                                 header={bindingCap?.header}
+                                actionLabel={bindingCode}
                                 category={bindingCap?.category}
                                 accentCategory={bindingCap?.accentCategory}
                                 holdTap={bindingCap?.holdTap}
-                                showHeaderTag={!!bindingCap?.header}
+                                showHeaderTag={
+                                    !!(bindingCap?.header || bindingCode)
+                                }
                             >
                                 {bindingCap && !bindingCap.holdTap
                                     ? bindingCap.tapText

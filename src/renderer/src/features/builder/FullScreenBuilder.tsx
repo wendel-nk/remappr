@@ -49,7 +49,7 @@ import { BuilderLayersPanel } from './BuilderLayersPanel'
 import { BuilderMetaForm } from './BuilderMetaForm'
 import { BuilderInspector } from './BuilderInspector'
 import { BindingPicker } from './BindingPicker'
-import { setBinding } from './builderInspectorOps'
+import { setBinding, setEncoderBinding } from './builderInspectorOps'
 import { VariantBar } from './VariantBar'
 import { GridModal, KleModal, PresetModal, StartModal } from './BuilderModals'
 import { BuilderExportModal } from './BuilderExportModal'
@@ -562,16 +562,23 @@ export function FullScreenBuilder(): JSX.Element {
                             target={binding}
                             onClose={closeBinding}
                             onPick={(action) => {
-                                if (binding.slot !== 'key') return
                                 const cfg = useConfigStore.getState().config
                                 if (!cfg) return
                                 commit(
-                                    setBinding(
-                                        cfg,
-                                        activeLayer,
-                                        binding.keyIndex,
-                                        action,
-                                    ),
+                                    binding.slot === 'key'
+                                        ? setBinding(
+                                              cfg,
+                                              activeLayer,
+                                              binding.keyIndex,
+                                              action,
+                                          )
+                                        : setEncoderBinding(
+                                              cfg,
+                                              activeLayer,
+                                              binding.keyIndex,
+                                              binding.slot,
+                                              action,
+                                          ),
                                 )
                             }}
                         />

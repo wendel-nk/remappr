@@ -35,6 +35,12 @@ const FW_NAME: Record<string, string> = {
     zmk: 'ZMK',
 }
 
+const SLOT_LABEL: Record<string, string> = {
+    cw: 'Rotate ↻',
+    ccw: 'Rotate ↺',
+    press: 'Press',
+}
+
 export function BindingPicker({
     target,
     onPick,
@@ -52,8 +58,13 @@ export function BindingPicker({
     const macros = useMemo(() => config?.macros ?? [], [config])
     const tapDances = useMemo(() => config?.tapDances ?? [], [config])
     const layerName = layers[activeLayer]?.name ?? 'layer'
+    // 'key' edits the base binding; cw/ccw/press edit the per-key encoder slot.
     const current =
-        config?.layers[activeLayer]?.bindings[target.keyIndex] ?? undefined
+        target.slot === 'key'
+            ? config?.layers[activeLayer]?.bindings[target.keyIndex]
+            : config?.layers[activeLayer]?.encoderBindings?.[target.keyIndex]?.[
+                  target.slot
+              ]
 
     const ctx = useMemo<BridgeContext>(
         () => ({
@@ -106,7 +117,10 @@ export function BindingPicker({
             <div className="flex items-center gap-2.5 px-4 py-2.5">
                 <span className="text-[13px] font-bold">Binding</span>
                 <span className="rounded-full border border-border bg-card px-2.5 py-1 text-[11.5px] font-semibold text-muted-foreground">
-                    {layerName} · Key #{target.keyIndex} ·{' '}
+                    {layerName} · Key #{target.keyIndex}
+                    {target.slot !== 'key' && (
+                        <> · {SLOT_LABEL[target.slot]}</>
+                    )}{' '}
                     <span className="font-mono text-foreground">
                         {bindingLabel(current)}
                     </span>

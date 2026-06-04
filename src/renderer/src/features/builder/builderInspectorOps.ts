@@ -221,6 +221,39 @@ export function setBinding(
     }
 }
 
+// pattern-check: skip additive pure config transform mirroring setBinding, no abstraction
+/** Rotary slot of a per-key encoder binding (the non-`key` BindingSlots). */
+export type EncoderSlot = 'cw' | 'ccw' | 'press'
+
+/** Set one rotary slot of a key's encoder binding on a layer, keyed by the key's
+ *  index in `keyboard.keys`. Lazily creates `layer.encoderBindings` + the per-key
+ *  entry; cw/ccw are required by the type, so a fresh entry defaults the untouched
+ *  rotary direction to transparent (press stays absent). */
+export function setEncoderBinding(
+    config: ConfigKeymap,
+    layerIndex: number,
+    keyIndex: number,
+    slot: EncoderSlot,
+    action: CanonAction,
+): ConfigKeymap {
+    const trans: CanonAction = { type: 'transparent' }
+    return {
+        ...config,
+        layers: config.layers.map((l, li) => {
+            if (li !== layerIndex) return l
+            const prev = l.encoderBindings?.[keyIndex]
+            const entry = prev ?? { cw: trans, ccw: trans }
+            return {
+                ...l,
+                encoderBindings: {
+                    ...l.encoderBindings,
+                    [keyIndex]: { ...entry, [slot]: action },
+                },
+            }
+        }),
+    }
+}
+
 /* ── physical-layout variants ──────────────────────────────────────────── */
 
 const nextVariantId = (existing: CanonLayout[]): string => {
