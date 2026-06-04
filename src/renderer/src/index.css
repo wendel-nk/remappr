@@ -288,4 +288,20 @@
         );
         pointer-events: none;
     }
+
+    /* Soft entrance for start-page / builder sections (design prototype). */
+    .fade-in {
+        animation: fade-in 0.4s ease both;
+    }
+
+    @keyframes fade-in {
+        from {
+            opacity: 0;
+            transform: translateY(8px);
+        }
+        to {
+            opacity: 1;
+            transform: none;
+        }
+    }
 }

@@ -1,29 +1,40 @@
-// pattern-check: skip — presentational dedup, no abstraction
+// pattern-check: skip — presentational card, no abstraction
 import type { ReactNode } from 'react'
-import { Card, CardContent } from '@/ui/card'
+import type { LucideIcon } from 'lucide-react'
 
 interface FeatureCardProps {
     title: string
     description: string
     action: ReactNode
+    icon?: LucideIcon
 }
 
+/** Start-page feature card, ported 1:1 from the design prototype: solid card,
+ *  primary-tinted icon box, centered title/body, action pinned to the bottom. */
 export function FeatureCard({
     title,
     description,
     action,
+    icon: Icon,
 }: FeatureCardProps): JSX.Element {
     return (
-        <Card className="border-dashed">
-            <CardContent className="flex h-full flex-col items-center justify-between gap-4 py-8 text-center">
-                <div>
-                    <h3 className="font-semibold">{title}</h3>
-                    <p className="text-sm text-muted-foreground">
-                        {description}
-                    </p>
+        <div className="flex flex-col items-center rounded-2xl border border-border bg-card p-5 text-center">
+            {Icon && (
+                <div
+                    className="mb-3 grid size-10 place-items-center rounded-[10px] text-primary"
+                    style={{
+                        background:
+                            'color-mix(in oklch, var(--primary) 12%, transparent)',
+                    }}
+                >
+                    <Icon size={20} />
                 </div>
-                {action}
-            </CardContent>
-        </Card>
+            )}
+            <div className="text-[14.5px] font-bold">{title}</div>
+            <p className="mx-0 mb-4 mt-1.5 text-[13px] leading-normal text-muted-foreground">
+                {description}
+            </p>
+            <div className="mt-auto">{action}</div>
+        </div>
     )
 }

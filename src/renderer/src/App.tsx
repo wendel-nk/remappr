@@ -18,6 +18,8 @@ import { DevicePreviewCapture } from '@/features/connection/DevicePreviewCapture
 import { ErrorBoundary } from '@/ui/ErrorBoundary'
 import { toast } from 'sonner'
 import { StartPage } from '@/features/connection/start-page/StartPage'
+import { FullScreenBuilder } from '@/features/builder'
+import useBuilderStore from '@/stores/builderStore'
 import { CoachmarkTour } from '@/features/onboarding/CoachmarkTour'
 import { UpdateNotification } from '@/components/UpdateNotification'
 import { TitleBar } from '@/layout/TitleBar'
@@ -121,17 +123,24 @@ function App(): JSX.Element {
         return () => document.body.classList.remove('app-electron')
     }, [isElectron])
 
+    const builderOpen = useBuilderStore((s) => s.open)
+
     const showEditor =
         !!service && !(service.capabilities.lock && !isUnlocked(lockState))
 
     return (
         <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
             <div className="flex h-screen flex-col overflow-hidden">
-                {/* In the editor the window controls are merged into the 52px header;
-                    elsewhere (start page / locked overlay) we still need a drag bar. */}
-                {!showEditor && <TitleBar />}
+                {/* The editor and the full-screen builder both own a 52px header
+                    with their own drag region; elsewhere (start page / locked
+                    overlay) we still need a standalone drag bar. */}
+                {!showEditor && !builderOpen && <TitleBar />}
                 <div className="flex-1 min-h-0 overflow-hidden">
-                    {service ? (
+                    {builderOpen ? (
+                        <ErrorBoundary>
+                            <FullScreenBuilder />
+                        </ErrorBoundary>
+                    ) : service ? (
                         service.capabilities.lock && !isUnlocked(lockState) ? (
                             <ErrorBoundary>
                                 <LockedOverlay />
