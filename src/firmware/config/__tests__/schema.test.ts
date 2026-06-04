@@ -109,6 +109,7 @@ describe('builder metadata fields', () => {
                 backlight: { brightness: 50, breathing: true },
             },
             layouts: [{ id: 'left', name: 'Left' }],
+            split: true,
         },
         layers: [{ name: 'base', bindings: ['Q', 'W'] }],
     })
@@ -123,6 +124,7 @@ describe('builder metadata fields', () => {
         expect(km.keyboard.keys[0].variant).toBe('left')
         expect(km.keyboard.keys[1].variant).toBeUndefined()
         expect(km.keyboard.layouts).toEqual([{ id: 'left', name: 'Left' }])
+        expect(km.keyboard.split).toBe(true)
     })
 
     it('round-trips the builder fields losslessly', () => {
@@ -140,6 +142,7 @@ describe('builder metadata fields', () => {
         expect(km.keyboard.firmware).toBeUndefined()
         expect(km.keyboard.lighting).toBeUndefined()
         expect(km.keyboard.layouts).toBeUndefined()
+        expect(km.keyboard.split).toBeUndefined()
         expect(km.keyboard.keys.some((k) => k.variant !== undefined)).toBe(
             false,
         )

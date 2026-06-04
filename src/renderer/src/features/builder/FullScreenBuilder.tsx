@@ -11,7 +11,7 @@
 // read-only canvas. Toolbar actions (undo/redo, JSON, library, save, editor,
 // export) + the left build-tools + the editable inspector land in later phases;
 // they render here disabled with a tooltip so the shell reads as complete.
-import { useEffect, useMemo } from 'react'
+import { useEffect, useState } from 'react'
 import {
     ArrowLeft,
     ArrowRight,
@@ -35,13 +35,18 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/ui/tooltip'
 import useBuilderStore, { type SnapMode } from '@/stores/builderStore'
 import useConfigStore from '@/stores/configStore'
 import {
+    addKey,
     duplicateKeys,
     newBoardConfig,
     removeKeys,
     snap as snapStep,
     updateKeys,
 } from './geometryEditor'
+import { matrixDims } from './builderMatrix'
 import { BuilderCanvas } from './BuilderCanvas'
+import { BuilderLayersPanel } from './BuilderLayersPanel'
+import { BuilderMetaForm } from './BuilderMetaForm'
+import { GridModal, KleModal, PresetModal } from './BuilderModals'
 
 /** Gradient brand badge (ruler glyph) shared with the start-page CTA. */
 function BrandBadge({ size = 28 }: { size?: number }): JSX.Element {
@@ -197,6 +202,25 @@ function SectionTitle({
     )
 }
 
+/** A left-panel "Build from" action button. */
+function BuildButton({
+    label,
+    onClick,
+}: {
+    label: string
+    onClick: () => void
+}): JSX.Element {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            className="rounded-lg border border-border bg-background px-3 py-2.5 text-left text-[12.5px] font-semibold text-foreground transition-colors hover:border-primary"
+        >
+            {label}
+        </button>
+    )
+}
+
 const SOON = 'Coming in a later phase'
 
 export function FullScreenBuilder(): JSX.Element {
@@ -208,8 +232,12 @@ export function FullScreenBuilder(): JSX.Element {
     const canRedo = useBuilderStore((s) => s.future.length > 0)
     const undo = useBuilderStore((s) => s.undo)
     const redo = useBuilderStore((s) => s.redo)
+    const commit = useBuilderStore((s) => s.commit)
     const config = useConfigStore((s) => s.config)
     const setConfig = useConfigStore((s) => s.setConfig)
+    const [buildModal, setBuildModal] = useState<
+        'preset' | 'grid' | 'kle' | null
+    >(null)
 
     // Seed a default from-scratch board the first time the builder opens with no
     // config loaded (a connected device would already have seeded configStore).
@@ -310,17 +338,9 @@ export function FullScreenBuilder(): JSX.Element {
         return () => window.removeEventListener('keydown', onKey)
     }, [])
 
-    // Grid dimensions from geometry (no row/col fields yet — derive from extent).
-    const dims = useMemo(() => {
-        const keys = config?.keyboard.keys ?? []
-        let cols = 0
-        let rows = 0
-        for (const k of keys) {
-            cols = Math.max(cols, Math.round(k.x + k.w))
-            rows = Math.max(rows, Math.round(k.y + k.h))
-        }
-        return { rows, cols, count: keys.length }
-    }, [config])
+    // Matrix dimensions: the committed transform, else position-derived bands.
+    const dims = matrixDims(config)
+    const keyCount = config?.keyboard.keys.length ?? 0
 
     const single =
         selection.size === 1 && config
@@ -344,7 +364,7 @@ export function FullScreenBuilder(): JSX.Element {
                             Builder
                         </span>
                         <span className="text-[11px] font-semibold text-muted-foreground">
-                            {dims.rows}×{dims.cols} · {dims.count} keys
+                            {dims.rows}×{dims.cols} · {keyCount} keys
                         </span>
                     </div>
                 </div>
@@ -413,54 +433,42 @@ export function FullScreenBuilder(): JSX.Element {
             {/* ===== body ===== */}
             <div className="flex min-h-0 flex-1">
                 {/* left tools panel */}
+                {/* pattern-check: skip — presentational JSX wiring of existing panels + modal-open state */}
                 <aside className="flex w-[270px] shrink-0 flex-col overflow-y-auto border-r border-border bg-sidebar">
                     <div className="border-b border-border p-3.5">
                         <SectionTitle>Layers</SectionTitle>
-                        <ul className="mt-2.5 space-y-1">
-                            {(config?.layers ?? []).map((l, i) => (
-                                <li
-                                    key={i}
-                                    className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground"
-                                >
-                                    <span className="text-[11px] font-mono text-muted-foreground">
-                                        L{i}
-                                    </span>
-                                    {l.name}
-                                </li>
-                            ))}
-                        </ul>
+                        <div className="mt-2.5">
+                            <BuilderLayersPanel />
+                        </div>
                         <p className="mt-2.5 text-[11px] leading-relaxed text-muted-foreground">
                             Geometry &amp; matrix are shared across all layers.
-                            Layer editing arrives in a later phase.
                         </p>
                     </div>
                     <div className="border-b border-border p-3.5">
                         <SectionTitle>Build from</SectionTitle>
                         <div className="mt-2.5 grid grid-cols-2 gap-1.5">
-                            {[
-                                'Presets',
-                                'Import KLE',
-                                'Make grid',
-                                'Add key',
-                            ].map((l) => (
-                                <button
-                                    key={l}
-                                    type="button"
-                                    disabled
-                                    className="rounded-lg border border-border bg-background px-3 py-2.5 text-left text-[12.5px] font-semibold text-foreground opacity-50"
-                                >
-                                    {l}
-                                </button>
-                            ))}
+                            <BuildButton
+                                label="Presets"
+                                onClick={() => setBuildModal('preset')}
+                            />
+                            <BuildButton
+                                label="Import KLE"
+                                onClick={() => setBuildModal('kle')}
+                            />
+                            <BuildButton
+                                label="Make grid"
+                                onClick={() => setBuildModal('grid')}
+                            />
+                            <BuildButton
+                                label="Add key"
+                                onClick={() => config && commit(addKey(config))}
+                            />
                         </div>
                     </div>
                     <div className="p-4">
                         <SectionTitle>Identity</SectionTitle>
-                        <div className="mt-2.5 text-sm text-foreground">
-                            {config?.meta.name ?? '—'}
-                        </div>
-                        <div className="mt-1 text-[12px] text-muted-foreground">
-                            Target: {config?.meta.target ?? 'agnostic'}
+                        <div className="mt-3">
+                            <BuilderMetaForm />
                         </div>
                     </div>
                 </aside>
@@ -536,6 +544,20 @@ export function FullScreenBuilder(): JSX.Element {
                     )}
                 </aside>
             </div>
+
+            {/* build-from modals */}
+            <PresetModal
+                open={buildModal === 'preset'}
+                onClose={() => setBuildModal(null)}
+            />
+            <GridModal
+                open={buildModal === 'grid'}
+                onClose={() => setBuildModal(null)}
+            />
+            <KleModal
+                open={buildModal === 'kle'}
+                onClose={() => setBuildModal(null)}
+            />
         </div>
     )
 }

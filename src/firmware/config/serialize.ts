@@ -221,6 +221,9 @@ export function toSurfaceObject(km: ConfigKeymap): Record<string, unknown> {
             ...(km.keyboard.layouts
                 ? { layouts: km.keyboard.layouts.map((l) => ({ ...l })) }
                 : {}),
+            ...(km.keyboard.split !== undefined
+                ? { split: km.keyboard.split }
+                : {}),
         },
         layers: km.layers.map((l) => ({
             name: l.name,

@@ -524,6 +524,10 @@ const BaseKeymapSchema = z.object({
             ),
         lighting: LightingSchema.optional(),
         layouts: z.array(LayoutSchema).optional(),
+        split: z
+            .boolean()
+            .optional()
+            .describe('Two-piece / split keyboard (builder capability flag).'),
     }),
     layers: z.array(LayerSchema).min(1),
     combos: z.array(ComboSchema).optional(),

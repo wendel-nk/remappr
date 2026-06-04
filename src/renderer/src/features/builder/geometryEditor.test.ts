@@ -18,6 +18,11 @@ import {
     addEncoder,
     updateEncoder,
     removeEncoder,
+    addLayer,
+    renameLayer,
+    duplicateLayer,
+    removeLayer,
+    replaceGeometry,
 } from './geometryEditor'
 
 describe('geometryEditor', () => {
@@ -264,5 +269,77 @@ describe('encoder slots', () => {
     it('removeEncoder is a no-op for an out-of-range index', () => {
         const seeded = addEncoder(base())
         expect(removeEncoder(seeded, 5)).toBe(seeded)
+    })
+})
+
+describe('layer + geometry-replace editors', () => {
+    const base = (): ConfigKeymap =>
+        newBoardConfig({ name: 'B', rows: 2, cols: 3, target: 'zmk' })
+
+    it('addLayer appends a layer with transparent bindings sized to the board', () => {
+        const out = addLayer(base())
+        expect(out.layers).toHaveLength(2)
+        expect(out.layers[1].name).toBe('layer_1')
+        expect(out.layers[1].bindings).toHaveLength(6)
+        expect(
+            out.layers[1].bindings.every((b) => b.type === 'transparent'),
+        ).toBe(true)
+    })
+
+    it('addLayer sizes encoder bindings to the board encoders', () => {
+        const out = addLayer(addEncoder(base()))
+        expect(out.layers.at(-1)?.encoders).toHaveLength(1)
+    })
+
+    it('renameLayer renames in place, ignores blank names', () => {
+        expect(renameLayer(base(), 0, 'Nav').layers[0].name).toBe('Nav')
+        expect(renameLayer(base(), 0, '   ').layers[0].name).toBe('base')
+    })
+
+    it('duplicateLayer inserts a copy right after the source', () => {
+        const seed = renameLayer(base(), 0, 'Base')
+        const { config: out, newIndex } = duplicateLayer(seed, 0)
+        expect(newIndex).toBe(1)
+        expect(out.layers).toHaveLength(2)
+        expect(out.layers[1].name).toBe('Base copy')
+        expect(out.layers[1].bindings).toHaveLength(6)
+    })
+
+    it('removeLayer drops a layer but never leaves zero', () => {
+        const two = addLayer(base())
+        expect(removeLayer(two, 0).layers).toHaveLength(1)
+        const one = base()
+        expect(removeLayer(one, 0)).toBe(one)
+    })
+
+    it('replaceGeometry swaps keys, keeps layer names, resets bindings + drops transform', () => {
+        const seed = {
+            ...renameLayer(addLayer(base()), 0, 'Base'),
+        }
+        const withHw: ConfigKeymap = {
+            ...seed,
+            keyboard: {
+                ...seed.keyboard,
+                encoders: [{ x: 0, y: 0 }],
+                hardware: {
+                    transform: {
+                        rows: 2,
+                        columns: 3,
+                        map: seed.keyboard.keys.map(
+                            () => [0, 0] as [number, number],
+                        ),
+                    },
+                },
+            },
+        }
+        const out = replaceGeometry(withHw, gridKeys(1, 4))
+        expect(out.keyboard.keys).toHaveLength(4)
+        expect(out.keyboard.encoders).toBeUndefined()
+        expect(out.keyboard.hardware?.transform).toBeUndefined()
+        expect(out.layers.map((l) => l.name)).toEqual(['Base', 'layer_1'])
+        expect(out.layers[0].bindings).toHaveLength(4)
+        expect(
+            out.layers[1].bindings.every((b) => b.type === 'transparent'),
+        ).toBe(true)
     })
 })

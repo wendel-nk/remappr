@@ -31,6 +31,8 @@ interface BuilderState {
     open: boolean
     /** Selected key indices (into `config.keyboard.keys`). */
     selection: Set<number>
+    /** Active layer index (left-panel layers list; clamped to layers length). */
+    activeLayer: number
     /** Snap-to-grid vs free-form placement (toolbar Seg toggle). */
     snapMode: SnapMode
     view: BuilderView
@@ -42,6 +44,7 @@ interface BuilderState {
     setOpen: (open: boolean) => void
     setSelection: (selection: Set<number>) => void
     clearSelection: () => void
+    setActiveLayer: (index: number) => void
     setSnapMode: (mode: SnapMode) => void
     setView: (patch: Partial<BuilderView>) => void
     resetView: () => void
@@ -68,6 +71,7 @@ const useBuilderStore = create<BuilderState>()(
     devtools((set, get) => ({
         open: false,
         selection: new Set<number>(),
+        activeLayer: 0,
         snapMode: 'grid',
         view: DEFAULT_VIEW,
         past: [],
@@ -81,6 +85,7 @@ const useBuilderStore = create<BuilderState>()(
                     : {
                           open,
                           selection: new Set<number>(),
+                          activeLayer: 0,
                           view: DEFAULT_VIEW,
                           past: [],
                           future: [],
@@ -89,6 +94,7 @@ const useBuilderStore = create<BuilderState>()(
             ),
         setSelection: (selection) => set({ selection }),
         clearSelection: () => set({ selection: new Set<number>() }),
+        setActiveLayer: (activeLayer) => set({ activeLayer }),
         setSnapMode: (snapMode) => set({ snapMode }),
         setView: (patch) => set((s) => ({ view: { ...s.view, ...patch } })),
         resetView: () => set({ view: DEFAULT_VIEW }),

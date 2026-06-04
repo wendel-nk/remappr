@@ -335,6 +335,8 @@ export interface ConfigKeyboard {
     lighting?: CanonLighting
     /** Physical-layout variants (builder); keys tag in via `variant`. */
     layouts?: CanonLayout[]
+    /** Two-piece / split keyboard (builder capability flag; export metadata). */
+    split?: boolean
 }
 
 /** Auto-activate `thenLayer` while every layer in `ifLayers` is active. */

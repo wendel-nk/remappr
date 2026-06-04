@@ -258,6 +258,100 @@ export function removeKey(config: ConfigKeymap, index: number): ConfigKeymap {
     }
 }
 
+// Pattern check: no GoF pattern (-) — rejected — additive pure config transforms
+// (geometry replace + layer add/rename/dup/remove); immutable data edits that keep
+// every layer's binding array index-aligned to the key set, no abstraction.
+
+/** A transparent binding for every key on a layer of `count` keys. */
+const transparentBindings = (count: number): { type: 'transparent' }[] =>
+    Array.from({ length: count }, () => ({ type: 'transparent' as const }))
+
+/** Replace the whole physical layout (preset / grid / KLE import). Keeps layer
+ *  NAMES but resets every layer to transparent bindings sized to the new key
+ *  count, and drops encoders + any hand-authored transform (now stale). */
+export function replaceGeometry(
+    config: ConfigKeymap,
+    keys: CanonGeometry[],
+): ConfigKeymap {
+    const safe = keys.length ? keys : [{ x: 0, y: 0, w: 1, h: 1, r: 0 }]
+    const keyboard = withoutTransform({ ...config.keyboard, keys: safe })
+    delete keyboard.encoders
+    return {
+        ...config,
+        keyboard,
+        layers: config.layers.map((l) => ({
+            name: l.name,
+            ...(l.description ? { description: l.description } : {}),
+            bindings: transparentBindings(safe.length),
+        })),
+    }
+}
+
+/** Append a new layer (transparent bindings + encoder bindings sized to board). */
+export function addLayer(config: ConfigKeymap, name?: string): ConfigKeymap {
+    const keyCount = config.keyboard.keys.length
+    const encCount = config.keyboard.encoders?.length ?? 0
+    const layer: ConfigKeymap['layers'][number] = {
+        name: name?.trim() || `layer_${config.layers.length}`,
+        bindings: transparentBindings(keyCount),
+        ...(encCount
+            ? {
+                  encoders: Array.from({ length: encCount }, () => ({
+                      cw: { type: 'transparent' as const },
+                      ccw: { type: 'transparent' as const },
+                  })),
+              }
+            : {}),
+    }
+    return { ...config, layers: [...config.layers, layer] }
+}
+
+/** Rename the layer at `index` (no-op for an empty name). */
+export function renameLayer(
+    config: ConfigKeymap,
+    index: number,
+    name: string,
+): ConfigKeymap {
+    const trimmed = name.trim()
+    if (!trimmed) return config
+    return {
+        ...config,
+        layers: config.layers.map((l, i) =>
+            i === index ? { ...l, name: trimmed } : l,
+        ),
+    }
+}
+
+/** Duplicate the layer at `index` (bindings + encoders), inserted right after it.
+ *  Returns the new config and the index of the inserted copy. */
+export function duplicateLayer(
+    config: ConfigKeymap,
+    index: number,
+): { config: ConfigKeymap; newIndex: number } {
+    const src = config.layers[index]
+    if (!src) return { config, newIndex: index }
+    const copy: ConfigKeymap['layers'][number] = {
+        name: `${src.name} copy`,
+        ...(src.description ? { description: src.description } : {}),
+        bindings: src.bindings.map((b) => ({ ...b })),
+        ...(src.encoders
+            ? { encoders: src.encoders.map((e) => ({ ...e })) }
+            : {}),
+    }
+    const layers = [...config.layers]
+    layers.splice(index + 1, 0, copy)
+    return { config: { ...config, layers }, newIndex: index + 1 }
+}
+
+/** Remove the layer at `index`. No-op if it would leave zero layers. */
+export function removeLayer(config: ConfigKeymap, index: number): ConfigKeymap {
+    if (config.layers.length <= 1) return config
+    return {
+        ...config,
+        layers: config.layers.filter((_, i) => i !== index),
+    }
+}
+
 // Encoder PHYSICAL slots live on keyboard.encoders[]; their per-layer behavior
 // (cw/ccw/press) lives on layers[].encoders[] aligned by the same index. The
 // builder's geometry editor only places the physical slots — keeping the two
