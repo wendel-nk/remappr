@@ -55,6 +55,52 @@ describe('builderMatrix', () => {
         ])
     })
 
+    it('autoMatrix keeps a column-staggered split at row count (no inflation)', () => {
+        // Two halves of 2 columns × 3 rows, each column staggered in Y, with a
+        // clear gap between the halves — a mini Corne. Naive Y-banding would see
+        // ~6 distinct rows per half; correct wiring is 3 rows.
+        const stag = [0, 0.25]
+        const keys: CanonGeometry[] = []
+        const order: Array<[number, number, 'L' | 'R']> = []
+        for (let c = 0; c < 2; c++)
+            for (let row = 0; row < 3; row++) {
+                keys.push(k({ x: c, y: row + stag[c] }))
+                order.push([row, c, 'L'])
+            }
+        for (let c = 0; c < 2; c++)
+            for (let row = 0; row < 3; row++) {
+                keys.push(k({ x: 6 + c, y: row + stag[c] }))
+                order.push([row, c, 'R'])
+            }
+        const t = autoMatrix(keys)
+        expect(t.rows).toBe(3)
+        expect(t.columns).toBe(4) // left cols 0-1, right cols 2-3
+        t.map.forEach((rc, i) => {
+            const [row, c, side] = order[i]
+            expect(rc[0]).toBe(row) // row shared across halves
+            expect(rc[1]).toBe(side === 'L' ? c : 2 + c) // right half offset
+        })
+    })
+
+    it('autoMatrix wires a row-staggered board by Y rows', () => {
+        // Two rows offset in X (60%-style). Rows from Y bands, cols ranked in row.
+        const keys = [
+            k({ x: 0, y: 0 }),
+            k({ x: 1, y: 0 }),
+            k({ x: 0.5, y: 1 }),
+            k({ x: 1.5, y: 1 }),
+        ]
+        const t = autoMatrix(keys)
+        expect(t.rows).toBe(2)
+        expect(t.columns).toBe(2)
+        expect(t.map).toEqual([
+            [0, 0],
+            [0, 1],
+            [1, 0],
+            [1, 1],
+        ])
+    })
+
     it('matrixDims reads the committed transform when present', () => {
         const cfg: ConfigKeymap = {
             ...newBoardConfig({ name: 'B', rows: 2, cols: 2, target: 'zmk' }),

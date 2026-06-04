@@ -19,7 +19,7 @@ import { scalePosition } from '@/lib/scalePosition'
 import useConfigStore from '@/stores/configStore'
 import useBuilderStore from '@/stores/builderStore'
 import { snap as snapStep, updateKeys } from './geometryEditor'
-import { autoMatrix } from './builderMatrix'
+import { autoMatrix, splitInfo } from './builderMatrix'
 import { MatrixOverlay } from './MatrixOverlay'
 import type { CanonGeometry } from '@firmware/config'
 
@@ -405,6 +405,8 @@ export function BuilderCanvas(): JSX.Element {
     const innerW = canvasW * oneU
     const innerH = canvasH * oneU
     const panCursor = grabbing ? 'grabbing' : spacePan ? 'grab' : 'default'
+    // Two-piece divider: only when the board is flagged split and a clear gap exists.
+    const split = config?.keyboard.split ? splitInfo(keys) : null
 
     return (
         <div
@@ -469,6 +471,65 @@ export function BuilderCanvas(): JSX.Element {
                     </defs>
                     <rect width={innerW} height={innerH} fill="url(#bgrid)" />
                 </svg>
+
+                {/* two-piece split divider + LEFT/RIGHT section labels */}
+                {split &&
+                    (() => {
+                        const lx = split.mid * oneU
+                        const labelStyle: React.CSSProperties = {
+                            transform: 'translateY(-100%)',
+                            fontSize: Math.max(11, oneU * 0.2),
+                            fontWeight: 800,
+                            letterSpacing: '.04em',
+                            color: 'color-mix(in oklch, var(--primary) 80%, var(--foreground))',
+                            background: 'var(--background)',
+                            padding: '2px 10px',
+                            borderRadius: 7,
+                            border: '1px solid var(--border)',
+                            fontFamily: "'JetBrains Mono', monospace",
+                        }
+                        return (
+                            <>
+                                <div
+                                    className="pointer-events-none absolute top-0"
+                                    style={{
+                                        left: lx - 1,
+                                        width: 2,
+                                        height: innerH,
+                                        background:
+                                            'repeating-linear-gradient(180deg, color-mix(in oklch, var(--primary) 55%, transparent) 0 8px, transparent 8px 16px)',
+                                        zIndex: 3,
+                                    }}
+                                />
+                                <div
+                                    className="pointer-events-none absolute flex justify-center"
+                                    style={{
+                                        left: 0,
+                                        top: -2,
+                                        width: lx,
+                                        zIndex: 3,
+                                    }}
+                                >
+                                    <span style={labelStyle}>
+                                        LEFT · {split.leftCount}
+                                    </span>
+                                </div>
+                                <div
+                                    className="pointer-events-none absolute flex justify-center"
+                                    style={{
+                                        left: lx,
+                                        top: -2,
+                                        width: innerW - lx,
+                                        zIndex: 3,
+                                    }}
+                                >
+                                    <span style={labelStyle}>
+                                        RIGHT · {split.rightCount}
+                                    </span>
+                                </div>
+                            </>
+                        )
+                    })()}
 
                 {keys.map((k, i) => {
                     const lone = selection.size === 1 && selection.has(i)
