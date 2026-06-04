@@ -551,7 +551,10 @@ export function BuilderCanvas(): JSX.Element {
                         k.variant !== activeVariant
                     const binding = config?.layers[activeLayer]?.bindings[i]
                     const legend = builderCapProps(binding)
-                    const bindingCode = builderBindingCode(binding)
+                    const bindingCode = builderBindingCode(
+                        binding,
+                        config?.keyboard.firmware,
+                    )
                     return (
                         <div
                             key={i}

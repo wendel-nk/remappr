@@ -58,4 +58,19 @@ describe('builderBindingCode', () => {
     it('is undefined for an absent binding', () => {
         expect(builderBindingCode(undefined)).toBeUndefined()
     })
+
+    it('defaults to ZMK tokens, switches to QMK by firmware', () => {
+        const kp: CanonAction = { type: 'key_press', key: 'A' }
+        const mo: CanonAction = { type: 'layer', mode: 'momentary', layer: 'l' }
+        // no firmware / zmk present → ZMK tokens
+        expect(builderBindingCode(kp)).toBe('&kp')
+        expect(builderBindingCode(kp, ['qmk', 'zmk'])).toBe('&kp')
+        // QMK-only firmware → QMK keycode prefixes
+        expect(builderBindingCode(kp, ['qmk'])).toBe('KC')
+        expect(builderBindingCode(mo, ['via', 'vial'])).toBe('MO')
+        // ZMK-only action on QMK → undefined (header falls back to action name)
+        expect(
+            builderBindingCode({ type: 'soft_off' }, ['qmk']),
+        ).toBeUndefined()
+    })
 })

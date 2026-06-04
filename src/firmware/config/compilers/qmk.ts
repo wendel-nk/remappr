@@ -198,6 +198,49 @@ function emitKeycode(
     }
 }
 
+// pattern-check: skip additive pure QMK encoder_map C-block emitter, no abstraction
+// QMK encoder_map[][NUM_ENCODERS][2]: one ENCODER_CCW_CW(ccw, cw) per encoder per
+// layer. Sources the per-key element model (encoderBindings, keyed by element:
+// 'encoder' key index) first, else the slot array (encoders[]). Press is a matrix
+// key in QMK, so it is not part of the map. Returns [] when there are no encoders.
+function emitEncoderMap(config: ConfigKeymap, ctx: Ctx): string[] {
+    const encoderKeys = config.keyboard.keys
+        .map((k, i) => (k.element === 'encoder' ? i : -1))
+        .filter((i) => i >= 0)
+    const usePerKey = encoderKeys.length > 0
+    const count = usePerKey
+        ? encoderKeys.length
+        : (config.keyboard.encoders?.length ?? 0)
+    if (!count) return []
+
+    const trans = 'KC_TRNS'
+    const out: string[] = [
+        `#ifdef ENCODER_MAP_ENABLE`,
+        `const uint16_t PROGMEM encoder_map[][NUM_ENCODERS][2] = {`,
+    ]
+    config.layers.forEach((layer, li) => {
+        const cells: string[] = []
+        for (let e = 0; e < count; e++) {
+            const binding = usePerKey
+                ? layer.encoderBindings?.[encoderKeys[e]]
+                : layer.encoders?.[e]
+            const path = usePerKey
+                ? ['layers', li, 'encoderBindings', encoderKeys[e]]
+                : ['layers', li, 'encoders', e]
+            const cw = binding
+                ? emitKeycode(binding.cw, ctx, [...path, 'cw'])
+                : trans
+            const ccw = binding
+                ? emitKeycode(binding.ccw, ctx, [...path, 'ccw'])
+                : trans
+            cells.push(`ENCODER_CCW_CW(${ccw}, ${cw})`)
+        }
+        out.push(`    [${li}] = { ${cells.join(', ')} }, // ${layer.name}`)
+    })
+    out.push(`};`, `#endif`, ``)
+    return out
+}
+
 function emit(target: Target, label: string) {
     return (config: ConfigKeymap, diag: DiagnosticBag): ExportedFile[] => {
         const ctx: Ctx = {
@@ -215,9 +258,12 @@ function emit(target: Target, label: string) {
                 'conditional layers are not generated for QMK; use Tri-Layer (tri_layer_*) or layer_state_set_user in keymap.c',
                 ['conditionalLayers'],
             )
-        if (config.layers.some((l) => l.encoders?.length))
+        const hasEncoders =
+            config.layers.some((l) => l.encoders?.length) ||
+            config.keyboard.keys.some((k) => k.element === 'encoder')
+        if (hasEncoders)
             diag.warn(
-                'encoder rotation is not generated for QMK; add an encoder_map[] or encoder_update_user() in keymap.c',
+                'encoder_map[] is generated below; enable it with ENCODER_MAP_ENABLE = yes in rules.mk (encoder press stays a normal matrix key)',
                 ['layers'],
             )
 
@@ -246,6 +292,7 @@ function emit(target: Target, label: string) {
         })
         lines.push(`};`)
         lines.push(``)
+        lines.push(...emitEncoderMap(config, ctx))
         return [
             {
                 filename: 'keymap.c',

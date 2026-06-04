@@ -220,16 +220,18 @@ const ENCODER_SLOTS: { slot: EncoderSlot; label: string }[] = [
 function BindingSlotRow({
     action,
     label,
+    firmware,
     onEdit,
     onClear,
 }: {
     action: CanonAction | undefined
     label: string
+    firmware?: string[]
     onEdit: () => void
     onClear: () => void
 }): JSX.Element {
     const cap = builderCapProps(action)
-    const code = builderBindingCode(action)
+    const code = builderBindingCode(action, firmware)
     return (
         <div className="flex items-center gap-2.5 rounded-lg border border-border bg-background p-2">
             <button
@@ -462,7 +464,7 @@ export function BuilderInspector(): JSX.Element {
     const layouts = config.keyboard.layouts ?? []
     const binding = config.layers[activeLayer]?.bindings[index]
     const bindingCap = builderCapProps(binding)
-    const bindingCode = builderBindingCode(binding)
+    const bindingCode = builderBindingCode(binding, config.keyboard.firmware)
     const layerName = config.layers[activeLayer]?.name ?? 'layer'
     const element: 'key' | 'encoder' | 'slider' = key.element ?? 'key'
     const setElement = (el: 'key' | 'encoder' | 'slider'): void =>
@@ -497,6 +499,7 @@ export function BuilderInspector(): JSX.Element {
                             <BindingSlotRow
                                 key={slot}
                                 label={label}
+                                firmware={config.keyboard.firmware}
                                 action={
                                     config.layers[activeLayer]
                                         ?.encoderBindings?.[index]?.[slot]
