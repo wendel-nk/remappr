@@ -58,11 +58,83 @@ const LAYER_HEADER: Record<string, string> = {
     sticky: 'Sticky',
 }
 
-/** Display props for one binding's cap, or null for an empty / transparent key
- *  (the canvas leaves those blank). */
-export function builderCapProps(a: CanonAction | undefined): CapLegend | null {
-    if (!a || a.type === 'transparent') return null
+// pattern-check: skip additive pure CanonAction → ZMK behavior-token map, no abstraction
+/** The ZMK behavior token (binding-code prefix, e.g. "&kp", "&mt", "&mo") for a
+ *  binding — what KeyButton shows as the header when the "Key Header" setting is
+ *  "Binding code". Mirrors the zmk compiler's `emitBinding` prefixes; the param
+ *  stays the cap glyph, matching the editor (which surfaces the device codec's
+ *  binding prefix). Undefined for an absent binding. */
+export function builderBindingCode(
+    a: CanonAction | undefined,
+): string | undefined {
+    if (!a) return undefined
     switch (a.type) {
+        case 'key_press':
+            return '&kp'
+        case 'sticky_key':
+            return '&sk'
+        case 'key_toggle':
+            return '&kt'
+        case 'tap_hold':
+            return a.hold.type === 'modifier' ? '&mt' : '&lt'
+        case 'layer':
+            return a.mode === 'momentary'
+                ? '&mo'
+                : a.mode === 'toggle'
+                  ? '&tog'
+                  : a.mode === 'to'
+                    ? '&to'
+                    : '&sl'
+        case 'macro':
+        case 'tap_dance':
+            return `&${a.ref}`
+        case 'mod_morph':
+        case 'hold_tap':
+            return `&${a.ref}`
+        case 'output':
+            return a.action.startsWith('bluetooth') ? '&bt' : '&out'
+        case 'ext_power':
+            return '&ext_power'
+        case 'lighting':
+            return a.target === 'backlight' ? '&bl' : '&rgb_ug'
+        case 'mouse_key':
+            return '&mkp'
+        case 'mouse_move':
+            return '&mmv'
+        case 'mouse_scroll':
+            return '&msc'
+        case 'caps_word':
+            return '&caps_word'
+        case 'key_repeat':
+            return '&key_repeat'
+        case 'grave_escape':
+            return '&gresc'
+        case 'bootloader':
+            return '&bootloader'
+        case 'reset':
+            return '&sys_reset'
+        case 'soft_off':
+            return '&soft_off'
+        case 'studio_unlock':
+            return '&studio_unlock'
+        case 'transparent':
+            return '&trans'
+        case 'none':
+            return '&none'
+        default:
+            return undefined
+    }
+}
+
+// pattern-check: skip add one transparent switch case to existing pure mapping fn, no abstraction
+/** Display props for one binding's cap, or null for an absent binding (the
+ *  canvas leaves those blank). Transparent renders the ▽ pass-through glyph to
+ *  match the editor — only a truly missing binding is blank. */
+export function builderCapProps(a: CanonAction | undefined): CapLegend | null {
+    if (!a) return null
+    switch (a.type) {
+        case 'transparent':
+            return { tapText: '▽', category: 'trans' }
         case 'key_press':
             return {
                 tapText: keyGlyph(a.key),

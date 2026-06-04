@@ -20,7 +20,7 @@ import useConfigStore from '@/stores/configStore'
 import useBuilderStore from '@/stores/builderStore'
 import { snap as snapStep, updateKeys } from './geometryEditor'
 import { autoMatrix, splitInfo } from './builderMatrix'
-import { builderCapProps } from './builderCapProps'
+import { builderCapProps, builderBindingCode } from './builderCapProps'
 import {
     addCol,
     addRow,
@@ -549,9 +549,9 @@ export function BuilderCanvas(): JSX.Element {
                         k.variant !== undefined &&
                         k.variant !== '' &&
                         k.variant !== activeVariant
-                    const legend = builderCapProps(
-                        config?.layers[activeLayer]?.bindings[i],
-                    )
+                    const binding = config?.layers[activeLayer]?.bindings[i]
+                    const legend = builderCapProps(binding)
+                    const bindingCode = builderBindingCode(binding)
                     return (
                         <div
                             key={i}
@@ -574,10 +574,13 @@ export function BuilderCanvas(): JSX.Element {
                                 multiSelected={sized && !lone}
                                 tapText={legend?.tapText}
                                 header={legend?.header}
+                                actionLabel={bindingCode}
                                 category={legend?.category}
                                 accentCategory={legend?.accentCategory}
                                 holdTap={legend?.holdTap}
-                                showHeaderTag={!!legend?.header}
+                                showHeaderTag={
+                                    !!(legend?.header || bindingCode)
+                                }
                             >
                                 {legend && !legend.holdTap
                                     ? legend.tapText
