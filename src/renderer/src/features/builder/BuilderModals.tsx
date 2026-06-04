@@ -7,7 +7,16 @@
 // geometryEditor.replaceGeometry (keeps layer names, resets bindings) and resets
 // the builder's transient selection/view so the new board fits cleanly.
 import { useState } from 'react'
-import { Grid3x3, Keyboard, LayoutGrid, Plus, Split } from 'lucide-react'
+import {
+    Code2,
+    FileX2,
+    Grid3x3,
+    Keyboard,
+    LayoutGrid,
+    Plus,
+    Split,
+    Sparkles,
+} from 'lucide-react'
 import { Modal } from '@/ui/modal'
 import { Button } from '@/ui/button'
 import { Input } from '@/ui/input'
@@ -206,6 +215,90 @@ export function KleModal({
                 Imports key positions &amp; sizes only — legends and matrix
                 wiring are assigned in the builder.
             </p>
+        </Modal>
+    )
+}
+
+/** Shown each time the builder opens: choose a starting point (preset / KLE /
+ *  blank) or dismiss to keep the current board. */
+export function StartModal({
+    open,
+    onClose,
+    onPreset,
+    onKle,
+}: {
+    open: boolean
+    onClose: () => void
+    onPreset: () => void
+    onKle: () => void
+}): JSX.Element {
+    const apply = useApplyGeometry()
+    const choices: Array<{
+        icon: JSX.Element
+        title: string
+        sub: string
+        onClick: () => void
+    }> = [
+        {
+            icon: <Sparkles size={18} />,
+            title: 'Start from a preset',
+            sub: 'Corne, ortho, 60%, numpad, macropad…',
+            onClick: () => {
+                onClose()
+                onPreset()
+            },
+        },
+        {
+            icon: <Code2 size={18} />,
+            title: 'Import from KLE',
+            sub: 'Paste keyboard-layout-editor raw data',
+            onClick: () => {
+                onClose()
+                onKle()
+            },
+        },
+        {
+            icon: <FileX2 size={18} />,
+            title: 'Start blank',
+            sub: 'One key — build up from nothing',
+            onClick: () => {
+                apply([{ x: 0, y: 0, w: 1, h: 1, r: 0 }])
+                onClose()
+            },
+        },
+    ]
+    return (
+        <Modal
+            opened={open}
+            onClose={onClose}
+            title="Design a keyboard"
+            subtitle="Pick a starting point — or close to keep the current board"
+            headerIcon={<LayoutGrid />}
+            showFooter={false}
+            customModalBoxClass="sm:max-w-[460px]"
+        >
+            <div className="flex flex-col gap-2.5 py-1">
+                {choices.map((c) => (
+                    <button
+                        key={c.title}
+                        type="button"
+                        onClick={c.onClick}
+                        className="flex items-center gap-3 rounded-xl border border-border bg-background p-3.5 text-left transition-colors hover:border-primary"
+                    >
+                        <span className="grid size-10 shrink-0 place-items-center rounded-[10px] bg-primary/15 text-primary">
+                            {c.icon}
+                        </span>
+                        <div className="min-w-0">
+                            <div className="truncate text-[13.5px] font-bold">
+                                {c.title}
+                            </div>
+                            <div className="truncate text-[11.5px] text-muted-foreground">
+                                {c.sub}
+                            </div>
+                        </div>
+                    </button>
+                ))}
+            </div>
         </Modal>
     )
 }

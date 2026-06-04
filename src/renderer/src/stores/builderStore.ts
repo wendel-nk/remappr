@@ -43,6 +43,9 @@ interface BuilderState {
     jsonOpen: boolean
     /** Snap-to-grid vs free-form placement (toolbar Seg toggle). */
     snapMode: SnapMode
+    /** Whether placement actually snaps. Switching the Seg sets it (grid→on,
+     *  free→off); the standalone toolbar toggle flips it independently. */
+    snapping: boolean
     view: BuilderView
     past: ConfigKeymap[]
     future: ConfigKeymap[]
@@ -58,6 +61,7 @@ interface BuilderState {
     setJsonOpen: (open: boolean) => void
     toggleJson: () => void
     setSnapMode: (mode: SnapMode) => void
+    toggleSnapping: () => void
     setView: (patch: Partial<BuilderView>) => void
     resetView: () => void
 
@@ -92,6 +96,7 @@ const useBuilderStore = create<BuilderState>()(
         matrixView: false,
         jsonOpen: false,
         snapMode: 'grid',
+        snapping: true,
         view: DEFAULT_VIEW,
         past: [],
         future: [],
@@ -121,7 +126,9 @@ const useBuilderStore = create<BuilderState>()(
         toggleMatrixView: () => set((s) => ({ matrixView: !s.matrixView })),
         setJsonOpen: (jsonOpen) => set({ jsonOpen }),
         toggleJson: () => set((s) => ({ jsonOpen: !s.jsonOpen })),
-        setSnapMode: (snapMode) => set({ snapMode }),
+        setSnapMode: (snapMode) =>
+            set({ snapMode, snapping: snapMode === 'grid' }),
+        toggleSnapping: () => set((s) => ({ snapping: !s.snapping })),
         setView: (patch) => set((s) => ({ view: { ...s.view, ...patch } })),
         resetView: () => set({ view: DEFAULT_VIEW }),
 

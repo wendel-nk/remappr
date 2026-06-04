@@ -18,6 +18,7 @@ import {
     Code2,
     Layers,
     Magnet,
+    Settings2,
     Maximize2,
     Minus,
     Move,
@@ -48,11 +49,12 @@ import { BuilderLayersPanel } from './BuilderLayersPanel'
 import { BuilderMetaForm } from './BuilderMetaForm'
 import { BuilderInspector } from './BuilderInspector'
 import { VariantBar } from './VariantBar'
-import { GridModal, KleModal, PresetModal } from './BuilderModals'
+import { GridModal, KleModal, PresetModal, StartModal } from './BuilderModals'
 import { BuilderExportModal } from './BuilderExportModal'
 import { LibraryModal } from './LibraryModal'
 import { saveBoard } from './builderLibrary'
 import { JsonConfigPanel } from './JsonConfigPanel'
+import { Settings } from '@/components/modals/Settings'
 
 /** Gradient brand badge (ruler glyph) shared with the start-page CTA. */
 function BrandBadge({ size = 28 }: { size?: number }): JSX.Element {
@@ -232,6 +234,8 @@ export function FullScreenBuilder(): JSX.Element {
     const setOpen = useBuilderStore((s) => s.setOpen)
     const snapMode = useBuilderStore((s) => s.snapMode)
     const setSnapMode = useBuilderStore((s) => s.setSnapMode)
+    const snapping = useBuilderStore((s) => s.snapping)
+    const toggleSnapping = useBuilderStore((s) => s.toggleSnapping)
     const selection = useBuilderStore((s) => s.selection)
     const matrixView = useBuilderStore((s) => s.matrixView)
     const toggleMatrixView = useBuilderStore((s) => s.toggleMatrixView)
@@ -251,6 +255,9 @@ export function FullScreenBuilder(): JSX.Element {
     >(null)
     const [exportOpen, setExportOpen] = useState(false)
     const [libraryOpen, setLibraryOpen] = useState(false)
+    const [settingsOpen, setSettingsOpen] = useState(false)
+    // Starting-point chooser, shown once each time the builder is opened.
+    const [startOpen, setStartOpen] = useState(true)
 
     const handleSave = (): void => {
         if (!config) return
@@ -386,6 +393,13 @@ export function FullScreenBuilder(): JSX.Element {
                 <div className="flex items-center gap-2">
                     <SnapSeg value={snapMode} onChange={setSnapMode} />
                     <ToolButton
+                        label={snapping ? 'Snapping on' : 'Snapping off'}
+                        active={snapping}
+                        onClick={toggleSnapping}
+                    >
+                        <Magnet size={18} />
+                    </ToolButton>
+                    <ToolButton
                         label="Matrix wiring view"
                         active={matrixView}
                         onClick={toggleMatrixView}
@@ -413,6 +427,12 @@ export function FullScreenBuilder(): JSX.Element {
                         onClick={() => setLibraryOpen(true)}
                     >
                         <Layers size={18} />
+                    </ToolButton>
+                    <ToolButton
+                        label="Settings"
+                        onClick={() => setSettingsOpen(true)}
+                    >
+                        <Settings2 size={18} />
                     </ToolButton>
                     <button
                         type="button"
@@ -526,7 +546,9 @@ export function FullScreenBuilder(): JSX.Element {
                         )}
                         <span className="h-3.5 w-px bg-border" />
                         <span className="font-mono">
-                            {snapMode === 'grid' ? 'snap ⅛U' : 'free-form'}
+                            {snapMode === 'grid'
+                                ? `snap ${snapping ? '⅛U' : 'off'}`
+                                : 'free-form'}
                         </span>
                     </div>
                 </main>
@@ -575,6 +597,19 @@ export function FullScreenBuilder(): JSX.Element {
             <LibraryModal
                 open={libraryOpen}
                 onClose={() => setLibraryOpen(false)}
+            />
+            {settingsOpen && (
+                <Settings
+                    opened={settingsOpen}
+                    onClose={() => setSettingsOpen(false)}
+                    sections={['general', 'keycaps', 'workspace', 'about']}
+                />
+            )}
+            <StartModal
+                open={startOpen}
+                onClose={() => setStartOpen(false)}
+                onPreset={() => setBuildModal('preset')}
+                onKle={() => setBuildModal('kle')}
             />
         </div>
     )

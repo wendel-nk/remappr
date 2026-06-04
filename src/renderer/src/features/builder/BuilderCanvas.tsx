@@ -69,7 +69,6 @@ type HandleKind = 'se' | 'e' | 's' | 'rotate'
 export function BuilderCanvas(): JSX.Element {
     const config = useConfigStore((s) => s.config)
     const selection = useBuilderStore((s) => s.selection)
-    const snapMode = useBuilderStore((s) => s.snapMode)
     const view = useBuilderStore((s) => s.view)
     const matrixView = useBuilderStore((s) => s.matrixView)
     const activeVariant = useBuilderStore((s) => s.activeVariant)
@@ -182,7 +181,7 @@ export function BuilderCanvas(): JSX.Element {
     const dUF = (dpx: number): number =>
         dpx / (oneURef.current * useBuilderStore.getState().view.zoom)
     const maybeSnap = (v: number): number =>
-        snapMode === 'grid' ? snapStep(v, GRID_U) : round3(v)
+        useBuilderStore.getState().snapping ? snapStep(v, GRID_U) : round3(v)
 
     // ── pan ──
     const startPan = (e: React.MouseEvent): void => {

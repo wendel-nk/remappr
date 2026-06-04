@@ -48,6 +48,11 @@ function SnapshotOnOpen({ onOpen }: { onOpen: () => void }): null {
 interface SettingsProps {
     opened?: boolean
     onClose?: () => void
+    /** Limit which sections show (builder hides device-only "communication").
+     *  Defaults to all. */
+    sections?: Array<
+        'general' | 'keycaps' | 'workspace' | 'communication' | 'about'
+    >
 }
 
 type SettingsSection =
@@ -70,8 +75,17 @@ const SECTIONS: {
 ]
 
 // pattern-check: skip — additive snapshot/revert refs; Memento considered, rejected as overkill
-export function Settings({ opened, onClose }: SettingsProps): JSX.Element {
-    const [section, setSection] = useState<SettingsSection>('general')
+export function Settings({
+    opened,
+    onClose,
+    sections,
+}: SettingsProps): JSX.Element {
+    const visibleSections = sections
+        ? SECTIONS.filter((s) => sections.includes(s.id))
+        : SECTIONS
+    const [section, setSection] = useState<SettingsSection>(
+        sections?.[0] ?? 'general',
+    )
     const { theme, setTheme, themeName, setThemeName } = useTheme()
     const snapshotRef = useRef<SettingsSnapshot | null>(null)
     const committedRef = useRef(false)
@@ -128,7 +142,7 @@ export function Settings({ opened, onClose }: SettingsProps): JSX.Element {
             <div className="flex min-h-[28rem] gap-4">
                 <aside className="w-48 shrink-0 border-r pr-2">
                     <nav className="flex flex-col gap-0.5">
-                        {SECTIONS.map(({ id, label, icon: Icon }) => {
+                        {visibleSections.map(({ id, label, icon: Icon }) => {
                             const active = section === id
                             return (
                                 <button
