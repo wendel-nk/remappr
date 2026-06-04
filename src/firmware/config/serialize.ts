@@ -198,6 +198,8 @@ export function toSurfaceObject(km: ConfigKeymap): Record<string, unknown> {
                 ...(k.rx !== undefined ? { rx: k.rx } : {}),
                 ...(k.ry !== undefined ? { ry: k.ry } : {}),
                 ...(k.variant ? { variant: k.variant } : {}),
+                ...(k.pin ? { pin: k.pin } : {}),
+                ...(k.element ? { element: k.element } : {}),
             })),
             ...(km.keyboard.encoders
                 ? {

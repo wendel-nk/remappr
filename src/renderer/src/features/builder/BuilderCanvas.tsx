@@ -13,13 +13,14 @@
    pointer-driven canvas editor (drag/marquee/resize/rotate); keyboard editing is
    provided at the builder level (arrow-nudge, ⌘Z, delete, etc.), not per div. */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { RotateCw } from 'lucide-react'
+import { RotateCw, SlidersHorizontal } from 'lucide-react'
 import { KeyButton } from '@/features/keymap/keyboard/KeyButton'
 import { scalePosition } from '@/lib/scalePosition'
 import useConfigStore from '@/stores/configStore'
 import useBuilderStore from '@/stores/builderStore'
 import { snap as snapStep, updateKeys } from './geometryEditor'
 import { autoMatrix, splitInfo } from './builderMatrix'
+import { builderCapProps } from './builderCapProps'
 import {
     addCol,
     addRow,
@@ -72,6 +73,7 @@ export function BuilderCanvas(): JSX.Element {
     const view = useBuilderStore((s) => s.view)
     const matrixView = useBuilderStore((s) => s.matrixView)
     const activeVariant = useBuilderStore((s) => s.activeVariant)
+    const activeLayer = useBuilderStore((s) => s.activeLayer)
 
     const ref = useRef<HTMLDivElement>(null)
     const [oneU, setOneU] = useState(64)
@@ -547,6 +549,9 @@ export function BuilderCanvas(): JSX.Element {
                         k.variant !== undefined &&
                         k.variant !== '' &&
                         k.variant !== activeVariant
+                    const legend = builderCapProps(
+                        config?.layers[activeLayer]?.bindings[i],
+                    )
                     return (
                         <div
                             key={i}
@@ -567,7 +572,33 @@ export function BuilderCanvas(): JSX.Element {
                                 hoverZoom={false}
                                 selected={lone}
                                 multiSelected={sized && !lone}
-                            />
+                                tapText={legend?.tapText}
+                                header={legend?.header}
+                                category={legend?.category}
+                                accentCategory={legend?.accentCategory}
+                                holdTap={legend?.holdTap}
+                                showHeaderTag={!!legend?.header}
+                            >
+                                {legend && !legend.holdTap
+                                    ? legend.tapText
+                                    : undefined}
+                            </KeyButton>
+                            {k.element && (
+                                <span
+                                    className="pointer-events-none absolute right-1 top-1 text-primary"
+                                    title={k.element}
+                                >
+                                    {k.element === 'encoder' ? (
+                                        <RotateCw
+                                            size={Math.max(10, oneU * 0.2)}
+                                        />
+                                    ) : (
+                                        <SlidersHorizontal
+                                            size={Math.max(10, oneU * 0.2)}
+                                        />
+                                    )}
+                                </span>
+                            )}
                             {(k.w !== 1 || k.h !== 1) && (
                                 <span
                                     className="pointer-events-none absolute left-1 top-1 font-mono font-bold text-primary"

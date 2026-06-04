@@ -133,6 +133,14 @@ export interface CanonGeometry {
     /** Physical-layout variant id this key belongs to ("" / absent = common to
      *  all variants). Set by the builder; compilers ignore unknown variants. */
     variant?: string
+    /** Optional per-key direct GPIO pin label (builder metadata, e.g. "GP29").
+     *  Export-only for now — compilers don't yet consume it; kept separate from
+     *  the matrix wiring so it never corrupts the electrical transform. */
+    pin?: string
+    /** Input element this position represents: absent / "key" = a normal switch;
+     *  "encoder" = a rotary encoder; "slider" = an analog slider. Builder
+     *  metadata — compilers treat every entry as a key for now. */
+    element?: 'encoder' | 'slider'
 }
 
 export interface CanonEncoderSlot {

@@ -284,6 +284,14 @@ export const GeometrySchema = z.object({
         .describe(
             'Physical-layout variant id this key belongs to ("" = common).',
         ),
+    pin: z
+        .string()
+        .optional()
+        .describe('Optional per-key direct GPIO pin label (builder metadata).'),
+    element: z
+        .enum(['encoder', 'slider'])
+        .optional()
+        .describe('Input element type (absent = key); builder metadata.'),
 })
 
 export const EncoderSchema = z.object({ x: z.number(), y: z.number() })

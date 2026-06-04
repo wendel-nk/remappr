@@ -12,9 +12,12 @@ import {
     bulkNumberCols,
     bulkSetRow,
     ensureTransform,
+    isAutoAssign,
     keyMatrix,
     parseBindingToken,
+    patchKey,
     removeLayout,
+    removeTransform,
     renameLayout,
     setBinding,
     setKeyMatrix,
@@ -48,6 +51,31 @@ describe('builderInspectorOps — matrix', () => {
         expect(out.keyboard.hardware?.transform?.rows).toBe(5)
         expect(out.keyboard.hardware?.transform?.columns).toBe(6)
         expect(parseKeymap(serializeKeymap(out)).keyboard.keys).toHaveLength(4)
+    })
+
+    it('auto-assign reflects + toggles the stored transform', () => {
+        const fresh = grid(2, 2)
+        // No transform stored on a fresh board → auto-assign on.
+        expect(isAutoAssign(fresh)).toBe(true)
+        // Materialise (auto-assign off) then drop (auto-assign on again).
+        const manual = applyAutoMatrix(fresh)
+        expect(isAutoAssign(manual)).toBe(false)
+        const back = removeTransform(manual)
+        expect(isAutoAssign(back)).toBe(true)
+        expect(back.keyboard.hardware?.transform).toBeUndefined()
+        // A manual wire also turns auto-assign off.
+        expect(isAutoAssign(setKeyMatrix(fresh, 0, 1, 1))).toBe(false)
+    })
+
+    it('per-key pin + element round-trip through serialize', () => {
+        const out = patchKey(patchKey(grid(1, 2), 0, { pin: 'GP29' }), 0, {
+            element: 'encoder',
+        })
+        expect(out.keyboard.keys[0].pin).toBe('GP29')
+        expect(out.keyboard.keys[0].element).toBe('encoder')
+        const back = parseKeymap(serializeKeymap(out)).keyboard.keys[0]
+        expect(back.pin).toBe('GP29')
+        expect(back.element).toBe('encoder')
     })
 
     it('bulkSetRow sets the row for every selected key', () => {

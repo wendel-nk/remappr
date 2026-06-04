@@ -60,6 +60,25 @@ export function applyAutoMatrix(config: ConfigKeymap): ConfigKeymap {
     return withTransform(config, autoMatrix(config.keyboard.keys))
 }
 
+// pattern-check: skip additive pure transform-drop op + boolean accessor, no abstraction
+/** Drop the stored electrical transform → the matrix reverts to being derived
+ *  from key positions (auto-assign on). Inverse of `applyAutoMatrix`. */
+export function removeTransform(config: ConfigKeymap): ConfigKeymap {
+    if (!config.keyboard.hardware?.transform) return config
+    const hardware = { ...config.keyboard.hardware }
+    delete hardware.transform
+    const keyboard = { ...config.keyboard }
+    if (Object.keys(hardware).length) keyboard.hardware = hardware
+    else delete keyboard.hardware
+    return { ...config, keyboard }
+}
+
+/** Auto-assign is on when no electrical transform is stored — the matrix is then
+ *  derived from key positions and tracks moves automatically. */
+export function isAutoAssign(config: ConfigKeymap): boolean {
+    return !config.keyboard.hardware?.transform
+}
+
 /** Set one key's [row, col], materialising + growing the transform as needed. */
 export function setKeyMatrix(
     config: ConfigKeymap,

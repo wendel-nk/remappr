@@ -7,38 +7,43 @@
 // per-key matrix wiring, a layout-variant tag, and a quick binding for the active
 // layer; many keys → bulk align/size/matrix/duplicate/delete. All mutations route
 // through builderStore.commit so they join the undo history.
-/* eslint-disable jsx-a11y/no-autofocus -- the inline binding-rename input autofocuses by design, matching the prototype + the layers panel. */
+
 import { useState } from 'react'
 import {
     AlignStartVertical,
     Copy,
+    Keyboard as KeyboardIcon,
     Pencil,
     RotateCcw,
+    RotateCw,
     Ruler,
     Scan,
+    SlidersHorizontal,
     Trash2,
     Wand2,
     X,
 } from 'lucide-react'
-import { toast } from 'sonner'
+import { KeyButton } from '@/features/keymap/keyboard/KeyButton'
+import { Switch } from '@/ui/switch'
 import useBuilderStore from '@/stores/builderStore'
 import useConfigStore from '@/stores/configStore'
 import type { CanonGeometry } from '@firmware/config'
-import { duplicateKeys, removeKeys } from './geometryEditor'
+import { duplicateKeys, removeKeys, snap as snapStep } from './geometryEditor'
 import {
     applyAutoMatrix,
-    bindingLabel,
     bulkGeometry,
     bulkNumberCols,
     bulkSetRow,
     ensureTransform,
+    isAutoAssign,
     keyMatrix,
-    parseBindingToken,
     patchKey,
+    removeTransform,
     setBinding,
     setKeyMatrix,
     setKeyVariant,
 } from './builderInspectorOps'
+import { builderCapProps } from './builderCapProps'
 import { colPins, rowPins } from './builderPins'
 
 const WIDTH_PRESETS = [1, 1.25, 1.5, 1.75, 2, 2.25, 2.75, 6.25]
@@ -91,6 +96,87 @@ function Field({
     )
 }
 
+// pattern-check: skip presentational helper components (element switcher + note), no logic
+/** Element-type switcher (key / encoder / slider) at the top of the inspector. */
+function ElementTabs({
+    element,
+    onSelect,
+}: {
+    element: 'key' | 'encoder' | 'slider'
+    onSelect: (el: 'key' | 'encoder' | 'slider') => void
+}): JSX.Element {
+    const tabs: Array<['key' | 'encoder' | 'slider', string, React.ReactNode]> =
+        [
+            ['key', 'Key', <KeyboardIcon key="k" size={14} />],
+            ['encoder', 'Encoder', <RotateCw key="e" size={14} />],
+            ['slider', 'Slider', <SlidersHorizontal key="s" size={14} />],
+        ]
+    return (
+        <div>
+            <MiniLabel>Element</MiniLabel>
+            <div className="grid grid-cols-3 gap-1.5">
+                {tabs.map(([el, lbl, icon]) => {
+                    const on = element === el
+                    return (
+                        <button
+                            key={el}
+                            type="button"
+                            onClick={() => onSelect(el)}
+                            className="inline-flex items-center justify-center gap-1.5 rounded-lg border px-2 py-2 text-[12px] font-semibold text-foreground transition-colors"
+                            style={{
+                                background: on
+                                    ? 'color-mix(in oklch, var(--primary) 16%, var(--background))'
+                                    : 'var(--background)',
+                                borderColor: on
+                                    ? 'var(--primary)'
+                                    : 'var(--border)',
+                            }}
+                        >
+                            {icon} {lbl}
+                        </button>
+                    )
+                })}
+            </div>
+        </div>
+    )
+}
+
+/** A labelled informational note (used by the encoder / slider element panels). */
+function ElementNote({
+    label,
+    text,
+}: {
+    label: string
+    text: string
+}): JSX.Element {
+    return (
+        <div>
+            <MiniLabel>{label}</MiniLabel>
+            <p className="rounded-lg border border-border bg-background px-2.5 py-2 text-[11.5px] leading-relaxed text-muted-foreground">
+                {text}
+            </p>
+        </div>
+    )
+}
+
+/** A label + Switch row (matches the meta-form toggles). */
+function ToggleRow({
+    on,
+    onToggle,
+    label,
+}: {
+    on: boolean
+    onToggle: (v: boolean) => void
+    label: string
+}): JSX.Element {
+    return (
+        <label className="flex w-full cursor-pointer items-center justify-between rounded-lg border border-border bg-background px-2.5 py-2">
+            <span className="text-[12.5px] font-medium">{label}</span>
+            <Switch checked={on} onCheckedChange={onToggle} />
+        </label>
+    )
+}
+
 /** A bulk-action button (icon + label). */
 function BulkBtn({
     icon,
@@ -125,6 +211,9 @@ export function BuilderInspector(): JSX.Element {
     const commit = useBuilderStore((s) => s.commit)
     const clearSelection = useBuilderStore((s) => s.clearSelection)
     const setSelection = useBuilderStore((s) => s.setSelection)
+    const openBinding = useBuilderStore((s) => s.openBinding)
+    const snapOnWire = useBuilderStore((s) => s.snapOnWire)
+    const toggleSnapOnWire = useBuilderStore((s) => s.toggleSnapOnWire)
     const [rowVal, setRowVal] = useState(0)
     const [colStart, setColStart] = useState(0)
 
@@ -265,6 +354,18 @@ export function BuilderInspector(): JSX.Element {
     const key = config.keyboard.keys[index]
     const setGeom = (patch: Partial<CanonGeometry>): void =>
         commit(patchKey(config, index, patch))
+    // Manual wire stores a transform (auto-assign → off); when "snap on wire"
+    // is on, also snap the key's position to the whole-U grid.
+    const wireMatrix = (r: number, c: number): void => {
+        let next = setKeyMatrix(config, index, r, c)
+        if (snapOnWire) {
+            next = patchKey(next, index, {
+                x: snapStep(key.x, 1),
+                y: snapStep(key.y, 1),
+            })
+        }
+        commit(next)
+    }
     const t = ensureTransform(config)
     const [row, col] = keyMatrix(config, index)
     const nRows = Math.max(t.rows, row + 1)
@@ -275,40 +376,120 @@ export function BuilderInspector(): JSX.Element {
     const cPin = (i: number): string => cPins[i] ?? `GP${i}`
     const layouts = config.keyboard.layouts ?? []
     const binding = config.layers[activeLayer]?.bindings[index]
+    const bindingCap = builderCapProps(binding)
     const layerName = config.layers[activeLayer]?.name ?? 'layer'
+    const element: 'key' | 'encoder' | 'slider' = key.element ?? 'key'
+    const setElement = (el: 'key' | 'encoder' | 'slider'): void =>
+        commit(
+            patchKey(config, index, { element: el === 'key' ? undefined : el }),
+        )
+    const pinLabel =
+        element === 'encoder'
+            ? 'Encoder pin A (direct)'
+            : element === 'slider'
+              ? 'ADC pin'
+              : 'Direct GPIO pin (optional)'
 
     return (
         <div className="flex flex-col gap-4 p-4">
             <div className="text-[12px] font-semibold text-muted-foreground">
-                Key #{index}
+                {element === 'encoder'
+                    ? 'Encoder'
+                    : element === 'slider'
+                      ? 'Slider'
+                      : 'Key'}{' '}
+                #{index}
             </div>
 
-            {/* binding (active layer) */}
-            <div>
-                <MiniLabel>Binding · {layerName}</MiniLabel>
-                <BindingField
-                    label={bindingLabel(binding)}
-                    onCommit={(token) => {
-                        const action = parseBindingToken(token)
-                        if (!action) {
-                            toast.error(`Unknown key "${token}"`)
-                            return
-                        }
-                        commit(setBinding(config, activeLayer, index, action))
-                    }}
-                    onClear={() =>
-                        commit(
-                            setBinding(config, activeLayer, index, {
-                                type: 'transparent',
-                            }),
-                        )
-                    }
+            <ElementTabs element={element} onSelect={setElement} />
+
+            {element === 'encoder' && (
+                <ElementNote
+                    label={`Encoder rotary · ${layerName}`}
+                    text="Clockwise / counter-clockwise / press bindings are coming next — the firmware-aware picker already supports the encoder slots. Wire its pins below."
                 />
-                <p className="mt-1.5 text-[10.5px] leading-relaxed text-muted-foreground">
-                    A keycode (A, Space), a combo (Ctrl+C), or “trans”. Layers,
-                    tap-hold &amp; macros: use the editor.
-                </p>
-            </div>
+            )}
+            {element === 'slider' && (
+                <ElementNote
+                    label="Slider · analog input"
+                    text="An analog slider on an ADC pin (set below). Slider value mapping is exporter metadata for now."
+                />
+            )}
+
+            {/* binding (active layer) — pattern-check: skip presentational cap-preview + picker-open button, no logic */}
+            {element === 'key' && (
+                <div>
+                    <MiniLabel>Key binding · {layerName}</MiniLabel>
+                    <button
+                        type="button"
+                        onClick={() =>
+                            openBinding({ keyIndex: index, slot: 'key' })
+                        }
+                        className="flex w-full items-center gap-3 rounded-lg border border-border bg-background p-3 text-left transition-colors hover:border-primary"
+                    >
+                        <div
+                            className="relative shrink-0"
+                            style={{ width: 46, height: 46 }}
+                        >
+                            <KeyButton
+                                oneU={46}
+                                width={1}
+                                height={1}
+                                hoverZoom={false}
+                                tapText={bindingCap?.tapText}
+                                header={bindingCap?.header}
+                                category={bindingCap?.category}
+                                accentCategory={bindingCap?.accentCategory}
+                                holdTap={bindingCap?.holdTap}
+                                showHeaderTag={!!bindingCap?.header}
+                            >
+                                {bindingCap && !bindingCap.holdTap
+                                    ? bindingCap.tapText
+                                    : undefined}
+                            </KeyButton>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                            <div className="truncate text-[14px] font-extrabold">
+                                {bindingCap?.tapText ?? '▽'}
+                            </div>
+                            <div className="text-[11.5px] text-muted-foreground">
+                                {bindingCap?.header ?? 'Pass-through'}
+                            </div>
+                        </div>
+                    </button>
+                    <div className="mt-2 flex gap-2">
+                        <button
+                            type="button"
+                            onClick={() =>
+                                openBinding({ keyIndex: index, slot: 'key' })
+                            }
+                            className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-[12.5px] font-bold text-foreground transition-colors"
+                            style={{
+                                background:
+                                    'color-mix(in oklch, var(--primary) 16%, var(--background))',
+                                borderColor:
+                                    'color-mix(in oklch, var(--primary) 45%, transparent)',
+                            }}
+                        >
+                            <Pencil size={13} /> Edit binding
+                        </button>
+                        <button
+                            type="button"
+                            aria-label="Clear binding"
+                            onClick={() =>
+                                commit(
+                                    setBinding(config, activeLayer, index, {
+                                        type: 'transparent',
+                                    }),
+                                )
+                            }
+                            className="grid size-9 place-items-center rounded-lg border border-border text-muted-foreground hover:text-foreground"
+                        >
+                            <X size={15} />
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* variant */}
             {layouts.length > 0 && (
@@ -425,10 +606,37 @@ export function BuilderInspector(): JSX.Element {
                         </button>
                     </div>
                 </div>
+                {/* pattern-check: skip presentational FINE/STEP rotation labels, no logic */}
                 <div className="mt-2 flex items-center gap-1">
+                    <span className="mr-0.5 text-[10px] font-bold uppercase tracking-[0.06em] text-muted-foreground">
+                        Fine 5°
+                    </span>
                     {[
                         ['−5°', -5],
                         ['+5°', 5],
+                    ].map(([label, d]) => (
+                        <button
+                            key={label as string}
+                            type="button"
+                            onClick={() =>
+                                setGeom({
+                                    r:
+                                        Math.round(
+                                            ((key.r || 0) + (d as number)) * 10,
+                                        ) / 10,
+                                    rx: key.x + key.w / 2,
+                                    ry: key.y + key.h / 2,
+                                })
+                            }
+                            className="flex-1 rounded-md border border-border bg-secondary py-1.5 font-mono text-[11.5px] font-bold text-foreground hover:border-primary"
+                        >
+                            {label}
+                        </button>
+                    ))}
+                    <span className="mx-0.5 text-[10px] font-bold uppercase tracking-[0.06em] text-muted-foreground">
+                        Step 15°
+                    </span>
+                    {[
                         ['−15°', -15],
                         ['+15°', 15],
                     ].map(([label, d]) => (
@@ -477,14 +685,7 @@ export function BuilderInspector(): JSX.Element {
                         <select
                             value={row}
                             onChange={(e) =>
-                                commit(
-                                    setKeyMatrix(
-                                        config,
-                                        index,
-                                        Number(e.target.value),
-                                        col,
-                                    ),
-                                )
+                                wireMatrix(Number(e.target.value), col)
                             }
                             className="w-full rounded-lg border border-input bg-background px-2 py-1.5 font-mono text-[12.5px] font-semibold text-foreground outline-none focus:border-primary"
                         >
@@ -499,14 +700,7 @@ export function BuilderInspector(): JSX.Element {
                         <select
                             value={col}
                             onChange={(e) =>
-                                commit(
-                                    setKeyMatrix(
-                                        config,
-                                        index,
-                                        row,
-                                        Number(e.target.value),
-                                    ),
-                                )
+                                wireMatrix(row, Number(e.target.value))
                             }
                             className="w-full rounded-lg border border-input bg-background px-2 py-1.5 font-mono text-[12.5px] font-semibold text-foreground outline-none focus:border-primary"
                         >
@@ -535,66 +729,55 @@ export function BuilderInspector(): JSX.Element {
                         {cPin(col)}
                     </span>
                 </div>
+                <div className="mt-2">
+                    <ToggleRow
+                        label="Auto-assign row/col from position"
+                        on={isAutoAssign(config)}
+                        onToggle={(v) =>
+                            commit(
+                                v
+                                    ? removeTransform(config)
+                                    : applyAutoMatrix(config),
+                            )
+                        }
+                    />
+                </div>
+                <div className="mt-1.5">
+                    <ToggleRow
+                        label="Snap to grid on row/col change"
+                        on={snapOnWire}
+                        onToggle={toggleSnapOnWire}
+                    />
+                </div>
+                <p className="mt-1.5 text-[10.5px] leading-relaxed text-muted-foreground">
+                    Auto-assign on: moving a key re-derives its row/column.
+                    Editing row/column by hand turns it off.
+                </p>
             </div>
-        </div>
-    )
-}
 
-/** Quick binding row: shows the current binding, edits a token on click. */
-function BindingField({
-    label,
-    onCommit,
-    onClear,
-}: {
-    label: string
-    onCommit: (token: string) => void
-    onClear: () => void
-}): JSX.Element {
-    const [editing, setEditing] = useState(false)
-    const [draft, setDraft] = useState('')
-    if (editing) {
-        return (
-            <input
-                autoFocus
-                value={draft}
-                placeholder="A · Ctrl+C · trans"
-                onChange={(e) => setDraft(e.target.value)}
-                onBlur={() => {
-                    setEditing(false)
-                    if (draft.trim()) onCommit(draft)
-                }}
-                onKeyDown={(e) => {
-                    if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
-                    if (e.key === 'Escape') setEditing(false)
-                }}
-                className="w-full rounded-lg border border-primary bg-background px-2.5 py-2 font-mono text-[13px] font-semibold text-foreground outline-none"
-            />
-        )
-    }
-    return (
-        <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-2.5 py-2">
-            <span className="flex-1 truncate font-mono text-[14px] font-extrabold">
-                {label}
-            </span>
-            <button
-                type="button"
-                aria-label="Edit binding"
-                onClick={() => {
-                    setDraft(label === '▽' ? '' : label)
-                    setEditing(true)
-                }}
-                className="grid size-7 place-items-center rounded-md border border-border text-muted-foreground hover:text-foreground"
-            >
-                <Pencil size={13} />
-            </button>
-            <button
-                type="button"
-                aria-label="Clear binding"
-                onClick={onClear}
-                className="grid size-7 place-items-center rounded-md border border-border text-muted-foreground hover:text-foreground"
-            >
-                <X size={14} />
-            </button>
+            {/* direct GPIO pin (optional, per-key) */}
+            <div>
+                <MiniLabel>{pinLabel}</MiniLabel>
+                <input
+                    key={index}
+                    defaultValue={key.pin ?? ''}
+                    placeholder="e.g. GP29"
+                    onBlur={(e) => {
+                        const v = e.target.value.trim()
+                        if (v !== (key.pin ?? ''))
+                            commit(
+                                patchKey(config, index, {
+                                    pin: v || undefined,
+                                }),
+                            )
+                    }}
+                    className="w-full rounded-lg border border-input bg-background px-2.5 py-2 font-mono text-[13px] font-medium text-foreground outline-none focus:border-primary"
+                />
+                <p className="mt-1.5 text-[10.5px] leading-relaxed text-muted-foreground">
+                    A single direct-wired GPIO for this key (no matrix). Export
+                    metadata for now.
+                </p>
+            </div>
         </div>
     )
 }
