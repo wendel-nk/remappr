@@ -61,25 +61,6 @@ export interface NewBoardOptions {
     target: Target | null
 }
 
-// Pattern check: no GoF pattern (-) — rejected — plain form-state data interface
-// relocated here for react-refresh; no behavior, no abstraction.
-/** The new-board form's editable shape (rows/cols are strings while typing).
- *  Lives here, not in NewBoardForm.tsx, so that file exports only its component
- *  (react-refresh). */
-export interface NewBoardDraft {
-    name: string
-    target: Target
-    rows: string
-    cols: string
-}
-
-export const EMPTY_BOARD_DRAFT: NewBoardDraft = {
-    name: '',
-    target: 'zmk',
-    rows: '4',
-    cols: '12',
-}
-
 /** Seed a fresh canonical config for a grid board: one `base` layer of inert
  *  placeholders sized to the grid, ready for the user to assign keys + hardware. */
 export function newBoardConfig(opts: NewBoardOptions): ConfigKeymap {
