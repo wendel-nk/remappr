@@ -12,18 +12,25 @@ export interface TourStep {
     selector: string | null
     title: string
     body: string
+    /**
+     * When true, the start-chooser modal must stay open for this step (it is the
+     * spotlight target). Advancing past it closes the modal so the rest of the
+     * tour reads against the live builder.
+     */
+    requiresStartModal?: boolean
 }
 
 export const BUILDER_TOUR_STEPS: TourStep[] = [
     {
-        selector: null,
+        selector: '.builder-start-modal',
+        requiresStartModal: true,
         title: 'Welcome to the Builder',
-        body: 'Design a keyboard from scratch — place keys, wire the matrix, bind actions, and export a flashable config. This quick tour points out the essentials.',
+        body: 'Start from a preset, import a KLE layout, or build a blank board — pick a starting point to begin (closing keeps the current board). This quick tour points out the essentials; hit Next to dive in.',
     },
     {
         selector: '[data-coach="builder-build-from"]',
         title: 'Start your board',
-        body: 'Begin from a preset, import a KLE layout, make a grid, or add keys one at a time. Geometry and matrix are shared across every layer.',
+        body: 'You can also build from here any time — preset, KLE import, grid, or add keys one at a time. Geometry and matrix are shared across every layer.',
     },
     {
         selector: '[data-coach="builder-canvas"]',

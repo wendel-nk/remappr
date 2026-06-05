@@ -26,18 +26,25 @@ describe('builderTourSteps', () => {
         }
     })
 
-    it('opens with a centred welcome (no spotlight) and ends on export', () => {
-        expect(BUILDER_TOUR_STEPS[0].selector).toBeNull()
+    it('opens on the start chooser and ends on export', () => {
+        expect(BUILDER_TOUR_STEPS[0].selector).toBe('.builder-start-modal')
+        expect(BUILDER_TOUR_STEPS[0].requiresStartModal).toBe(true)
         const last = BUILDER_TOUR_STEPS[BUILDER_TOUR_STEPS.length - 1]
         expect(last.selector).toBe('[data-coach="builder-export"]')
     })
 
-    it('every non-null selector is a unique data-coach anchor', () => {
+    it('only the welcome step requires the start modal', () => {
+        const flagged = BUILDER_TOUR_STEPS.filter((s) => s.requiresStartModal)
+        expect(flagged).toHaveLength(1)
+        expect(flagged[0]).toBe(BUILDER_TOUR_STEPS[0])
+    })
+
+    it('every selector is unique and non-empty', () => {
         const anchors = BUILDER_TOUR_STEPS.map((s) => s.selector).filter(
             (s): s is string => s !== null,
         )
         for (const a of anchors) {
-            expect(a).toMatch(/^\[data-coach="builder-[a-z-]+"\]$/)
+            expect(a.trim()).not.toBe('')
         }
         expect(new Set(anchors).size).toBe(anchors.length)
     })

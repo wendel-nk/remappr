@@ -26,13 +26,17 @@ interface Rect {
 }
 
 export function BuilderCoachmarkTour({
-    ready,
     replayNonce,
+    onStartModal,
 }: {
-    /** Gate auto-start until the builder is interactive (start chooser closed). */
-    ready: boolean
     /** Bumped by the toolbar "?" button to replay; the initial 0 never starts it. */
     replayNonce: number
+    /**
+     * Drive the start-chooser modal: the tour opens it for the welcome step (its
+     * spotlight target) and closes it when advancing into the builder. Called
+     * only while the tour is active so it never fights the user's own choice.
+     */
+    onStartModal: (open: boolean) => void
 }): JSX.Element | null {
     const seen = useUserSettingsStore((s) => s.seenBuilderTour)
     const setSeen = useUserSettingsStore((s) => s.setSeenBuilderTour)
@@ -40,16 +44,17 @@ export function BuilderCoachmarkTour({
     const [step, setStep] = useState(0)
     const [rect, setRect] = useState<Rect | null>(null)
 
-    // Auto-start once, the first time the builder is interactive for a user who
-    // hasn't seen it. Deferred so the target elements have laid out.
+    // Auto-start once for a user who hasn't seen it. The start chooser is open by
+    // default, so the welcome step can spotlight it immediately. Deferred so the
+    // modal has laid out before we measure it.
     useEffect(() => {
-        if (!ready || seen) return
+        if (seen) return
         const t = setTimeout(() => {
             setStep(0)
             setActive(true)
         }, 600)
         return () => clearTimeout(t)
-    }, [ready, seen])
+    }, [seen])
 
     // Replay on demand (skip the initial mount value of 0). Deferred a tick so
     // the restart happens outside the effect body (no synchronous setState).
@@ -65,16 +70,30 @@ export function BuilderCoachmarkTour({
     const total = BUILDER_TOUR_STEPS.length
     const current = BUILDER_TOUR_STEPS[step]
 
+    // Open the start chooser for its spotlight step, close it on the way into the
+    // builder. Only runs while active, so it never overrides the user's choice.
+    useEffect(() => {
+        if (!active) return
+        onStartModal(current.requiresStartModal === true)
+    }, [active, current.requiresStartModal, onStartModal])
+
     useLayoutEffect(() => {
         if (!active) return
-        const measure = (): void => {
+        let raf = 0
+        const measure = (attempt = 0): void => {
             if (!current.selector) {
                 setRect(null)
                 return
             }
             const el = document.querySelector(current.selector)
             if (!el) {
-                setRect(null)
+                // The target (e.g. the start modal) may mount a frame late; retry
+                // briefly before falling back to a centred card.
+                if (attempt < 12) {
+                    raf = requestAnimationFrame(() => measure(attempt + 1))
+                } else {
+                    setRect(null)
+                }
                 return
             }
             const r = el.getBoundingClientRect()
@@ -86,8 +105,12 @@ export function BuilderCoachmarkTour({
             })
         }
         measure()
-        window.addEventListener('resize', measure)
-        return () => window.removeEventListener('resize', measure)
+        const onResize = (): void => measure()
+        window.addEventListener('resize', onResize)
+        return () => {
+            cancelAnimationFrame(raf)
+            window.removeEventListener('resize', onResize)
+        }
     }, [active, step, current.selector])
 
     if (!active) return null
@@ -95,6 +118,7 @@ export function BuilderCoachmarkTour({
     const finish = (): void => {
         setSeen(true)
         setActive(false)
+        onStartModal(false)
     }
     const isLast = isLastTourStep(step, total)
     const next = (): void =>
@@ -156,7 +180,10 @@ export function BuilderCoachmarkTour({
             )}
             <div
                 className="absolute w-80 rounded-xl border border-border bg-popover p-4 text-popover-foreground shadow-2xl"
-                style={cardStyle}
+                // pointer-events:auto so the card's buttons stay clickable even
+                // while the start-chooser (a Radix modal) disables outside pointer
+                // events for its own dismiss layer.
+                style={{ ...cardStyle, pointerEvents: 'auto' }}
             >
                 <div className="text-sm font-semibold">{current.title}</div>
                 <p className="mt-1 text-sm text-muted-foreground">

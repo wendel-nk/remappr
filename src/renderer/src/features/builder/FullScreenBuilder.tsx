@@ -685,8 +685,11 @@ export function FullScreenBuilder(): JSX.Element {
                 onPreset={() => setBuildModal('preset')}
                 onKle={() => setBuildModal('kle')}
             />
-            {/* First-run guided tour — waits for the start chooser to close. */}
-            <BuilderCoachmarkTour ready={!startOpen} replayNonce={tourNonce} />
+            {/* First-run guided tour — starts on the start chooser, then drives it. */}
+            <BuilderCoachmarkTour
+                replayNonce={tourNonce}
+                onStartModal={setStartOpen}
+            />
         </div>
     )
 }
