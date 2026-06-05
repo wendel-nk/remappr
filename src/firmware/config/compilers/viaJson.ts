@@ -131,13 +131,20 @@ interface KleKey {
     color: string
     /** Vial-only: marks the cap as a rotary encoder (KLE `e` flag legend). */
     encoder?: boolean
+    /** VIA layout-option tag `[group, choice]` (KLE index-3 legend). */
+    option?: [number, number]
 }
 
-/** KLE legend for a key: `"row,col"` in the top-left, plus Vial's `e` encoder
- *  flag in legend position 9 when the cap is a rotary encoder. */
+/** KLE legend for a key. VIA reads positional legends: index 0 = `"row,col"`
+ *  (matrix), index 3 = `"group,choice"` (layout option), index 9 = `e` (Vial
+ *  encoder flag). Build the sparse position array and join with `\n`, trimming to
+ *  the highest set index. */
 function keyLegend(k: KleKey): string {
-    const matrix = `${k.row},${k.col}`
-    return k.encoder ? `${matrix}${'\n'.repeat(9)}e` : matrix
+    const pos: string[] = [`${k.row},${k.col}`]
+    if (k.option) pos[3] = `${k.option[0]},${k.option[1]}`
+    if (k.encoder) pos[9] = 'e'
+    const last = pos.length - 1
+    return Array.from({ length: last + 1 }, (_v, i) => pos[i] ?? '').join('\n')
 }
 
 /** Serialise placed keys to KLE rows. KLE is row-relative: x resets and y advances
@@ -225,15 +232,25 @@ export function buildViaDefinition(
             col,
             color: CATEGORY_COLOR[categoryForAction(base[i])],
             encoder: opts.encoderFlags && k.element === 'encoder',
+            ...(k.option ? { option: k.option } : {}),
         }
     })
+
+    // VIA `labels`: a string is a boolean toggle, an array a multi-choice dropdown.
+    const options = config.keyboard.layoutOptions ?? []
+    const labels = options.map((o) =>
+        o.choices && o.choices.length >= 2 ? [o.label, ...o.choices] : o.label,
+    )
 
     const json: Record<string, unknown> = {
         name: config.meta.name,
         vendorId: vid,
         productId: pid,
         matrix: { rows: dims.rows, cols: dims.cols },
-        layouts: { keymap: buildKeymap(kleKeys) },
+        layouts: {
+            ...(labels.length ? { labels } : {}),
+            keymap: buildKeymap(kleKeys),
+        },
     }
 
     return { json, diagnostics }

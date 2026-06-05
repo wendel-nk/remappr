@@ -345,9 +345,12 @@ export function normalizeKeymap(km: SurfaceKeymap): ConfigKeymap {
             name: km.keyboard.name,
             keys: km.keyboard.keys.map((k) => ({
                 ...k,
-                // own the matrix tuple so canonical never aliases the surface array
+                // own the matrix/option tuples so canonical never aliases the surface array
                 ...(k.matrix
                     ? { matrix: [k.matrix[0], k.matrix[1]] as [number, number] }
+                    : {}),
+                ...(k.option
+                    ? { option: [k.option[0], k.option[1]] as [number, number] }
                     : {}),
             })),
             ...(km.keyboard.encoders
@@ -379,6 +382,14 @@ export function normalizeKeymap(km: SurfaceKeymap): ConfigKeymap {
                 : {}),
             ...(km.keyboard.layouts
                 ? { layouts: km.keyboard.layouts.map((l) => ({ ...l })) }
+                : {}),
+            ...(km.keyboard.layoutOptions
+                ? {
+                      layoutOptions: km.keyboard.layoutOptions.map((o) => ({
+                          label: o.label,
+                          ...(o.choices ? { choices: [...o.choices] } : {}),
+                      })),
+                  }
                 : {}),
             ...(km.keyboard.split !== undefined
                 ? { split: km.keyboard.split }

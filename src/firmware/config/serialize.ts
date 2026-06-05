@@ -250,6 +250,7 @@ export function toSurfaceObject(km: ConfigKeymap): Record<string, unknown> {
                 ...(k.variant ? { variant: k.variant } : {}),
                 ...(k.pin ? { pin: k.pin } : {}),
                 ...(k.element ? { element: k.element } : {}),
+                ...(k.option ? { option: [k.option[0], k.option[1]] } : {}),
             })),
             ...(km.keyboard.encoders
                 ? {
@@ -287,6 +288,14 @@ export function toSurfaceObject(km: ConfigKeymap): Record<string, unknown> {
                 : {}),
             ...(km.keyboard.layouts
                 ? { layouts: km.keyboard.layouts.map((l) => ({ ...l })) }
+                : {}),
+            ...(km.keyboard.layoutOptions
+                ? {
+                      layoutOptions: km.keyboard.layoutOptions.map((o) => ({
+                          label: o.label,
+                          ...(o.choices ? { choices: [...o.choices] } : {}),
+                      })),
+                  }
                 : {}),
             ...(km.keyboard.split !== undefined
                 ? { split: km.keyboard.split }

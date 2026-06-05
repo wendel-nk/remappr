@@ -300,6 +300,12 @@ export const GeometrySchema = z.object({
         .enum(['encoder', 'slider'])
         .optional()
         .describe('Input element type (absent = key); builder metadata.'),
+    option: z
+        .tuple([z.number().int().nonnegative(), z.number().int().nonnegative()])
+        .optional()
+        .describe(
+            'VIA/Vial layout-option tag [group, choice]; key exists only for that choice.',
+        ),
 })
 
 export const EncoderSchema = z.object({ x: z.number(), y: z.number() })
@@ -545,6 +551,15 @@ export const LayoutSchema = z
     .object({ id: z.string(), name: z.string() })
     .describe('A named physical-layout variant; keys tag in via `variant`.')
 
+export const LayoutOptionSchema = z
+    .object({
+        label: z.string(),
+        choices: z.array(z.string()).optional(),
+    })
+    .describe(
+        'A VIA/Vial layout option (boolean toggle, or multi-choice when `choices` is set).',
+    )
+
 const BaseKeymapSchema = z.object({
     schemaVersion: z.literal(1),
     kind: z.literal('remappr.keymap'),
@@ -606,6 +621,7 @@ const BaseKeymapSchema = z.object({
             ),
         lighting: LightingSchema.optional(),
         layouts: z.array(LayoutSchema).optional(),
+        layoutOptions: z.array(LayoutOptionSchema).optional(),
         split: z
             .boolean()
             .optional()

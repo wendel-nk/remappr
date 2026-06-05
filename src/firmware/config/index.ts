@@ -29,6 +29,7 @@ export type {
     CanonUnderglow,
     CanonBacklight,
     CanonLayout,
+    CanonLayoutOption,
     ConfigHardware,
     ConfigKeymap,
     ConfigKeyboard,

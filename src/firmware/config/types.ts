@@ -147,6 +147,11 @@ export interface CanonGeometry {
      *  "encoder" = a rotary encoder; "slider" = an analog slider. Builder
      *  metadata — compilers treat every entry as a key for now. */
     element?: 'encoder' | 'slider'
+    /** VIA/Vial layout-option tag `[group, choice]`: this key exists only when
+     *  layout-option `group` is set to `choice`. Indexes into
+     *  `keyboard.layoutOptions`; absent = present in every variant. Emitted as the
+     *  KLE index-3 legend `"group,choice"`. */
+    option?: [number, number]
 }
 
 export interface CanonEncoderSlot {
@@ -366,6 +371,15 @@ export interface CanonLayout {
     name: string
 }
 
+/** A VIA/Vial layout option (one selectable variation of the physical layout).
+ *  `label` names the option; `choices` (≥2) makes it a multi-choice dropdown
+ *  (else it is a boolean toggle). Keys reference it by index via
+ *  `CanonGeometry.option [group, choice]`. */
+export interface CanonLayoutOption {
+    label: string
+    choices?: string[]
+}
+
 /** Friendly per-row / per-column GPIO pin labels shown in the builder (e.g.
  *  "GP4"). Builder metadata, kept separate from `hardware.kscan` (the real
  *  devicetree GpioSpec wiring) so editing a label here never corrupts ZMK
@@ -443,6 +457,9 @@ export interface ConfigKeyboard {
     lighting?: CanonLighting
     /** Physical-layout variants (builder); keys tag in via `variant`. */
     layouts?: CanonLayout[]
+    /** VIA/Vial layout options; keys tag in via `option [group, choice]`. The
+     *  index in this array is the option's `group` number. */
+    layoutOptions?: CanonLayoutOption[]
     /** Two-piece / split keyboard (builder capability flag; export metadata). */
     split?: boolean
 }
