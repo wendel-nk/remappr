@@ -13,11 +13,11 @@ import { Switch } from '@/ui/switch'
 import useBuilderStore from '@/stores/builderStore'
 import useConfigStore from '@/stores/configStore'
 import type {
+    CanonController,
     CanonLighting,
     ConfigKeymap,
     ConfigMeta,
     ConfigKeyboard,
-    ConfigHardware,
 } from '@firmware/config'
 import { KNOWN_ZMK_BOARDS, materializeMatrix } from '@firmware/config'
 import { matrixDims } from './builderMatrix'
@@ -221,13 +221,15 @@ export function BuilderMetaForm(): JSX.Element {
     // "Auto" freezes the derived [row,col] into every key + the board descriptor.
     const onAutoMatrix = (): void => commit(materializeMatrix(config))
 
-    // Board/shield writers — drop empties so a keymap-only config stays clean.
-    const setHardware = (p: Partial<ConfigHardware>): void => {
-        const next: ConfigHardware = { ...kb.hardware, ...p }
-        if (!next.board) delete next.board
-        if (!next.shield) delete next.shield
-        const has = Object.values(next).some((v) => v !== undefined)
-        patchKeyboard({ hardware: has ? next : undefined })
+    // Controller-identity writer — drop empties so a keymap-only config stays clean.
+    const ctrl = kb.controller
+    const setController = (p: Partial<CanonController>): void => {
+        const next: CanonController = { ...ctrl, ...p }
+        for (const k of Object.keys(next) as (keyof CanonController)[])
+            if (!next[k]) delete next[k]
+        patchKeyboard({
+            controller: Object.keys(next).length ? next : undefined,
+        })
     }
 
     // Lighting writers. `commit` for discrete edits, `liveCommit` for slider drags.
@@ -377,9 +379,9 @@ export function BuilderMetaForm(): JSX.Element {
                 </div>
             </div>
 
-            {/* Controller board — pattern-check: skip presentational form section */}
+            {/* Controller — pattern-check: skip presentational form section */}
             <div>
-                <MiniLabel>Controller board</MiniLabel>
+                <MiniLabel>Controller</MiniLabel>
                 <div className="grid grid-cols-2 gap-2">
                     <div>
                         <div className="mb-1 text-[11px] text-muted-foreground">
@@ -388,9 +390,9 @@ export function BuilderMetaForm(): JSX.Element {
                         <TextField
                             mono
                             list="zmk-boards"
-                            value={kb.hardware?.board ?? ''}
+                            value={ctrl?.board ?? kb.hardware?.board ?? ''}
                             onCommit={(v) =>
-                                setHardware({ board: v.trim() || undefined })
+                                setController({ board: v.trim() || undefined })
                             }
                             placeholder="nice_nano_v2"
                         />
@@ -406,17 +408,78 @@ export function BuilderMetaForm(): JSX.Element {
                         </div>
                         <TextField
                             mono
-                            value={kb.hardware?.shield ?? ''}
+                            value={ctrl?.shield ?? kb.hardware?.shield ?? ''}
                             onCommit={(v) =>
-                                setHardware({ shield: v.trim() || undefined })
+                                setController({ shield: v.trim() || undefined })
                             }
                             placeholder="corne_left"
                         />
                     </div>
+                    <div>
+                        <div className="mb-1 text-[11px] text-muted-foreground">
+                            Processor (QMK)
+                        </div>
+                        <TextField
+                            mono
+                            value={ctrl?.processor ?? ''}
+                            onCommit={(v) =>
+                                setController({
+                                    processor: v.trim() || undefined,
+                                })
+                            }
+                            placeholder="atmega32u4"
+                        />
+                    </div>
+                    <div>
+                        <div className="mb-1 text-[11px] text-muted-foreground">
+                            Bootloader (QMK)
+                        </div>
+                        <TextField
+                            mono
+                            value={ctrl?.bootloader ?? ''}
+                            onCommit={(v) =>
+                                setController({
+                                    bootloader: v.trim() || undefined,
+                                })
+                            }
+                            placeholder="atmel-dfu"
+                        />
+                    </div>
+                    <div>
+                        <div className="mb-1 text-[11px] text-muted-foreground">
+                            Dev board (QMK)
+                        </div>
+                        <TextField
+                            mono
+                            value={ctrl?.developmentBoard ?? ''}
+                            onCommit={(v) =>
+                                setController({
+                                    developmentBoard: v.trim() || undefined,
+                                })
+                            }
+                            placeholder="promicro"
+                        />
+                    </div>
+                    <div>
+                        <div className="mb-1 text-[11px] text-muted-foreground">
+                            Device version
+                        </div>
+                        <TextField
+                            mono
+                            value={ctrl?.deviceVersion ?? ''}
+                            onCommit={(v) =>
+                                setController({
+                                    deviceVersion: v.trim() || undefined,
+                                })
+                            }
+                            placeholder="1.0.0"
+                        />
+                    </div>
                 </div>
                 <p className="mt-1.5 text-[10.5px] leading-relaxed text-muted-foreground">
-                    Zephyr board id — lets remappr resolve the pins below into a
-                    real, flashable kscan.
+                    ZMK uses board (+ shield); QMK uses processor + bootloader
+                    (or a dev-board shortcut). Lets remappr emit a flashable
+                    project.
                 </p>
             </div>
 

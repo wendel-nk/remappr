@@ -9,6 +9,7 @@ import { parseKeyToken, resolveKeycode } from './keycodes'
 import { parseSurface, type SurfaceAction, type SurfaceKeymap } from './schema'
 import type {
     CanonAction,
+    CanonController,
     CanonEncoderBinding,
     CanonSliderBinding,
     CanonHoldTarget,
@@ -87,6 +88,23 @@ export function cloneHardware(hw: ConfigHardware): ConfigHardware {
                       ),
                   },
               }
+            : {}),
+    }
+}
+
+// pattern-check: skip additive passthrough clone mirroring cloneHardware, no abstraction
+/** Deep-clone the already-canonical controller sub-object (no surface sugar). */
+export function cloneController(c: CanonController): CanonController {
+    return {
+        ...(c.board !== undefined ? { board: c.board } : {}),
+        ...(c.shield !== undefined ? { shield: c.shield } : {}),
+        ...(c.processor !== undefined ? { processor: c.processor } : {}),
+        ...(c.bootloader !== undefined ? { bootloader: c.bootloader } : {}),
+        ...(c.developmentBoard !== undefined
+            ? { developmentBoard: c.developmentBoard }
+            : {}),
+        ...(c.deviceVersion !== undefined
+            ? { deviceVersion: c.deviceVersion }
             : {}),
     }
 }
@@ -320,6 +338,9 @@ export function normalizeKeymap(km: SurfaceKeymap): ConfigKeymap {
                 : {}),
             ...(km.keyboard.matrix
                 ? { matrix: { ...km.keyboard.matrix } }
+                : {}),
+            ...(km.keyboard.controller
+                ? { controller: cloneController(km.keyboard.controller) }
                 : {}),
             ...(km.keyboard.hardware
                 ? { hardware: cloneHardware(km.keyboard.hardware) }

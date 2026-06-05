@@ -12,6 +12,7 @@ import type { ExportedFile } from '../types'
 import type { Diagnostic } from './diagnostics'
 import { getCompiler } from './compiler'
 import { resolveQmkPin } from './pinmaps'
+import { resolveController } from './controller'
 import type { CanonAction, ConfigKeymap, Target } from './types'
 
 export interface ProjectBundle {
@@ -111,11 +112,11 @@ const ZMK_WEST_YML = [
 ].join('\n')
 
 function zmkBundle(config: ConfigKeymap): ProjectBundle {
-    const hw = config.keyboard.hardware
+    const ctrl = resolveController(config)
     const shield = sanitize(
-        hw?.shield || config.keyboard.id || config.meta.name,
+        ctrl.shield || config.keyboard.id || config.meta.name,
     )
-    const board = hw?.board || 'YOUR_BOARD'
+    const board = ctrl.board || 'YOUR_BOARD'
     const { files: compiled, diagnostics } = getCompiler('zmk').compile(config)
     const keymap = compiled.find((f) => f.filename.endsWith('.keymap'))
     const overlay = compiled.find((f) => f.filename.endsWith('.overlay'))
@@ -190,7 +191,7 @@ function qmkConfigH(config: ConfigKeymap): {
     content: string
     diagnostics: Diagnostic[]
 } {
-    const board = config.keyboard.hardware?.board
+    const board = resolveController(config).board
     const pins = config.keyboard.pins
     const diagnostics: Diagnostic[] = []
     const lines = [`#pragma once`, `// remappr keymap — generated pin map.`]

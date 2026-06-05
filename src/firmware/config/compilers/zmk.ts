@@ -25,6 +25,7 @@ import type {
 } from '../types'
 import type { Modifier } from '../keycodes'
 import { resolveZmkPin, gpioSpec, type PinRole } from '../pinmaps'
+import { resolveController } from '../controller'
 
 const RGB_UG: Partial<Record<LightingAction, string>> = {
     toggle: 'RGB_TOG',
@@ -219,7 +220,7 @@ function emitSynthKscan(
     config: ConfigKeymap,
     diag: DiagnosticBag,
 ): string[] | null {
-    const board = config.keyboard.hardware?.board
+    const board = resolveController(config).board
     const pins = config.keyboard.pins
     if (pins && pins.rows.length && pins.cols.length) {
         const dir: DiodeDirection = 'col2row'
@@ -875,9 +876,10 @@ function emitOverlay(config: ConfigKeymap, diag: DiagnosticBag): ExportedFile {
     const kscanLines = explicitKscan ?? synthKscan
     const hasKscan = kscanLines != null
 
+    const ctrl = resolveController(config)
     const target = [
-        ...(hw?.board ? [` * Target board: ${hw.board}.`] : []),
-        ...(hw?.shield ? [` * Shield: ${hw.shield}.`] : []),
+        ...(ctrl.board ? [` * Target board: ${ctrl.board}.`] : []),
+        ...(ctrl.shield ? [` * Shield: ${ctrl.shield}.`] : []),
     ]
     const header = synthKscan
         ? [

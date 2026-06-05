@@ -326,9 +326,11 @@ export interface CanonMatrixTransform {
  *  config instead of the geometry-derived scaffold + "NOT GENERATED" checklist.
  *  Everything is optional so a keymap-only config stays valid. */
 export interface ConfigHardware {
-    /** Zephyr board target (e.g. "nice_nano_v2", "seeeduino_xiao_ble"). */
+    /** @deprecated Use `keyboard.controller.board`. Read as a back-compat
+     *  fallback by `resolveController`. Zephyr board target (e.g. "nice_nano_v2"). */
     board?: string
-    /** ZMK shield, when the keymap is a shield on a controller board. */
+    /** @deprecated Use `keyboard.controller.shield`. Read as a back-compat
+     *  fallback by `resolveController`. ZMK shield on a controller board. */
     shield?: string
     kscan?: CanonKscan
     transform?: CanonMatrixTransform
@@ -384,6 +386,28 @@ export interface CanonKeyboardMatrix {
     mode?: 'matrix' | 'direct'
 }
 
+/** Controller / MCU identity for a flashable build. ZMK uses `board` (a Zephyr
+ *  board, e.g. "nice_nano_v2") + optional `shield`; QMK uses `processor` +
+ *  `bootloader` (+ a `board` support file), or the `developmentBoard` shortcut
+ *  (e.g. "promicro", "blackpill_f401") which sets all three, plus `deviceVersion`
+ *  (USB bcdDevice, e.g. "1.0.0"). All optional so a keymap-only config stays
+ *  valid. Supersedes `hardware.board` / `hardware.shield` (kept for back-compat). */
+export interface CanonController {
+    /** ZMK Zephyr board, or QMK `board` support-file name. */
+    board?: string
+    /** ZMK shield, when the keymap is a shield on a controller board. */
+    shield?: string
+    /** QMK MCU family, e.g. "atmega32u4", "STM32F103", "RP2040". */
+    processor?: string
+    /** QMK bootloader, e.g. "atmel-dfu", "rp2040", "uf2boot". */
+    bootloader?: string
+    /** QMK `development_board` shortcut (sets processor+bootloader+board),
+     *  e.g. "promicro", "blackpill_f401". */
+    developmentBoard?: string
+    /** USB device version (bcdDevice), e.g. "0.0.1" / "1.0.0". */
+    deviceVersion?: string
+}
+
 export interface ConfigKeyboard {
     id: string
     name: string
@@ -391,6 +415,8 @@ export interface ConfigKeyboard {
     encoders?: CanonEncoderSlot[]
     /** Board-level matrix descriptor (dims + diode + scan mode). */
     matrix?: CanonKeyboardMatrix
+    /** Controller / MCU identity (board/shield/processor/bootloader/…). */
+    controller?: CanonController
     hardware?: ConfigHardware
     /** Friendly row/column GPIO labels (builder metadata). */
     pins?: ConfigPins

@@ -484,6 +484,19 @@ export const HardwareSchema = z
         'Board hardware (kscan + electrical transform + target) for a flashable export.',
     )
 
+export const ControllerSchema = z
+    .object({
+        board: z.string().optional(),
+        shield: z.string().optional(),
+        processor: z.string().optional(),
+        bootloader: z.string().optional(),
+        developmentBoard: z.string().optional(),
+        deviceVersion: z.string().optional(),
+    })
+    .describe(
+        'Controller / MCU identity: ZMK board/shield · QMK processor/bootloader/board/development_board · USB device version.',
+    )
+
 /* ── builder board metadata (lighting + layout variants) ───────────────── */
 
 export const LightingSchema = z
@@ -551,6 +564,7 @@ const BaseKeymapSchema = z.object({
             .describe(
                 'Board matrix descriptor: dimensions + diode direction + scan mode.',
             ),
+        controller: ControllerSchema.optional(),
         hardware: HardwareSchema.optional(),
         pins: z
             .object({

@@ -7,7 +7,12 @@
 // key order is fixed so re-saves are stable diffs.
 
 import { friendlyName, resolveKeycode, type Modifier } from './keycodes'
-import { cloneHardware, cloneLighting, parseKeymap } from './normalize'
+import {
+    cloneController,
+    cloneHardware,
+    cloneLighting,
+    parseKeymap,
+} from './normalize'
 import { type TargetDefaults, resolveDefaults } from './defaults'
 import type {
     CanonAction,
@@ -255,6 +260,9 @@ export function toSurfaceObject(km: ConfigKeymap): Record<string, unknown> {
                 : {}),
             ...(km.keyboard.matrix
                 ? { matrix: { ...km.keyboard.matrix } }
+                : {}),
+            ...(km.keyboard.controller
+                ? { controller: cloneController(km.keyboard.controller) }
                 : {}),
             // hardware is already canonical (no surface sugar) — emit it as-is
             // with stable key order via the same clone normalize uses.
