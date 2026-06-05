@@ -38,7 +38,7 @@ function createWindow(): void {
         width: 1300,
         height: 1100,
         minWidth: 1200,
-        minHeight: 100,
+        minHeight: 1000,
         useContentSize: true,
         show: false,
         autoHideMenuBar: true,
