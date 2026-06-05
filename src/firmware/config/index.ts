@@ -24,6 +24,7 @@ export type {
     CanonMatrixTransform,
     CanonKeyboardMatrix,
     CanonController,
+    CanonVial,
     CanonLighting,
     CanonUnderglow,
     CanonBacklight,

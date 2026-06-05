@@ -11,6 +11,7 @@ import {
     cloneController,
     cloneHardware,
     cloneLighting,
+    cloneVial,
     parseKeymap,
 } from './normalize'
 import { type TargetDefaults, resolveDefaults } from './defaults'
@@ -264,6 +265,7 @@ export function toSurfaceObject(km: ConfigKeymap): Record<string, unknown> {
             ...(km.keyboard.controller
                 ? { controller: cloneController(km.keyboard.controller) }
                 : {}),
+            ...(km.keyboard.vial ? { vial: cloneVial(km.keyboard.vial) } : {}),
             // hardware is already canonical (no surface sugar) — emit it as-is
             // with stable key order via the same clone normalize uses.
             ...(km.keyboard.hardware

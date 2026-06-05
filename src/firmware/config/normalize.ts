@@ -10,6 +10,7 @@ import { parseSurface, type SurfaceAction, type SurfaceKeymap } from './schema'
 import type {
     CanonAction,
     CanonController,
+    CanonVial,
     CanonEncoderBinding,
     CanonSliderBinding,
     CanonHoldTarget,
@@ -106,6 +107,22 @@ export function cloneController(c: CanonController): CanonController {
         ...(c.deviceVersion !== undefined
             ? { deviceVersion: c.deviceVersion }
             : {}),
+    }
+}
+
+// pattern-check: skip additive passthrough clone mirroring cloneController, no abstraction
+/** Deep-clone the canonical Vial sub-object (owns its uid + unlockKeys arrays). */
+export function cloneVial(v: CanonVial): CanonVial {
+    return {
+        ...(v.uid !== undefined ? { uid: [...v.uid] } : {}),
+        ...(v.unlockKeys !== undefined
+            ? {
+                  unlockKeys: v.unlockKeys.map(
+                      ([r, c]) => [r, c] as [number, number],
+                  ),
+              }
+            : {}),
+        ...(v.insecure !== undefined ? { insecure: v.insecure } : {}),
     }
 }
 
@@ -342,6 +359,7 @@ export function normalizeKeymap(km: SurfaceKeymap): ConfigKeymap {
             ...(km.keyboard.controller
                 ? { controller: cloneController(km.keyboard.controller) }
                 : {}),
+            ...(km.keyboard.vial ? { vial: cloneVial(km.keyboard.vial) } : {}),
             ...(km.keyboard.hardware
                 ? { hardware: cloneHardware(km.keyboard.hardware) }
                 : {}),

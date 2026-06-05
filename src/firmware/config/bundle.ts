@@ -14,6 +14,7 @@ import { getCompiler } from './compiler'
 import { resolveController } from './controller'
 import { buildQmkKeyboardJson } from './compilers/qmkKeyboardJson'
 import { buildViaJson } from './compilers/viaJson'
+import { buildVialJson } from './compilers/vialJson'
 import type { CanonAction, ConfigKeymap, Target } from './types'
 
 export interface ProjectBundle {
@@ -218,9 +219,22 @@ function qmkBundle(config: ConfigKeymap, target: Target): ProjectBundle {
     const { json: viaJson, diagnostics: viaDiag } = wantsVia
         ? buildViaJson(config)
         : { json: null, diagnostics: [] as Diagnostic[] }
-    const rulesMk = wantsVia
-        ? `# remappr keymap — feature toggles live in keyboard.json\nVIA_ENABLE = yes\n`
-        : `# remappr keymap — feature toggles live in keyboard.json\n`
+
+    // Vial layers its security (UID + unlock combo) on top of VIA: it ships its own
+    // matrix-annotated `vial.json` in the keymap and adds VIAL_ENABLE + a config.h.
+    const wantsVial = (config.keyboard.firmware ?? []).includes('vial')
+    const vial = wantsVial
+        ? buildVialJson(config)
+        : { json: null, configH: '', diagnostics: [] as Diagnostic[] }
+
+    const rulesMk =
+        `# remappr keymap — feature toggles live in keyboard.json\n` +
+        (wantsVia ? `VIA_ENABLE = yes\n` : ``) +
+        (wantsVial ? `VIAL_ENABLE = yes\n` : ``)
+    // Vial's UID/unlock defines go in the keymap config.h alongside board overrides.
+    const configH = wantsVial
+        ? qmkConfigH() + '\n' + vial.configH
+        : qmkConfigH()
 
     const qmkJson = JSON.stringify(
         { userspace_version: '1.1', build_targets: [[kb, km]] },
@@ -261,6 +275,17 @@ function qmkBundle(config: ConfigKeymap, target: Target): ProjectBundle {
                   `  match the firmware).`,
               ]
             : []),
+        ...(wantsVial
+            ? [
+                  ``,
+                  `## Vial`,
+                  `- \`VIAL_ENABLE = yes\` is set in \`${base}/rules.mk\` and`,
+                  `  \`${base}/vial.json\` is the Vial definition the firmware embeds.`,
+                  `- \`${base}/config.h\` carries \`VIAL_KEYBOARD_UID\` + the unlock combo.`,
+                  `  Generate a unique UID and pick unlock keys in the builder before`,
+                  `  shipping (a placeholder/insecure build still compiles).`,
+              ]
+            : []),
         ``,
     ].join('\n')
 
@@ -271,7 +296,7 @@ function qmkBundle(config: ConfigKeymap, target: Target): ProjectBundle {
         ),
         text(`${base}/keymap.c`, keymapC ? asText(keymapC.content) : ''),
         text(`${base}/rules.mk`, rulesMk),
-        text(`${base}/config.h`, qmkConfigH()),
+        text(`${base}/config.h`, configH),
         text(`qmk.json`, qmkJson + '\n'),
         text(`.github/workflows/build_binaries.yml`, QMK_BUILD_WORKFLOW),
         text(`README.md`, readme),
@@ -280,10 +305,22 @@ function qmkBundle(config: ConfigKeymap, target: Target): ProjectBundle {
         files.push(
             text(`via/${kb}.json`, JSON.stringify(viaJson, null, 4) + '\n'),
         )
+    if (vial.json)
+        files.push(
+            text(
+                `${base}/vial.json`,
+                JSON.stringify(vial.json, null, 4) + '\n',
+            ),
+        )
 
     return {
         files,
-        diagnostics: [...diagnostics, ...kbDiag, ...viaDiag],
+        diagnostics: [
+            ...diagnostics,
+            ...kbDiag,
+            ...viaDiag,
+            ...vial.diagnostics,
+        ],
         rootName: `${kb}-qmk-userspace`,
     }
 }

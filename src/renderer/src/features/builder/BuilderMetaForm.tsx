@@ -15,6 +15,7 @@ import useConfigStore from '@/stores/configStore'
 import type {
     CanonController,
     CanonLighting,
+    CanonVial,
     ConfigKeymap,
     ConfigMeta,
     ConfigKeyboard,
@@ -181,6 +182,48 @@ function HistorySlider({
     )
 }
 
+/* ── Vial security helpers (pure) ──────────────────────────────────────── */
+// pattern-check: skip pure UID/unlock-combo formatters + parsers, no abstraction
+
+const uidToHex = (uid?: number[]): string =>
+    (uid ?? [])
+        .map(
+            (b) =>
+                '0x' + (b & 0xff).toString(16).toUpperCase().padStart(2, '0'),
+        )
+        .join(' ')
+
+/** Parse 8 hex/decimal bytes from free text; undefined unless exactly 8 valid. */
+const parseUid = (s: string): number[] | undefined => {
+    const bytes = s
+        .trim()
+        .split(/[\s,]+/)
+        .filter(Boolean)
+        .map((t) => Number(t))
+    return bytes.length === 8 &&
+        bytes.every((b) => Number.isInteger(b) && b >= 0 && b <= 255)
+        ? bytes
+        : undefined
+}
+
+const randomUid = (): number[] =>
+    Array.from({ length: 8 }, () => Math.floor(Math.random() * 256))
+
+const unlockToText = (keys?: [number, number][]): string =>
+    (keys ?? []).map(([r, c]) => `${r},${c}`).join(' ')
+
+/** Parse "r,c r,c …" into matrix positions, dropping malformed entries. */
+const parseUnlock = (s: string): [number, number][] =>
+    s
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
+        .map((p) => p.split(',').map(Number) as [number, number])
+        .filter(
+            ([r, c]) =>
+                Number.isInteger(r) && Number.isInteger(c) && r >= 0 && c >= 0,
+        )
+
 /* ── the form ──────────────────────────────────────────────────────────── */
 export function BuilderMetaForm(): JSX.Element {
     const config = useConfigStore((s) => s.config)
@@ -230,6 +273,16 @@ export function BuilderMetaForm(): JSX.Element {
         patchKeyboard({
             controller: Object.keys(next).length ? next : undefined,
         })
+    }
+
+    // Vial security writer — drop empty fields so a keymap-only config stays clean.
+    const vial = kb.vial
+    const setVial = (p: Partial<CanonVial>): void => {
+        const next: CanonVial = { ...vial, ...p }
+        if (!next.uid?.length) delete next.uid
+        if (!next.unlockKeys?.length) delete next.unlockKeys
+        if (!next.insecure) delete next.insecure
+        patchKeyboard({ vial: Object.keys(next).length ? next : undefined })
     }
 
     // Lighting writers. `commit` for discrete edits, `liveCommit` for slider drags.
@@ -482,6 +535,58 @@ export function BuilderMetaForm(): JSX.Element {
                     project.
                 </p>
             </div>
+
+            {/* Vial security — // pattern-check: skip presentational form section */}
+            {targets.includes('vial') && (
+                <div>
+                    <MiniLabel>Vial security</MiniLabel>
+                    <div className="mb-1 text-[11px] text-muted-foreground">
+                        Keyboard UID (8 bytes)
+                    </div>
+                    <div className="flex gap-2">
+                        <div className="flex-1">
+                            <TextField
+                                mono
+                                value={uidToHex(vial?.uid)}
+                                onCommit={(v) => setVial({ uid: parseUid(v) })}
+                                placeholder="0xFE 0x06 0xBF …"
+                            />
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setVial({ uid: randomUid() })}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-secondary px-2.5 py-1.5 text-[12px] font-semibold text-foreground hover:border-primary"
+                        >
+                            <Wand2 size={13} /> Generate
+                        </button>
+                    </div>
+                    <div className="mt-2.5 mb-1 text-[11px] text-muted-foreground">
+                        Unlock combo (row,col …)
+                    </div>
+                    <TextField
+                        mono
+                        value={unlockToText(vial?.unlockKeys)}
+                        onCommit={(v) =>
+                            setVial({ unlockKeys: parseUnlock(v) })
+                        }
+                        placeholder="0,0 0,1"
+                    />
+                    <div className="mt-2.5">
+                        <ToggleRow
+                            on={!!vial?.insecure}
+                            onToggle={(v) =>
+                                setVial({ insecure: v || undefined })
+                            }
+                            label="Insecure (no unlock required)"
+                        />
+                    </div>
+                    <p className="mt-1.5 text-[10.5px] leading-relaxed text-muted-foreground">
+                        Vial ties a flashed board to its definition by UID and
+                        locks the keymap until the unlock keys are held. Emitted
+                        to the vial keymap&apos;s config.h.
+                    </p>
+                </div>
+            )}
 
             {/* Matrix */}
             <div>

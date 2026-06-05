@@ -408,6 +408,20 @@ export interface CanonController {
     deviceVersion?: string
 }
 
+/** Vial security identity. Vial firmware refuses to expose its keymap to the GUI
+ *  until unlocked; the `uid` ties a flashed board to its definition, and holding
+ *  the `unlockKeys` (matrix positions) performs the unlock. Emitted to the vial
+ *  keymap's `config.h` (VIAL_KEYBOARD_UID + VIAL_UNLOCK_COMBO_ROWS/COLS). All
+ *  optional so a keymap-only config stays valid; `insecure` skips the lock. */
+export interface CanonVial {
+    /** 8-byte keyboard UID, e.g. [0xFE, 0x06, …] (each 0–255). */
+    uid?: number[]
+    /** Matrix positions [row, col] of the unlock combo (held together to unlock). */
+    unlockKeys?: [number, number][]
+    /** Build with `VIAL_INSECURE` — no unlock required (dev/testing only). */
+    insecure?: boolean
+}
+
 export interface ConfigKeyboard {
     id: string
     name: string
@@ -417,6 +431,8 @@ export interface ConfigKeyboard {
     matrix?: CanonKeyboardMatrix
     /** Controller / MCU identity (board/shield/processor/bootloader/…). */
     controller?: CanonController
+    /** Vial security identity (UID + unlock combo); emitted to vial config.h. */
+    vial?: CanonVial
     hardware?: ConfigHardware
     /** Friendly row/column GPIO labels (builder metadata). */
     pins?: ConfigPins

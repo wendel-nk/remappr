@@ -497,6 +497,28 @@ export const ControllerSchema = z
         'Controller / MCU identity: ZMK board/shield · QMK processor/bootloader/board/development_board · USB device version.',
     )
 
+export const VialSchema = z
+    .object({
+        uid: z
+            .array(z.number().int().min(0).max(255))
+            .length(8)
+            .optional()
+            .describe('8-byte Vial keyboard UID.'),
+        unlockKeys: z
+            .array(
+                z.tuple([
+                    z.number().int().nonnegative(),
+                    z.number().int().nonnegative(),
+                ]),
+            )
+            .optional()
+            .describe('Matrix positions [row, col] of the unlock combo.'),
+        insecure: z.boolean().optional(),
+    })
+    .describe(
+        'Vial security identity: keyboard UID + unlock combo (emitted to the vial keymap config.h).',
+    )
+
 /* ── builder board metadata (lighting + layout variants) ───────────────── */
 
 export const LightingSchema = z
@@ -565,6 +587,7 @@ const BaseKeymapSchema = z.object({
                 'Board matrix descriptor: dimensions + diode direction + scan mode.',
             ),
         controller: ControllerSchema.optional(),
+        vial: VialSchema.optional(),
         hardware: HardwareSchema.optional(),
         pins: z
             .object({

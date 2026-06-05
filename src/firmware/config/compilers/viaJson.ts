@@ -119,6 +119,7 @@ function categoryForAction(a: CanonAction | undefined): Category {
 
 /* ── KLE keymap serialisation ─────────────────────────────────────────────── */
 
+// pattern-check: skip additive field + helper on an existing serialiser, no abstraction
 /** One key's input to the KLE serialiser: placement + matrix + cap colour. */
 interface KleKey {
     x: number
@@ -128,6 +129,15 @@ interface KleKey {
     row: number
     col: number
     color: string
+    /** Vial-only: marks the cap as a rotary encoder (KLE `e` flag legend). */
+    encoder?: boolean
+}
+
+/** KLE legend for a key: `"row,col"` in the top-left, plus Vial's `e` encoder
+ *  flag in legend position 9 when the cap is a rotary encoder. */
+function keyLegend(k: KleKey): string {
+    const matrix = `${k.row},${k.col}`
+    return k.encoder ? `${matrix}${'\n'.repeat(9)}e` : matrix
 }
 
 /** Serialise placed keys to KLE rows. KLE is row-relative: x resets and y advances
@@ -163,7 +173,7 @@ function buildKeymap(
                 curColor = k.color
             }
             if (Object.keys(props).length) row.push(props)
-            row.push(`${k.row},${k.col}`)
+            row.push(keyLegend(k))
             xCursor = k.x + k.w
             first = false
         }
@@ -172,8 +182,20 @@ function buildKeymap(
     return rows
 }
 
-/** Build the VIA keyboard definition object + any export diagnostics. */
-export function buildViaJson(config: ConfigKeymap): ViaJsonResult {
+// pattern-check: skip extracting a shared builder + options bag from buildViaJson, no GoF pattern
+/** Options for the shared VIA/Vial definition builder. */
+export interface ViaDefinitionOptions {
+    /** Emit the KLE `e` encoder flag on `element: "encoder"` caps (Vial). */
+    encoderFlags?: boolean
+}
+
+/** Build the shared VIA/Vial keyboard definition object + export diagnostics. The
+ *  VIA and Vial definitions are the same matrix-annotated KLE keymap; Vial only
+ *  adds the encoder flag (its UID/unlock live in the firmware config.h, not here). */
+export function buildViaDefinition(
+    config: ConfigKeymap,
+    opts: ViaDefinitionOptions = {},
+): ViaJsonResult {
     const diagnostics: Diagnostic[] = []
     const warn = (message: string, path: (string | number)[] = []): void => {
         diagnostics.push({ level: 'warn', message, path })
@@ -202,6 +224,7 @@ export function buildViaJson(config: ConfigKeymap): ViaJsonResult {
             row,
             col,
             color: CATEGORY_COLOR[categoryForAction(base[i])],
+            encoder: opts.encoderFlags && k.element === 'encoder',
         }
     })
 
@@ -214,4 +237,9 @@ export function buildViaJson(config: ConfigKeymap): ViaJsonResult {
     }
 
     return { json, diagnostics }
+}
+
+/** Build the VIA keyboard definition object (no encoder flags). */
+export function buildViaJson(config: ConfigKeymap): ViaJsonResult {
+    return buildViaDefinition(config)
 }

@@ -210,3 +210,46 @@ describe('buildProjectBundle — VIA', () => {
         ])
     })
 })
+
+const VIAL_FULL = `{
+    "schemaVersion": 1, "kind": "remappr.keymap",
+    "meta": { "name": "Pad", "target": "qmk",
+              "vendorId": "0xCEEB", "productId": "0x0007" },
+    "keyboard": {
+        "id": "pad", "name": "Pad",
+        "keys": [{"x":0,"y":0},{"x":1,"y":0}],
+        "pins": { "rows": ["B0"], "cols": ["B1", "B2"] },
+        "firmware": ["qmk", "via", "vial"],
+        "vial": {
+            "uid": [254, 6, 191, 82, 24, 186, 79, 138],
+            "unlockKeys": [[0, 0], [0, 1]]
+        }
+    },
+    "layers": [{ "name": "base", "bindings": ["A", "B"] }]
+}`
+
+describe('buildProjectBundle — Vial', () => {
+    it('ships vial.json + a UID/unlock config.h and enables VIAL', () => {
+        const b = buildProjectBundle(parseKeymap(VIAL_FULL), 'qmk')
+        expect(paths(b)).toContain('keyboards/pad/keymaps/remappr/vial.json')
+        const rules = fileText(b, 'keyboards/pad/keymaps/remappr/rules.mk')
+        expect(rules).toContain('VIA_ENABLE = yes')
+        expect(rules).toContain('VIAL_ENABLE = yes')
+        const configH = fileText(b, 'keyboards/pad/keymaps/remappr/config.h')
+        expect(configH).toContain(
+            '#define VIAL_KEYBOARD_UID {0xFE, 0x06, 0xBF, 0x52, 0x18, 0xBA, 0x4F, 0x8A}',
+        )
+        expect(configH).toContain('#define VIAL_UNLOCK_COMBO_ROWS {0, 0}')
+        expect(configH).toContain('#define VIAL_UNLOCK_COMBO_COLS {0, 1}')
+    })
+
+    it('does not ship vial artifacts when vial is not targeted', () => {
+        const b = buildProjectBundle(parseKeymap(VIA_FULL), 'qmk')
+        expect(paths(b)).not.toContain(
+            'keyboards/macro5/keymaps/remappr/vial.json',
+        )
+        expect(
+            fileText(b, 'keyboards/macro5/keymaps/remappr/rules.mk'),
+        ).not.toContain('VIAL_ENABLE')
+    })
+})
