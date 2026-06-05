@@ -2,17 +2,34 @@
 // builder functions + a positional KLE→geometry parser; plain data construction
 // ported from app/builder/BuilderData.jsx, no polymorphic hierarchy warranted.
 //
-// Starting-point geometries for the Keyboard Builder "Build from" menu. Each
-// preset returns a `CanonGeometry[]` (the production geometry shape — x/y/w/h/r
-// + optional pivot); legends and matrix wiring are NOT part of CanonGeometry, so
-// presets seed physical layout only and the base layer starts transparent.
-// `guessCategory` is kept (legend → cap-tint category) for the later binding pass.
+// Starting-point boards for the "Build from" menu. Each preset returns a
+// `PresetBuild` = `{ keys: CanonGeometry[], tokens: string[] }`: the physical
+// layout AND a base-layer legend (index-aligned to `keys`) so a preset lands as a
+// usable keymap, not a board of pass-throughs. `tokens` are keycode strings the
+// builder resolves to bindings via `actionFromToken`; an empty/unknown token
+// becomes a transparent key. `guessCategory` is kept for cap colouring.
 
 import type { KeyCategory } from '@/lib/keymap/keyCategory'
-import type { CanonGeometry } from '@firmware/config'
+import type { CanonAction, CanonGeometry } from '@firmware/config'
+import { resolveKeycode } from '@firmware/config'
 import { normalizeBoard } from './builderMatrix'
 
 const r3 = (v: number): number => Math.round(v * 1000) / 1000
+
+/** A preset's output: physical geometry + an index-aligned base-layer legend. */
+export interface PresetBuild {
+    keys: CanonGeometry[]
+    tokens: string[]
+}
+
+// pattern-check: skip pure token→CanonAction mapper, no abstraction
+/** Resolve a preset legend token to a binding. Blank / unknown → transparent. */
+export function actionFromToken(tok: string): CanonAction {
+    const t = tok.trim()
+    if (!t) return { type: 'transparent' }
+    const key = resolveKeycode(t)
+    return key ? { type: 'key_press', key } : { type: 'transparent' }
+}
 
 /** Best-effort legend → function category, for cap colouring (ported guessCat). */
 export function guessCategory(legend: string): KeyCategory {
@@ -53,54 +70,233 @@ function presetOrtho(cols: number, rows: number): CanonGeometry[] {
     return keys
 }
 
-function presetNumpad(): CanonGeometry[] {
+// Planck-style QWERTY for the 4×12 ortho (row-major, index-aligned).
+const ORTHO_TOKENS: string[] = [
+    'TAB',
+    'Q',
+    'W',
+    'E',
+    'R',
+    'T',
+    'Y',
+    'U',
+    'I',
+    'O',
+    'P',
+    'BSPC',
+    'ESC',
+    'A',
+    'S',
+    'D',
+    'F',
+    'G',
+    'H',
+    'J',
+    'K',
+    'L',
+    'SEMI',
+    'SQT',
+    'LSHIFT',
+    'Z',
+    'X',
+    'C',
+    'V',
+    'B',
+    'N',
+    'M',
+    'COMMA',
+    'DOT',
+    'SLASH',
+    'ENTER',
+    'LCTL',
+    'LGUI',
+    'LALT',
+    'BSPC',
+    'SPACE',
+    'SPACE',
+    'ENTER',
+    'LEFT',
+    'DOWN',
+    'UP',
+    'RIGHT',
+    'RCTL',
+]
+
+function presetNumpad(): PresetBuild {
     const k: CanonGeometry[] = []
-    const grid = [
-        ['Num', '/', '*', '-'],
-        ['7', '8', '9'],
-        ['4', '5', '6'],
-        ['1', '2', '3'],
-        ['0', '.'],
+    const tokens: string[] = []
+    const grid: Array<[string, string][]> = [
+        [
+            ['Num', 'KP_NUMLOCK'],
+            ['/', 'KP_DIVIDE'],
+            ['*', 'KP_MULTIPLY'],
+            ['-', 'KP_MINUS'],
+        ],
+        [
+            ['7', 'KP_N7'],
+            ['8', 'KP_N8'],
+            ['9', 'KP_N9'],
+        ],
+        [
+            ['4', 'KP_N4'],
+            ['5', 'KP_N5'],
+            ['6', 'KP_N6'],
+        ],
+        [
+            ['1', 'KP_N1'],
+            ['2', 'KP_N2'],
+            ['3', 'KP_N3'],
+        ],
+        [
+            ['0', 'KP_N0'],
+            ['.', 'KP_DOT'],
+        ],
     ]
     grid.forEach((rw, y) =>
-        rw.forEach((lg, x) => k.push(key({ x, y, w: lg === '0' ? 2 : 1 }))),
+        rw.forEach(([lg, tok], x) => {
+            k.push(key({ x, y, w: lg === '0' ? 2 : 1 }))
+            tokens.push(tok)
+        }),
     )
     k.push(key({ x: 3, y: 1, h: 2 })) // +
+    tokens.push('KP_PLUS')
     k.push(key({ x: 3, y: 3, h: 2 })) // Enter
-    return k
+    tokens.push('KP_ENTER')
+    return { keys: k, tokens }
 }
 
-function preset60(): CanonGeometry[] {
+function preset60(): PresetBuild {
     const k: CanonGeometry[] = []
-    const rows: Array<{ y: number; items: number[] }> = [
-        { y: 0, items: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2] },
-        { y: 1, items: [1.5, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1.5] },
-        { y: 2, items: [1.75, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2.25] },
-        { y: 3, items: [2.25, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2.75] },
-        { y: 4, items: [1.25, 1.25, 1.25, 6.25, 1.25, 1.25, 1.25, 1.25] },
+    // Row geometry (width per key) paired with its legend, index-aligned.
+    const rows: Array<{ y: number; items: Array<[number, string]> }> = [
+        {
+            y: 0,
+            items: [
+                [1, 'GRAVE'],
+                [1, 'N1'],
+                [1, 'N2'],
+                [1, 'N3'],
+                [1, 'N4'],
+                [1, 'N5'],
+                [1, 'N6'],
+                [1, 'N7'],
+                [1, 'N8'],
+                [1, 'N9'],
+                [1, 'N0'],
+                [1, 'MINUS'],
+                [1, 'EQUAL'],
+                [2, 'BSPC'],
+            ],
+        },
+        {
+            y: 1,
+            items: [
+                [1.5, 'TAB'],
+                [1, 'Q'],
+                [1, 'W'],
+                [1, 'E'],
+                [1, 'R'],
+                [1, 'T'],
+                [1, 'Y'],
+                [1, 'U'],
+                [1, 'I'],
+                [1, 'O'],
+                [1, 'P'],
+                [1, 'LBKT'],
+                [1, 'RBKT'],
+                [1.5, 'BSLH'],
+            ],
+        },
+        {
+            y: 2,
+            items: [
+                [1.75, 'CAPS'],
+                [1, 'A'],
+                [1, 'S'],
+                [1, 'D'],
+                [1, 'F'],
+                [1, 'G'],
+                [1, 'H'],
+                [1, 'J'],
+                [1, 'K'],
+                [1, 'L'],
+                [1, 'SEMI'],
+                [1, 'SQT'],
+                [2.25, 'ENTER'],
+            ],
+        },
+        {
+            y: 3,
+            items: [
+                [2.25, 'LSHIFT'],
+                [1, 'Z'],
+                [1, 'X'],
+                [1, 'C'],
+                [1, 'V'],
+                [1, 'B'],
+                [1, 'N'],
+                [1, 'M'],
+                [1, 'COMMA'],
+                [1, 'DOT'],
+                [1, 'SLASH'],
+                [2.75, 'RSHIFT'],
+            ],
+        },
+        {
+            y: 4,
+            items: [
+                [1.25, 'LCTL'],
+                [1.25, 'LGUI'],
+                [1.25, 'LALT'],
+                [6.25, 'SPACE'],
+                [1.25, 'RALT'],
+                [1.25, 'RGUI'],
+                [1.25, 'RCTL'],
+                [1.25, 'DEL'],
+            ],
+        },
     ]
+    const tokens: string[] = []
     rows.forEach(({ y, items }) => {
         let x = 0
-        items.forEach((w) => {
+        items.forEach(([w, tok]) => {
             k.push(key({ x, y, w }))
+            tokens.push(tok)
             x += w
         })
     })
-    return k
+    return { keys: k, tokens }
 }
 
-function presetCorne(): CanonGeometry[] {
-    // 3×6 columns per half + 3 thumbs each, column-staggered split.
+function presetCorne(): PresetBuild {
+    // 3×6 columns per half + 3 thumbs each, column-staggered split. Keys are
+    // pushed left-then-right per (row, col); tokens follow the same interleave.
     const keys: CanonGeometry[] = []
+    const tokens: string[] = []
     const stag = [0.66, 0.25, 0, 0.12, 0.32, 0.42]
     const SPLIT = 1.6
     const RIGHT = 6 + SPLIT
+    // Per-row, per-column legends for each half (c = 0..5, left→right).
+    const left: string[][] = [
+        ['TAB', 'Q', 'W', 'E', 'R', 'T'],
+        ['ESC', 'A', 'S', 'D', 'F', 'G'],
+        ['LSHIFT', 'Z', 'X', 'C', 'V', 'B'],
+    ]
+    const right: string[][] = [
+        ['Y', 'U', 'I', 'O', 'P', 'BSPC'],
+        ['H', 'J', 'K', 'L', 'SEMI', 'SQT'],
+        ['N', 'M', 'COMMA', 'DOT', 'SLASH', 'ENTER'],
+    ]
     for (let r = 0; r < 3; r++)
         for (let c = 0; c < 6; c++) {
             keys.push(key({ x: c, y: r3(r + stag[c]) }))
+            tokens.push(left[r][c])
             keys.push(key({ x: RIGHT + c, y: r3(r + stag[5 - c]) }))
+            tokens.push(right[r][c])
         }
     const ty = 3 + 0.55
+    const leftThumb = ['LGUI', 'LALT', 'SPACE']
+    const rightThumb = ['ENTER', 'BSPC', 'RALT']
     for (let i = 0; i < 3; i++) {
         keys.push(
             key({
@@ -111,6 +307,7 @@ function presetCorne(): CanonGeometry[] {
                 ry: ty + 0.5,
             }),
         )
+        tokens.push(leftThumb[i])
         keys.push(
             key({
                 x: RIGHT + 1 + i,
@@ -120,11 +317,11 @@ function presetCorne(): CanonGeometry[] {
                 ry: ty + 0.5,
             }),
         )
+        tokens.push(rightThumb[i])
     }
-    return keys
+    return { keys, tokens }
 }
 
-// pattern-check: skip additive firmware field on preset data, no abstraction
 export interface BuilderPreset {
     id: string
     name: string
@@ -135,11 +332,12 @@ export interface BuilderPreset {
     /** Firmware targets this preset naturally builds for — preselected on apply
      *  (wireless/split → ZMK; ortho / macro / numpad → QMK + VIA). */
     firmware: string[]
-    build: () => CanonGeometry[]
+    /** Physical layout + base-layer legend. */
+    build: () => PresetBuild
 }
 
+// pattern-check: skip additive firmware/build fields on preset data literals, no abstraction
 export const PRESETS: BuilderPreset[] = [
-    // pattern-check: skip additive firmware field on preset data literals, no abstraction
     {
         id: 'corne',
         name: 'Corne / split 42',
@@ -156,7 +354,7 @@ export const PRESETS: BuilderPreset[] = [
         icon: 'grid',
         split: false,
         firmware: ['qmk', 'via'],
-        build: () => presetOrtho(12, 4),
+        build: () => ({ keys: presetOrtho(12, 4), tokens: ORTHO_TOKENS }),
     },
     {
         id: 'sixty',
@@ -183,7 +381,10 @@ export const PRESETS: BuilderPreset[] = [
         icon: 'grid',
         split: false,
         firmware: ['qmk', 'via'],
-        build: () => presetOrtho(3, 3),
+        build: () => ({
+            keys: presetOrtho(3, 3),
+            tokens: ['N1', 'N2', 'N3', 'N4', 'N5', 'N6', 'N7', 'N8', 'N9'],
+        }),
     },
     {
         id: 'blank',
@@ -192,7 +393,7 @@ export const PRESETS: BuilderPreset[] = [
         icon: 'plus',
         split: false,
         firmware: ['zmk'],
-        build: () => [key({})],
+        build: () => ({ keys: [key({})], tokens: [''] }),
     },
 ]
 

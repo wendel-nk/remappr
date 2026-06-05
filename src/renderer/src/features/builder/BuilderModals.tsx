@@ -24,7 +24,12 @@ import useBuilderStore from '@/stores/builderStore'
 import useConfigStore from '@/stores/configStore'
 import type { CanonGeometry } from '@firmware/config'
 import { clampDim, gridKeys, replaceGeometry } from './geometryEditor'
-import { PRESETS, parseKleGeometry, type BuilderPreset } from './builderPresets'
+import {
+    PRESETS,
+    actionFromToken,
+    parseKleGeometry,
+    type BuilderPreset,
+} from './builderPresets'
 
 const PRESET_ICON: Record<BuilderPreset['icon'], JSX.Element> = {
     split: <Split size={18} />,
@@ -33,29 +38,45 @@ const PRESET_ICON: Record<BuilderPreset['icon'], JSX.Element> = {
     plus: <Plus size={18} />,
 }
 
-/** Shared: apply a fresh geometry to the board + reset the transient view. An
- *  optional `firmware` preselects the firmware targets (presets carry a natural
- *  default; grid/KLE leave the current selection untouched). */
+// pattern-check: skip presentational apply-geometry hook with token→binding seeding, no abstraction
+/** Shared: apply a fresh geometry to the board + reset the transient view.
+ *  `opts.firmware` preselects the firmware targets; `opts.tokens` (index-aligned
+ *  to `keys`) seeds the base-layer legend. Presets carry both; grid/KLE pass
+ *  nothing (current firmware kept, keys land transparent). */
 function useApplyGeometry(): (
     keys: CanonGeometry[],
-    firmware?: string[],
+    opts?: { firmware?: string[]; tokens?: string[] },
 ) => void {
     const commit = useBuilderStore((s) => s.commit)
     const clearSelection = useBuilderStore((s) => s.clearSelection)
     const setActiveLayer = useBuilderStore((s) => s.setActiveLayer)
     const resetView = useBuilderStore((s) => s.resetView)
-    return (keys, firmware) => {
+    return (keys, opts) => {
         const config = useConfigStore.getState().config
         if (!config) return
-        const next = replaceGeometry(config, keys)
-        commit(
-            firmware
-                ? {
-                      ...next,
-                      keyboard: { ...next.keyboard, firmware },
-                  }
-                : next,
-        )
+        let next = replaceGeometry(config, keys)
+        if (opts?.firmware)
+            next = {
+                ...next,
+                keyboard: { ...next.keyboard, firmware: opts.firmware },
+            }
+        if (opts?.tokens) {
+            const tokens = opts.tokens
+            next = {
+                ...next,
+                layers: next.layers.map((l, i) =>
+                    i === 0
+                        ? {
+                              ...l,
+                              bindings: keys.map((_k, j) =>
+                                  actionFromToken(tokens[j] ?? ''),
+                              ),
+                          }
+                        : l,
+                ),
+            }
+        }
+        commit(next)
         clearSelection()
         setActiveLayer(0)
         resetView()
@@ -86,7 +107,11 @@ export function PresetModal({
                         key={p.id}
                         type="button"
                         onClick={() => {
-                            apply(p.build(), p.firmware)
+                            const b = p.build()
+                            apply(b.keys, {
+                                firmware: p.firmware,
+                                tokens: b.tokens,
+                            })
                             onClose()
                         }}
                         className="flex items-center gap-3 rounded-xl border border-border bg-background p-3.5 text-left transition-colors hover:border-primary"
