@@ -275,7 +275,7 @@ export function StartModal({
             subtitle="Pick a starting point — or close to keep the current board"
             headerIcon={<LayoutGrid />}
             showFooter={false}
-            customModalBoxClass="sm:max-w-[460px] builder-start-modal"
+            customModalBoxClass="sm:max-w-[460px] builder-start-modal top-1/2 -translate-y-1/2"
         >
             <div className="flex flex-col gap-2.5 py-1">
                 {choices.map((c) => (
