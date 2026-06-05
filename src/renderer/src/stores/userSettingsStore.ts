@@ -20,6 +20,8 @@ interface UserSettingsState {
     capStyle: CapStyle
     colorMode: ColorCodingMode
     workspace: WorkspaceMode
+    seenBuilderTour: boolean
+    setSeenBuilderTour: (seen: boolean) => void
     setCapStyle: (style: CapStyle) => void
     setColorMode: (mode: ColorCodingMode) => void
     setWorkspace: (workspace: WorkspaceMode) => void
@@ -46,6 +48,9 @@ const useUserSettingsStore = create<UserSettingsState>()(
                 capStyle: 'sculpted',
                 colorMode: 'subtle',
                 workspace: 'workbench',
+                seenBuilderTour: false,
+                setSeenBuilderTour: (seenBuilderTour) =>
+                    set({ seenBuilderTour }),
                 setCapStyle: (capStyle) => set({ capStyle }),
                 setColorMode: (colorMode) => set({ colorMode }),
                 setWorkspace: (workspace) => set({ workspace }),
@@ -74,7 +79,7 @@ const useUserSettingsStore = create<UserSettingsState>()(
             {
                 name: 'user-settings-store',
                 storage: createJSONStorage(() => localStorage),
-                version: 6,
+                version: 7,
                 migrate: (persisted: unknown, version: number) => {
                     if (!persisted || typeof persisted !== 'object') {
                         return persisted as Partial<UserSettingsState>
@@ -128,6 +133,13 @@ const useUserSettingsStore = create<UserSettingsState>()(
                         // deliberately-chosen mono/glass/sculpted alone.
                         if (p.capStyle === 'flat') {
                             p.capStyle = 'sculpted'
+                        }
+                    }
+                    if (version < 7) {
+                        // New first-run builder tour. Existing users have already
+                        // explored the builder, so don't surface it to them.
+                        if (typeof p.seenBuilderTour !== 'boolean') {
+                            p.seenBuilderTour = true
                         }
                     }
                     return p as Partial<UserSettingsState>

@@ -28,6 +28,7 @@ import {
     Ruler,
     Save,
     Scan,
+    HelpCircle,
     SlidersHorizontal,
     Undo2,
 } from 'lucide-react'
@@ -57,6 +58,7 @@ import { BuilderExportModal } from './BuilderExportModal'
 import { LibraryModal } from './LibraryModal'
 import { saveBoard } from './builderLibrary'
 import { JsonConfigPanel } from './JsonConfigPanel'
+import { BuilderCoachmarkTour } from './BuilderCoachmarkTour'
 import { Settings } from '@/components/modals/Settings'
 
 /** Gradient brand badge (ruler glyph) shared with the start-page CTA. */
@@ -82,12 +84,14 @@ function ToolButton({
     onClick,
     active,
     disabled,
+    dataCoach,
     children,
 }: {
     label: string
     onClick?: () => void
     active?: boolean
     disabled?: boolean
+    dataCoach?: string
     children: React.ReactNode
 }): JSX.Element {
     return (
@@ -99,6 +103,7 @@ function ToolButton({
                     disabled={disabled}
                     aria-label={label}
                     aria-pressed={active}
+                    data-coach={dataCoach}
                     className={`inline-flex h-[34px] w-[34px] items-center justify-center rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
                         active
                             ? 'bg-primary text-primary-foreground'
@@ -266,6 +271,8 @@ export function FullScreenBuilder(): JSX.Element {
     const [settingsOpen, setSettingsOpen] = useState(false)
     // Starting-point chooser, shown once each time the builder is opened.
     const [startOpen, setStartOpen] = useState(true)
+    // First-run tour: bumping the nonce replays it from the "?" toolbar button.
+    const [tourNonce, setTourNonce] = useState(0)
 
     const handleSave = (): void => {
         if (!config) return
@@ -423,6 +430,7 @@ export function FullScreenBuilder(): JSX.Element {
                         label="Matrix wiring view"
                         active={matrixView}
                         onClick={toggleMatrixView}
+                        dataCoach="builder-matrix"
                     >
                         <Scan size={18} />
                     </ToolButton>
@@ -447,6 +455,12 @@ export function FullScreenBuilder(): JSX.Element {
                         onClick={() => setLibraryOpen(true)}
                     >
                         <Layers size={18} />
+                    </ToolButton>
+                    <ToolButton
+                        label="Replay builder tour"
+                        onClick={() => setTourNonce((n) => n + 1)}
+                    >
+                        <HelpCircle size={18} />
                     </ToolButton>
                     <ToolButton
                         label="Settings"
@@ -484,6 +498,7 @@ export function FullScreenBuilder(): JSX.Element {
                         type="button"
                         onClick={() => setExportOpen(true)}
                         disabled={!config}
+                        data-coach="builder-export"
                         className="inline-flex h-[34px] items-center gap-1.5 rounded-lg bg-primary px-3.5 text-[13px] font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
                         style={
                             {
@@ -501,7 +516,10 @@ export function FullScreenBuilder(): JSX.Element {
                 {/* left tools panel */}
                 {/* pattern-check: skip — presentational JSX wiring of existing panels + modal-open state */}
                 <aside className="flex w-[270px] shrink-0 flex-col overflow-y-auto border-r border-border bg-sidebar">
-                    <div className="border-b border-border p-3.5">
+                    <div
+                        className="border-b border-border p-3.5"
+                        data-coach="builder-layers"
+                    >
                         <SectionTitle>Layers</SectionTitle>
                         <div className="mt-2.5">
                             <BuilderLayersPanel />
@@ -510,7 +528,10 @@ export function FullScreenBuilder(): JSX.Element {
                             Geometry &amp; matrix are shared across all layers.
                         </p>
                     </div>
-                    <div className="border-b border-border p-3.5">
+                    <div
+                        className="border-b border-border p-3.5"
+                        data-coach="builder-build-from"
+                    >
                         <SectionTitle>Build from</SectionTitle>
                         <div className="mt-2.5 grid grid-cols-2 gap-1.5">
                             <BuildButton
@@ -540,7 +561,10 @@ export function FullScreenBuilder(): JSX.Element {
                 </aside>
 
                 {/* canvas */}
-                <main className="workbench-bg relative min-w-0 flex-1">
+                <main
+                    className="workbench-bg relative min-w-0 flex-1"
+                    data-coach="builder-canvas"
+                >
                     <BuilderCanvas />
                     {/* layout-variant bar (top-centre) */}
                     <div className="pointer-events-none absolute left-1/2 top-3.5 -translate-x-1/2">
@@ -607,7 +631,10 @@ export function FullScreenBuilder(): JSX.Element {
                         <JsonConfigPanel onClose={() => setJsonOpen(false)} />
                     </aside>
                 ) : (
-                    <aside className="flex w-[296px] shrink-0 flex-col overflow-y-auto border-l border-border bg-sidebar">
+                    <aside
+                        className="flex w-[296px] shrink-0 flex-col overflow-y-auto border-l border-border bg-sidebar"
+                        data-coach="builder-inspector"
+                    >
                         <div className="flex items-center gap-2 border-b border-border px-4 py-3">
                             <SlidersHorizontal
                                 size={15}
@@ -658,6 +685,8 @@ export function FullScreenBuilder(): JSX.Element {
                 onPreset={() => setBuildModal('preset')}
                 onKle={() => setBuildModal('kle')}
             />
+            {/* First-run guided tour — waits for the start chooser to close. */}
+            <BuilderCoachmarkTour ready={!startOpen} replayNonce={tourNonce} />
         </div>
     )
 }
