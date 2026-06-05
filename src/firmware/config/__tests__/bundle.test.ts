@@ -39,24 +39,36 @@ const HW = `{
 }`
 
 describe('buildProjectBundle — ZMK', () => {
-    it('emits a complete zmk-config skeleton', () => {
+    it('emits a full zmk-config shield skeleton', () => {
         const b = buildProjectBundle(seedConfig, 'zmk')
-        const shield = seedConfig.keyboard.id
+        const id = seedConfig.keyboard.id
+        const SH = id.toUpperCase()
+        const dir = `config/boards/shields/${id}`
         expect(paths(b)).toEqual(
             expect.arrayContaining([
-                `config/${shield}.keymap`,
-                `config/${shield}.conf`,
-                `config/${shield}.overlay`,
+                `${dir}/${SH}.keymap`,
+                `${dir}/${SH}.conf`,
+                `${dir}/${SH}.overlay`,
+                `${dir}/Kconfig.shield`,
+                `${dir}/Kconfig.defconfig`,
+                `${dir}/${id}.zmk.yml`,
                 'config/west.yml',
                 'build.yaml',
                 '.github/workflows/build.yml',
                 'README.md',
             ]),
         )
-        expect(b.rootName).toBe(`${shield}-zmk-config`)
+        expect(b.rootName).toBe(`${id}-zmk-config`)
         // keymap content is the real compiled devicetree
-        expect(fileText(b, `config/${shield}.keymap`)).toContain(
+        expect(fileText(b, `${dir}/${SH}.keymap`)).toContain(
             'compatible = "zmk,keymap"',
+        )
+        // Kconfig registers the shield by its uppercase name
+        expect(fileText(b, `${dir}/Kconfig.shield`)).toContain(
+            `config SHIELD_${SH}`,
+        )
+        expect(fileText(b, `${dir}/Kconfig.defconfig`)).toContain(
+            'ZMK_KEYBOARD_NAME',
         )
         // workflow uses the official reusable build
         expect(fileText(b, '.github/workflows/build.yml')).toContain(
@@ -66,15 +78,16 @@ describe('buildProjectBundle — ZMK', () => {
 
     it('uses board/shield from hardware and enables matching conf flags', () => {
         const b = buildProjectBundle(parseKeymap(HW), 'zmk')
+        const dir = 'config/boards/shields/boardx'
         expect(b.rootName).toBe('boardx-zmk-config')
         expect(fileText(b, 'build.yaml')).toContain('board: nice_nano_v2')
-        expect(fileText(b, 'build.yaml')).toContain('shield: boardx')
-        const conf = fileText(b, 'config/boardx.conf')
+        expect(fileText(b, 'build.yaml')).toContain('shield: BOARDX')
+        const conf = fileText(b, `${dir}/BOARDX.conf`)
         expect(conf).toContain('CONFIG_ZMK_STUDIO=y')
         expect(conf).toContain('CONFIG_ZMK_RGB_UNDERGLOW=y') // underglow used
         expect(conf).toContain('# CONFIG_ZMK_BACKLIGHT=y') // unused → commented
         // the generated overlay carries the real kscan
-        expect(fileText(b, 'config/boardx.overlay')).toContain(
+        expect(fileText(b, `${dir}/BOARDX.overlay`)).toContain(
             'zmk,kscan-gpio-matrix',
         )
     })
