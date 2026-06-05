@@ -1,12 +1,12 @@
-// pattern-check: skip — UI rewrite; compile target selection delegates to the
-// existing getCompiler() Strategy (firmware/config/compiler.ts), no new abstraction.
-import { useMemo, useRef, useState } from 'react'
+// Pattern check: no GoF pattern (-) — rejected — modal wrapper; the tabbed
+// compile/preview/download body is the shared ExportPanel, this only frames it
+// with device status, native fallback, import + flash instructions.
+import { useMemo, useRef } from 'react'
 import {
     AlertTriangle,
     Copy,
     Download as DownloadIcon,
     FileText,
-    Package,
     Upload,
 } from 'lucide-react'
 import { Modal } from '@/ui/modal'
@@ -16,27 +16,11 @@ import { toast } from 'sonner'
 import useConnectionStore from '@/stores/connectionStore'
 import useConfigStore from '@/stores/configStore'
 import { downloadExports, exportedContentToString } from '@/lib/blob'
-import { zipStore } from '@/lib/zip'
-import {
-    type CompileResult,
-    type Target,
-    buildProjectBundle,
-    formatPath,
-    getCompiler,
-    resolveAllowedTargets,
-    serializeKeymap,
-} from '@firmware/config'
-import type { ExportedFile } from '@firmware/types'
+import { type Target, resolveAllowedTargets } from '@firmware/config'
 import { createLogger } from '@shared/logger'
-import { CloudBuildPanel } from './CloudBuildPanel'
+import { ExportPanel } from './ExportPanel'
 
 const log = createLogger('Download')
-
-const TARGET_LABELS: Record<Target, string> = {
-    zmk: 'ZMK',
-    qmk: 'QMK',
-    keychron: 'Keychron',
-}
 
 interface DownloadProps {
     opened?: boolean
@@ -45,7 +29,7 @@ interface DownloadProps {
 
 export function Download({ opened, onClose }: DownloadProps): JSX.Element {
     const { service } = useConnectionStore()
-    const { config, error, loadFromSource } = useConfigStore()
+    const { config, source, error, loadFromSource } = useConfigStore()
     const fileInputRef = useRef<HTMLInputElement>(null)
 
     // The mock is a demo device — treat its 'mock' firmware as "no device pinned"
@@ -59,105 +43,6 @@ export function Download({ opened, onClose }: DownloadProps): JSX.Element {
         return pinned && byDevice.includes(pinned) ? [pinned] : byDevice
     }, [connectedFirmware, config?.meta.target])
 
-    // Derive the effective target instead of syncing via an effect: the user's
-    // pick wins while it's still allowed, else fall back to the first allowed.
-    const [picked, setPicked] = useState<Target>('zmk')
-    const target = allowed.includes(picked) ? picked : (allowed[0] ?? 'zmk')
-
-    // Compile is pure over (config, target); recompute on either change. A throw
-    // becomes a synthetic error diagnostic rather than crashing the modal.
-    const result = useMemo<CompileResult | null>(() => {
-        if (!config) return null
-        try {
-            return getCompiler(target).compile(config)
-        } catch (e) {
-            log.error('compile failed', e)
-            return {
-                files: [],
-                diagnostics: [
-                    {
-                        level: 'error',
-                        message: e instanceof Error ? e.message : String(e),
-                        path: [],
-                    },
-                ],
-            }
-        }
-    }, [config, target])
-
-    const hasErrors = result?.diagnostics.some((d) => d.level === 'error')
-    const canCompile = !!config && !!result && !hasErrors
-
-    const handleDownload = (): void => {
-        if (!result) return
-        downloadExports(result.files)
-        toast.success(`${TARGET_LABELS[target]} config downloaded`)
-    }
-
-    // Phase-1 zero-dependency fallback: the ENTIRE repo skeleton (config + CI
-    // workflow + README) as one .zip, ready to push to GitHub or build locally.
-    const handleDownloadBundle = (): void => {
-        if (!config) return
-        const bundle = buildProjectBundle(config, target)
-        const zip = zipStore(
-            bundle.files.map((f) => ({
-                path: `${bundle.rootName}/${f.filename}`,
-                data:
-                    typeof f.content === 'string'
-                        ? new TextEncoder().encode(f.content)
-                        : f.content,
-            })),
-        )
-        downloadExports([
-            {
-                filename: `${bundle.rootName}.zip`,
-                mime: 'application/zip',
-                content: zip,
-            },
-        ])
-        toast.success('Full project bundle downloaded')
-    }
-
-    const handleCopy = async (): Promise<void> => {
-        const primary = result?.files[0]
-        if (!primary) {
-            toast.error('Nothing to copy')
-            return
-        }
-        try {
-            await navigator.clipboard.writeText(
-                exportedContentToString(primary.content),
-            )
-            toast.success(`${primary.filename} copied`)
-        } catch (e) {
-            log.error('copy failed', e)
-            toast.error('Failed to copy to clipboard')
-        }
-    }
-
-    const handleExportSource = (): void => {
-        if (!config) return
-        const file: ExportedFile = {
-            filename: `${config.keyboard.id || 'remappr'}.keymap.json`,
-            mime: 'application/json',
-            content: serializeKeymap(config),
-        }
-        downloadExports([file])
-        toast.success('Config (.json) exported')
-    }
-
-    const handleImportSource = async (
-        e: React.ChangeEvent<HTMLInputElement>,
-    ): Promise<void> => {
-        const file = e.target.files?.[0]
-        e.target.value = '' // allow re-importing the same file
-        if (!file) return
-        const text = await file.text()
-        if (loadFromSource(text)) toast.success(`Imported ${file.name}`)
-        else toast.error('Invalid config — see error below')
-    }
-
-    // pattern-check: skip — native-export fallback handlers, no abstraction
     // Fallback for a connected device with no remappr config (real adapters
     // don't seed one yet): use the device's own faithful native exporter.
     const handleNativeExport = async (): Promise<void> => {
@@ -187,6 +72,17 @@ export function Download({ opened, onClose }: DownloadProps): JSX.Element {
             log.error('copy failed', e)
             toast.error('Failed to copy to clipboard')
         }
+    }
+
+    const handleImportSource = async (
+        e: React.ChangeEvent<HTMLInputElement>,
+    ): Promise<void> => {
+        const file = e.target.files?.[0]
+        e.target.value = '' // allow re-importing the same file
+        if (!file) return
+        const text = await file.text()
+        if (loadFromSource(text)) toast.success(`Imported ${file.name}`)
+        else toast.error('Invalid config — see error below')
     }
 
     const triggerImport = (): void => fileInputRef.current?.click()
@@ -236,74 +132,11 @@ export function Download({ opened, onClose }: DownloadProps): JSX.Element {
                 </div>
 
                 {config && (
-                    <>
-                        {/* target picker */}
-                        <div>
-                            <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                                Target firmware
-                            </p>
-                            <div className="flex flex-wrap gap-2">
-                                {allowed.map((t) => (
-                                    <Button
-                                        key={t}
-                                        onClick={() => setPicked(t)}
-                                        variant={
-                                            t === target ? 'default' : 'outline'
-                                        }
-                                        size="sm"
-                                    >
-                                        {TARGET_LABELS[t]}
-                                    </Button>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* export actions */}
-                        <div>
-                            <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                                Export
-                            </p>
-                            <div className="flex flex-wrap gap-2">
-                                <Button
-                                    onClick={handleDownload}
-                                    disabled={!canCompile}
-                                    className="flex items-center gap-2"
-                                >
-                                    <DownloadIcon className="h-4 w-4" />
-                                    Download {TARGET_LABELS[target]} config
-                                </Button>
-                                <Button
-                                    onClick={handleDownloadBundle}
-                                    disabled={!canCompile}
-                                    variant="outline"
-                                    className="flex items-center gap-2"
-                                >
-                                    <Package className="h-4 w-4" />
-                                    Download full project (.zip)
-                                </Button>
-                                <Button
-                                    onClick={handleCopy}
-                                    disabled={!canCompile}
-                                    variant="outline"
-                                    className="flex items-center gap-2"
-                                >
-                                    <Copy className="h-4 w-4" />
-                                    Copy
-                                </Button>
-                                <Button
-                                    onClick={handleExportSource}
-                                    variant="outline"
-                                    className="flex items-center gap-2"
-                                >
-                                    <FileText className="h-4 w-4" />
-                                    Export .json
-                                </Button>
-                            </div>
-                        </div>
-
-                        <Separator />
-                        <CloudBuildPanel config={config} target={target} />
-                    </>
+                    <ExportPanel
+                        config={config}
+                        source={source}
+                        targets={allowed}
+                    />
                 )}
 
                 {!config && service && (
@@ -352,8 +185,14 @@ export function Download({ opened, onClose }: DownloadProps): JSX.Element {
                     />
                 </div>
 
-                {(config || error) && (
-                    <DiagnosticsPanel result={result} importError={error} />
+                {error && (
+                    <div className="flex gap-2 rounded-lg border border-red-500/40 bg-red-500/5 p-2 text-xs">
+                        <AlertTriangle className="size-3.5 shrink-0 text-red-500" />
+                        <span>
+                            <span className="font-semibold">Import:</span>{' '}
+                            {error}
+                        </span>
+                    </div>
                 )}
 
                 <Separator />
@@ -365,7 +204,7 @@ export function Download({ opened, onClose }: DownloadProps): JSX.Element {
                     </p>
                     <ol className="space-y-2.5 text-sm text-muted-foreground">
                         {[
-                            'Download "full project (.zip)" for a ready-to-build repo (config + CI workflow + README), or just the config files.',
+                            'Download a firmware tab\'s "project (.zip)" for a ready-to-build repo (config + GitHub Actions workflow + README).',
                             'Push the project to a new GitHub repository.',
                             'GitHub Actions builds it automatically — or build locally per the README.',
                             'Download the firmware artifact and flash it to your keyboard.',
@@ -381,65 +220,5 @@ export function Download({ opened, onClose }: DownloadProps): JSX.Element {
                 </div>
             </div>
         </Modal>
-    )
-}
-
-function DiagnosticsPanel({
-    result,
-    importError,
-}: {
-    result: CompileResult | null
-    importError: string | null
-}): JSX.Element | null {
-    const diags = result?.diagnostics ?? []
-    if (!importError && diags.length === 0) {
-        return (
-            <p className="text-xs text-muted-foreground">
-                No issues — this config compiles cleanly for the selected
-                target.
-            </p>
-        )
-    }
-    return (
-        <div>
-            <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                Diagnostics
-            </p>
-            <ul className="space-y-1.5">
-                {importError && (
-                    <li className="flex gap-2 rounded-lg border border-red-500/40 bg-red-500/5 p-2 text-xs">
-                        <AlertTriangle className="size-3.5 shrink-0 text-red-500" />
-                        <span>
-                            <span className="font-semibold">Import:</span>{' '}
-                            {importError}
-                        </span>
-                    </li>
-                )}
-                {diags.map((d, i) => (
-                    <li
-                        key={i}
-                        data-level={d.level}
-                        className="flex gap-2 rounded-lg border p-2 text-xs data-[level=error]:border-red-500/40 data-[level=error]:bg-red-500/5 data-[level=warn]:border-amber-500/40 data-[level=warn]:bg-amber-500/5"
-                    >
-                        <AlertTriangle
-                            className={
-                                'size-3.5 shrink-0 ' +
-                                (d.level === 'error'
-                                    ? 'text-red-500'
-                                    : 'text-amber-500')
-                            }
-                        />
-                        <span>
-                            {d.path.length > 0 && (
-                                <span className="font-mono font-semibold">
-                                    {formatPath(d.path)}:{' '}
-                                </span>
-                            )}
-                            {d.message}
-                        </span>
-                    </li>
-                ))}
-            </ul>
-        </div>
     )
 }

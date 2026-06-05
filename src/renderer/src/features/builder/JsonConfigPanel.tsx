@@ -16,7 +16,11 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import Editor, { type OnMount } from '@monaco-editor/react'
 import type { editor as MonacoEditor } from 'monaco-editor'
 import { Check, Code2, Flame, Layers, RotateCcw, Search, X } from 'lucide-react'
-import { buildConfigJsonSchema, serializeKeymap } from '@firmware/config'
+import {
+    buildConfigJsonSchema,
+    safeParseSurface,
+    serializeKeymap,
+} from '@firmware/config'
 import useConfigStore from '@/stores/configStore'
 import { monaco } from './monacoSetup'
 
@@ -195,11 +199,26 @@ export function JsonConfigPanel({
     }>({ count: 0, line: 0, message: '' })
     const editorRef = useRef<MonacoEditor.IStandaloneCodeEditor | null>(null)
     const focused = useRef(false)
+    // Set right before the panel's OWN loadFromSource so the resulting config
+    // change doesn't bounce back and reshape the user's literal text (which
+    // would strip explicitly-written defaults like `"w": 1`). Canvas-originated
+    // config changes leave it false, so those DO refresh the editor.
+    const selfEdit = useRef(false)
     const debounce = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-    // config → editor: reflect external (canvas) edits, but only while the user
-    // isn't typing here, so we never overwrite an in-progress edit.
+    /** Commit text to the config without the resulting change clobbering it. */
+    const commit = (next: string): boolean => {
+        selfEdit.current = true
+        return loadFromSource(next)
+    }
+
+    // config → editor: reflect external (canvas) edits, but never overwrite the
+    // user's in-progress typing or a change the panel itself just committed.
     useEffect(() => {
+        if (selfEdit.current) {
+            selfEdit.current = false
+            return
+        }
         if (!focused.current && config) setText(serializeKeymap(config))
     }, [config])
 
@@ -220,10 +239,16 @@ export function JsonConfigPanel({
         })
         editor.onDidBlurEditorText(() => {
             focused.current = false
-            // On blur, snap the editor back to the canonical serialization of
-            // whatever the config now is (drops half-typed invalid text).
-            const cfg = useConfigStore.getState().config
-            if (cfg) setText(serializeKeymap(cfg))
+            // On blur, keep the user's literal text when it's valid (preserves
+            // their formatting + explicitly-written defaults) and commit it.
+            // Only snap back to canonical when the text is half-typed/invalid.
+            const current = editor.getModel()?.getValue() ?? ''
+            if (safeParseSurface(current).success) {
+                commit(current)
+            } else {
+                const cfg = useConfigStore.getState().config
+                if (cfg) setText(serializeKeymap(cfg))
+            }
         })
         // Surface the JSON language service's schema-validation markers as a
         // visible status, with the first error line.
@@ -270,7 +295,7 @@ export function JsonConfigPanel({
         setText(next)
         if (debounce.current) clearTimeout(debounce.current)
         debounce.current = setTimeout(() => {
-            loadFromSource(next)
+            commit(next)
         }, DEBOUNCE_MS)
     }
 
@@ -278,7 +303,7 @@ export function JsonConfigPanel({
         if (config) {
             const fresh = serializeKeymap(config)
             setText(fresh)
-            loadFromSource(fresh)
+            commit(fresh)
         }
     }
 
