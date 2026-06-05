@@ -15,15 +15,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Editor, { type OnMount } from '@monaco-editor/react'
 import type { editor as MonacoEditor } from 'monaco-editor'
-import {
-    Check,
-    Code2,
-    Layers,
-    RotateCcw,
-    Search,
-    TriangleAlert,
-    X,
-} from 'lucide-react'
+import { Check, Code2, Flame, Layers, RotateCcw, Search, X } from 'lucide-react'
 import { buildConfigJsonSchema, serializeKeymap } from '@firmware/config'
 import useConfigStore from '@/stores/configStore'
 import { monaco } from './monacoSetup'
@@ -86,49 +78,93 @@ function installSchema(): void {
 
 interface FieldRow {
     path: string
+    depth: number
     type: string
+    enumVals: string[] | null
     description: string
 }
 
-/** Flatten the JSON Schema into "path · type · description" rows (depth-capped)
- *  for the reference tab. Walks object properties + array item shapes. */
+type SchemaNode = Record<string, unknown>
+
+/** Derive a demo-parity type label + any enum values for a schema node:
+ *  const → its literal, enum → "enum", a union → "binding" (collecting the
+ *  branch discriminants), an array → "array<item>". Mirrors the prototype's
+ *  schemaTypeLabel so the reference reads the same. */
+function typeOf(ps: SchemaNode): { type: string; enumVals: string[] | null } {
+    if ('const' in ps) return { type: JSON.stringify(ps.const), enumVals: null }
+    if (Array.isArray(ps.enum))
+        return { type: 'enum', enumVals: (ps.enum as unknown[]).map(String) }
+    const union = (ps.anyOf ?? ps.oneOf) as SchemaNode[] | undefined
+    if (union?.length) {
+        const branches = union.filter((b) => b.type !== 'null')
+        const enumBranch = branches.find((b) => Array.isArray(b.enum))
+        if (enumBranch && branches.length === 1)
+            return {
+                type: 'enum',
+                enumVals: (enumBranch.enum as unknown[]).map(String),
+            }
+        // A typed-action union: collect each branch's discriminant (a string
+        // branch = a bare keycode; an object branch = its `type` const).
+        const consts = branches
+            .map((b) =>
+                b.type === 'string'
+                    ? 'keycode'
+                    : (
+                          (b.properties as SchemaNode | undefined)?.type as
+                              | SchemaNode
+                              | undefined
+                      )?.const,
+            )
+            .filter(Boolean)
+            .map(String)
+        return { type: 'binding', enumVals: consts.length ? consts : null }
+    }
+    if (ps.type === 'array') {
+        const items = ps.items as SchemaNode | undefined
+        const it = items?.type as string | undefined
+        return { type: `array${it ? `<${it}>` : ''}`, enumVals: null }
+    }
+    return { type: (ps.type as string) ?? '', enumVals: null }
+}
+
+/** Flatten the JSON Schema into demo-shaped reference rows (depth-capped). Walks
+ *  object properties, array-of-object items, and array-of-union (binding) items. */
 function flattenSchema(
-    node: Record<string, unknown>,
+    node: SchemaNode,
     prefix = '',
     depth = 0,
     out: FieldRow[] = [],
 ): FieldRow[] {
     if (depth > 4) return out
-    const props = node.properties as
-        | Record<string, Record<string, unknown>>
-        | undefined
+    const props = node.properties as Record<string, SchemaNode> | undefined
     if (!props) return out
-    for (const [key, raw] of Object.entries(props)) {
-        let child = raw
-        // Unwrap a oneOf/anyOf wrapper to its first concrete branch for display.
-        const union = (child.anyOf ?? child.oneOf) as
-            | Record<string, unknown>[]
-            | undefined
-        if (union?.length) child = union[0]
+    for (const [key, ps] of Object.entries(props)) {
         const path = prefix ? `${prefix}.${key}` : key
-        const type = (child.type as string) ?? (child.enum ? 'enum' : 'any')
+        const { type, enumVals } = typeOf(ps)
         out.push({
             path,
+            depth,
             type,
-            description: (child.description as string) ?? '',
+            enumVals,
+            description: (ps.description as string) ?? '',
         })
-        if (child.type === 'object') {
-            flattenSchema(child, path, depth + 1, out)
-        } else if (
-            child.type === 'array' &&
-            (child.items as Record<string, unknown>)?.properties
-        ) {
-            flattenSchema(
-                child.items as Record<string, unknown>,
-                `${path}[]`,
-                depth + 1,
-                out,
-            )
+        if (ps.properties) {
+            flattenSchema(ps, path, depth + 1, out)
+        } else if (ps.type === 'array') {
+            const items = ps.items as SchemaNode | undefined
+            if (items?.properties) {
+                flattenSchema(items, `${path}[]`, depth + 1, out)
+            } else if (items && (items.anyOf || items.oneOf)) {
+                const { type: t, enumVals: e } = typeOf(items)
+                out.push({
+                    path: `${path}[]`,
+                    depth: depth + 1,
+                    type: t,
+                    enumVals: e,
+                    description:
+                        'A keycode string, or a typed action object ({ "type": … }).',
+                })
+            }
         }
     }
     return out
@@ -152,10 +188,11 @@ export function JsonConfigPanel({
     )
     const [search, setSearch] = useState('')
     // Schema-validation summary, derived from Monaco's JSON markers.
-    const [issues, setIssues] = useState<{ count: number; line: number }>({
-        count: 0,
-        line: 0,
-    })
+    const [issues, setIssues] = useState<{
+        count: number
+        line: number
+        message: string
+    }>({ count: 0, line: 0, message: '' })
     const editorRef = useRef<MonacoEditor.IStandaloneCodeEditor | null>(null)
     const focused = useRef(false)
     const debounce = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -196,10 +233,16 @@ export function JsonConfigPanel({
             const errs = monaco.editor
                 .getModelMarkers({ resource: model.uri })
                 .filter((m) => m.severity >= monaco.MarkerSeverity.Warning)
-            const line = errs.length
-                ? Math.min(...errs.map((m) => m.startLineNumber))
-                : 0
-            setIssues({ count: errs.length, line })
+            const first = errs.length
+                ? errs.reduce((a, b) =>
+                      a.startLineNumber <= b.startLineNumber ? a : b,
+                  )
+                : null
+            setIssues({
+                count: errs.length,
+                line: first?.startLineNumber ?? 0,
+                message: first?.message ?? '',
+            })
         }
         monaco.editor.onDidChangeMarkers(refreshIssues)
         refreshIssues()
@@ -253,6 +296,30 @@ export function JsonConfigPanel({
         )
     }, [allFields, search])
 
+    // Three-tone validation status (design parity): a hard parse error from the
+    // store is destructive; Monaco's schema markers are an amber "schema issue";
+    // otherwise green/valid. Exact tones + tinted backgrounds match the prototype.
+    const status = error
+        ? {
+              color: 'var(--destructive)',
+              bg: 'color-mix(in oklch, var(--destructive) 9%, transparent)',
+              Icon: X,
+              msg: 'Invalid JSON · not applied',
+          }
+        : issues.count
+          ? {
+                color: 'oklch(0.78 0.15 75)',
+                bg: 'color-mix(in oklch, oklch(0.78 0.15 75) 10%, transparent)',
+                Icon: Flame,
+                msg: `${issues.count} schema issue${issues.count === 1 ? '' : 's'} · L${issues.line}: ${issues.message}`,
+            }
+          : {
+                color: 'oklch(0.72 0.16 152)',
+                bg: 'color-mix(in oklch, oklch(0.72 0.16 152) 8%, transparent)',
+                Icon: Check,
+                msg: 'Valid · matches schema · applied live',
+            }
+
     const tabBtn = (
         value: 'json' | 'options',
         label: string,
@@ -261,9 +328,9 @@ export function JsonConfigPanel({
         <button
             type="button"
             onClick={() => setTab(value)}
-            className={`inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[12px] font-bold transition-colors ${
+            className={`inline-flex h-7 flex-1 items-center justify-center gap-1.5 rounded-md text-[12px] font-bold transition-colors ${
                 tab === value
-                    ? 'bg-primary text-primary-foreground'
+                    ? 'bg-primary text-white'
                     : 'text-muted-foreground hover:text-foreground'
             }`}
         >
@@ -274,55 +341,49 @@ export function JsonConfigPanel({
 
     return (
         <div className="flex h-full flex-col">
-            {/* header */}
-            <div className="flex items-center gap-2 border-b border-border px-3 py-2.5">
-                <div className="flex items-center gap-1">
-                    {tabBtn('json', 'Editor', Code2)}
-                    {tabBtn('options', 'All options', Layers)}
+            {/* header — title block + actions */}
+            <div className="flex items-center gap-2 border-b border-border px-3.5 py-3">
+                <Code2 size={15} className="shrink-0 text-primary" />
+                <div className="min-w-0 flex-1">
+                    <div className="text-[13px] font-bold">Config JSON</div>
+                    <div className="text-[10.5px] text-muted-foreground">
+                        Schema-checked · autocomplete · live-updates
+                    </div>
                 </div>
-                <div className="ml-auto flex items-center gap-1">
-                    <button
-                        type="button"
-                        aria-label="Reset to current config"
-                        onClick={onReset}
-                        className="grid size-7 place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
-                    >
-                        <RotateCcw size={14} />
-                    </button>
-                    <button
-                        type="button"
-                        aria-label="Close JSON panel"
-                        onClick={onClose}
-                        className="grid size-7 place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
-                    >
-                        <X size={15} />
-                    </button>
-                </div>
+                <button
+                    type="button"
+                    aria-label="Re-sync from the board"
+                    title="Re-sync from the board"
+                    onClick={onReset}
+                    className="grid size-7 place-items-center rounded-md border border-border text-muted-foreground hover:bg-accent hover:text-foreground"
+                >
+                    <RotateCcw size={14} />
+                </button>
+                <button
+                    type="button"
+                    aria-label="Close JSON panel"
+                    onClick={onClose}
+                    className="grid size-7 place-items-center rounded-md border border-border text-muted-foreground hover:bg-accent hover:text-foreground"
+                >
+                    <X size={15} />
+                </button>
+            </div>
+
+            {/* tab bar */}
+            <div className="flex gap-1 border-b border-border bg-card p-1.5">
+                {tabBtn('json', 'Editor', Code2)}
+                {tabBtn('options', 'All options', Layers)}
             </div>
 
             {tab === 'json' ? (
                 <>
-                    {/* prominent validation status (design parity) */}
+                    {/* prominent three-tone validation status */}
                     <div
-                        className={`flex items-center gap-1.5 border-b border-border px-3 py-1.5 text-[11.5px] font-semibold ${
-                            issues.count || error
-                                ? 'text-destructive'
-                                : 'text-emerald-500'
-                        }`}
+                        className="flex items-center gap-1.5 border-b border-border px-3.5 py-2 text-[11.5px] font-semibold"
+                        style={{ color: status.color, background: status.bg }}
                     >
-                        {issues.count || error ? (
-                            <>
-                                <TriangleAlert size={13} />
-                                {issues.count
-                                    ? `${issues.count} issue${issues.count > 1 ? 's' : ''} · line ${issues.line}`
-                                    : 'Invalid JSON'}
-                            </>
-                        ) : (
-                            <>
-                                <Check size={13} />
-                                Valid · matches schema · applied live
-                            </>
-                        )}
+                        <status.Icon size={13} className="shrink-0" />
+                        <span className="truncate">{status.msg}</span>
                     </div>
                     <div className="min-h-0 flex-1">
                         <Editor
@@ -342,65 +403,90 @@ export function JsonConfigPanel({
                             }}
                         />
                     </div>
-                    <div className="border-t border-border px-3 py-2 text-[11.5px] text-muted-foreground">
-                        Ctrl/⌘+Space for suggestions · invalid values are
-                        underlined · edits sync to the canvas
+                    <div className="border-t border-border px-3.5 py-2 text-[10.5px] leading-relaxed text-muted-foreground">
+                        Press{' '}
+                        <strong className="text-foreground">
+                            Ctrl/⌘+Space
+                        </strong>{' '}
+                        for field &amp; value suggestions. Invalid values are
+                        underlined. See{' '}
+                        <strong className="text-foreground">All options</strong>{' '}
+                        for the full reference.
                     </div>
                 </>
             ) : (
                 <>
                     {/* pattern-check: skip — presentational searchable options list, no logic */}
-                    <div className="border-b border-border p-2.5">
-                        <div className="flex items-center gap-2 rounded-lg border border-input bg-background px-2.5 py-1.5">
+                    <div className="border-b border-border px-3.5 py-2.5">
+                        <div className="relative">
                             <Search
-                                size={13}
-                                className="shrink-0 text-muted-foreground"
+                                size={14}
+                                className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
                             />
                             <input
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                                 placeholder="Search config options…"
-                                className="w-full bg-transparent text-[12px] text-foreground outline-none placeholder:text-muted-foreground"
+                                className="w-full rounded-lg border border-input bg-background py-1.5 pl-8 pr-2.5 text-[12.5px] text-foreground outline-none placeholder:text-muted-foreground focus:border-primary"
                             />
                         </div>
                     </div>
-                    <div className="min-h-0 flex-1 overflow-y-auto p-3">
-                        <ul className="space-y-1.5">
-                            {fields.map((f) => {
-                                const depth = (f.path.match(/[.[]/g) ?? [])
-                                    .length
-                                return (
-                                    <li key={f.path}>
-                                        <button
-                                            type="button"
-                                            onClick={() => insertField(f.path)}
-                                            title="Insert at cursor"
-                                            style={{ marginLeft: depth * 10 }}
-                                            className="w-full rounded-lg border border-border bg-background p-2.5 text-left transition-colors hover:border-primary"
-                                        >
-                                            <div className="flex items-baseline gap-2">
-                                                <code className="font-mono text-[12px] font-semibold text-foreground">
-                                                    {f.path.split(/[.[]/).pop()}
-                                                </code>
-                                                <span className="rounded bg-secondary px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wide text-muted-foreground">
-                                                    {f.type}
+                    <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3.5 pt-1.5">
+                        {fields.map((f) => {
+                            const seg =
+                                f.path.split(/[.[]/).filter(Boolean).pop() ??
+                                f.path
+                            return (
+                                <button
+                                    key={f.path}
+                                    type="button"
+                                    onClick={() => insertField(f.path)}
+                                    title={`Insert "${seg}" at cursor`}
+                                    style={{ paddingLeft: 8 + f.depth * 13 }}
+                                    className="block w-full cursor-pointer rounded-md border-b border-border/50 py-1.5 pr-2 text-left transition-colors hover:bg-accent"
+                                >
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <span className="font-mono text-[12.5px] font-bold text-foreground">
+                                            {seg}
+                                        </span>
+                                        {f.type && (
+                                            <span
+                                                className="rounded px-1.5 py-px font-mono text-[10px] font-bold"
+                                                style={{
+                                                    background:
+                                                        'color-mix(in oklch, var(--primary) 14%, var(--background))',
+                                                    color: 'var(--primary)',
+                                                }}
+                                            >
+                                                {f.type}
+                                            </span>
+                                        )}
+                                    </div>
+                                    {f.enumVals && (
+                                        <div className="mt-1 flex flex-wrap gap-1">
+                                            {f.enumVals.map((v) => (
+                                                <span
+                                                    key={v}
+                                                    className="rounded border border-border bg-secondary px-1.5 py-px font-mono text-[10.5px] text-muted-foreground"
+                                                >
+                                                    {v}
                                                 </span>
-                                            </div>
-                                            {f.description && (
-                                                <p className="mt-1 text-[11.5px] leading-relaxed text-muted-foreground">
-                                                    {f.description}
-                                                </p>
-                                            )}
-                                        </button>
-                                    </li>
-                                )
-                            })}
-                            {!fields.length && (
-                                <li className="px-1 py-4 text-center text-[12px] text-muted-foreground">
-                                    No options match “{search}”.
-                                </li>
-                            )}
-                        </ul>
+                                            ))}
+                                        </div>
+                                    )}
+                                    {f.description && (
+                                        <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                                            {f.description}
+                                        </p>
+                                    )}
+                                </button>
+                            )
+                        })}
+                        {!fields.length && (
+                            <div className="px-1 py-6 text-center text-[12.5px] text-muted-foreground">
+                                No options match “{search}”.
+                            </div>
+                        )}
                     </div>
                 </>
             )}
