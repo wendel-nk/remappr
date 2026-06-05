@@ -142,16 +142,34 @@ export function MatrixOverlay({
                 ))}
                 {keys.map((k, i) => {
                     const c = ctr(k)
+                    const rc = map[i]
                     return (
-                        <circle
-                            key={i}
-                            cx={c.x}
-                            cy={c.y}
-                            r={3}
-                            fill={ROW_C}
-                            stroke="var(--card)"
-                            strokeWidth={1}
-                        />
+                        <g key={i}>
+                            <circle
+                                cx={c.x}
+                                cy={c.y}
+                                r={3}
+                                fill={ROW_C}
+                                stroke="var(--card)"
+                                strokeWidth={1}
+                            />
+                            {rc && (
+                                <text
+                                    x={c.x}
+                                    y={c.y + oneU * 0.3}
+                                    textAnchor="middle"
+                                    fontSize={Math.max(8, oneU * 0.18)}
+                                    fontWeight={700}
+                                    fontFamily="ui-monospace, monospace"
+                                    fill="var(--muted-foreground)"
+                                    stroke="var(--card)"
+                                    strokeWidth={2.5}
+                                    paintOrder="stroke"
+                                >
+                                    {rc[0]},{rc[1]}
+                                </text>
+                            )}
+                        </g>
                     )
                 })}
             </svg>

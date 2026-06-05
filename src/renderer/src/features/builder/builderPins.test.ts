@@ -1,5 +1,6 @@
 // Pattern check: no GoF pattern (-) — rejected — unit tests over pure pin helpers.
 import { describe, expect, it } from 'vitest'
+import { matrixDims } from '@firmware/config'
 import type { ConfigKeymap } from '@firmware/config'
 import { newBoardConfig } from './geometryEditor'
 import {
@@ -13,12 +14,12 @@ import {
     setColPinsText,
 } from './builderPins'
 
-// 2 rows × 3 cols grid: transform derives rows=2, cols=3 from position.
+// 2 rows × 3 cols grid: matrixDims derives rows=2, cols=3 from position.
 const board = (): ConfigKeymap =>
     newBoardConfig({ name: 'B', rows: 2, cols: 3, target: 'qmk' })
 
 describe('builderPins', () => {
-    it('defaults pins from the transform (rows then cols)', () => {
+    it('defaults pins from the matrix dims (rows then cols)', () => {
         const c = board()
         expect(rowPins(c)).toEqual(['GP0', 'GP1'])
         expect(colPins(c)).toEqual(['GP2', 'GP3', 'GP4'])
@@ -31,11 +32,10 @@ describe('builderPins', () => {
         expect(c.keyboard.pins?.rows[0]).toBe('GP10')
         expect(rowPins(c)).toEqual(['GP10', 'GP1'])
         expect(colPins(c)).toEqual(['GP2', 'GP3', 'GP20'])
-        // editing pins commits the transform so counts stay stable
-        expect(c.keyboard.hardware?.transform).toMatchObject({
-            rows: 2,
-            columns: 3,
-        })
+        // pins are builder metadata only — no electrical transform is written,
+        // and the stored labels keep the dims stable.
+        expect(c.keyboard.hardware?.transform).toBeUndefined()
+        expect(matrixDims(c)).toEqual({ rows: 2, cols: 3 })
     })
 
     it('blank label falls back to the default', () => {
@@ -58,15 +58,15 @@ describe('builderPins', () => {
         expect(colPins(c2)).toEqual(['a', 'b', 'c'])
     })
 
-    it('addRow / addCol grow the transform and pin lists', () => {
+    it('addRow / addCol grow the matrix dims and pin lists', () => {
         const r = addRow(board())
         expect(r.index).toBe(2)
-        expect(r.config.keyboard.hardware?.transform?.rows).toBe(3)
+        expect(matrixDims(r.config).rows).toBe(3)
         expect(rowPins(r.config)).toHaveLength(3)
 
         const co = addCol(board())
         expect(co.index).toBe(3)
-        expect(co.config.keyboard.hardware?.transform?.columns).toBe(4)
+        expect(matrixDims(co.config).cols).toBe(4)
         expect(colPins(co.config)).toHaveLength(4)
     })
 })

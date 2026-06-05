@@ -19,9 +19,10 @@ import type {
     ConfigKeyboard,
     ConfigHardware,
 } from '@firmware/config'
-import { KNOWN_ZMK_BOARDS } from '@firmware/config'
-import { autoMatrix, matrixDims } from './builderMatrix'
+import { KNOWN_ZMK_BOARDS, materializeMatrix } from '@firmware/config'
+import { matrixDims } from './builderMatrix'
 import { rowPins, colPins, setRowPinsText, setColPinsText } from './builderPins'
+import { setMatrixMeta } from './builderInspectorOps'
 
 /* ── firmware targets ──────────────────────────────────────────────────── */
 interface Firmware {
@@ -217,10 +218,8 @@ export function BuilderMetaForm(): JSX.Element {
         patchKeyboard({ firmware: next.length ? next : undefined })
     }
 
-    const onAutoMatrix = (): void =>
-        patchKeyboard({
-            hardware: { ...kb.hardware, transform: autoMatrix(kb.keys) },
-        })
+    // "Auto" freezes the derived [row,col] into every key + the board descriptor.
+    const onAutoMatrix = (): void => commit(materializeMatrix(config))
 
     // Board/shield writers — drop empties so a keymap-only config stays clean.
     const setHardware = (p: Partial<ConfigHardware>): void => {
@@ -431,7 +430,7 @@ export function BuilderMetaForm(): JSX.Element {
                         </div>
                         <div className="text-[11px] text-muted-foreground">
                             rows × columns · {kb.keys.length} keys
-                            {kb.hardware?.transform ? ' · wired' : ''}
+                            {kb.keys.some((k) => k.matrix) ? ' · wired' : ''}
                         </div>
                     </div>
                     <button
@@ -446,6 +445,51 @@ export function BuilderMetaForm(): JSX.Element {
                     Auto assigns each key&apos;s row/column from its position.
                     Per-key wiring lands in the inspector.
                 </p>
+                {/* Diode direction + scan mode (board matrix descriptor) */}
+                <div className="mt-2.5 grid grid-cols-2 gap-2">
+                    <div>
+                        <div className="mb-1 text-[11px] text-muted-foreground">
+                            Diode direction
+                        </div>
+                        <select
+                            value={kb.matrix?.diodeDirection ?? 'col2row'}
+                            onChange={(e) =>
+                                commit(
+                                    setMatrixMeta(config, {
+                                        diodeDirection: e.target.value as
+                                            | 'row2col'
+                                            | 'col2row',
+                                    }),
+                                )
+                            }
+                            className="w-full rounded-lg border border-input bg-background px-2 py-1.5 font-mono text-[12px] font-semibold text-foreground outline-none focus:border-primary"
+                        >
+                            <option value="col2row">COL2ROW</option>
+                            <option value="row2col">ROW2COL</option>
+                        </select>
+                    </div>
+                    <div>
+                        <div className="mb-1 text-[11px] text-muted-foreground">
+                            Scan mode
+                        </div>
+                        <select
+                            value={kb.matrix?.mode ?? 'matrix'}
+                            onChange={(e) =>
+                                commit(
+                                    setMatrixMeta(config, {
+                                        mode: e.target.value as
+                                            | 'matrix'
+                                            | 'direct',
+                                    }),
+                                )
+                            }
+                            className="w-full rounded-lg border border-input bg-background px-2 py-1.5 font-mono text-[12px] font-semibold text-foreground outline-none focus:border-primary"
+                        >
+                            <option value="matrix">Matrix (row × col)</option>
+                            <option value="direct">Direct (1 GPIO/key)</option>
+                        </select>
+                    </div>
+                </div>
                 {/* Pin mapping (friendly labels → kscan) */}
                 <div className="mt-2.5 text-[11px] text-muted-foreground">
                     Pin mapping

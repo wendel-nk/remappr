@@ -27,6 +27,7 @@ import { KeyButton } from '@/features/keymap/keyboard/KeyButton'
 import { Switch } from '@/ui/switch'
 import useBuilderStore from '@/stores/builderStore'
 import useConfigStore from '@/stores/configStore'
+import { matrixDims } from '@firmware/config'
 import type {
     CanonAction,
     CanonGeometry,
@@ -39,11 +40,10 @@ import {
     bulkGeometry,
     bulkNumberCols,
     bulkSetRow,
-    ensureTransform,
+    clearMatrix,
     isAutoAssign,
     keyMatrix,
     patchKey,
-    removeTransform,
     setBinding,
     setEncoderBinding,
     setSliderBinding,
@@ -545,10 +545,10 @@ export function BuilderInspector(): JSX.Element {
         }
         commit(next)
     }
-    const t = ensureTransform(config)
+    const dims = matrixDims(config)
     const [row, col] = keyMatrix(config, index)
-    const nRows = Math.max(t.rows, row + 1)
-    const nCols = Math.max(t.columns, col + 1)
+    const nRows = Math.max(dims.rows, row + 1)
+    const nCols = Math.max(dims.cols, col + 1)
     const rPins = rowPins(config)
     const cPins = colPins(config)
     const rPin = (i: number): string => rPins[i] ?? `GP${i}`
@@ -951,7 +951,7 @@ export function BuilderInspector(): JSX.Element {
                         onToggle={(v) =>
                             commit(
                                 v
-                                    ? removeTransform(config)
+                                    ? clearMatrix(config)
                                     : applyAutoMatrix(config),
                             )
                         }

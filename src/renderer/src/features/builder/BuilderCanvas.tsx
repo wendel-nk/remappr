@@ -19,7 +19,8 @@ import { scalePosition } from '@/lib/scalePosition'
 import useConfigStore from '@/stores/configStore'
 import useBuilderStore from '@/stores/builderStore'
 import { snap as snapStep, updateKeys } from './geometryEditor'
-import { autoMatrix, splitInfo } from './builderMatrix'
+import { splitInfo } from './builderMatrix'
+import { resolvedTransform } from './builderInspectorOps'
 import { builderCapProps, builderBindingCode } from './builderCapProps'
 import {
     addCol,
@@ -700,10 +701,7 @@ export function BuilderCanvas(): JSX.Element {
                 {matrixView && keys.length > 0 && config && (
                     <MatrixOverlay
                         keys={keys}
-                        transform={
-                            config.keyboard.hardware?.transform ??
-                            autoMatrix(keys)
-                        }
+                        transform={resolvedTransform(config)}
                         oneU={oneU}
                         innerW={innerW}
                         innerH={innerH}

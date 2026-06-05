@@ -6,7 +6,7 @@
 // derivation now lives in the config layer (firmware/config/matrix.ts) so the
 // compilers share it; `autoMatrix` is re-exported here for existing callers.
 
-import { deriveMatrix } from '@firmware/config'
+import { deriveMatrix, matrixDims as configMatrixDims } from '@firmware/config'
 import type { CanonGeometry, ConfigKeymap } from '@firmware/config'
 
 /** Derive a [row,col]-per-key electrical transform from physical position.
@@ -70,16 +70,11 @@ export interface MatrixDims {
     cols: number
 }
 
-/** Rows × columns for the board: the real transform when present, else the
- *  position-derived band count (what the user would get from "Auto"). */
+/** Rows × columns for the board, from `keys[].matrix` + the board descriptor +
+ *  pin floors (see the config layer's `matrixDims`); zero for a null config. */
 export function matrixDims(config: ConfigKeymap | null): MatrixDims {
     if (!config) return { rows: 0, cols: 0 }
-    const t = config.keyboard.hardware?.transform
-    if (t) return { rows: t.rows, cols: t.columns }
-    const keys = config.keyboard.keys
-    if (!keys.length) return { rows: 0, cols: 0 }
-    const auto = autoMatrix(keys)
-    return { rows: auto.rows, cols: auto.columns }
+    return configMatrixDims(config)
 }
 
 export interface SplitInfo {

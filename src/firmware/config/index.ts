@@ -22,6 +22,7 @@ export type {
     CanonMatrixKscan,
     CanonDirectKscan,
     CanonMatrixTransform,
+    CanonKeyboardMatrix,
     CanonLighting,
     CanonUnderglow,
     CanonBacklight,
@@ -69,6 +70,7 @@ export {
     type DerivedMatrix,
     deriveMatrix,
     materializeMatrix,
+    matrixDims,
     resolveKeyMatrix,
 } from './matrix'
 export { normalizeAction, normalizeKeymap, parseKeymap } from './normalize'

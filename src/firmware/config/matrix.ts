@@ -113,6 +113,35 @@ export function resolveKeyMatrix(config: ConfigKeymap): [number, number][] {
     )
 }
 
+/** Current matrix dimensions for a config: the largest of the board descriptor's
+ *  stored dims, a legacy transform's declared dims, the friendly pin-label counts,
+ *  and the actual per-key usage (max resolved row/col + 1). The pin/descriptor
+ *  floors let the builder hold "unused" rows/columns (added via the overlay's
+ *  "+" before any key is wired to them); usage covers freshly-derived boards. */
+export function matrixDims(config: ConfigKeymap): {
+    rows: number
+    cols: number
+} {
+    const kb = config.keyboard
+    let rows = Math.max(
+        kb.matrix?.rows ?? 0,
+        kb.hardware?.transform?.rows ?? 0,
+        kb.pins?.rows?.length ?? 0,
+    )
+    let cols = Math.max(
+        kb.matrix?.cols ?? 0,
+        kb.hardware?.transform?.columns ?? 0,
+        kb.pins?.cols?.length ?? 0,
+    )
+    if (kb.keys.length) {
+        for (const [r, c] of resolveKeyMatrix(config)) {
+            rows = Math.max(rows, r + 1)
+            cols = Math.max(cols, c + 1)
+        }
+    }
+    return { rows, cols }
+}
+
 /** Return a copy of the config with every key's `matrix` and the board
  *  `keyboard.matrix` descriptor populated, so emitters always have authoritative
  *  wiring. Existing explicit values win; the rest are derived. Diode direction

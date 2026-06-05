@@ -1,7 +1,7 @@
 // Pattern check: no GoF pattern (-) — rejected — unit tests for pure inspector ops
 // (per-key matrix / bulk / binding / variant); assertions over data, no abstraction.
 import { describe, expect, it } from 'vitest'
-import { parseKeymap, serializeKeymap } from '@firmware/config'
+import { matrixDims, parseKeymap, serializeKeymap } from '@firmware/config'
 import type { ConfigKeymap } from '@firmware/config'
 import { newBoardConfig } from './geometryEditor'
 import {
@@ -11,13 +11,12 @@ import {
     bulkGeometry,
     bulkNumberCols,
     bulkSetRow,
-    ensureTransform,
+    clearMatrix,
     isAutoAssign,
     keyMatrix,
     parseBindingToken,
     patchKey,
     removeLayout,
-    removeTransform,
     renameLayout,
     setBinding,
     setEncoderBinding,
@@ -31,42 +30,40 @@ const grid = (rows: number, cols: number): ConfigKeymap =>
     newBoardConfig({ name: 'B', rows, cols, target: 'zmk' })
 
 describe('builderInspectorOps — matrix', () => {
-    it('ensureTransform derives from position when none committed', () => {
-        const t = ensureTransform(grid(2, 3))
-        expect(t.rows).toBe(2)
-        expect(t.columns).toBe(3)
-        expect(t.map).toHaveLength(6)
+    it('keyMatrix derives [row,col] from position when none committed', () => {
+        const c = grid(2, 3)
+        expect(keyMatrix(c, 0)).toEqual([0, 0])
+        expect(keyMatrix(c, 5)).toEqual([1, 2])
     })
 
-    it('applyAutoMatrix commits the derived transform', () => {
+    it('applyAutoMatrix freezes the derived matrix onto every key + descriptor', () => {
         const out = applyAutoMatrix(grid(2, 3))
-        expect(out.keyboard.hardware?.transform?.rows).toBe(2)
-        expect(out.keyboard.hardware?.transform?.columns).toBe(3)
-        // valid against the schema (map length == key count, RC in range)
-        expect(
-            parseKeymap(serializeKeymap(out)).keyboard.hardware?.transform,
-        ).toBeDefined()
+        expect(out.keyboard.keys.every((k) => k.matrix)).toBe(true)
+        expect(out.keyboard.matrix).toMatchObject({ rows: 2, cols: 3 })
+        // valid against the schema, and the per-key wiring round-trips
+        const back = parseKeymap(serializeKeymap(out))
+        expect(back.keyboard.keys[5].matrix).toEqual([1, 2])
     })
 
-    it('setKeyMatrix materialises + grows the transform', () => {
+    it('setKeyMatrix writes keys[].matrix and grows the dims', () => {
         const out = setKeyMatrix(grid(2, 2), 0, 4, 5)
         expect(keyMatrix(out, 0)).toEqual([4, 5])
-        expect(out.keyboard.hardware?.transform?.rows).toBe(5)
-        expect(out.keyboard.hardware?.transform?.columns).toBe(6)
+        expect(out.keyboard.keys[0].matrix).toEqual([4, 5])
+        expect(matrixDims(out)).toEqual({ rows: 5, cols: 6 })
         expect(parseKeymap(serializeKeymap(out)).keyboard.keys).toHaveLength(4)
     })
 
-    it('auto-assign reflects + toggles the stored transform', () => {
+    it('auto-assign reflects + toggles explicit per-key wiring', () => {
         const fresh = grid(2, 2)
-        // No transform stored on a fresh board → auto-assign on.
+        // No key carries an explicit matrix on a fresh board → auto-assign on.
         expect(isAutoAssign(fresh)).toBe(true)
-        // Materialise (auto-assign off) then drop (auto-assign on again).
+        // Freeze (auto-assign off) then clear (auto-assign on again).
         const manual = applyAutoMatrix(fresh)
         expect(isAutoAssign(manual)).toBe(false)
-        const back = removeTransform(manual)
+        const back = clearMatrix(manual)
         expect(isAutoAssign(back)).toBe(true)
-        expect(back.keyboard.hardware?.transform).toBeUndefined()
-        // A manual wire also turns auto-assign off.
+        expect(back.keyboard.keys.every((k) => !k.matrix)).toBe(true)
+        // A single manual wire also turns auto-assign off.
         expect(isAutoAssign(setKeyMatrix(fresh, 0, 1, 1))).toBe(false)
     })
 
@@ -85,7 +82,7 @@ describe('builderInspectorOps — matrix', () => {
         const out = bulkSetRow(grid(2, 2), [0, 1], 3)
         expect(keyMatrix(out, 0)[0]).toBe(3)
         expect(keyMatrix(out, 1)[0]).toBe(3)
-        expect(out.keyboard.hardware?.transform?.rows).toBe(4)
+        expect(matrixDims(out).rows).toBe(4)
     })
 
     it('bulkNumberCols numbers selected columns left→right from a start', () => {
@@ -93,7 +90,7 @@ describe('builderInspectorOps — matrix', () => {
         expect(keyMatrix(out, 0)[1]).toBe(5)
         expect(keyMatrix(out, 1)[1]).toBe(6)
         expect(keyMatrix(out, 2)[1]).toBe(7)
-        expect(out.keyboard.hardware?.transform?.columns).toBe(8)
+        expect(matrixDims(out).cols).toBe(8)
     })
 })
 

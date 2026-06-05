@@ -13,111 +13,122 @@
 import {
     denormalizeAction,
     isKnownKeyToken,
+    materializeMatrix,
+    matrixDims,
     normalizeAction,
+    resolveKeyMatrix,
 } from '@firmware/config'
 import type {
     CanonAction,
+    CanonKeyboardMatrix,
     CanonLayout,
     CanonMatrixTransform,
     CanonSliderBinding,
     ConfigKeymap,
     SliderMap,
 } from '@firmware/config'
-import { autoMatrix } from './builderMatrix'
 import { updateKey, updateKeys } from './geometryEditor'
 
 const r3 = (v: number): number => Math.round(v * 1000) / 1000
 
-/* ── per-key matrix wiring (lazily materialises the transform) ──────────── */
+/* ── per-key matrix wiring (writes keys[].matrix, the friendly source of truth) ── */
 
-/** The current electrical transform, or one freshly derived from key positions. */
-export function ensureTransform(config: ConfigKeymap): CanonMatrixTransform {
-    return (
-        config.keyboard.hardware?.transform ?? autoMatrix(config.keyboard.keys)
-    )
-}
-
-/** [row, col] for one key — from the committed transform or position-derived. */
+/** [row, col] for one key — explicit `keys[].matrix`, else a legacy transform
+ *  entry, else position-derived (precedence enforced by `resolveKeyMatrix`). */
 export function keyMatrix(
     config: ConfigKeymap,
     index: number,
 ): [number, number] {
-    const t = ensureTransform(config)
-    return t.map[index] ?? [0, 0]
+    return resolveKeyMatrix(config)[index] ?? [0, 0]
 }
 
-const withTransform = (
-    config: ConfigKeymap,
-    transform: CanonMatrixTransform,
-): ConfigKeymap => ({
-    ...config,
-    keyboard: {
-        ...config.keyboard,
-        hardware: { ...config.keyboard.hardware, transform },
-    },
-})
+/** A transform-shaped view (dims + per-key [row,col]) of the resolved wiring, for
+ *  the canvas overlay. NOT stored — derived from `keys[].matrix` / geometry. */
+export function resolvedTransform(config: ConfigKeymap): CanonMatrixTransform {
+    const { rows, cols } = matrixDims(config)
+    return { rows, columns: cols, map: resolveKeyMatrix(config) }
+}
 
-/** Commit a position-derived transform (the "Auto" action). */
+/** Auto-assign is on when NO key carries an explicit `matrix`: the wiring is then
+ *  derived from key positions and tracks moves. Wiring a key by hand turns it off. */
+export function isAutoAssign(config: ConfigKeymap): boolean {
+    return !config.keyboard.keys.some((k) => k.matrix)
+}
+
+/** Freeze the resolved wiring into explicit `keys[].matrix` + the board
+ *  `keyboard.matrix` descriptor (the "Auto" action / auto-assign off). */
 export function applyAutoMatrix(config: ConfigKeymap): ConfigKeymap {
-    return withTransform(config, autoMatrix(config.keyboard.keys))
+    return materializeMatrix(config)
 }
 
-// pattern-check: skip additive pure transform-drop op + boolean accessor, no abstraction
-/** Drop the stored electrical transform → the matrix reverts to being derived
- *  from key positions (auto-assign on). Inverse of `applyAutoMatrix`. */
-export function removeTransform(config: ConfigKeymap): ConfigKeymap {
-    if (!config.keyboard.hardware?.transform) return config
-    const hardware = { ...config.keyboard.hardware }
-    delete hardware.transform
-    const keyboard = { ...config.keyboard }
-    if (Object.keys(hardware).length) keyboard.hardware = hardware
-    else delete keyboard.hardware
+/** Clear every explicit `keys[].matrix` → wiring reverts to position-derived
+ *  (auto-assign on). Keeps the descriptor's diode/mode (re-derives its dims) and
+ *  drops any legacy transform so it can't re-freeze the wiring. */
+export function clearMatrix(config: ConfigKeymap): ConfigKeymap {
+    const keys = config.keyboard.keys.map((k) => {
+        if (!k.matrix) return k
+        const rest = { ...k }
+        delete rest.matrix
+        return rest
+    })
+    const keyboard = { ...config.keyboard, keys }
+    if (keyboard.hardware?.transform) {
+        const hardware = { ...keyboard.hardware }
+        delete hardware.transform
+        if (Object.keys(hardware).length) keyboard.hardware = hardware
+        else delete keyboard.hardware
+    }
+    if (keyboard.matrix) {
+        const { diodeDirection, mode } = keyboard.matrix
+        if (diodeDirection || mode) {
+            const dims = matrixDims({ ...config, keyboard })
+            keyboard.matrix = { ...dims, diodeDirection, mode }
+        } else delete keyboard.matrix
+    }
     return { ...config, keyboard }
 }
 
-/** Auto-assign is on when no electrical transform is stored — the matrix is then
- *  derived from key positions and tracks moves automatically. */
-export function isAutoAssign(config: ConfigKeymap): boolean {
-    return !config.keyboard.hardware?.transform
+/** Patch the board matrix descriptor (diode direction / scan mode), keeping its
+ *  dims in sync with the current wiring. Lazily creates `keyboard.matrix`. */
+export function setMatrixMeta(
+    config: ConfigKeymap,
+    patch: Partial<CanonKeyboardMatrix>,
+): ConfigKeymap {
+    const { rows, cols } = matrixDims(config)
+    const matrix: CanonKeyboardMatrix = {
+        ...config.keyboard.matrix,
+        ...patch,
+        rows,
+        cols,
+    }
+    return { ...config, keyboard: { ...config.keyboard, matrix } }
 }
 
-/** Set one key's [row, col], materialising + growing the transform as needed. */
+/** Set one key's [row, col] (writes the friendly `keys[].matrix`). */
 export function setKeyMatrix(
     config: ConfigKeymap,
     index: number,
     row: number,
     col: number,
 ): ConfigKeymap {
-    const t = ensureTransform(config)
-    const map = t.map.map((rc, i): [number, number] =>
-        i === index ? [row, col] : rc,
-    )
-    return withTransform(config, {
-        rows: Math.max(t.rows, row + 1),
-        columns: Math.max(t.columns, col + 1),
-        map,
-    })
+    return updateKey(config, index, { matrix: [row, col] })
 }
 
-/** Set every selected key to one row (matrix). */
+/** Set every selected key to one row (preserving each key's resolved column). */
 export function bulkSetRow(
     config: ConfigKeymap,
     indices: Iterable<number>,
     row: number,
 ): ConfigKeymap {
     const sel = new Set(indices)
-    const t = ensureTransform(config)
-    const map = t.map.map((rc, i): [number, number] =>
-        sel.has(i) ? [row, rc[1]] : rc,
+    const resolved = resolveKeyMatrix(config)
+    return updateKeys(config, (k, i) =>
+        sel.has(i) ? { ...k, matrix: [row, resolved[i]?.[1] ?? 0] } : k,
     )
-    return withTransform(config, {
-        rows: Math.max(t.rows, row + 1),
-        columns: t.columns,
-        map,
-    })
 }
 
-/** Number the selected keys' columns left→right starting at `startCol`. */
+/** Number the selected keys' columns left→right starting at `startCol`
+ *  (preserving each key's resolved row). */
 export function bulkNumberCols(
     config: ConfigKeymap,
     indices: Iterable<number>,
@@ -127,19 +138,12 @@ export function bulkNumberCols(
         (a, b) => config.keyboard.keys[a].x - config.keyboard.keys[b].x,
     )
     const colOf = new Map(ordered.map((idx, i) => [idx, startCol + i]))
-    const t = ensureTransform(config)
-    let maxCol = t.columns - 1
-    const map = t.map.map((rc, i): [number, number] => {
-        if (!colOf.has(i)) return rc
-        const c = colOf.get(i)!
-        maxCol = Math.max(maxCol, c)
-        return [rc[0], c]
-    })
-    return withTransform(config, {
-        rows: t.rows,
-        columns: maxCol + 1,
-        map,
-    })
+    const resolved = resolveKeyMatrix(config)
+    return updateKeys(config, (k, i) =>
+        colOf.has(i)
+            ? { ...k, matrix: [resolved[i]?.[0] ?? 0, colOf.get(i)!] }
+            : k,
+    )
 }
 
 /* ── bulk geometry (multi-select) ──────────────────────────────────────── */
