@@ -15,14 +15,18 @@ import {
     TriangleAlert,
     Usb,
     Wand2,
+    XCircle,
 } from 'lucide-react'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/ui/tooltip'
 import { Switch } from '@/ui/switch'
 import useBuilderStore from '@/stores/builderStore'
 import useConfigStore from '@/stores/configStore'
 import type {
     CanonController,
+    CanonFirmwareConfig,
     CanonLighting,
     CanonVial,
+    ConfigHardware,
     ConfigKeymap,
     ConfigMeta,
     ConfigKeyboard,
@@ -30,7 +34,11 @@ import type {
 import {
     KNOWN_ZMK_BOARDS,
     checkCompleteness,
+    deriveQmkConfigH,
+    deriveQmkRulesMk,
+    deriveZmkConf,
     materializeMatrix,
+    resolveZmkConfFlags,
 } from '@firmware/config'
 import { matrixDims } from './builderMatrix'
 import { rowPins, colPins, setRowPinsText, setColPinsText } from './builderPins'
@@ -146,6 +154,52 @@ function TextField({
             }}
             className={`w-full rounded-lg border border-input bg-background px-2.5 py-2 text-[13px] font-medium text-foreground outline-none focus:border-primary ${mono ? 'font-mono' : ''}`}
         />
+    )
+}
+
+// pattern-check: skip presentational multiline input mirroring TextField, no abstraction
+/** Multiline draft input; commits (with history) on blur. */
+function TextArea({
+    value,
+    onCommit,
+    placeholder,
+    rows = 4,
+}: {
+    value: string
+    onCommit: (v: string) => void
+    placeholder?: string
+    rows?: number
+}): JSX.Element {
+    const [draft, setDraft] = useState(value)
+    const dirty = useRef(false)
+    useEffect(() => {
+        if (!dirty.current) setDraft(value)
+    }, [value])
+    return (
+        <textarea
+            value={draft}
+            placeholder={placeholder}
+            rows={rows}
+            spellCheck={false}
+            onChange={(e) => {
+                dirty.current = true
+                setDraft(e.target.value)
+            }}
+            onBlur={() => {
+                dirty.current = false
+                if (draft !== value) onCommit(draft)
+            }}
+            className="w-full resize-y rounded-lg border border-input bg-background px-2.5 py-2 font-mono text-[12px] leading-snug text-foreground outline-none focus:border-primary"
+        />
+    )
+}
+
+/** Read-only generated-file preview (live .conf / config.h / rules.mk). */
+function FilePreview({ text }: { text: string }): JSX.Element {
+    return (
+        <pre className="max-h-56 overflow-auto rounded-lg border border-border bg-muted/40 px-2.5 py-2 font-mono text-[11px] leading-snug text-muted-foreground">
+            {text}
+        </pre>
     )
 }
 
@@ -337,6 +391,51 @@ export function BuilderMetaForm(): JSX.Element {
             return
         }
         setLighting({ ...L, backlight: { ...L.backlight, ...p } }, live)
+    }
+
+    // Firmware-config writer — merge a patch, drop empty/false-y string fields so a
+    // bare config stays clean; tri-state booleans keep their explicit value.
+    const fc: CanonFirmwareConfig = kb.firmwareConfig ?? {}
+    const zmkFlags = resolveZmkConfFlags(config)
+    const setFirmwareConfig = (p: Partial<CanonFirmwareConfig>): void => {
+        const next: CanonFirmwareConfig = { ...fc, ...p }
+        for (const k of Object.keys(next) as (keyof CanonFirmwareConfig)[]) {
+            const v = next[k]
+            if (v === undefined || v === '') delete next[k]
+        }
+        patchKeyboard({
+            firmwareConfig: Object.keys(next).length ? next : undefined,
+        })
+    }
+
+    // Hardware-peripheral writers — patch keyboard.hardware, drop empty sub-objects.
+    const hw: ConfigHardware = kb.hardware ?? {}
+    const setHardware = (p: Partial<ConfigHardware>): void => {
+        const next: ConfigHardware = { ...hw, ...p }
+        for (const k of Object.keys(next) as (keyof ConfigHardware)[])
+            if (next[k] === undefined) delete next[k]
+        patchKeyboard({ hardware: Object.keys(next).length ? next : undefined })
+    }
+    const setBacklightPwm = (
+        p: Partial<NonNullable<ConfigHardware['backlightPwm']>> | null,
+    ): void => {
+        if (p === null) return setHardware({ backlightPwm: undefined })
+        const cur = hw.backlightPwm ?? { instance: 'pwm0', channel: 0, pin: '' }
+        setHardware({ backlightPwm: { ...cur, ...p } })
+    }
+    const setWs2812 = (
+        p: Partial<NonNullable<ConfigHardware['ws2812']>> | null,
+    ): void => {
+        if (p === null) return setHardware({ ws2812: undefined })
+        const cur = hw.ws2812 ?? { spi: 'spi3', dataPin: '', chainLength: 10 }
+        setHardware({ ws2812: { ...cur, ...p } })
+    }
+    const setExtPowerCtrl = (
+        p: Partial<NonNullable<ConfigHardware['extPowerCtrl']>> | null,
+    ): void => {
+        if (p === null) return setHardware({ extPowerCtrl: undefined })
+        const cur = hw.extPowerCtrl ?? { controlGpio: '' }
+        setHardware({ extPowerCtrl: { ...cur, ...p } })
     }
 
     return (
@@ -849,47 +948,365 @@ export function BuilderMetaForm(): JSX.Element {
                 </div>
             </div>
 
-            {/* Firmware readiness — // pattern-check: skip presentational checklist */}
-            <div>
-                <MiniLabel>Readiness</MiniLabel>
-                <div className="flex flex-col gap-1.5">
-                    {checkCompleteness(config).map((r) => (
-                        <div
-                            key={r.firmware}
-                            className="rounded-[9px] border border-border bg-background px-2.5 py-2"
-                        >
-                            <div className="flex items-center gap-1.5 text-[12px] font-bold">
-                                {r.ready ? (
-                                    <CheckCircle2
-                                        size={14}
-                                        className="text-emerald-500"
+            {/* Firmware config — ZMK .conf toggles + live preview + overrides */}
+            {showZmkCtrl && (
+                <div>
+                    <MiniLabel>Firmware config (.conf)</MiniLabel>
+                    <div className="flex flex-col gap-1.5">
+                        {(
+                            [
+                                ['usb', 'USB', zmkFlags.usb],
+                                ['ble', 'Bluetooth (BLE)', zmkFlags.ble],
+                                ['studio', 'ZMK Studio', zmkFlags.studio],
+                                [
+                                    'studioUsbCdc',
+                                    'Studio over USB (CDC)',
+                                    zmkFlags.studioCdc,
+                                ],
+                                [
+                                    'studioLocking',
+                                    'Studio unlock required',
+                                    zmkFlags.studioLocking,
+                                ],
+                                ['softOff', 'Soft-off', zmkFlags.softOff],
+                                [
+                                    'extPower',
+                                    'External power',
+                                    zmkFlags.extPower,
+                                ],
+                                [
+                                    'pointing',
+                                    'Pointing (mouse)',
+                                    zmkFlags.pointing,
+                                ],
+                                // Backlight + RGB underglow are driven by the
+                                // Lighting section above (it sets the .conf flag).
+                                [
+                                    'usbLogging',
+                                    'USB logging',
+                                    zmkFlags.usbLogging,
+                                ],
+                            ] as [keyof CanonFirmwareConfig, string, boolean][]
+                        ).map(([k, label, resolved]) => (
+                            <ToggleRow
+                                key={k}
+                                label={label}
+                                on={(fc[k] as boolean | undefined) ?? resolved}
+                                onToggle={(v) =>
+                                    // Studio-CDC also drives the overlay endpoint node.
+                                    k === 'studioUsbCdc'
+                                        ? (setFirmwareConfig({
+                                              studioUsbCdc: v,
+                                          }),
+                                          setHardware({
+                                              studioAcm: v || undefined,
+                                          }))
+                                        : setFirmwareConfig({ [k]: v })
+                                }
+                            />
+                        ))}
+                    </div>
+                    <div className="mt-2">
+                        <MiniLabel>Extra Kconfig</MiniLabel>
+                        <TextArea
+                            value={fc.kconfig ?? ''}
+                            placeholder="CONFIG_ZMK_SLEEP=y"
+                            onCommit={(v) =>
+                                setFirmwareConfig({
+                                    kconfig: v.trim() || undefined,
+                                })
+                            }
+                        />
+                    </div>
+                    <div className="mt-2">
+                        <MiniLabel>Generated .conf</MiniLabel>
+                        <FilePreview text={deriveZmkConf(config)} />
+                    </div>
+                </div>
+            )}
+
+            {/* Hardware pins — full-parity ZMK peripheral wiring */}
+            {showZmkCtrl &&
+                (zmkFlags.extPower ||
+                    zmkFlags.backlight ||
+                    zmkFlags.underglow) && (
+                    <div>
+                        <MiniLabel>Hardware pins</MiniLabel>
+                        <div className="flex flex-col gap-2">
+                            {zmkFlags.extPower && (
+                                <div className="rounded-lg border border-border p-2.5">
+                                    <div className="mb-1.5 text-[11px] font-semibold text-foreground">
+                                        Ext-power control GPIO
+                                    </div>
+                                    <TextField
+                                        mono
+                                        value={
+                                            hw.extPowerCtrl?.controlGpio ?? ''
+                                        }
+                                        placeholder="P0.14"
+                                        onCommit={(v) =>
+                                            setExtPowerCtrl(
+                                                v.trim()
+                                                    ? { controlGpio: v.trim() }
+                                                    : null,
+                                            )
+                                        }
                                     />
-                                ) : (
-                                    <TriangleAlert
-                                        size={14}
-                                        className="text-red-500"
-                                    />
-                                )}
-                                {r.label}
-                                <span className="text-[10.5px] font-normal text-muted-foreground">
-                                    {r.ready ? 'ready' : 'needs setup'}
-                                </span>
-                            </div>
-                            {r.issues.length > 0 && (
-                                <ul className="mt-1 space-y-0.5 pl-[19px] text-[10.5px] leading-snug">
-                                    {r.issues.map((i, idx) => (
-                                        <li
-                                            key={idx}
-                                            data-level={i.level}
-                                            className="text-muted-foreground data-[level=error]:text-red-400"
+                                    <div className="mt-1.5">
+                                        <ToggleRow
+                                            label="Active low"
+                                            on={!!hw.extPowerCtrl?.activeLow}
+                                            onToggle={(v) =>
+                                                setExtPowerCtrl({
+                                                    activeLow: v || undefined,
+                                                })
+                                            }
+                                        />
+                                    </div>
+                                </div>
+                            )}
+                            {zmkFlags.backlight && (
+                                <div className="rounded-lg border border-border p-2.5">
+                                    <div className="mb-1.5 text-[11px] font-semibold text-foreground">
+                                        Backlight PWM
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <TextField
+                                            mono
+                                            value={hw.backlightPwm?.pin ?? ''}
+                                            placeholder="P0.13 (pin)"
+                                            onCommit={(v) =>
+                                                setBacklightPwm({
+                                                    pin: v.trim(),
+                                                })
+                                            }
+                                        />
+                                        <TextField
+                                            mono
+                                            value={
+                                                hw.backlightPwm?.instance ?? ''
+                                            }
+                                            placeholder="pwm0"
+                                            onCommit={(v) =>
+                                                setBacklightPwm({
+                                                    instance:
+                                                        v.trim() || 'pwm0',
+                                                })
+                                            }
+                                        />
+                                    </div>
+                                    <div className="mt-1.5">
+                                        <ToggleRow
+                                            label="Inverted (active-low LED)"
+                                            on={!!hw.backlightPwm?.inverted}
+                                            onToggle={(v) =>
+                                                setBacklightPwm({
+                                                    inverted: v || undefined,
+                                                })
+                                            }
+                                        />
+                                    </div>
+                                </div>
+                            )}
+                            {zmkFlags.underglow && (
+                                <div className="rounded-lg border border-border p-2.5">
+                                    <div className="mb-1.5 text-[11px] font-semibold text-foreground">
+                                        WS2812 underglow
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <TextField
+                                            mono
+                                            value={hw.ws2812?.dataPin ?? ''}
+                                            placeholder="P1.13 (data)"
+                                            onCommit={(v) =>
+                                                setWs2812({ dataPin: v.trim() })
+                                            }
+                                        />
+                                        <TextField
+                                            mono
+                                            value={String(
+                                                hw.ws2812?.chainLength ?? '',
+                                            )}
+                                            placeholder="LEDs"
+                                            onCommit={(v) => {
+                                                const n = Number(v)
+                                                if (
+                                                    Number.isInteger(n) &&
+                                                    n > 0
+                                                )
+                                                    setWs2812({
+                                                        chainLength: n,
+                                                    })
+                                            }}
+                                        />
+                                    </div>
+                                    <div className="mt-1.5 grid grid-cols-2 gap-2">
+                                        <select
+                                            value={
+                                                hw.ws2812?.colorOrder ?? 'GRB'
+                                            }
+                                            onChange={(e) =>
+                                                setWs2812({
+                                                    colorOrder: e.target
+                                                        .value as NonNullable<
+                                                        ConfigHardware['ws2812']
+                                                    >['colorOrder'],
+                                                })
+                                            }
+                                            className="w-full rounded-lg border border-input bg-background px-2 py-1.5 font-mono text-[12px] font-semibold text-foreground outline-none focus:border-primary"
                                         >
-                                            {i.message}
-                                        </li>
-                                    ))}
-                                </ul>
+                                            {[
+                                                'GRB',
+                                                'RGB',
+                                                'BGR',
+                                                'RGBW',
+                                                'GRBW',
+                                            ].map((o) => (
+                                                <option key={o} value={o}>
+                                                    {o}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <TextField
+                                            mono
+                                            value={hw.ws2812?.spi ?? ''}
+                                            placeholder="spi3"
+                                            onCommit={(v) =>
+                                                setWs2812({
+                                                    spi: v.trim() || 'spi3',
+                                                })
+                                            }
+                                        />
+                                    </div>
+                                </div>
                             )}
                         </div>
-                    ))}
+                        <p className="mt-1.5 text-[10.5px] leading-relaxed text-muted-foreground">
+                            Pins like <span className="font-mono">P0.13</span>{' '}
+                            emit nRF psels; verify against your board wiring.
+                        </p>
+                    </div>
+                )}
+
+            {/* QMK-family firmware config — config.h / rules.mk overrides + preview */}
+            {showQmkCtrl && (
+                <div>
+                    <MiniLabel>Firmware config (config.h / rules.mk)</MiniLabel>
+                    <div className="flex flex-col gap-2">
+                        <div>
+                            <MiniLabel>Extra config.h</MiniLabel>
+                            <TextArea
+                                value={fc.configH ?? ''}
+                                placeholder="#define TAPPING_TERM 180"
+                                onCommit={(v) =>
+                                    setFirmwareConfig({
+                                        configH: v.trim() || undefined,
+                                    })
+                                }
+                            />
+                        </div>
+                        <div>
+                            <MiniLabel>Extra rules.mk</MiniLabel>
+                            <TextArea
+                                value={fc.rulesMk ?? ''}
+                                placeholder="MOUSEKEY_ENABLE = yes"
+                                rows={3}
+                                onCommit={(v) =>
+                                    setFirmwareConfig({
+                                        rulesMk: v.trim() || undefined,
+                                    })
+                                }
+                            />
+                        </div>
+                        <div>
+                            <MiniLabel>Generated config.h</MiniLabel>
+                            <FilePreview text={deriveQmkConfigH(config)} />
+                        </div>
+                        <div>
+                            <MiniLabel>Generated rules.mk</MiniLabel>
+                            <FilePreview
+                                text={deriveQmkRulesMk(
+                                    config,
+                                    targets.some(
+                                        (f) => f === 'via' || f === 'vial',
+                                    ),
+                                    targets.includes('vial'),
+                                )}
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Firmware readiness — // pattern-check: skip presentational status chips */}
+            <div>
+                <MiniLabel>Readiness</MiniLabel>
+                <div className="flex flex-wrap gap-1.5">
+                    {checkCompleteness(config).map((r) => {
+                        const hasError = r.issues.some(
+                            (i) => i.level === 'error',
+                        )
+                        const status = hasError
+                            ? 'error'
+                            : r.issues.length > 0
+                              ? 'warn'
+                              : 'ok'
+                        const Icon =
+                            status === 'error'
+                                ? XCircle
+                                : status === 'warn'
+                                  ? TriangleAlert
+                                  : CheckCircle2
+                        const tone =
+                            status === 'error'
+                                ? 'text-red-500'
+                                : status === 'warn'
+                                  ? 'text-amber-500'
+                                  : 'text-emerald-500'
+                        return (
+                            <Tooltip key={r.firmware}>
+                                <TooltipTrigger asChild>
+                                    <button
+                                        type="button"
+                                        className="flex items-center gap-1.5 rounded-full border border-border bg-background px-2.5 py-1 text-[11px] font-bold focus:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                    >
+                                        <Icon size={13} className={tone} />
+                                        {r.label}
+                                    </button>
+                                </TooltipTrigger>
+                                <TooltipContent
+                                    side="left"
+                                    className="max-w-[220px]"
+                                >
+                                    {r.issues.length === 0 ? (
+                                        <span>Ready to build</span>
+                                    ) : (
+                                        <ul className="space-y-0.5">
+                                            {r.issues.map((i, idx) => (
+                                                <li
+                                                    key={idx}
+                                                    className="flex items-start gap-1 leading-snug"
+                                                >
+                                                    <span
+                                                        className={
+                                                            i.level === 'error'
+                                                                ? 'text-red-400'
+                                                                : 'text-amber-400'
+                                                        }
+                                                    >
+                                                        {i.level === 'error'
+                                                            ? '✗'
+                                                            : '!'}
+                                                    </span>
+                                                    {i.message}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                </TooltipContent>
+                            </Tooltip>
+                        )
+                    })}
                 </div>
             </div>
         </div>

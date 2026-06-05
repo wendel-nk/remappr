@@ -479,15 +479,71 @@ export const MatrixTransformSchema = z
         'Real electrical matrix-transform: [row, col] per key in binding order.',
     )
 
+// pattern-check: skip declarative zod schemas mirroring config DTOs, no abstraction
+export const BacklightPwmSchema = z
+    .object({
+        instance: z.string(),
+        channel: z.number().int().nonnegative(),
+        pin: z.string(),
+        inverted: z.boolean().optional(),
+        periodMs: z.number().positive().optional(),
+    })
+    .describe('Backlight PWM peripheral (drives zmk,backlight).')
+
+export const Ws2812Schema = z
+    .object({
+        spi: z.string(),
+        dataPin: z.string(),
+        chainLength: z.number().int().positive(),
+        colorOrder: z.enum(['GRB', 'RGB', 'BGR', 'RGBW', 'GRBW']).optional(),
+        spiMaxFrequency: z.number().int().positive().optional(),
+    })
+    .describe(
+        'WS2812 underglow strip on an SPI peripheral (drives zmk,underglow).',
+    )
+
+export const ExtPowerCtrlSchema = z
+    .object({
+        controlGpio: z.string(),
+        activeLow: z.boolean().optional(),
+        initDelayMs: z.number().int().nonnegative().optional(),
+    })
+    .describe('zmk,ext-power-generic control GPIO (drives zmk,ext-power).')
+
 export const HardwareSchema = z
     .object({
         board: z.string().optional(),
         shield: z.string().optional(),
         kscan: KscanSchema.optional(),
         transform: MatrixTransformSchema.optional(),
+        backlightPwm: BacklightPwmSchema.optional(),
+        ws2812: Ws2812Schema.optional(),
+        extPowerCtrl: ExtPowerCtrlSchema.optional(),
+        studioAcm: z.boolean().optional(),
     })
     .describe(
-        'Board hardware (kscan + electrical transform + target) for a flashable export.',
+        'Board hardware (kscan + electrical transform + peripheral pins + target) for a flashable export.',
+    )
+
+export const FirmwareConfigSchema = z
+    .object({
+        usb: z.boolean().optional(),
+        ble: z.boolean().optional(),
+        studio: z.boolean().optional(),
+        studioLocking: z.boolean().optional(),
+        studioUsbCdc: z.boolean().optional(),
+        softOff: z.boolean().optional(),
+        extPower: z.boolean().optional(),
+        pointing: z.boolean().optional(),
+        backlight: z.boolean().optional(),
+        underglow: z.boolean().optional(),
+        usbLogging: z.boolean().optional(),
+        kconfig: z.string().optional(),
+        configH: z.string().optional(),
+        rulesMk: z.string().optional(),
+    })
+    .describe(
+        'Firmware feature toggles (tri-state: undefined = auto-derive) + free-text .conf/config.h overrides.',
     )
 
 export const ControllerSchema = z
@@ -620,6 +676,7 @@ const BaseKeymapSchema = z.object({
                 'Raw builder firmware targets (qmk/via/vial/zmk); via/vial compile via QMK.',
             ),
         lighting: LightingSchema.optional(),
+        firmwareConfig: FirmwareConfigSchema.optional(),
         layouts: z.array(LayoutSchema).optional(),
         layoutOptions: z.array(LayoutOptionSchema).optional(),
         split: z

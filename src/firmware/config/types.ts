@@ -330,6 +330,7 @@ export interface CanonMatrixTransform {
  *  Supplied by the Keyboard Builder; lets the ZMK compiler emit a flashable
  *  config instead of the geometry-derived scaffold + "NOT GENERATED" checklist.
  *  Everything is optional so a keymap-only config stays valid. */
+// pattern-check: skip pure config DTO additions — data shapes, no behavior/abstraction
 export interface ConfigHardware {
     /** @deprecated Use `keyboard.controller.board`. Read as a back-compat
      *  fallback by `resolveController`. Zephyr board target (e.g. "nice_nano_v2"). */
@@ -339,6 +340,91 @@ export interface ConfigHardware {
     shield?: string
     kscan?: CanonKscan
     transform?: CanonMatrixTransform
+    /** Backlight PWM peripheral — drives the ZMK `zmk,backlight` node. */
+    backlightPwm?: CanonBacklightPwm
+    /** WS2812 underglow strip on an SPI peripheral — drives `zmk,underglow`. */
+    ws2812?: CanonWs2812
+    /** External-power control GPIO — drives the `zmk,ext-power` node. */
+    extPowerCtrl?: CanonExtPowerCtrl
+    /** Emit the `&zephyr_udc0 studio_acm` CDC-ACM endpoint (Studio over USB). */
+    studioAcm?: boolean
+}
+
+/** Backlight PWM hardware: which PWM instance/channel + pin + polarity. Emits a
+ *  `pwm-leds` node + a `&pwm<n>` override + the `&pinctrl` psels for the LED pin. */
+export interface CanonBacklightPwm {
+    /** PWM controller phandle label, e.g. "pwm0" (no leading &). */
+    instance: string
+    /** PWM channel index, e.g. 0. */
+    channel: number
+    /** LED pin: friendly nRF label "P0.13" (parsed to NRF_PSEL) or a verbatim
+     *  `NRF_PSEL(...)` / psels string emitted unchanged. */
+    pin: string
+    /** Active-low LED (anode to VDD) → PWM_POLARITY_INVERTED. */
+    inverted?: boolean
+    /** PWM period in ms (PWM_MSEC). Default 10. */
+    periodMs?: number
+}
+
+/** WS2812 addressable RGB strip on an SPI peripheral. Emits a `&spi<n>` block
+ *  with a `worldsemi,ws2812-spi` led_strip child + the `&pinctrl` MOSI psels. */
+export interface CanonWs2812 {
+    /** SPI controller phandle label, e.g. "spi3" (no leading &). */
+    spi: string
+    /** Data (MOSI) pin: friendly nRF label "P1.13" or verbatim psels string. */
+    dataPin: string
+    /** Number of LEDs in the chain. */
+    chainLength: number
+    /** Wire color order. Default "GRB". */
+    colorOrder?: 'GRB' | 'RGB' | 'BGR' | 'RGBW' | 'GRBW'
+    /** SPI bit clock in Hz. Default 4_000_000. */
+    spiMaxFrequency?: number
+}
+
+/** `zmk,ext-power-generic` control node — a GPIO that gates peripheral power. */
+export interface CanonExtPowerCtrl {
+    /** Control GPIO: friendly nRF label "P0.14" or verbatim `&gpio0 14` core. */
+    controlGpio: string
+    /** GPIO_ACTIVE_LOW vs GPIO_ACTIVE_HIGH. */
+    activeLow?: boolean
+    /** init-delay-ms (settle time after enable). Default 0. */
+    initDelayMs?: number
+}
+
+/** Firmware-level feature config — the modeled toggles that derive `.conf` (ZMK
+ *  Kconfig) / `config.h` + `rules.mk` (QMK family) flags, plus free-text overrides
+ *  for anything unmodeled. **Tri-state booleans**: `undefined` = auto-derive from
+ *  used behaviors + hardware; explicit `true`/`false` = user override. */
+export interface CanonFirmwareConfig {
+    /** CONFIG_ZMK_USB. Default on. */
+    usb?: boolean
+    /** CONFIG_ZMK_BLE. Default off (opt-in for wireless boards). */
+    ble?: boolean
+    /** CONFIG_ZMK_STUDIO. Default on. */
+    studio?: boolean
+    /** CONFIG_ZMK_STUDIO_LOCKING. Default on (emits explicit `=n` when off). */
+    studioLocking?: boolean
+    /** Studio-over-USB CDC block (SERIAL/USB_DEVICE_STACK/CDC_ACM/TRANSPORT_UART).
+     *  Default follows `studio`. */
+    studioUsbCdc?: boolean
+    /** CONFIG_ZMK_PM_SOFT_OFF. Default = a `soft_off` behavior is used. */
+    softOff?: boolean
+    /** CONFIG_ZMK_EXT_POWER. Default = `ext_power` used or `hardware.extPowerCtrl` set. */
+    extPower?: boolean
+    /** CONFIG_ZMK_POINTING. Default = a mouse behavior is used. */
+    pointing?: boolean
+    /** CONFIG_ZMK_BACKLIGHT (+ CONFIG_PWM). Default = backlight used or `hardware.backlightPwm` set. */
+    backlight?: boolean
+    /** CONFIG_ZMK_RGB_UNDERGLOW. Default = underglow used or `hardware.ws2812` set. */
+    underglow?: boolean
+    /** CONFIG_ZMK_USB_LOGGING. Default off (commented hint). */
+    usbLogging?: boolean
+    /** Extra Kconfig lines appended verbatim after the derived ZMK `.conf` block. */
+    kconfig?: string
+    /** Extra `#define` lines appended to the QMK keymap `config.h`. */
+    configH?: string
+    /** Extra make assignments appended to the QMK `rules.mk`. */
+    rulesMk?: string
 }
 
 /** RGB underglow board-level config (builder metadata; export-only for now). */
@@ -455,6 +541,8 @@ export interface ConfigKeyboard {
     firmware?: string[]
     /** Board-level lighting config (builder). */
     lighting?: CanonLighting
+    /** Firmware-level feature config — modeled .conf/config.h toggles + overrides. */
+    firmwareConfig?: CanonFirmwareConfig
     /** Physical-layout variants (builder); keys tag in via `variant`. */
     layouts?: CanonLayout[]
     /** VIA/Vial layout options; keys tag in via `option [group, choice]`. The

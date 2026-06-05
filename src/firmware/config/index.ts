@@ -28,6 +28,10 @@ export type {
     CanonLighting,
     CanonUnderglow,
     CanonBacklight,
+    CanonFirmwareConfig,
+    CanonBacklightPwm,
+    CanonWs2812,
+    CanonExtPowerCtrl,
     CanonLayout,
     CanonLayoutOption,
     ConfigHardware,
@@ -116,6 +120,14 @@ export {
 } from './compiler'
 
 export { type ProjectBundle, buildProjectBundle } from './bundle'
+export {
+    type ZmkConfFlags,
+    deriveZmkConf,
+    deriveQmkConfigH,
+    deriveQmkRulesMk,
+    resolveZmkConfFlags,
+    someAction,
+} from './firmwareConf'
 
 export {
     type PinRole,

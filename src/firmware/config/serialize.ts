@@ -9,6 +9,7 @@
 import { friendlyName, resolveKeycode, type Modifier } from './keycodes'
 import {
     cloneController,
+    cloneFirmwareConfig,
     cloneHardware,
     cloneLighting,
     cloneVial,
@@ -285,6 +286,13 @@ export function toSurfaceObject(km: ConfigKeymap): Record<string, unknown> {
                 : {}),
             ...(km.keyboard.lighting
                 ? { lighting: cloneLighting(km.keyboard.lighting) }
+                : {}),
+            ...(km.keyboard.firmwareConfig
+                ? {
+                      firmwareConfig: cloneFirmwareConfig(
+                          km.keyboard.firmwareConfig,
+                      ),
+                  }
                 : {}),
             ...(km.keyboard.layouts
                 ? { layouts: km.keyboard.layouts.map((l) => ({ ...l })) }

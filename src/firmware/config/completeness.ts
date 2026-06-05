@@ -7,6 +7,7 @@
 // the generated project to a build. Pure: inspects the config + resolveController.
 
 import { resolveController } from './controller'
+import { resolveZmkConfFlags } from './firmwareConf'
 import type { ConfigKeymap } from './types'
 
 export interface ReadinessIssue {
@@ -75,6 +76,16 @@ export function checkCompleteness(config: ConfigKeymap): FirmwareReadiness[] {
                 warn(
                     'No kscan / pin mapping — set row/col pins or board hardware.',
                 )
+            // Peripheral feature on, but its hardware pin is unset → can't emit a
+            // complete overlay node (only the chosen/conf flag).
+            const flags = resolveZmkConfFlags(config)
+            const hw = config.keyboard.hardware
+            if (flags.backlight && !hw?.backlightPwm)
+                warn('Backlight on but no PWM pin set (Hardware pins).')
+            if (flags.underglow && !hw?.ws2812)
+                warn('Underglow on but no WS2812 data pin set (Hardware pins).')
+            if (flags.extPower && !hw?.extPowerCtrl)
+                warn('Ext-power on but no control GPIO set (Hardware pins).')
         } else {
             // qmk / via / vial / keychron all build through the QMK family.
             if (!qmkMcu)

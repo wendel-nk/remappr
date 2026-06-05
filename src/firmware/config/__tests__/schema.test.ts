@@ -322,6 +322,28 @@ describe('builder metadata fields', () => {
                 underglow: { effect: 'solid', hue: 200, brightness: 80 },
                 backlight: { brightness: 50, breathing: true },
             },
+            firmwareConfig: {
+                ble: true,
+                studioLocking: false,
+                softOff: true,
+                kconfig: 'CONFIG_FOO=y',
+            },
+            hardware: {
+                backlightPwm: {
+                    instance: 'pwm0',
+                    channel: 0,
+                    pin: 'P0.13',
+                    inverted: true,
+                },
+                ws2812: {
+                    spi: 'spi3',
+                    dataPin: 'P1.13',
+                    chainLength: 10,
+                    colorOrder: 'GRB',
+                },
+                extPowerCtrl: { controlGpio: 'P0.14', activeLow: true },
+                studioAcm: true,
+            },
             layouts: [{ id: 'left', name: 'Left' }],
             split: true,
         },
@@ -347,6 +369,19 @@ describe('builder metadata fields', () => {
         expect(km.keyboard.keys[1].variant).toBeUndefined()
         expect(km.keyboard.layouts).toEqual([{ id: 'left', name: 'Left' }])
         expect(km.keyboard.split).toBe(true)
+        expect(km.keyboard.firmwareConfig).toEqual({
+            ble: true,
+            studioLocking: false,
+            softOff: true,
+            kconfig: 'CONFIG_FOO=y',
+        })
+        expect(km.keyboard.hardware?.backlightPwm).toMatchObject({
+            pin: 'P0.13',
+            inverted: true,
+        })
+        expect(km.keyboard.hardware?.ws2812?.chainLength).toBe(10)
+        expect(km.keyboard.hardware?.extPowerCtrl?.controlGpio).toBe('P0.14')
+        expect(km.keyboard.hardware?.studioAcm).toBe(true)
         const base = km.layers[0]
         expect(base.encoderBindings?.[0]).toMatchObject({
             cw: { type: 'key_press' },

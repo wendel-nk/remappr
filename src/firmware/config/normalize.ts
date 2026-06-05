@@ -10,6 +10,7 @@ import { parseSurface, type SurfaceAction, type SurfaceKeymap } from './schema'
 import type {
     CanonAction,
     CanonController,
+    CanonFirmwareConfig,
     CanonVial,
     CanonEncoderBinding,
     CanonSliderBinding,
@@ -90,7 +91,24 @@ export function cloneHardware(hw: ConfigHardware): ConfigHardware {
                   },
               }
             : {}),
+        ...(hw.backlightPwm ? { backlightPwm: { ...hw.backlightPwm } } : {}),
+        ...(hw.ws2812 ? { ws2812: { ...hw.ws2812 } } : {}),
+        ...(hw.extPowerCtrl ? { extPowerCtrl: { ...hw.extPowerCtrl } } : {}),
+        ...(hw.studioAcm !== undefined ? { studioAcm: hw.studioAcm } : {}),
     }
+}
+
+// pattern-check: skip additive passthrough clone mirroring cloneController, no abstraction
+/** Deep-clone the canonical firmware-config sub-object (scalar toggles + strings). */
+export function cloneFirmwareConfig(
+    fc: CanonFirmwareConfig,
+): CanonFirmwareConfig {
+    const out: CanonFirmwareConfig = {}
+    for (const k of Object.keys(fc) as (keyof CanonFirmwareConfig)[]) {
+        const v = fc[k]
+        if (v !== undefined) (out as Record<string, unknown>)[k] = v
+    }
+    return out
 }
 
 // pattern-check: skip additive passthrough clone mirroring cloneHardware, no abstraction
@@ -379,6 +397,13 @@ export function normalizeKeymap(km: SurfaceKeymap): ConfigKeymap {
                 : {}),
             ...(km.keyboard.lighting
                 ? { lighting: cloneLighting(km.keyboard.lighting) }
+                : {}),
+            ...(km.keyboard.firmwareConfig
+                ? {
+                      firmwareConfig: cloneFirmwareConfig(
+                          km.keyboard.firmwareConfig,
+                      ),
+                  }
                 : {}),
             ...(km.keyboard.layouts
                 ? { layouts: km.keyboard.layouts.map((l) => ({ ...l })) }

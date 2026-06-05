@@ -38,6 +38,28 @@ const HW = `{
     ] }]
 }`
 
+const HW_FULL = `{
+    "schemaVersion": 1, "kind": "remappr.keymap",
+    "meta": { "name": "Board Y", "target": "zmk" },
+    "keyboard": {
+        "id": "board_y", "name": "Board Y",
+        "keys": [{"x":0,"y":0},{"x":1,"y":0}],
+        "controller": { "board": "nrf52840dk_nrf52840", "shield": "boardy" },
+        "firmwareConfig": { "ble": true },
+        "hardware": {
+            "kscan": {
+                "type": "matrix", "diodeDirection": "col2row",
+                "rowGpios": ["&gpio0 5 X"], "colGpios": ["&gpio0 6 X"]
+            },
+            "backlightPwm": { "instance": "pwm0", "channel": 0, "pin": "P0.13", "inverted": true },
+            "ws2812": { "spi": "spi3", "dataPin": "P1.13", "chainLength": 10, "colorOrder": "GRB" },
+            "extPowerCtrl": { "controlGpio": "P0.14", "activeLow": true, "initDelayMs": 10 },
+            "studioAcm": true
+        }
+    },
+    "layers": [{ "name": "base", "bindings": ["A", "B"] }]
+}`
+
 describe('buildProjectBundle — ZMK', () => {
     it('emits a full zmk-config shield skeleton', () => {
         const b = buildProjectBundle(seedConfig, 'zmk')
@@ -84,12 +106,50 @@ describe('buildProjectBundle — ZMK', () => {
         expect(fileText(b, 'build.yaml')).toContain('shield: BOARDX')
         const conf = fileText(b, `${dir}/BOARDX.conf`)
         expect(conf).toContain('CONFIG_ZMK_STUDIO=y')
+        expect(conf).toContain('CONFIG_ZMK_USB=y') // USB on by default
+        expect(conf).toContain('# CONFIG_ZMK_BLE=y') // BLE opt-in → commented
         expect(conf).toContain('CONFIG_ZMK_RGB_UNDERGLOW=y') // underglow used
         expect(conf).toContain('# CONFIG_ZMK_BACKLIGHT=y') // unused → commented
+        expect(conf).toContain('# CONFIG_ZMK_USB_LOGGING=y') // off → commented hint
         // the generated overlay carries the real kscan
         expect(fileText(b, `${dir}/BOARDX.overlay`)).toContain(
             'zmk,kscan-gpio-matrix',
         )
+    })
+
+    it('emits full-parity peripheral overlay nodes + chosen + conf flags', () => {
+        const b = buildProjectBundle(parseKeymap(HW_FULL), 'zmk')
+        const dir = 'config/boards/shields/boardy'
+        const overlay = fileText(b, `${dir}/BOARDY.overlay`)
+        // chosen wires every generated peripheral
+        expect(overlay).toContain('zmk,backlight = <&backlight_pwm>')
+        expect(overlay).toContain('zmk,underglow = <&led_strip>')
+        expect(overlay).toContain('zmk,ext-power = <&ext_power_ctrl>')
+        expect(overlay).toContain('zmk,studio-rpc-uart = <&studio_acm>')
+        // peripheral nodes
+        expect(overlay).toContain('compatible = "zmk,ext-power-generic"')
+        expect(overlay).toContain('control-gpios = <&gpio0 14 GPIO_ACTIVE_LOW>')
+        expect(overlay).toContain('compatible = "pwm-leds"')
+        expect(overlay).toContain('PWM_POLARITY_INVERTED')
+        expect(overlay).toContain('compatible = "worldsemi,ws2812-spi"')
+        expect(overlay).toContain('chain-length = <10>')
+        expect(overlay).toContain(
+            'color-mapping = <LED_COLOR_ID_GREEN LED_COLOR_ID_RED LED_COLOR_ID_BLUE>',
+        )
+        expect(overlay).toContain('compatible = "zephyr,cdc-acm-uart"')
+        // pinctrl psels parsed from the nRF P<port>.<pin> labels
+        expect(overlay).toContain('NRF_PSEL(PWM_OUT0, 0, 13)')
+        expect(overlay).toContain('NRF_PSEL(SPIM_MOSI, 1, 13)')
+        expect(overlay).toContain('&pinctrl {')
+        expect(overlay).toContain('#include <zephyr/dt-bindings/led/led.h>')
+        // conf flags follow the hardware + studio CDC
+        const conf = fileText(b, `${dir}/BOARDY.conf`)
+        expect(conf).toContain('CONFIG_ZMK_BACKLIGHT=y')
+        expect(conf).toContain('CONFIG_PWM=y')
+        expect(conf).toContain('CONFIG_ZMK_RGB_UNDERGLOW=y')
+        expect(conf).toContain('CONFIG_ZMK_EXT_POWER=y')
+        expect(conf).toContain('CONFIG_ZMK_BLE=y')
+        expect(conf).toContain('CONFIG_ZMK_STUDIO_TRANSPORT_UART=y')
     })
 })
 

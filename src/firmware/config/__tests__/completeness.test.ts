@@ -92,6 +92,58 @@ describe('checkCompleteness', () => {
         expect(by(r, 'vial').issues).toEqual([])
     })
 
+    it('warns when a peripheral is on but its hardware pin is unset', () => {
+        const r = checkCompleteness(
+            make({
+                firmware: ['zmk'],
+                controller: { board: 'nice_nano_v2' },
+                pins: { rows: ['&gpio0 4 0'], cols: ['&gpio0 5 0'] },
+                firmwareConfig: {
+                    backlight: true,
+                    underglow: true,
+                    extPower: true,
+                },
+            }),
+        )
+        const zmk = by(r, 'zmk')
+        expect(zmk.ready).toBe(true) // warnings only
+        expect(zmk.issues.some((i) => /PWM pin/.test(i.message))).toBe(true)
+        expect(zmk.issues.some((i) => /WS2812 data pin/.test(i.message))).toBe(
+            true,
+        )
+        expect(zmk.issues.some((i) => /control GPIO/.test(i.message))).toBe(
+            true,
+        )
+    })
+
+    it('clears peripheral warnings when hardware pins are set', () => {
+        const r = checkCompleteness(
+            make({
+                firmware: ['zmk'],
+                controller: { board: 'nice_nano_v2' },
+                pins: { rows: ['&gpio0 4 0'], cols: ['&gpio0 5 0'] },
+                firmwareConfig: {
+                    backlight: true,
+                    underglow: true,
+                    extPower: true,
+                },
+                hardware: {
+                    backlightPwm: {
+                        instance: 'pwm0',
+                        channel: 0,
+                        pin: 'P0.13',
+                    },
+                    ws2812: { spi: 'spi3', dataPin: 'P1.13', chainLength: 5 },
+                    extPowerCtrl: { controlGpio: 'P0.14' },
+                },
+            }),
+        )
+        const zmk = by(r, 'zmk')
+        expect(zmk.issues.some((i) => /Hardware pins/.test(i.message))).toBe(
+            false,
+        )
+    })
+
     it('falls back to ZMK when no firmware is selected', () => {
         const r = checkCompleteness(make({}))
         expect(r.map((x) => x.firmware)).toEqual(['zmk'])
