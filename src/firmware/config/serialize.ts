@@ -240,6 +240,7 @@ export function toSurfaceObject(km: ConfigKeymap): Record<string, unknown> {
                 ...(k.r !== g.r ? { r: k.r } : {}),
                 ...(k.rx !== undefined ? { rx: k.rx } : {}),
                 ...(k.ry !== undefined ? { ry: k.ry } : {}),
+                ...(k.matrix ? { matrix: [k.matrix[0], k.matrix[1]] } : {}),
                 ...(k.variant ? { variant: k.variant } : {}),
                 ...(k.pin ? { pin: k.pin } : {}),
                 ...(k.element ? { element: k.element } : {}),
@@ -251,6 +252,9 @@ export function toSurfaceObject(km: ConfigKeymap): Record<string, unknown> {
                           y: e.y,
                       })),
                   }
+                : {}),
+            ...(km.keyboard.matrix
+                ? { matrix: { ...km.keyboard.matrix } }
                 : {}),
             // hardware is already canonical (no surface sugar) — emit it as-is
             // with stable key order via the same clone normalize uses.

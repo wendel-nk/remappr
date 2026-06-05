@@ -308,9 +308,18 @@ export function normalizeKeymap(km: SurfaceKeymap): ConfigKeymap {
         keyboard: {
             id: km.keyboard.id,
             name: km.keyboard.name,
-            keys: km.keyboard.keys.map((k) => ({ ...k })),
+            keys: km.keyboard.keys.map((k) => ({
+                ...k,
+                // own the matrix tuple so canonical never aliases the surface array
+                ...(k.matrix
+                    ? { matrix: [k.matrix[0], k.matrix[1]] as [number, number] }
+                    : {}),
+            })),
             ...(km.keyboard.encoders
                 ? { encoders: km.keyboard.encoders.map((e) => ({ ...e })) }
+                : {}),
+            ...(km.keyboard.matrix
+                ? { matrix: { ...km.keyboard.matrix } }
                 : {}),
             ...(km.keyboard.hardware
                 ? { hardware: cloneHardware(km.keyboard.hardware) }

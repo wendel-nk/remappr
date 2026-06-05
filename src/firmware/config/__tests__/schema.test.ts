@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import {
+    materializeMatrix,
     parseKeymap,
     parseSurface,
     preferredSourceJson,
@@ -220,6 +221,70 @@ describe('config schema', () => {
         const qmk = serializeKeymap(parseKeymap(make('qmk')))
         expect(qmk).not.toContain('tappingTermMs')
         expect(qmk).not.toContain('quickTapMs')
+    })
+
+    it('carries per-key matrix [row,col] + board matrix descriptor, always visible', () => {
+        const km = JSON.stringify({
+            schemaVersion: 1,
+            kind: 'remappr.keymap',
+            meta: { name: 'M', target: 'qmk' },
+            keyboard: {
+                id: 'm',
+                name: 'M',
+                keys: [
+                    { x: 0, y: 0, matrix: [0, 0] },
+                    { x: 1, y: 0, matrix: [0, 1] },
+                ],
+                matrix: { rows: 1, cols: 2, diodeDirection: 'col2row' },
+            },
+            layers: [{ name: 'base', bindings: ['Q', 'W'] }],
+        })
+        const config = parseKeymap(km)
+        expect(config.keyboard.keys[0].matrix).toEqual([0, 0])
+        expect(config.keyboard.keys[1].matrix).toEqual([0, 1])
+        expect(config.keyboard.matrix).toEqual({
+            rows: 1,
+            cols: 2,
+            diodeDirection: 'col2row',
+        })
+        // matrix is keyboard-specific — present in serialized output (not stripped)
+        const out = serializeKeymap(config)
+        expect(out).toContain('"matrix": [')
+        expect(out).toContain('"diodeDirection": "col2row"')
+        // round-trips losslessly
+        expect(stripHints(parseKeymap(out))).toEqual(stripHints(config))
+    })
+
+    it('materializeMatrix fills derived [row,col] + dims, keeping explicit ones', () => {
+        // 2x2 grid, one key pre-wired by hand; the rest derive from position.
+        const km = JSON.stringify({
+            schemaVersion: 1,
+            kind: 'remappr.keymap',
+            meta: { name: 'D', target: 'qmk' },
+            keyboard: {
+                id: 'd',
+                name: 'D',
+                keys: [
+                    { x: 0, y: 0, matrix: [5, 5] }, // explicit — must survive
+                    { x: 1, y: 0 },
+                    { x: 0, y: 1 },
+                    { x: 1, y: 1 },
+                ],
+            },
+            layers: [{ name: 'base', bindings: ['Q', 'W', 'E', 'R'] }],
+        })
+        const out = materializeMatrix(parseKeymap(km))
+        expect(out.keyboard.keys[0].matrix).toEqual([5, 5]) // explicit kept
+        // the rest are derived (present + within a 2-col grid)
+        out.keyboard.keys.slice(1).forEach((k) => {
+            expect(k.matrix).toBeDefined()
+            expect(k.matrix![1]).toBeLessThanOrEqual(1)
+        })
+        // dims cover the explicit [5,5] → at least 6x6, diode + mode defaulted
+        expect(out.keyboard.matrix?.rows).toBeGreaterThanOrEqual(6)
+        expect(out.keyboard.matrix?.cols).toBeGreaterThanOrEqual(6)
+        expect(out.keyboard.matrix?.diodeDirection).toBe('col2row')
+        expect(out.keyboard.matrix?.mode).toBe('matrix')
     })
 
     it('exposes the action palette', () => {

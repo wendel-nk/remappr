@@ -65,6 +65,12 @@ export {
 
 export { buildConfigJsonSchema } from './jsonSchema'
 export { type TargetDefaults, resolveDefaults } from './defaults'
+export {
+    type DerivedMatrix,
+    deriveMatrix,
+    materializeMatrix,
+    resolveKeyMatrix,
+} from './matrix'
 export { normalizeAction, normalizeKeymap, parseKeymap } from './normalize'
 export {
     denormalizeAction,

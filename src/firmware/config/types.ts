@@ -133,9 +133,15 @@ export interface CanonGeometry {
     /** Physical-layout variant id this key belongs to ("" / absent = common to
      *  all variants). Set by the builder; compilers ignore unknown variants. */
     variant?: string
+    /** Per-key electrical matrix position `[row, col]` — the generalized field
+     *  every firmware needs (QMK `matrix:[r,c]`, VIA/Vial KLE legend, ZMK
+     *  `RC(r,c)`). Friendly + co-located authoring source; when present it is
+     *  authoritative, else the compiler derives it from geometry (see
+     *  `materializeMatrix`). Keyboard-specific — never default-stripped. */
+    matrix?: [number, number]
     /** Optional per-key direct GPIO pin label (builder metadata, e.g. "GP29").
-     *  Export-only for now — compilers don't yet consume it; kept separate from
-     *  the matrix wiring so it never corrupts the electrical transform. */
+     *  Used for direct-pin kscan; kept separate from the matrix wiring so editing
+     *  a label never corrupts the electrical transform. */
     pin?: string
     /** Input element this position represents: absent / "key" = a normal switch;
      *  "encoder" = a rotary encoder; "slider" = an analog slider. Builder
@@ -368,11 +374,23 @@ export interface ConfigPins {
     cols: string[]
 }
 
+/** Board-level matrix descriptor: dimensions + diode direction + scan mode.
+ *  The friendly summary of the wiring (the per-key `[row,col]` lives on each
+ *  key). `mode` picks matrix (row/col GPIOs) vs direct (one GPIO per key). */
+export interface CanonKeyboardMatrix {
+    rows: number
+    cols: number
+    diodeDirection?: DiodeDirection
+    mode?: 'matrix' | 'direct'
+}
+
 export interface ConfigKeyboard {
     id: string
     name: string
     keys: CanonGeometry[]
     encoders?: CanonEncoderSlot[]
+    /** Board-level matrix descriptor (dims + diode + scan mode). */
+    matrix?: CanonKeyboardMatrix
     hardware?: ConfigHardware
     /** Friendly row/column GPIO labels (builder metadata). */
     pins?: ConfigPins

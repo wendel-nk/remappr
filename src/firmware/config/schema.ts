@@ -280,6 +280,12 @@ export const GeometrySchema = z.object({
     r: z.number().default(0),
     rx: z.number().optional(),
     ry: z.number().optional(),
+    matrix: z
+        .tuple([z.number().int().nonnegative(), z.number().int().nonnegative()])
+        .optional()
+        .describe(
+            'Electrical matrix position [row, col]; authoritative when set, else derived from geometry on export.',
+        ),
     variant: z
         .string()
         .optional()
@@ -534,6 +540,17 @@ const BaseKeymapSchema = z.object({
         name: z.string(),
         keys: z.array(GeometrySchema).min(1),
         encoders: z.array(EncoderSchema).optional(),
+        matrix: z
+            .object({
+                rows: z.number().int().positive(),
+                cols: z.number().int().positive(),
+                diodeDirection: z.enum(['row2col', 'col2row']).optional(),
+                mode: z.enum(['matrix', 'direct']).optional(),
+            })
+            .optional()
+            .describe(
+                'Board matrix descriptor: dimensions + diode direction + scan mode.',
+            ),
         hardware: HardwareSchema.optional(),
         pins: z
             .object({
