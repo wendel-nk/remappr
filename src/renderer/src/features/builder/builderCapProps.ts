@@ -13,20 +13,20 @@ import { mockCodec } from '@firmware/mock/codec'
 import { friendlyName } from '@firmware/config'
 import type { CanonAction, Modifier } from '@firmware/config'
 import { usageGlyph } from '@/lib/actions/hidUsages'
-import { categoryForUsage, type KeyCategory } from '@/lib/keymap/keyCategory'
-import type { HoldTapLabels } from '@/features/keymap/keyboard/KeyButton'
+import type { KeyCategory } from '@/lib/keymap/keyCategory'
+import type { KeyCapLegend } from '@/features/keymap/keyboard/keyCapLegend'
+import {
+    accentCategoryForCanonAction,
+    categoryForCanonAction,
+} from './canonCategory'
 import { ENUM_ACTIONS, type EnumKind } from './builderActionTypes'
 
-// pattern-check: skip — additive optional field on existing CapLegend data interface
-export interface CapLegend {
+// pattern-check: skip — narrows the shared KeyCapLegend (tapText/category required)
+/** A built cap legend — the shared {@link KeyCapLegend} with the two fields the
+ *  builder always supplies made required. */
+export interface CapLegend extends KeyCapLegend {
     tapText: string
-    header?: string
     category: KeyCategory
-    accentCategory?: KeyCategory
-    holdTap?: HoldTapLabels
-    /** Chord modifiers (e.g. ["Ctrl","Shift"]) — rendered as chips above the
-     *  legend by KeyButton. Present only for a modified key-press. */
-    mods?: string[]
 }
 
 const MOD_SHORT: Record<Modifier, string> = {
@@ -43,10 +43,6 @@ const MOD_SHORT: Record<Modifier, string> = {
 const keyGlyph = (key: string): string => {
     const v = mockCodec.encode(key)?.value
     return v !== undefined ? usageGlyph(v) : friendlyName(key)
-}
-const keyCat = (key: string): KeyCategory => {
-    const v = mockCodec.encode(key)?.value
-    return v !== undefined ? categoryForUsage(v) : 'alpha'
 }
 
 const enumLabel = (kind: EnumKind, a: CanonAction): string => {
@@ -191,17 +187,23 @@ function qmkBindingCode(a: CanonAction): string | undefined {
 /** Display props for one binding's cap, or null for an absent binding (the
  *  canvas leaves those blank). Transparent renders the ▽ pass-through glyph to
  *  match the editor — only a truly missing binding is blank. */
+// pattern-check: skip behavior-preserving delegation of category to extracted helpers
 export function builderCapProps(a: CanonAction | undefined): CapLegend | null {
     if (!a) return null
+    // Category (face) and accent are derived once by the shared classifiers; this
+    // switch only builds the legend TEXT (tap glyph, action-type header, hold/mod
+    // labels) per variant.
+    const category = categoryForCanonAction(a)
+    const accentCategory = accentCategoryForCanonAction(a)
     switch (a.type) {
         case 'transparent':
-            return { tapText: '▽', category: 'trans' }
+            return { tapText: '▽', category }
         case 'key_press':
             return {
                 tapText: keyGlyph(a.key),
                 header: 'Key Press',
-                category: keyCat(a.key),
-                accentCategory: a.mods?.length ? 'mod' : undefined,
+                category,
+                accentCategory,
                 // Dedupe L/R variants by short name (Ctrl/Shift/Alt/Gui) so a
                 // chord shows one chip per modifier, like the design.
                 mods: a.mods?.length
@@ -212,8 +214,8 @@ export function builderCapProps(a: CanonAction | undefined): CapLegend | null {
             return {
                 tapText: keyGlyph(a.key),
                 header: 'Sticky',
-                category: keyCat(a.key),
-                accentCategory: 'mod',
+                category,
+                accentCategory,
             }
         case 'tap_hold': {
             const tap = keyGlyph(a.tap.key)
@@ -224,8 +226,8 @@ export function builderCapProps(a: CanonAction | undefined): CapLegend | null {
             return {
                 tapText: tap,
                 header: a.hold.type === 'modifier' ? 'Mod-Tap' : 'Layer-Tap',
-                category: keyCat(a.tap.key),
-                accentCategory: a.hold.type === 'modifier' ? 'mod' : 'layer',
+                category,
+                accentCategory,
                 holdTap: { tap, hold },
             }
         }
@@ -233,12 +235,12 @@ export function builderCapProps(a: CanonAction | undefined): CapLegend | null {
             return {
                 tapText: a.layer,
                 header: LAYER_HEADER[a.mode] ?? 'Layer',
-                category: 'layer',
+                category,
             }
         case 'macro':
-            return { tapText: a.ref, header: 'Macro', category: 'system' }
+            return { tapText: a.ref, header: 'Macro', category }
         case 'tap_dance':
-            return { tapText: a.ref, header: 'Tap Dance', category: 'system' }
+            return { tapText: a.ref, header: 'Tap Dance', category }
         case 'output':
         case 'ext_power':
         case 'lighting':
@@ -250,7 +252,7 @@ export function builderCapProps(a: CanonAction | undefined): CapLegend | null {
                         : a.type === 'ext_power'
                           ? 'Power'
                           : 'Lighting',
-                category: 'system',
+                category,
             }
         case 'mouse_key':
         case 'mouse_move':
@@ -258,25 +260,25 @@ export function builderCapProps(a: CanonAction | undefined): CapLegend | null {
             return {
                 tapText: enumLabel('mouse', a),
                 header: 'Mouse',
-                category: 'mouse',
+                category,
             }
         case 'caps_word':
-            return { tapText: 'Caps', header: 'Caps Word', category: 'mod' }
+            return { tapText: 'Caps', header: 'Caps Word', category }
         case 'key_repeat':
-            return { tapText: 'Rept', header: 'Repeat', category: 'edit' }
+            return { tapText: 'Rept', header: 'Repeat', category }
         case 'grave_escape':
-            return { tapText: '~Esc', header: 'Grave Esc', category: 'edit' }
+            return { tapText: '~Esc', header: 'Grave Esc', category }
         case 'bootloader':
-            return { tapText: 'Boot', header: 'Bootloader', category: 'system' }
+            return { tapText: 'Boot', header: 'Bootloader', category }
         case 'reset':
-            return { tapText: 'Reset', header: 'Reset', category: 'system' }
+            return { tapText: 'Reset', header: 'Reset', category }
         case 'soft_off':
-            return { tapText: 'Off', header: 'Soft Off', category: 'system' }
+            return { tapText: 'Off', header: 'Soft Off', category }
         case 'studio_unlock':
-            return { tapText: 'Studio', header: 'Unlock', category: 'system' }
+            return { tapText: 'Studio', header: 'Unlock', category }
         case 'none':
-            return { tapText: '✕', header: 'None', category: 'trans' }
+            return { tapText: '✕', header: 'None', category }
         default:
-            return { tapText: String(a.type), category: 'system' }
+            return { tapText: String(a.type), category }
     }
 }

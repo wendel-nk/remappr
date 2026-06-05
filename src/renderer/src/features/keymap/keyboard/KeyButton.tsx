@@ -8,7 +8,7 @@
 // rule. The cap surfaces stay THEME-AWARE (FaceColors below) rather than RKey's
 // fixed grey, so caps still follow the active theme + light/dark mode.
 import { CSSProperties, PropsWithChildren } from 'react'
-import { type HoldTapLabels } from './HoldTapKeyLabel'
+import { type HoldTapLabels, type KeyCapLegend } from './keyCapLegend'
 import { glyphNode } from './keyGlyph'
 import useUserSettingsStore, { type CapStyle } from '@/stores/userSettingsStore'
 import useConnectionStore from '@/stores/connectionStore'
@@ -40,7 +40,10 @@ const MOD_GLYPH: Record<string, string> = {
 }
 
 // pattern-check: skip — additive optional props on existing KeyButtonProps interface
-interface KeyButtonProps {
+// The legend fields (header/tapText/actionLabel/holdTap/mods/shift/category/
+// accentCategory) come from the shared KeyCapLegend contract; KeyButtonProps adds
+// layout (width/oneU…) and interaction (selected/pressed/onClick) on top.
+interface KeyButtonProps extends KeyCapLegend {
     selected?: boolean
     /** Part of an active multi-selection (distinct accent ring from `selected`). */
     multiSelected?: boolean
@@ -49,30 +52,9 @@ interface KeyButtonProps {
     height: number
     oneU: number
     hoverZoom?: boolean
-    header?: string
-    /** The tap glyph text (e.g. "Q", "Vol+") — used only to size the main legend
-     * the way the design does (≤1 char → 0.46U, ≤3 → 0.34U, else 0.24U). Distinct
-     * from {@link header}, which is the action-type tag ("Key Press"). */
-    tapText?: string
-    actionLabel?: string
-    holdTap?: HoldTapLabels
-    /** Modifier names for a CHORD (e.g. ["Ctrl","Shift"]) — rendered as chips
-     *  stacked above the legend, joined by "+". Mutually exclusive with holdTap. */
-    mods?: string[]
-    /** Shifted dual-legend symbol (e.g. "!") shown small in the top-right corner. */
-    shift?: string
     /** Which edge the TAP legend sits on for a tap-hold; "top" (default) puts the
      *  tap above the HOLD zone, "bottom" flips them. */
     tapPos?: 'top' | 'bottom'
-    /** Face (cap-fill) category — tints the cap, the dot and the tap legend. */
-    category?: KeyCategory
-    /**
-     * Accent (function) category — colours the header tag + hold legend only.
-     * For a home-row mod this is `mod` while {@link category} stays `alpha`, so
-     * the cap face is neutral and only the text is accented (design behaviour).
-     * Defaults to {@link category} when omitted.
-     */
-    accentCategory?: KeyCategory
     /** Normalised press intensity 0–1 for the heatmap overlay, or null when off. */
     heat?: number | null
     /** Raw lifetime press count, surfaced in the rich tooltip when the heatmap is on. */
