@@ -70,7 +70,14 @@ export function newBoardConfig(opts: NewBoardOptions): ConfigKeymap {
         schemaVersion: 1,
         kind: 'remappr.keymap',
         meta: { name, target: opts.target },
-        keyboard: { id: slugifyId(name), name, keys },
+        keyboard: {
+            id: slugifyId(name),
+            name,
+            keys,
+            // Preselect the firmware so the controller fields + readiness reflect
+            // a target from the start (mirrors presets carrying a default).
+            ...(opts.target ? { firmware: [opts.target] } : {}),
+        },
         layers: [
             {
                 name: 'base',

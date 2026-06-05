@@ -22,6 +22,8 @@ import {
     Maximize2,
     Minus,
     Move,
+    PanelLeft,
+    PanelLeftClose,
     Plus,
     Redo2,
     Rocket,
@@ -253,6 +255,8 @@ export function FullScreenBuilder(): JSX.Element {
     const selection = useBuilderStore((s) => s.selection)
     const matrixView = useBuilderStore((s) => s.matrixView)
     const toggleMatrixView = useBuilderStore((s) => s.toggleMatrixView)
+    const leftOpen = useBuilderStore((s) => s.leftOpen)
+    const toggleLeft = useBuilderStore((s) => s.toggleLeft)
     const jsonOpen = useBuilderStore((s) => s.jsonOpen)
     const toggleJson = useBuilderStore((s) => s.toggleJson)
     const setJsonOpen = useBuilderStore((s) => s.setJsonOpen)
@@ -398,6 +402,17 @@ export function FullScreenBuilder(): JSX.Element {
                     <ToolButton label="Back" onClick={() => setOpen(false)}>
                         <ArrowLeft size={17} />
                     </ToolButton>
+                    <ToolButton
+                        label={leftOpen ? 'Hide panel' : 'Show panel'}
+                        active={!leftOpen}
+                        onClick={toggleLeft}
+                    >
+                        {leftOpen ? (
+                            <PanelLeftClose size={18} />
+                        ) : (
+                            <PanelLeft size={18} />
+                        )}
+                    </ToolButton>
                     <BrandBadge />
                     <div className="flex items-baseline gap-2">
                         <span className="text-[14.5px] font-extrabold">
@@ -517,52 +532,57 @@ export function FullScreenBuilder(): JSX.Element {
 
             {/* ===== body ===== */}
             <div className="flex min-h-0 flex-1">
-                {/* left tools panel */}
+                {/* left tools panel (collapsible) */}
                 {/* pattern-check: skip — presentational JSX wiring of existing panels + modal-open state */}
-                <aside className="flex w-[270px] shrink-0 flex-col overflow-y-auto border-r border-border bg-sidebar">
-                    <div
-                        className="border-b border-border p-3.5"
-                        data-coach="builder-layers"
-                    >
-                        <SectionTitle>Layers</SectionTitle>
-                        <div className="mt-2.5">
-                            <BuilderLayersPanel />
+                {leftOpen && (
+                    <aside className="flex w-[270px] shrink-0 flex-col overflow-y-auto border-r border-border bg-sidebar">
+                        <div
+                            className="border-b border-border p-3.5"
+                            data-coach="builder-layers"
+                        >
+                            <SectionTitle>Layers</SectionTitle>
+                            <div className="mt-2.5">
+                                <BuilderLayersPanel />
+                            </div>
+                            <p className="mt-2.5 text-[11px] leading-relaxed text-muted-foreground">
+                                Geometry &amp; matrix are shared across all
+                                layers.
+                            </p>
                         </div>
-                        <p className="mt-2.5 text-[11px] leading-relaxed text-muted-foreground">
-                            Geometry &amp; matrix are shared across all layers.
-                        </p>
-                    </div>
-                    <div
-                        className="border-b border-border p-3.5"
-                        data-coach="builder-build-from"
-                    >
-                        <SectionTitle>Build from</SectionTitle>
-                        <div className="mt-2.5 grid grid-cols-2 gap-1.5">
-                            <BuildButton
-                                label="Presets"
-                                onClick={() => setBuildModal('preset')}
-                            />
-                            <BuildButton
-                                label="Import KLE"
-                                onClick={() => setBuildModal('kle')}
-                            />
-                            <BuildButton
-                                label="Make grid"
-                                onClick={() => setBuildModal('grid')}
-                            />
-                            <BuildButton
-                                label="Add key"
-                                onClick={() => config && commit(addKey(config))}
-                            />
+                        <div
+                            className="border-b border-border p-3.5"
+                            data-coach="builder-build-from"
+                        >
+                            <SectionTitle>Build from</SectionTitle>
+                            <div className="mt-2.5 grid grid-cols-2 gap-1.5">
+                                <BuildButton
+                                    label="Presets"
+                                    onClick={() => setBuildModal('preset')}
+                                />
+                                <BuildButton
+                                    label="Import KLE"
+                                    onClick={() => setBuildModal('kle')}
+                                />
+                                <BuildButton
+                                    label="Make grid"
+                                    onClick={() => setBuildModal('grid')}
+                                />
+                                <BuildButton
+                                    label="Add key"
+                                    onClick={() =>
+                                        config && commit(addKey(config))
+                                    }
+                                />
+                            </div>
                         </div>
-                    </div>
-                    <div className="p-4">
-                        <SectionTitle>Identity</SectionTitle>
-                        <div className="mt-3">
-                            <BuilderMetaForm />
+                        <div className="p-4">
+                            <SectionTitle>Identity</SectionTitle>
+                            <div className="mt-3">
+                                <BuilderMetaForm />
+                            </div>
                         </div>
-                    </div>
-                </aside>
+                    </aside>
+                )}
 
                 {/* canvas */}
                 <main
@@ -635,13 +655,14 @@ export function FullScreenBuilder(): JSX.Element {
                     )}
                 </main>
 
-                {/* right dock — JSON config editor (480px) or inspector (296px) */}
+                {/* right dock — JSON editor (480px) always, else the inspector but
+                    only while a key is selected (canvas widens when nothing is). */}
                 {/* pattern-check: skip — conditional dock render, presentational */}
                 {jsonOpen ? (
                     <aside className="flex w-[480px] shrink-0 flex-col border-l border-border bg-sidebar">
                         <JsonConfigPanel onClose={() => setJsonOpen(false)} />
                     </aside>
-                ) : (
+                ) : selection.size > 0 ? (
                     <aside
                         className="flex w-[296px] shrink-0 flex-col overflow-y-auto border-l border-border bg-sidebar"
                         data-coach="builder-inspector"
@@ -657,7 +678,7 @@ export function FullScreenBuilder(): JSX.Element {
                         </div>
                         <BuilderInspector />
                     </aside>
-                )}
+                ) : null}
             </div>
 
             {/* build-from modals */}

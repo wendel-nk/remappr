@@ -33,16 +33,29 @@ const PRESET_ICON: Record<BuilderPreset['icon'], JSX.Element> = {
     plus: <Plus size={18} />,
 }
 
-/** Shared: apply a fresh geometry to the board + reset the transient view. */
-function useApplyGeometry(): (keys: CanonGeometry[]) => void {
+/** Shared: apply a fresh geometry to the board + reset the transient view. An
+ *  optional `firmware` preselects the firmware targets (presets carry a natural
+ *  default; grid/KLE leave the current selection untouched). */
+function useApplyGeometry(): (
+    keys: CanonGeometry[],
+    firmware?: string[],
+) => void {
     const commit = useBuilderStore((s) => s.commit)
     const clearSelection = useBuilderStore((s) => s.clearSelection)
     const setActiveLayer = useBuilderStore((s) => s.setActiveLayer)
     const resetView = useBuilderStore((s) => s.resetView)
-    return (keys) => {
+    return (keys, firmware) => {
         const config = useConfigStore.getState().config
         if (!config) return
-        commit(replaceGeometry(config, keys))
+        const next = replaceGeometry(config, keys)
+        commit(
+            firmware
+                ? {
+                      ...next,
+                      keyboard: { ...next.keyboard, firmware },
+                  }
+                : next,
+        )
         clearSelection()
         setActiveLayer(0)
         resetView()
@@ -73,7 +86,7 @@ export function PresetModal({
                         key={p.id}
                         type="button"
                         onClick={() => {
-                            apply(p.build())
+                            apply(p.build(), p.firmware)
                             onClose()
                         }}
                         className="flex items-center gap-3 rounded-xl border border-border bg-background p-3.5 text-left transition-colors hover:border-primary"

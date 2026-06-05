@@ -124,6 +124,7 @@ function presetCorne(): CanonGeometry[] {
     return keys
 }
 
+// pattern-check: skip additive firmware field on preset data, no abstraction
 export interface BuilderPreset {
     id: string
     name: string
@@ -131,16 +132,21 @@ export interface BuilderPreset {
     /** lucide icon key resolved by the modal. */
     icon: 'split' | 'grid' | 'keyboard' | 'plus'
     split: boolean
+    /** Firmware targets this preset naturally builds for — preselected on apply
+     *  (wireless/split → ZMK; ortho / macro / numpad → QMK + VIA). */
+    firmware: string[]
     build: () => CanonGeometry[]
 }
 
 export const PRESETS: BuilderPreset[] = [
+    // pattern-check: skip additive firmware field on preset data literals, no abstraction
     {
         id: 'corne',
         name: 'Corne / split 42',
         sub: '3×6 + 3 thumbs, split',
         icon: 'split',
         split: true,
+        firmware: ['zmk'],
         build: presetCorne,
     },
     {
@@ -149,6 +155,7 @@ export const PRESETS: BuilderPreset[] = [
         sub: 'Planck-style grid',
         icon: 'grid',
         split: false,
+        firmware: ['qmk', 'via'],
         build: () => presetOrtho(12, 4),
     },
     {
@@ -157,6 +164,7 @@ export const PRESETS: BuilderPreset[] = [
         sub: 'Compact staggered',
         icon: 'keyboard',
         split: false,
+        firmware: ['qmk', 'via'],
         build: preset60,
     },
     {
@@ -165,6 +173,7 @@ export const PRESETS: BuilderPreset[] = [
         sub: '17-key number pad',
         icon: 'grid',
         split: false,
+        firmware: ['qmk', 'via'],
         build: presetNumpad,
     },
     {
@@ -173,6 +182,7 @@ export const PRESETS: BuilderPreset[] = [
         sub: '9-key macro grid',
         icon: 'grid',
         split: false,
+        firmware: ['qmk', 'via'],
         build: () => presetOrtho(3, 3),
     },
     {
@@ -181,6 +191,7 @@ export const PRESETS: BuilderPreset[] = [
         sub: 'Start from nothing',
         icon: 'plus',
         split: false,
+        firmware: ['zmk'],
         build: () => [key({})],
     },
 ]

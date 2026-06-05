@@ -8,7 +8,14 @@
 // joins the undo history. Text inputs commit on blur (one history entry per edit);
 // toggles / cards / sliders commit immediately (sliders coalesce a drag via arm).
 import { useEffect, useRef, useState } from 'react'
-import { Bluetooth, Check, Usb, Wand2 } from 'lucide-react'
+import {
+    Bluetooth,
+    Check,
+    CheckCircle2,
+    TriangleAlert,
+    Usb,
+    Wand2,
+} from 'lucide-react'
 import { Switch } from '@/ui/switch'
 import useBuilderStore from '@/stores/builderStore'
 import useConfigStore from '@/stores/configStore'
@@ -20,7 +27,11 @@ import type {
     ConfigMeta,
     ConfigKeyboard,
 } from '@firmware/config'
-import { KNOWN_ZMK_BOARDS, materializeMatrix } from '@firmware/config'
+import {
+    KNOWN_ZMK_BOARDS,
+    checkCompleteness,
+    materializeMatrix,
+} from '@firmware/config'
 import { matrixDims } from './builderMatrix'
 import { rowPins, colPins, setRowPinsText, setColPinsText } from './builderPins'
 import { setMatrixMeta } from './builderInspectorOps'
@@ -275,6 +286,13 @@ export function BuilderMetaForm(): JSX.Element {
         })
     }
 
+    // Controller fields are firmware-aware: ZMK uses board (+ shield), the QMK
+    // family (qmk/via/vial) uses processor/bootloader/dev-board + USB device
+    // version. With nothing selected yet, show everything.
+    const noFw = targets.length === 0
+    const showZmkCtrl = noFw || targets.includes('zmk')
+    const showQmkCtrl = noFw || targets.some((f) => f !== 'zmk')
+
     // Vial security writer — drop empty fields so a keymap-only config stays clean.
     const vial = kb.vial
     const setVial = (p: Partial<CanonVial>): void => {
@@ -455,84 +473,101 @@ export function BuilderMetaForm(): JSX.Element {
                             ))}
                         </datalist>
                     </div>
-                    <div>
-                        <div className="mb-1 text-[11px] text-muted-foreground">
-                            Shield (opt.)
+                    {/* firmware-gated fields — // pattern-check: skip presentational */}
+                    {showZmkCtrl && (
+                        <div>
+                            <div className="mb-1 text-[11px] text-muted-foreground">
+                                Shield (opt.)
+                            </div>
+                            <TextField
+                                mono
+                                value={
+                                    ctrl?.shield ?? kb.hardware?.shield ?? ''
+                                }
+                                onCommit={(v) =>
+                                    setController({
+                                        shield: v.trim() || undefined,
+                                    })
+                                }
+                                placeholder="corne_left"
+                            />
                         </div>
-                        <TextField
-                            mono
-                            value={ctrl?.shield ?? kb.hardware?.shield ?? ''}
-                            onCommit={(v) =>
-                                setController({ shield: v.trim() || undefined })
-                            }
-                            placeholder="corne_left"
-                        />
-                    </div>
-                    <div>
-                        <div className="mb-1 text-[11px] text-muted-foreground">
-                            Processor (QMK)
+                    )}
+                    {showQmkCtrl && (
+                        <div>
+                            <div className="mb-1 text-[11px] text-muted-foreground">
+                                Processor (QMK)
+                            </div>
+                            <TextField
+                                mono
+                                value={ctrl?.processor ?? ''}
+                                onCommit={(v) =>
+                                    setController({
+                                        processor: v.trim() || undefined,
+                                    })
+                                }
+                                placeholder="atmega32u4"
+                            />
                         </div>
-                        <TextField
-                            mono
-                            value={ctrl?.processor ?? ''}
-                            onCommit={(v) =>
-                                setController({
-                                    processor: v.trim() || undefined,
-                                })
-                            }
-                            placeholder="atmega32u4"
-                        />
-                    </div>
-                    <div>
-                        <div className="mb-1 text-[11px] text-muted-foreground">
-                            Bootloader (QMK)
+                    )}
+                    {showQmkCtrl && (
+                        <div>
+                            <div className="mb-1 text-[11px] text-muted-foreground">
+                                Bootloader (QMK)
+                            </div>
+                            <TextField
+                                mono
+                                value={ctrl?.bootloader ?? ''}
+                                onCommit={(v) =>
+                                    setController({
+                                        bootloader: v.trim() || undefined,
+                                    })
+                                }
+                                placeholder="atmel-dfu"
+                            />
                         </div>
-                        <TextField
-                            mono
-                            value={ctrl?.bootloader ?? ''}
-                            onCommit={(v) =>
-                                setController({
-                                    bootloader: v.trim() || undefined,
-                                })
-                            }
-                            placeholder="atmel-dfu"
-                        />
-                    </div>
-                    <div>
-                        <div className="mb-1 text-[11px] text-muted-foreground">
-                            Dev board (QMK)
+                    )}
+                    {showQmkCtrl && (
+                        <div>
+                            <div className="mb-1 text-[11px] text-muted-foreground">
+                                Dev board (QMK)
+                            </div>
+                            <TextField
+                                mono
+                                value={ctrl?.developmentBoard ?? ''}
+                                onCommit={(v) =>
+                                    setController({
+                                        developmentBoard: v.trim() || undefined,
+                                    })
+                                }
+                                placeholder="promicro"
+                            />
                         </div>
-                        <TextField
-                            mono
-                            value={ctrl?.developmentBoard ?? ''}
-                            onCommit={(v) =>
-                                setController({
-                                    developmentBoard: v.trim() || undefined,
-                                })
-                            }
-                            placeholder="promicro"
-                        />
-                    </div>
-                    <div>
-                        <div className="mb-1 text-[11px] text-muted-foreground">
-                            Device version
+                    )}
+                    {showQmkCtrl && (
+                        <div>
+                            <div className="mb-1 text-[11px] text-muted-foreground">
+                                Device version
+                            </div>
+                            <TextField
+                                mono
+                                value={ctrl?.deviceVersion ?? ''}
+                                onCommit={(v) =>
+                                    setController({
+                                        deviceVersion: v.trim() || undefined,
+                                    })
+                                }
+                                placeholder="1.0.0"
+                            />
                         </div>
-                        <TextField
-                            mono
-                            value={ctrl?.deviceVersion ?? ''}
-                            onCommit={(v) =>
-                                setController({
-                                    deviceVersion: v.trim() || undefined,
-                                })
-                            }
-                            placeholder="1.0.0"
-                        />
-                    </div>
+                    )}
                 </div>
                 <p className="mt-1.5 text-[10.5px] leading-relaxed text-muted-foreground">
-                    ZMK uses board (+ shield); QMK uses processor + bootloader
-                    (or a dev-board shortcut). Lets remappr emit a flashable
-                    project.
+                    {showZmkCtrl && !showQmkCtrl
+                        ? 'ZMK uses board + optional shield. Lets remappr emit a flashable project.'
+                        : showQmkCtrl && !showZmkCtrl
+                          ? 'QMK uses processor + bootloader (or a dev-board shortcut) + USB device version.'
+                          : 'ZMK uses board (+ shield); QMK uses processor + bootloader (or a dev-board shortcut).'}
                 </p>
             </div>
 
@@ -811,6 +846,50 @@ export function BuilderMetaForm(): JSX.Element {
                             </div>
                         </div>
                     )}
+                </div>
+            </div>
+
+            {/* Firmware readiness — // pattern-check: skip presentational checklist */}
+            <div>
+                <MiniLabel>Readiness</MiniLabel>
+                <div className="flex flex-col gap-1.5">
+                    {checkCompleteness(config).map((r) => (
+                        <div
+                            key={r.firmware}
+                            className="rounded-[9px] border border-border bg-background px-2.5 py-2"
+                        >
+                            <div className="flex items-center gap-1.5 text-[12px] font-bold">
+                                {r.ready ? (
+                                    <CheckCircle2
+                                        size={14}
+                                        className="text-emerald-500"
+                                    />
+                                ) : (
+                                    <TriangleAlert
+                                        size={14}
+                                        className="text-red-500"
+                                    />
+                                )}
+                                {r.label}
+                                <span className="text-[10.5px] font-normal text-muted-foreground">
+                                    {r.ready ? 'ready' : 'needs setup'}
+                                </span>
+                            </div>
+                            {r.issues.length > 0 && (
+                                <ul className="mt-1 space-y-0.5 pl-[19px] text-[10.5px] leading-snug">
+                                    {r.issues.map((i, idx) => (
+                                        <li
+                                            key={idx}
+                                            data-level={i.level}
+                                            className="text-muted-foreground data-[level=error]:text-red-400"
+                                        >
+                                            {i.message}
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
+                    ))}
                 </div>
             </div>
         </div>

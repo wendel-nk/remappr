@@ -51,6 +51,8 @@ interface BuilderState {
     activeVariant: string
     /** Whether the matrix-wiring overlay is shown on the canvas. */
     matrixView: boolean
+    /** Whether the left tools panel (layers / build-from / identity) is shown. */
+    leftOpen: boolean
     /** Whether the right dock shows the JSON config editor instead of the inspector. */
     jsonOpen: boolean
     /** Snap-to-grid vs free-form placement (toolbar Seg toggle). */
@@ -77,6 +79,7 @@ interface BuilderState {
     setActiveLayer: (index: number) => void
     setActiveVariant: (id: string) => void
     toggleMatrixView: () => void
+    toggleLeft: () => void
     setJsonOpen: (open: boolean) => void
     toggleJson: () => void
     setSnapMode: (mode: SnapMode) => void
@@ -114,6 +117,7 @@ const useBuilderStore = create<BuilderState>()(
         activeLayer: 0,
         activeVariant: '',
         matrixView: false,
+        leftOpen: true,
         jsonOpen: false,
         snapMode: 'grid',
         snapping: true,
@@ -149,6 +153,7 @@ const useBuilderStore = create<BuilderState>()(
         setActiveLayer: (activeLayer) => set({ activeLayer }),
         setActiveVariant: (activeVariant) => set({ activeVariant }),
         toggleMatrixView: () => set((s) => ({ matrixView: !s.matrixView })),
+        toggleLeft: () => set((s) => ({ leftOpen: !s.leftOpen })),
         setJsonOpen: (jsonOpen) => set({ jsonOpen }),
         toggleJson: () => set((s) => ({ jsonOpen: !s.jsonOpen })),
         setSnapMode: (snapMode) =>
