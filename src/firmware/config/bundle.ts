@@ -13,6 +13,7 @@ import type { Diagnostic } from './diagnostics'
 import { getCompiler } from './compiler'
 import { resolveController } from './controller'
 import { buildQmkKeyboardJson } from './compilers/qmkKeyboardJson'
+import { buildViaJson } from './compilers/viaJson'
 import type { CanonAction, ConfigKeymap, Target } from './types'
 
 export interface ProjectBundle {
@@ -208,6 +209,19 @@ function qmkBundle(config: ConfigKeymap, target: Target): ProjectBundle {
     const { json: keyboardJson, diagnostics: kbDiag } =
         buildQmkKeyboardJson(config)
 
+    // VIA / Vial both build through the QMK family and need VIA support compiled
+    // in; when targeted, enable VIA in the keymap and ship the VIA definition the
+    // app loads in its Authoring/Design tab (the matrix-annotated KLE keymap).
+    const wantsVia = (config.keyboard.firmware ?? []).some(
+        (f) => f === 'via' || f === 'vial',
+    )
+    const { json: viaJson, diagnostics: viaDiag } = wantsVia
+        ? buildViaJson(config)
+        : { json: null, diagnostics: [] as Diagnostic[] }
+    const rulesMk = wantsVia
+        ? `# remappr keymap — feature toggles live in keyboard.json\nVIA_ENABLE = yes\n`
+        : `# remappr keymap — feature toggles live in keyboard.json\n`
+
     const qmkJson = JSON.stringify(
         { userspace_version: '1.1', build_targets: [[kb, km]] },
         null,
@@ -236,6 +250,17 @@ function qmkBundle(config: ConfigKeymap, target: Target): ProjectBundle {
         `  (matrix pins, diode direction, MCU/USB identity, features, layout).`,
         `- Verify the pin names + processor/bootloader against your hardware before`,
         `  flashing — remappr fills them from the builder's Controller panel.`,
+        ...(wantsVia
+            ? [
+                  ``,
+                  `## VIA`,
+                  `- \`VIA_ENABLE = yes\` is set in \`${base}/rules.mk\`, so the built`,
+                  `  firmware supports VIA / Vial.`,
+                  `- \`via/${kb}.json\` is the VIA keyboard definition — load it in the`,
+                  `  VIA app's Authoring/Design tab (the \`vendorId\`/\`productId\` must`,
+                  `  match the firmware).`,
+              ]
+            : []),
         ``,
     ].join('\n')
 
@@ -245,19 +270,20 @@ function qmkBundle(config: ConfigKeymap, target: Target): ProjectBundle {
             JSON.stringify(keyboardJson, null, 4) + '\n',
         ),
         text(`${base}/keymap.c`, keymapC ? asText(keymapC.content) : ''),
-        text(
-            `${base}/rules.mk`,
-            `# remappr keymap — feature toggles live in keyboard.json\n`,
-        ),
+        text(`${base}/rules.mk`, rulesMk),
         text(`${base}/config.h`, qmkConfigH()),
         text(`qmk.json`, qmkJson + '\n'),
         text(`.github/workflows/build_binaries.yml`, QMK_BUILD_WORKFLOW),
         text(`README.md`, readme),
     ]
+    if (viaJson)
+        files.push(
+            text(`via/${kb}.json`, JSON.stringify(viaJson, null, 4) + '\n'),
+        )
 
     return {
         files,
-        diagnostics: [...diagnostics, ...kbDiag],
+        diagnostics: [...diagnostics, ...kbDiag, ...viaDiag],
         rootName: `${kb}-qmk-userspace`,
     }
 }

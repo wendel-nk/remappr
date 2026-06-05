@@ -150,4 +150,63 @@ describe('buildProjectBundle — QMK', () => {
             b.diagnostics.some((d) => /vendor\/product id/.test(d.message)),
         ).toBe(true)
     })
+
+    it('does not emit a VIA definition or enable VIA when not targeted', () => {
+        const b = buildProjectBundle(parseKeymap(QMK_FULL), 'qmk')
+        expect(paths(b)).not.toContain('via/plank.json')
+        expect(
+            fileText(b, 'keyboards/plank/keymaps/remappr/rules.mk'),
+        ).not.toContain('VIA_ENABLE')
+    })
+})
+
+const VIA_FULL = `{
+    "schemaVersion": 1, "kind": "remappr.keymap",
+    "meta": { "name": "Macro5", "target": "qmk",
+              "vendorId": "0xCEEB", "productId": "0x0007" },
+    "keyboard": {
+        "id": "macro5", "name": "Macro5",
+        "keys": [{"x":0,"y":0},{"x":1,"y":0},{"x":2,"y":0}],
+        "pins": { "rows": ["B0"], "cols": ["B1", "B2", "B3"] },
+        "firmware": ["qmk", "via"]
+    },
+    "layers": [
+        { "name": "base", "bindings": [
+            "A",
+            { "type": "layer", "mode": "momentary", "layer": "fn" },
+            "B"
+        ] },
+        { "name": "fn", "bindings": [] }
+    ]
+}`
+
+describe('buildProjectBundle — VIA', () => {
+    it('ships a VIA definition + enables VIA when via is targeted', () => {
+        const b = buildProjectBundle(parseKeymap(VIA_FULL), 'qmk')
+        expect(paths(b)).toContain('via/macro5.json')
+        // VIA support compiled into the keymap
+        expect(
+            fileText(b, 'keyboards/macro5/keymaps/remappr/rules.mk'),
+        ).toContain('VIA_ENABLE = yes')
+        // definition carries identity + matrix
+        const def = JSON.parse(fileText(b, 'via/macro5.json'))
+        expect(def.name).toBe('Macro5')
+        expect(def.vendorId).toBe('0xCEEB')
+        expect(def.productId).toBe('0x0007')
+        expect(def.matrix).toEqual({ rows: 1, cols: 3 })
+    })
+
+    it('the VIA keymap carries "row,col" legends + per-category cap colours', () => {
+        const b = buildProjectBundle(parseKeymap(VIA_FULL), 'qmk')
+        const def = JSON.parse(fileText(b, 'via/macro5.json'))
+        // one physical row, three keys; matrix annotation is the top-left legend
+        const row = def.layouts.keymap[0]
+        expect(row).toEqual([
+            '0,0', // A → neutral alpha cap (no colour prop)
+            { c: '#6fa8dc' }, // layer key → blue
+            '0,1',
+            { c: '#cccccc' }, // back to neutral for B
+            '0,2',
+        ])
+    })
 })
