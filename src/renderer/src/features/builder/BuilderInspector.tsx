@@ -27,7 +27,12 @@ import { KeyButton } from '@/features/keymap/keyboard/KeyButton'
 import { Switch } from '@/ui/switch'
 import useBuilderStore from '@/stores/builderStore'
 import useConfigStore from '@/stores/configStore'
-import type { CanonAction, CanonGeometry } from '@firmware/config'
+import type {
+    CanonAction,
+    CanonGeometry,
+    ConfigKeymap,
+    SliderMap,
+} from '@firmware/config'
 import { duplicateKeys, removeKeys, snap as snapStep } from './geometryEditor'
 import {
     applyAutoMatrix,
@@ -41,8 +46,11 @@ import {
     removeTransform,
     setBinding,
     setEncoderBinding,
+    setSliderBinding,
+    clearSliderBinding,
     setKeyMatrix,
     setKeyVariant,
+    SLIDER_MAPS,
     type EncoderSlot,
 } from './builderInspectorOps'
 import { builderCapProps, builderBindingCode } from './builderCapProps'
@@ -139,24 +147,6 @@ function ElementTabs({
                     )
                 })}
             </div>
-        </div>
-    )
-}
-
-/** A labelled informational note (used by the encoder / slider element panels). */
-function ElementNote({
-    label,
-    text,
-}: {
-    label: string
-    text: string
-}): JSX.Element {
-    return (
-        <div>
-            <MiniLabel>{label}</MiniLabel>
-            <p className="rounded-lg border border-border bg-background px-2.5 py-2 text-[11.5px] leading-relaxed text-muted-foreground">
-                {text}
-            </p>
         </div>
     )
 }
@@ -288,6 +278,107 @@ function BindingSlotRow({
             >
                 <X size={14} />
             </button>
+        </div>
+    )
+}
+
+// pattern-check: skip presentational slider value-map panel, reuses ops + BindingSlotRow, no logic
+/** Optional-number input for a slider output bound: empty clears it (firmware
+ *  defaults the range). */
+function RangeInput({
+    value,
+    onChange,
+}: {
+    value: number | undefined
+    onChange: (v: number | undefined) => void
+}): JSX.Element {
+    return (
+        <input
+            type="number"
+            value={value ?? ''}
+            placeholder="auto"
+            onChange={(e) =>
+                onChange(
+                    e.target.value === '' ? undefined : Number(e.target.value),
+                )
+            }
+            className="w-full rounded-lg border border-input bg-background px-2 py-1.5 font-mono text-[12.5px] font-semibold text-foreground outline-none focus:border-primary"
+        />
+    )
+}
+
+/** Slider element panel: a value-map picker (volume / brightness / wheel /
+ *  custom) + an output range; custom maps open the shared binding picker. */
+function SliderPanel({
+    config,
+    index,
+    activeLayer,
+    layerName,
+    onEditAction,
+}: {
+    config: ConfigKeymap
+    index: number
+    activeLayer: number
+    layerName: string
+    onEditAction: () => void
+}): JSX.Element {
+    const commit = useBuilderStore((s) => s.commit)
+    const slider = config.layers[activeLayer]?.sliderBindings?.[index]
+    const set = (patch: Parameters<typeof setSliderBinding>[3]): void =>
+        commit(setSliderBinding(config, activeLayer, index, patch))
+
+    return (
+        <div className="flex flex-col gap-2">
+            <MiniLabel>Slider value-map · {layerName}</MiniLabel>
+            <select
+                value={slider?.map ?? ''}
+                onChange={(e) =>
+                    e.target.value === ''
+                        ? commit(clearSliderBinding(config, activeLayer, index))
+                        : set({ map: e.target.value as SliderMap })
+                }
+                className="w-full rounded-lg border border-input bg-background px-2.5 py-2 text-[13px] font-semibold text-foreground outline-none focus:border-primary"
+            >
+                <option value="">— No mapping —</option>
+                {SLIDER_MAPS.map((m) => (
+                    <option key={m.value} value={m.value}>
+                        {m.label}
+                    </option>
+                ))}
+            </select>
+            {slider && (
+                <>
+                    <div className="grid grid-cols-2 gap-2">
+                        <Field label="Min (out)">
+                            <RangeInput
+                                value={slider.min}
+                                onChange={(v) => set({ min: v })}
+                            />
+                        </Field>
+                        <Field label="Max (out)">
+                            <RangeInput
+                                value={slider.max}
+                                onChange={(v) => set({ max: v })}
+                            />
+                        </Field>
+                    </div>
+                    {slider.map === 'custom' && (
+                        <BindingSlotRow
+                            label="Custom action"
+                            firmware={config.keyboard.firmware}
+                            action={slider.action}
+                            onEdit={onEditAction}
+                            onClear={() =>
+                                set({ action: { type: 'transparent' } })
+                            }
+                        />
+                    )}
+                    <p className="rounded-lg border border-border bg-background px-2.5 py-2 text-[11.5px] leading-relaxed text-muted-foreground">
+                        Analog input is exported as firmware guidance — the
+                        board-side ADC wiring is added in your overlay/keymap.c.
+                    </p>
+                </>
+            )}
         </div>
     )
 }
@@ -525,9 +616,14 @@ export function BuilderInspector(): JSX.Element {
                 </div>
             )}
             {element === 'slider' && (
-                <ElementNote
-                    label="Slider · analog input"
-                    text="An analog slider on an ADC pin (set below). Slider value mapping is exporter metadata for now."
+                <SliderPanel
+                    config={config}
+                    index={index}
+                    activeLayer={activeLayer}
+                    layerName={layerName}
+                    onEditAction={() =>
+                        openBinding({ keyIndex: index, slot: 'slider' })
+                    }
                 />
             )}
 

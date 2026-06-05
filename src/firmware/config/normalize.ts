@@ -10,6 +10,7 @@ import { parseSurface, type SurfaceAction, type SurfaceKeymap } from './schema'
 import type {
     CanonAction,
     CanonEncoderBinding,
+    CanonSliderBinding,
     CanonHoldTarget,
     CanonKeyPress,
     CanonLighting,
@@ -251,6 +252,17 @@ function normalizeEncoder(
     }
 }
 
+function normalizeSlider(
+    s: NonNullable<SurfaceKeymap['layers'][number]['sliderBindings']>[string],
+): CanonSliderBinding {
+    return {
+        map: s.map,
+        ...(s.min !== undefined ? { min: s.min } : {}),
+        ...(s.max !== undefined ? { max: s.max } : {}),
+        ...(s.action ? { action: normalizeAction(s.action) } : {}),
+    }
+}
+
 function normalizeMacroStep(
     s: NonNullable<SurfaceKeymap['macros']>[number]['steps'][number],
 ): CanonMacroStep {
@@ -317,6 +329,16 @@ export function normalizeKeymap(km: SurfaceKeymap): ConfigKeymap {
                           Object.entries(l.encoderBindings).map(([k, e]) => [
                               k,
                               normalizeEncoder(e),
+                          ]),
+                      ),
+                  }
+                : {}),
+            ...(l.sliderBindings
+                ? {
+                      sliderBindings: Object.fromEntries(
+                          Object.entries(l.sliderBindings).map(([k, s]) => [
+                              k,
+                              normalizeSlider(s),
                           ]),
                       ),
                   }

@@ -11,6 +11,7 @@ import { cloneHardware, cloneLighting } from './normalize'
 import type {
     CanonAction,
     CanonEncoderBinding,
+    CanonSliderBinding,
     CanonHoldTarget,
     CanonKeyPress,
     CanonMacroStep,
@@ -155,6 +156,13 @@ const denormalizeEncoder = (
     ...(e.press ? { press: denormalizeAction(e.press) } : {}),
 })
 
+const denormalizeSlider = (s: CanonSliderBinding): Record<string, unknown> => ({
+    map: s.map,
+    ...(s.min !== undefined ? { min: s.min } : {}),
+    ...(s.max !== undefined ? { max: s.max } : {}),
+    ...(s.action ? { action: denormalizeAction(s.action) } : {}),
+})
+
 const denormalizeMacroStep = (s: CanonMacroStep): Record<string, unknown> => {
     if (s.type === 'wait') return { type: 'wait', ms: s.ms }
     if (s.type === 'text') return { type: 'text', text: s.text }
@@ -248,6 +256,16 @@ export function toSurfaceObject(km: ConfigKeymap): Record<string, unknown> {
                           Object.entries(l.encoderBindings).map(([k, e]) => [
                               k,
                               denormalizeEncoder(e),
+                          ]),
+                      ),
+                  }
+                : {}),
+            ...(l.sliderBindings && Object.keys(l.sliderBindings).length
+                ? {
+                      sliderBindings: Object.fromEntries(
+                          Object.entries(l.sliderBindings).map(([k, s]) => [
+                              k,
+                              denormalizeSlider(s),
                           ]),
                       ),
                   }

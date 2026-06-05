@@ -21,6 +21,8 @@ import {
     renameLayout,
     setBinding,
     setEncoderBinding,
+    setSliderBinding,
+    clearSliderBinding,
     setKeyMatrix,
     setKeyVariant,
 } from './builderInspectorOps'
@@ -167,6 +169,31 @@ describe('builderInspectorOps — bindings', () => {
             parseKeymap(serializeKeymap(out2)).layers[0].encoderBindings?.[1]
                 ?.press,
         ).toBeDefined()
+    })
+    it('setSliderBinding seeds map:volume then patches fields', () => {
+        // First touch lazily creates the entry defaulting to volume.
+        const out = setSliderBinding(grid(1, 2), 0, 1, { min: 0, max: 100 })
+        const entry = out.layers[0].sliderBindings?.[1]
+        expect(entry).toMatchObject({ map: 'volume', min: 0, max: 100 })
+        expect(out.layers[0].sliderBindings?.[0]).toBeUndefined()
+        // A later patch preserves the prior fields.
+        const out2 = setSliderBinding(out, 0, 1, { map: 'custom' })
+        expect(out2.layers[0].sliderBindings?.[1]).toMatchObject({
+            map: 'custom',
+            min: 0,
+            max: 100,
+        })
+        // Round-trips through the schema (string-keyed sliderBindings).
+        expect(
+            parseKeymap(serializeKeymap(out2)).layers[0].sliderBindings?.[1]
+                ?.map,
+        ).toBe('custom')
+    })
+
+    it('clearSliderBinding drops the per-key entry', () => {
+        const out = setSliderBinding(grid(1, 2), 0, 1, { map: 'brightness' })
+        const cleared = clearSliderBinding(out, 0, 1)
+        expect(cleared.layers[0].sliderBindings?.[1]).toBeUndefined()
     })
 })
 

@@ -312,6 +312,78 @@ describe('encoders / sensor-rotate', () => {
     })
 })
 
+const SLIDER = `{
+    "schemaVersion": 1, "kind": "remappr.keymap",
+    "meta": { "name": "Sld", "target": "zmk" },
+    "keyboard": { "id": "s", "name": "S", "keys": [
+        {"x":0,"y":0,"element":"slider","pin":"GP29"},
+        {"x":1,"y":0}
+    ] },
+    "layers": [{ "name": "base", "bindings": ["A","B"], "sliderBindings": {
+        "0": { "map": "volume", "min": 0, "max": 100 }
+    } }]
+}`
+
+const SLIDER_CUSTOM = `{
+    "schemaVersion": 1, "kind": "remappr.keymap",
+    "meta": { "name": "SldC", "target": "zmk" },
+    "keyboard": { "id": "s", "name": "S", "keys": [
+        {"x":0,"y":0,"element":"slider"}, {"x":1,"y":0}
+    ] },
+    "layers": [{ "name": "base", "bindings": ["A","B"], "sliderBindings": {
+        "0": { "map": "custom", "action": "Up" }
+    } }]
+}`
+
+describe('sliders / analog input', () => {
+    it('ZMK emits a NOT-GENERATED slider guidance block + warns', () => {
+        const { files, diagnostics } = getCompiler('zmk').compile(
+            parseKeymap(SLIDER),
+        )
+        const dts = String(
+            files.find((f) => f.filename.endsWith('.keymap'))!.content,
+        )
+        expect(dts).toContain('SLIDER / ANALOG INPUT — NOT GENERATED')
+        // captured value-map appears: key index, map + range, ADC pin
+        expect(dts).toContain('slider @ key 0 (ADC pin GP29)')
+        expect(dts).toMatch(/base: volume \[0\.\.100\]/)
+        expect(diagnostics.some((d) => /analog|slider/i.test(d.message))).toBe(
+            true,
+        )
+    })
+
+    it('ZMK inlines a custom slider action into the guidance', () => {
+        const dts = String(
+            getCompiler('zmk')
+                .compile(parseKeymap(SLIDER_CUSTOM))
+                .files.find((f) => f.filename.endsWith('.keymap'))!.content,
+        )
+        expect(dts).toMatch(/base: custom .*→ &kp UP/)
+    })
+
+    it('QMK emits an analog scaffold + warns', () => {
+        const { files, diagnostics } = getCompiler('qmk').compile(
+            parseKeymap(SLIDER),
+        )
+        const c = String(files.find((f) => f.filename === 'keymap.c')!.content)
+        expect(c).toContain('SLIDER / ANALOG INPUT')
+        expect(c).toContain('analogReadPin')
+        expect(c).toMatch(/base: volume \[0\.\.100\]/)
+        expect(diagnostics.some((d) => /analog|slider/i.test(d.message))).toBe(
+            true,
+        )
+    })
+
+    it('no slider element → no guidance block, no warn', () => {
+        const { files, diagnostics } = getCompiler('zmk').compile(config)
+        const dts = String(
+            files.find((f) => f.filename.endsWith('.keymap'))!.content,
+        )
+        expect(dts).not.toContain('SLIDER / ANALOG INPUT')
+        expect(diagnostics.some((d) => /slider/i.test(d.message))).toBe(false)
+    })
+})
+
 const ENC_PERKEY = `{
     "schemaVersion": 1, "kind": "remappr.keymap",
     "meta": { "name": "EncPK", "target": "zmk" },

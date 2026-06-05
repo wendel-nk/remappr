@@ -39,6 +39,7 @@ const SLOT_LABEL: Record<string, string> = {
     cw: 'Rotate ↻',
     ccw: 'Rotate ↺',
     press: 'Press',
+    slider: 'Slider action',
 }
 
 export function BindingPicker({
@@ -58,13 +59,17 @@ export function BindingPicker({
     const macros = useMemo(() => config?.macros ?? [], [config])
     const tapDances = useMemo(() => config?.tapDances ?? [], [config])
     const layerName = layers[activeLayer]?.name ?? 'layer'
-    // 'key' edits the base binding; cw/ccw/press edit the per-key encoder slot.
+    // 'key' edits the base binding; cw/ccw/press edit the per-key encoder slot;
+    // 'slider' edits the slider's custom action.
     const current =
         target.slot === 'key'
             ? config?.layers[activeLayer]?.bindings[target.keyIndex]
-            : config?.layers[activeLayer]?.encoderBindings?.[target.keyIndex]?.[
-                  target.slot
-              ]
+            : target.slot === 'slider'
+              ? config?.layers[activeLayer]?.sliderBindings?.[target.keyIndex]
+                    ?.action
+              : config?.layers[activeLayer]?.encoderBindings?.[
+                    target.keyIndex
+                ]?.[target.slot]
 
     const ctx = useMemo<BridgeContext>(
         () => ({

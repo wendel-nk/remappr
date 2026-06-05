@@ -154,6 +154,22 @@ export interface CanonEncoderBinding {
     press?: CanonAction
 }
 
+/** What an analog slider's position controls. `volume`/`brightness`/`mouse_wheel`
+ *  are well-known mapped outputs; `custom` defers to `action`. */
+export type SliderMap = 'volume' | 'brightness' | 'mouse_wheel' | 'custom'
+
+/** A slider's value-mapping: the ADC sweep mapped onto an output. `min`/`max`
+ *  bound the output range (firmware defaults when absent); `action` is the
+ *  output behavior for `map: "custom"`. Analog input has no first-class keymap
+ *  behavior in ZMK/QMK, so compilers emit this as guided scaffolding, not full
+ *  codegen — see emitSliderInputs (ZMK) / emitSliderStub (QMK). */
+export interface CanonSliderBinding {
+    map: SliderMap
+    min?: number
+    max?: number
+    action?: CanonAction
+}
+
 export interface CanonLayer {
     name: string
     description?: string
@@ -167,6 +183,10 @@ export interface CanonLayer {
      *  element model writes here; lets a single physical position carry both a
      *  base binding and rotary cw/ccw/press without a parallel slot array. */
     encoderBindings?: Record<number, CanonEncoderBinding>
+    /** Per-key slider value-mappings, keyed by the position's index in
+     *  `keyboard.keys` (the key must have `element: "slider"`). Parallels
+     *  `encoderBindings` — one analog input element per physical position. */
+    sliderBindings?: Record<number, CanonSliderBinding>
 }
 
 export interface CanonCombo {

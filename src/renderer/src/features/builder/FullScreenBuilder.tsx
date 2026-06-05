@@ -51,7 +51,11 @@ import { BuilderLayersPanel } from './BuilderLayersPanel'
 import { BuilderMetaForm } from './BuilderMetaForm'
 import { BuilderInspector } from './BuilderInspector'
 import { BindingPicker } from './BindingPicker'
-import { setBinding, setEncoderBinding } from './builderInspectorOps'
+import {
+    setBinding,
+    setEncoderBinding,
+    setSliderBinding,
+} from './builderInspectorOps'
 import { VariantBar } from './VariantBar'
 import { GridModal, KleModal, PresetModal, StartModal } from './BuilderModals'
 import { BuilderExportModal } from './BuilderExportModal'
@@ -611,13 +615,20 @@ export function FullScreenBuilder(): JSX.Element {
                                               binding.keyIndex,
                                               action,
                                           )
-                                        : setEncoderBinding(
-                                              cfg,
-                                              activeLayer,
-                                              binding.keyIndex,
-                                              binding.slot,
-                                              action,
-                                          ),
+                                        : binding.slot === 'slider'
+                                          ? setSliderBinding(
+                                                cfg,
+                                                activeLayer,
+                                                binding.keyIndex,
+                                                { map: 'custom', action },
+                                            )
+                                          : setEncoderBinding(
+                                                cfg,
+                                                activeLayer,
+                                                binding.keyIndex,
+                                                binding.slot,
+                                                action,
+                                            ),
                                 )
                             }}
                         />

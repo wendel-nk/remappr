@@ -241,6 +241,48 @@ function emitEncoderMap(config: ConfigKeymap, ctx: Ctx): string[] {
     return out
 }
 
+// pattern-check: skip additive QMK analog-slider scaffold emitter, no abstraction
+// QMK analog sliders are custom C (analogReadPin in matrix_scan_user / a sensor).
+// No keymap construct expresses an analog axis, so this emits a commented
+// scaffold + the captured per-layer value-map as guidance. Returns [] when no
+// position carries element: 'slider'.
+function emitSliderStub(config: ConfigKeymap): string[] {
+    const sliderKeys = config.keyboard.keys
+        .map((k, i) => (k.element === 'slider' ? i : -1))
+        .filter((i) => i >= 0)
+    if (!sliderKeys.length) return []
+
+    const out: string[] = [
+        `/* ─── SLIDER / ANALOG INPUT — scaffold only, finish in C ───────────────`,
+        ` * QMK has no keymap construct for an analog axis. Enable analog in`,
+        ` * rules.mk (ANALOG_DRIVER_REQUIRED = yes) and read the pin yourself.`,
+        ` * remappr captured the value-map below:`,
+        ` *`,
+    ]
+    sliderKeys.forEach((ki) => {
+        const pin = config.keyboard.keys[ki]?.pin
+        out.push(` *   slider @ key ${ki}${pin ? ` (ADC pin ${pin})` : ''}:`)
+        config.layers.forEach((layer) => {
+            const s = layer.sliderBindings?.[ki]
+            if (!s) return
+            const range =
+                s.min !== undefined || s.max !== undefined
+                    ? ` [${s.min ?? '…'}..${s.max ?? '…'}]`
+                    : ''
+            out.push(` *     ${layer.name}: ${s.map}${range}`)
+        })
+    })
+    out.push(
+        ` * ─────────────────────────────────────────────────────────────────── */`,
+        `// #include "analog.h"`,
+        `// void matrix_scan_user(void) {`,
+        `//     uint16_t v = analogReadPin(SLIDER_PIN); // map per the table above`,
+        `// }`,
+        ``,
+    )
+    return out
+}
+
 function emit(target: Target, label: string) {
     return (config: ConfigKeymap, diag: DiagnosticBag): ExportedFile[] => {
         const ctx: Ctx = {
@@ -293,6 +335,13 @@ function emit(target: Target, label: string) {
         lines.push(`};`)
         lines.push(``)
         lines.push(...emitEncoderMap(config, ctx))
+        if (config.keyboard.keys.some((k) => k.element === 'slider')) {
+            diag.warn(
+                'sliders are analog input — QMK has no keymap construct for them; a C scaffold is emitted but you must finish the analog read',
+                ['keyboard', 'keys'],
+            )
+            lines.push(...emitSliderStub(config))
+        }
         return [
             {
                 filename: 'keymap.c',

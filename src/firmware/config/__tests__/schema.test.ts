@@ -176,6 +176,75 @@ describe('builder metadata fields', () => {
     })
 })
 
+describe('slider value-maps', () => {
+    const sliderConfig = (bindings: Record<string, unknown>): string =>
+        JSON.stringify({
+            schemaVersion: 1,
+            kind: 'remappr.keymap',
+            meta: { name: 'S', target: 'zmk' },
+            keyboard: {
+                id: 's',
+                name: 'S',
+                keys: [
+                    { x: 0, y: 0, element: 'slider', pin: 'GP29' },
+                    { x: 1, y: 0 },
+                ],
+            },
+            layers: [
+                {
+                    name: 'base',
+                    bindings: ['Q', 'W'],
+                    sliderBindings: bindings,
+                },
+            ],
+        })
+
+    it('parses slider value-maps into the canonical doc', () => {
+        const km = parseKeymap(
+            sliderConfig({
+                0: { map: 'volume', min: 0, max: 100 },
+            }),
+        )
+        expect(km.layers[0].sliderBindings?.[0]).toMatchObject({
+            map: 'volume',
+            min: 0,
+            max: 100,
+        })
+    })
+
+    it('round-trips a custom slider action losslessly', () => {
+        const once = parseKeymap(
+            sliderConfig({ 0: { map: 'custom', action: 'A' } }),
+        )
+        const text = serializeKeymap(once)
+        const twice = parseKeymap(text)
+        expect(stripHints(twice)).toEqual(stripHints(once))
+        expect(serializeKeymap(twice)).toEqual(text)
+        expect(twice.layers[0].sliderBindings?.[0].action).toMatchObject({
+            type: 'key_press',
+        })
+    })
+
+    it('rejects a slider binding for an out-of-range key', () => {
+        const res = safeParseSurface(sliderConfig({ 5: { map: 'volume' } }))
+        expect(res.success).toBe(false)
+    })
+
+    it('rejects min greater than max', () => {
+        const res = safeParseSurface(
+            sliderConfig({ 0: { map: 'volume', min: 100, max: 0 } }),
+        )
+        expect(res.success).toBe(false)
+    })
+
+    it('omits sliderBindings when absent', () => {
+        const km = parseKeymap(serializeKeymap(parseKeymap(seed)))
+        expect(km.layers.some((l) => l.sliderBindings !== undefined)).toBe(
+            false,
+        )
+    })
+})
+
 // Recursively drop `_keySrc` / `_preset` serialize hints for structural equality.
 function stripHints(v: unknown): unknown {
     if (Array.isArray(v)) return v.map(stripHints)

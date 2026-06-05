@@ -8,6 +8,8 @@ export type {
     CanonAction,
     CanonEncoderBinding,
     CanonEncoderSlot,
+    CanonSliderBinding,
+    SliderMap,
     CanonGeometry,
     CanonHoldTarget,
     CanonKeyPress,

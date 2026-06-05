@@ -19,7 +19,9 @@ import type {
     CanonAction,
     CanonLayout,
     CanonMatrixTransform,
+    CanonSliderBinding,
     ConfigKeymap,
+    SliderMap,
 } from '@firmware/config'
 import { autoMatrix } from './builderMatrix'
 import { updateKey, updateKeys } from './geometryEditor'
@@ -253,6 +255,59 @@ export function setEncoderBinding(
         }),
     }
 }
+
+// pattern-check: skip additive pure config transforms mirroring setEncoderBinding, no abstraction
+/** Set or patch a key's slider value-map on a layer, keyed by the key's index in
+ *  `keyboard.keys`. Lazily creates `layer.sliderBindings` + the per-key entry
+ *  (a fresh entry defaults to `map: "volume"`). Pass a partial patch. */
+export function setSliderBinding(
+    config: ConfigKeymap,
+    layerIndex: number,
+    keyIndex: number,
+    patch: Partial<CanonSliderBinding>,
+): ConfigKeymap {
+    return {
+        ...config,
+        layers: config.layers.map((l, li) => {
+            if (li !== layerIndex) return l
+            const prev: CanonSliderBinding = l.sliderBindings?.[keyIndex] ?? {
+                map: 'volume',
+            }
+            return {
+                ...l,
+                sliderBindings: {
+                    ...l.sliderBindings,
+                    [keyIndex]: { ...prev, ...patch },
+                },
+            }
+        }),
+    }
+}
+
+/** Remove a key's slider value-map from a layer (drops the per-key entry). */
+export function clearSliderBinding(
+    config: ConfigKeymap,
+    layerIndex: number,
+    keyIndex: number,
+): ConfigKeymap {
+    return {
+        ...config,
+        layers: config.layers.map((l, li) => {
+            if (li !== layerIndex || !l.sliderBindings?.[keyIndex]) return l
+            const next = { ...l.sliderBindings }
+            delete next[keyIndex]
+            return { ...l, sliderBindings: next }
+        }),
+    }
+}
+
+/** Slider value-map options, in display order. */
+export const SLIDER_MAPS: { value: SliderMap; label: string }[] = [
+    { value: 'volume', label: 'Volume' },
+    { value: 'brightness', label: 'Brightness' },
+    { value: 'mouse_wheel', label: 'Mouse wheel' },
+    { value: 'custom', label: 'Custom action' },
+]
 
 /* ── physical-layout variants ──────────────────────────────────────────── */
 

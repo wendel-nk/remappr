@@ -19,10 +19,9 @@ export type SnapMode = 'grid' | 'free'
 
 // Pattern check: no GoF pattern (-) — rejected — additive plain data types +
 // zustand state for the picker-open target; discriminated slot string, no abstraction.
-/** Which binding slot the picker edits: a key's base binding, or an encoder's
- *  clockwise / counter-clockwise / press slot (encoder slots land with the
- *  encoder element; key is the only one wired today). */
-export type BindingSlot = 'key' | 'cw' | 'ccw' | 'press'
+/** Which binding slot the picker edits: a key's base binding, an encoder's
+ *  clockwise / counter-clockwise / press slot, or a slider's custom action. */
+export type BindingSlot = 'key' | 'cw' | 'ccw' | 'press' | 'slider'
 
 /** The key (and slot) the binding picker is currently editing. */
 export interface BindingTarget {

@@ -302,12 +302,20 @@ export const EncoderBindingSchema = z.object({
     press: ActionSchema.optional(),
 })
 
+export const SliderBindingSchema = z.object({
+    map: z.enum(['volume', 'brightness', 'mouse_wheel', 'custom']),
+    min: z.number().optional(),
+    max: z.number().optional(),
+    action: ActionSchema.optional(),
+})
+
 export const LayerSchema = z.object({
     name: z.string(),
     description: z.string().optional(),
     bindings: z.array(ActionSchema),
     encoders: z.array(EncoderBindingSchema).optional(),
     encoderBindings: z.record(z.string(), EncoderBindingSchema).optional(),
+    sliderBindings: z.record(z.string(), SliderBindingSchema).optional(),
 })
 
 export const ComboSchema = z.object({
@@ -748,6 +756,32 @@ export const KeymapSchema = BaseKeymapSchema.superRefine((km, ctx) => {
                     'encoderBindings',
                     k,
                     'press',
+                ])
+        })
+        Object.entries(layer.sliderBindings ?? {}).forEach(([k, s]) => {
+            const ki = Number(k)
+            if (!Number.isInteger(ki) || ki < 0 || ki >= keyCount) {
+                ctx.addIssue({
+                    code: 'custom',
+                    message: `layer "${layer.name}" has a slider binding for key ${k}, out of range 0..${keyCount - 1}`,
+                    path: ['layers', li, 'sliderBindings', k],
+                })
+                return
+            }
+            if (s.min !== undefined && s.max !== undefined && s.min > s.max) {
+                ctx.addIssue({
+                    code: 'custom',
+                    message: `slider binding for key ${k} has min ${s.min} > max ${s.max}`,
+                    path: ['layers', li, 'sliderBindings', k, 'min'],
+                })
+            }
+            if (s.action)
+                checkAction(s.action, [
+                    'layers',
+                    li,
+                    'sliderBindings',
+                    k,
+                    'action',
                 ])
         })
     })
