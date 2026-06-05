@@ -9,6 +9,8 @@ import {
     rowPins,
     setColPin,
     setRowPin,
+    setRowPinsText,
+    setColPinsText,
 } from './builderPins'
 
 // 2 rows × 3 cols grid: transform derives rows=2, cols=3 from position.
@@ -40,6 +42,20 @@ describe('builderPins', () => {
         let c = setRowPin(board(), 1, 'GPx')
         c = setRowPin(c, 1, '   ')
         expect(rowPins(c)[1]).toBe('GP1')
+    })
+
+    it('setRowPinsText / setColPinsText parse a free-text list (space or comma)', () => {
+        let c = setRowPinsText(board(), 'GP10 GP11')
+        c = setColPinsText(c, 'GP20, GP21 GP22')
+        expect(rowPins(c)).toEqual(['GP10', 'GP11'])
+        expect(colPins(c)).toEqual(['GP20', 'GP21', 'GP22'])
+    })
+
+    it('pin-text pads missing positions with defaults and ignores extras', () => {
+        const c = setRowPinsText(board(), 'GP10') // only 1 token for 2 rows
+        expect(rowPins(c)).toEqual(['GP10', 'GP1'])
+        const c2 = setColPinsText(board(), 'a b c d e') // 5 tokens for 3 cols
+        expect(colPins(c2)).toEqual(['a', 'b', 'c'])
     })
 
     it('addRow / addCol grow the transform and pin lists', () => {

@@ -105,6 +105,7 @@ export {
     resolveQmkPin,
     gpioSpec,
     hasZmkPinMap,
+    KNOWN_ZMK_BOARDS,
 } from './pinmaps'
 
 export {

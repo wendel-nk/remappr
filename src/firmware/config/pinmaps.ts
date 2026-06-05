@@ -58,6 +58,11 @@ export const ZMK_PIN_MAPS: Record<string, Record<string, string>> = {
     rpi_pico: rp2040Table(30),
 }
 
+/** Controller boards remappr can resolve friendly pin labels for (→ a real ZMK
+ *  kscan). Surfaced in the builder's board picker; free-text boards still work,
+ *  they just emit a "fill the GpioSpec" comment instead of a resolved spec. */
+export const KNOWN_ZMK_BOARDS: string[] = Object.keys(ZMK_PIN_MAPS).sort()
+
 /** QMK keyboards name their own pins; the friendly label is usually already the
  *  QMK token (RP2040 "GP29"). A sparse per-board alias table overrides the
  *  identity fallback for footprints whose silkscreen ≠ QMK pin name. */

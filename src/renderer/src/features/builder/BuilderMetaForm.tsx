@@ -17,8 +17,11 @@ import type {
     ConfigKeymap,
     ConfigMeta,
     ConfigKeyboard,
+    ConfigHardware,
 } from '@firmware/config'
+import { KNOWN_ZMK_BOARDS } from '@firmware/config'
 import { autoMatrix, matrixDims } from './builderMatrix'
+import { rowPins, colPins, setRowPinsText, setColPinsText } from './builderPins'
 
 /* ── firmware targets ──────────────────────────────────────────────────── */
 interface Firmware {
@@ -90,17 +93,20 @@ function MiniLabel({ children }: { children: React.ReactNode }): JSX.Element {
     )
 }
 
+// pattern-check: skip additive optional `list` (datalist) prop, presentational
 /** Text input that holds a local draft and commits (with history) on blur/Enter. */
 function TextField({
     value,
     onCommit,
     placeholder,
     mono,
+    list,
 }: {
     value: string
     onCommit: (v: string) => void
     placeholder?: string
     mono?: boolean
+    list?: string
 }): JSX.Element {
     const [draft, setDraft] = useState(value)
     const dirty = useRef(false)
@@ -116,6 +122,7 @@ function TextField({
         <input
             value={draft}
             placeholder={placeholder}
+            list={list}
             onChange={(e) => {
                 dirty.current = true
                 setDraft(e.target.value)
@@ -214,6 +221,15 @@ export function BuilderMetaForm(): JSX.Element {
         patchKeyboard({
             hardware: { ...kb.hardware, transform: autoMatrix(kb.keys) },
         })
+
+    // Board/shield writers — drop empties so a keymap-only config stays clean.
+    const setHardware = (p: Partial<ConfigHardware>): void => {
+        const next: ConfigHardware = { ...kb.hardware, ...p }
+        if (!next.board) delete next.board
+        if (!next.shield) delete next.shield
+        const has = Object.values(next).some((v) => v !== undefined)
+        patchKeyboard({ hardware: has ? next : undefined })
+    }
 
     // Lighting writers. `commit` for discrete edits, `liveCommit` for slider drags.
     const setLighting = (
@@ -362,6 +378,49 @@ export function BuilderMetaForm(): JSX.Element {
                 </div>
             </div>
 
+            {/* Controller board — pattern-check: skip presentational form section */}
+            <div>
+                <MiniLabel>Controller board</MiniLabel>
+                <div className="grid grid-cols-2 gap-2">
+                    <div>
+                        <div className="mb-1 text-[11px] text-muted-foreground">
+                            Board
+                        </div>
+                        <TextField
+                            mono
+                            list="zmk-boards"
+                            value={kb.hardware?.board ?? ''}
+                            onCommit={(v) =>
+                                setHardware({ board: v.trim() || undefined })
+                            }
+                            placeholder="nice_nano_v2"
+                        />
+                        <datalist id="zmk-boards">
+                            {KNOWN_ZMK_BOARDS.map((b) => (
+                                <option key={b} value={b} />
+                            ))}
+                        </datalist>
+                    </div>
+                    <div>
+                        <div className="mb-1 text-[11px] text-muted-foreground">
+                            Shield (opt.)
+                        </div>
+                        <TextField
+                            mono
+                            value={kb.hardware?.shield ?? ''}
+                            onCommit={(v) =>
+                                setHardware({ shield: v.trim() || undefined })
+                            }
+                            placeholder="corne_left"
+                        />
+                    </div>
+                </div>
+                <p className="mt-1.5 text-[10.5px] leading-relaxed text-muted-foreground">
+                    Zephyr board id — lets remappr resolve the pins below into a
+                    real, flashable kscan.
+                </p>
+            </div>
+
             {/* Matrix */}
             <div>
                 <MiniLabel>Matrix</MiniLabel>
@@ -387,6 +446,24 @@ export function BuilderMetaForm(): JSX.Element {
                     Auto assigns each key&apos;s row/column from its position.
                     Per-key wiring lands in the inspector.
                 </p>
+                {/* Pin mapping (friendly labels → kscan) */}
+                <div className="mt-2.5 text-[11px] text-muted-foreground">
+                    Pin mapping
+                </div>
+                <div className="mt-1 grid grid-cols-2 gap-2">
+                    <TextField
+                        mono
+                        value={rowPins(config).join(' ')}
+                        onCommit={(v) => commit(setRowPinsText(config, v))}
+                        placeholder="row pins"
+                    />
+                    <TextField
+                        mono
+                        value={colPins(config).join(' ')}
+                        onCommit={(v) => commit(setColPinsText(config, v))}
+                        placeholder="col pins"
+                    />
+                </div>
             </div>
 
             {/* Capabilities */}

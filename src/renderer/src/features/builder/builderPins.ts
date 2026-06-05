@@ -91,6 +91,40 @@ export function setColPin(
     return withPins(config, { rows: rowPins(config), cols }, t.rows, t.columns)
 }
 
+/** Parse a free-text pin list ("GP4 GP5, GP6") into tokens. */
+const splitPins = (text: string): string[] =>
+    text.split(/[\s,]+/).filter(Boolean)
+
+/** Replace every row label from a free-text list (one token per matrix row;
+ *  extra tokens ignored, missing positions fall back to the default label).
+ *  Matches the prototype's single "row pins" field without changing matrix dims. */
+export function setRowPinsText(
+    config: ConfigKeymap,
+    text: string,
+): ConfigKeymap {
+    const t = ensureTransform(config)
+    const tokens = splitPins(text)
+    const rows = Array.from(
+        { length: t.rows },
+        (_, i) => tokens[i] || defaultRowPin(i),
+    )
+    return withPins(config, { rows, cols: colPins(config) }, t.rows, t.columns)
+}
+
+/** Replace every column label from a free-text list (see setRowPinsText). */
+export function setColPinsText(
+    config: ConfigKeymap,
+    text: string,
+): ConfigKeymap {
+    const t = ensureTransform(config)
+    const tokens = splitPins(text)
+    const cols = Array.from(
+        { length: t.columns },
+        (_, j) => tokens[j] || defaultColPin(t.rows, j),
+    )
+    return withPins(config, { rows: rowPins(config), cols }, t.rows, t.columns)
+}
+
 /** Append an unused matrix row (grows the transform; keys are assigned to it
  *  later via the inspector). Returns the new row index too. */
 export function addRow(config: ConfigKeymap): {
