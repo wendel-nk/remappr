@@ -7,7 +7,8 @@
 // key order is fixed so re-saves are stable diffs.
 
 import { friendlyName, resolveKeycode, type Modifier } from './keycodes'
-import { cloneHardware, cloneLighting } from './normalize'
+import { cloneHardware, cloneLighting, parseKeymap } from './normalize'
+import { type TargetDefaults, resolveDefaults } from './defaults'
 import type {
     CanonAction,
     CanonEncoderBinding,
@@ -17,6 +18,14 @@ import type {
     CanonMacroStep,
     ConfigKeymap,
 } from './types'
+
+// The defaults to strip against for the current serialize pass. tap_hold timings
+// are target-dependent (see defaults.ts), and denormalizeAction is called deep
+// inside the tree (layers, encoders, combos, …) — threading the target through
+// every call is noise, so toSurfaceObject sets this once at the top. Safe because
+// serialize is fully synchronous (no await) and single-threaded: one pass owns it
+// start-to-finish. External callers (e.g. the inspector) get the universal base.
+let activeDefaults: TargetDefaults = resolveDefaults(null)
 
 const FRIENDLY_MOD: Record<Modifier, string> = {
     LEFT_CTRL: 'Ctrl',
@@ -48,16 +57,24 @@ const denormalizeHold = (h: CanonHoldTarget): Record<string, unknown> =>
         ? { type: 'modifier', modifier: h.modifier }
         : { type: 'layer', layer: h.layer }
 
+// Emit a timing only when it's set AND differs from the target default — a value
+// equal to the firmware default is implied (the build re-applies it). resolve /
+// flavor have no numeric default, so they round-trip whenever set.
 const withTimings = (
     a: Extract<CanonAction, { type: 'tap_hold' }>,
-): Record<string, unknown> => ({
-    ...(a.tappingTermMs !== undefined
-        ? { tappingTermMs: a.tappingTermMs }
-        : {}),
-    ...(a.quickTapMs !== undefined ? { quickTapMs: a.quickTapMs } : {}),
-    ...(a.resolve !== undefined ? { resolve: a.resolve } : {}),
-    ...(a.flavor !== undefined ? { flavor: a.flavor } : {}),
-})
+): Record<string, unknown> => {
+    const d = activeDefaults.tapHold
+    return {
+        ...(a.tappingTermMs !== undefined && a.tappingTermMs !== d.tappingTermMs
+            ? { tappingTermMs: a.tappingTermMs }
+            : {}),
+        ...(a.quickTapMs !== undefined && a.quickTapMs !== d.quickTapMs
+            ? { quickTapMs: a.quickTapMs }
+            : {}),
+        ...(a.resolve !== undefined ? { resolve: a.resolve } : {}),
+        ...(a.flavor !== undefined ? { flavor: a.flavor } : {}),
+    }
+}
 
 export function denormalizeAction(a: CanonAction): Surface {
     switch (a.type) {
@@ -177,8 +194,22 @@ const denormalizeMacroStep = (s: CanonMacroStep): Record<string, unknown> => {
     return { type: s.type, key: keyToken(s.key, s._keySrc) }
 }
 
+// pattern-check: skip — pure trailing-slice of default elements, no abstraction
+/** Drop trailing transparent bindings: they are the implicit pad value, so a
+ *  layer that only sets its first N keys serializes to just those N (normalize
+ *  re-fills the rest). Keeps middle transparents — positions must stay aligned. */
+function trimTrailingTransparent(bindings: CanonAction[]): CanonAction[] {
+    let end = bindings.length
+    while (end > 0 && bindings[end - 1].type === 'transparent') end--
+    return bindings.slice(0, end)
+}
+
+// pattern-check: skip — geometry default-strip is inline comparison vs defaults table
 /** Build the plain (surface-shaped) object that gets JSON-stringified. */
 export function toSurfaceObject(km: ConfigKeymap): Record<string, unknown> {
+    // Resolve target defaults once for this pass; withTimings reads them.
+    activeDefaults = resolveDefaults(km.meta.target)
+    const g = activeDefaults.geometry
     return {
         schemaVersion: km.schemaVersion,
         kind: km.kind,
@@ -197,12 +228,16 @@ export function toSurfaceObject(km: ConfigKeymap): Record<string, unknown> {
         keyboard: {
             id: km.keyboard.id,
             name: km.keyboard.name,
+            // Geometry: omit every field at its default (x/y/w/h/r) — normalize
+            // re-fills them. Keyboard-specific markers (rx/ry/variant/pin/
+            // element) stay visible whenever set; they are board structure, not
+            // strippable defaults.
             keys: km.keyboard.keys.map((k) => ({
-                x: k.x,
-                y: k.y,
-                ...(k.w !== 1 ? { w: k.w } : {}),
-                ...(k.h !== 1 ? { h: k.h } : {}),
-                ...(k.r !== 0 ? { r: k.r } : {}),
+                ...(k.x !== g.x ? { x: k.x } : {}),
+                ...(k.y !== g.y ? { y: k.y } : {}),
+                ...(k.w !== g.w ? { w: k.w } : {}),
+                ...(k.h !== g.h ? { h: k.h } : {}),
+                ...(k.r !== g.r ? { r: k.r } : {}),
                 ...(k.rx !== undefined ? { rx: k.rx } : {}),
                 ...(k.ry !== undefined ? { ry: k.ry } : {}),
                 ...(k.variant ? { variant: k.variant } : {}),
@@ -246,7 +281,9 @@ export function toSurfaceObject(km: ConfigKeymap): Record<string, unknown> {
         layers: km.layers.map((l) => ({
             name: l.name,
             ...(l.description ? { description: l.description } : {}),
-            bindings: l.bindings.map(denormalizeAction),
+            bindings: trimTrailingTransparent(l.bindings).map(
+                denormalizeAction,
+            ),
             ...(l.encoders
                 ? { encoders: l.encoders.map(denormalizeEncoder) }
                 : {}),
@@ -376,4 +413,25 @@ export function toSurfaceObject(km: ConfigKeymap): Record<string, unknown> {
  *  gone — app-visible notes live in `description` fields instead. */
 export function serializeKeymap(km: ConfigKeymap): string {
     return JSON.stringify(toSurfaceObject(km), null, 2)
+}
+
+// pattern-check: skip — equivalence check picking literal vs canonical text
+/** The JSON to present/export for the "Remappr config" surface. Prefers the
+ *  user's literal `source` when it still normalizes to the same canonical doc —
+ *  this preserves their formatting and explicitly-written default values (e.g.
+ *  `"w": 1`) that a fresh serialize would strip. Falls back to a canonical
+ *  serialize when source is absent or the config has since diverged (canvas edit). */
+export function preferredSourceJson(
+    km: ConfigKeymap,
+    source: string | null,
+): string {
+    if (source) {
+        try {
+            if (serializeKeymap(parseKeymap(source)) === serializeKeymap(km))
+                return source
+        } catch {
+            // stale/invalid source — fall back to canonical
+        }
+    }
+    return serializeKeymap(km)
 }

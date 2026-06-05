@@ -271,8 +271,10 @@ export const ActionSchema = z.union([KeyTokenSchema, ActionObjectSchema])
 /* ── structure ─────────────────────────────────────────────────────────── */
 
 export const GeometrySchema = z.object({
-    x: z.number(),
-    y: z.number(),
+    // x/y default to 0 so a config can omit them (a key at the origin, or in
+    // row/col 0): normalize fills them back. See firmware/config/defaults.ts.
+    x: z.number().default(0),
+    y: z.number().default(0),
     w: z.number().positive().default(1),
     h: z.number().positive().default(1),
     r: z.number().default(0),
@@ -714,10 +716,14 @@ export const KeymapSchema = BaseKeymapSchema.superRefine((km, ctx) => {
     }
 
     km.layers.forEach((layer, li) => {
-        if (layer.bindings.length !== keyCount) {
+        // A layer may UNDER-specify bindings: trailing transparents are dropped
+        // on serialize and padded back on normalize, so fewer-than-keyCount is
+        // valid (the gap is implicitly transparent). Only MORE than keyCount —
+        // bindings with no key to land on — is an error.
+        if (layer.bindings.length > keyCount) {
             ctx.addIssue({
                 code: 'custom',
-                message: `layer "${layer.name}" has ${layer.bindings.length} bindings but the board has ${keyCount} keys`,
+                message: `layer "${layer.name}" has ${layer.bindings.length} bindings but the board has only ${keyCount} keys`,
                 path: ['layers', li, 'bindings'],
             })
         }

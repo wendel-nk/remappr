@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import {
     parseKeymap,
     parseSurface,
+    preferredSourceJson,
     safeParseSurface,
     serializeKeymap,
     ACTION_TYPES,
@@ -64,19 +65,161 @@ describe('config schema', () => {
         }
     })
 
-    it('flags a binding-count mismatch', () => {
+    it('allows an under-specified binding count (trailing transparents padded)', () => {
         const surface = parseSurface(seed)
-        // drop one base binding
-        const broken = {
+        // drop one base binding — the gap is implicitly transparent, so valid
+        const trimmed = {
             ...surface,
             layers: surface.layers.map((l, i) =>
                 i === 0 ? { ...l, bindings: l.bindings.slice(0, -1) } : l,
             ),
         }
-        const res =
-            // re-validate the broken object directly through the schema
-            safeParseSurface(JSON.stringify(broken))
+        const res = safeParseSurface(JSON.stringify(trimmed))
+        expect(res.success).toBe(true)
+    })
+
+    it('flags too many bindings (more than the board has keys)', () => {
+        const surface = parseSurface(seed)
+        // append a stray binding with no key to land on
+        const broken = {
+            ...surface,
+            layers: surface.layers.map((l, i) =>
+                i === 0
+                    ? { ...l, bindings: [...l.bindings, l.bindings[0]] }
+                    : l,
+            ),
+        }
+        const res = safeParseSurface(JSON.stringify(broken))
         expect(res.success).toBe(false)
+    })
+
+    it('drops trailing transparents on serialize and pads them back on parse', () => {
+        const km = parseKeymap(seed)
+        const keyCount = km.keyboard.keys.length
+        // Force a layer's tail to transparent, keeping one real key up front.
+        const sparse = {
+            ...km,
+            layers: km.layers.map((l, i) =>
+                i === 0
+                    ? {
+                          ...l,
+                          bindings: l.bindings.map((b, bi) =>
+                              bi === 0 ? b : ({ type: 'transparent' } as const),
+                          ),
+                      }
+                    : l,
+            ),
+        }
+        const json = serializeKeymap(sparse)
+        const reparsed = JSON.parse(json) as {
+            layers: { bindings: unknown[] }[]
+        }
+        // Only the single real key survives in the emitted JSON…
+        expect(reparsed.layers[0].bindings).toHaveLength(1)
+        // …but normalize re-fills the layer back to one binding per key.
+        const round = parseKeymap(json)
+        expect(round.layers[0].bindings).toHaveLength(keyCount)
+        expect(round.layers[0].bindings[keyCount - 1]).toEqual({
+            type: 'transparent',
+        })
+    })
+
+    it("preferredSourceJson keeps the user's literal text (incl. default values) when in sync", () => {
+        // A hand-written config that spells out a key's default `"w": 1` — a
+        // fresh serialize would strip it; preferredSourceJson must not.
+        const literal = JSON.stringify(
+            {
+                schemaVersion: 1,
+                kind: 'remappr.keymap',
+                meta: { name: 'L', target: 'zmk' },
+                keyboard: {
+                    id: 'l',
+                    name: 'L',
+                    keys: [{ x: 0, y: 0, w: 1 }],
+                },
+                layers: [{ name: 'base', bindings: ['Q'] }],
+            },
+            null,
+            2,
+        )
+        const config = parseKeymap(literal)
+        // canonical serialize drops the explicit default…
+        expect(serializeKeymap(config)).not.toContain('"w": 1')
+        // …but the in-sync literal source is returned verbatim, preserving it.
+        expect(preferredSourceJson(config, literal)).toBe(literal)
+        expect(preferredSourceJson(config, literal)).toContain('"w": 1')
+    })
+
+    it('preferredSourceJson falls back to canonical when source has diverged', () => {
+        const config = parseKeymap(seed)
+        // A stale source from a different board → not in sync → canonical.
+        const stale = '{"different":"config"}'
+        expect(preferredSourceJson(config, stale)).toBe(serializeKeymap(config))
+        expect(preferredSourceJson(config, null)).toBe(serializeKeymap(config))
+    })
+
+    it('strips default geometry (x/y/w/h/r) but keeps keyboard-specific markers', () => {
+        const km = JSON.stringify({
+            schemaVersion: 1,
+            kind: 'remappr.keymap',
+            meta: { name: 'G', target: 'zmk' },
+            keyboard: {
+                id: 'g',
+                name: 'G',
+                keys: [
+                    // origin key, all defaults → serializes to {}
+                    { x: 0, y: 0, w: 1, h: 1, r: 0 },
+                    // only non-default x kept; variant/pin kept (board structure)
+                    { x: 2, y: 0, variant: 'left', pin: 'GP1' },
+                ],
+            },
+            layers: [{ name: 'base', bindings: ['Q', 'W'] }],
+        })
+        const out = JSON.parse(serializeKeymap(parseKeymap(km))) as {
+            keyboard: { keys: Record<string, unknown>[] }
+        }
+        expect(out.keyboard.keys[0]).toEqual({})
+        expect(out.keyboard.keys[1]).toEqual({
+            x: 2,
+            variant: 'left',
+            pin: 'GP1',
+        })
+        // round-trips: normalize re-fills the stripped geometry.
+        const round = parseKeymap(serializeKeymap(parseKeymap(km)))
+        expect(round.keyboard.keys[0]).toMatchObject({ x: 0, y: 0, w: 1, r: 0 })
+        expect(round.keyboard.keys[1]).toMatchObject({ x: 2, y: 0 })
+    })
+
+    it('strips tap-hold timings that equal the target default, per firmware', () => {
+        const make = (target: string): string =>
+            JSON.stringify({
+                schemaVersion: 1,
+                kind: 'remappr.keymap',
+                meta: { name: 'T', target },
+                keyboard: { id: 't', name: 'T', keys: [{ x: 0, y: 0 }] },
+                layers: [
+                    {
+                        name: 'base',
+                        bindings: [
+                            {
+                                type: 'mod_tap',
+                                tap: 'A',
+                                mod: 'LEFT_CTRL',
+                                tappingTermMs: 200, // == default both targets → stripped
+                                quickTapMs: 200, // default differs: zmk 0, qmk 200
+                            },
+                        ],
+                    },
+                ],
+            })
+        // ZMK: quickTapMs default 0, so an explicit 200 is kept; tappingTerm dropped.
+        const zmk = serializeKeymap(parseKeymap(make('zmk')))
+        expect(zmk).not.toContain('tappingTermMs')
+        expect(zmk).toContain('quickTapMs')
+        // QMK: quickTapMs default 200, so BOTH timings drop out.
+        const qmk = serializeKeymap(parseKeymap(make('qmk')))
+        expect(qmk).not.toContain('tappingTermMs')
+        expect(qmk).not.toContain('quickTapMs')
     })
 
     it('exposes the action palette', () => {

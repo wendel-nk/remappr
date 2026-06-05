@@ -279,7 +279,27 @@ function normalizeMacroStep(
     return { type: s.type, key: toCanonical(s.key), _keySrc: s.key }
 }
 
+// pattern-check: skip — positional bindings pad-to-keycount, pure data fill
+// Pad a layer's (possibly under-specified) bindings up to the board's key count
+// with transparent. Trailing transparents are dropped on serialize to keep the
+// config compact; canonical re-fills them so the editor/compiler always see one
+// binding per key.
+const TRANSPARENT: CanonAction = { type: 'transparent' }
+const padBindings = (
+    bindings: CanonAction[],
+    keyCount: number,
+): CanonAction[] =>
+    bindings.length >= keyCount
+        ? bindings
+        : [
+              ...bindings,
+              ...Array.from({ length: keyCount - bindings.length }, () => ({
+                  ...TRANSPARENT,
+              })),
+          ]
+
 export function normalizeKeymap(km: SurfaceKeymap): ConfigKeymap {
+    const keyCount = km.keyboard.keys.length
     return {
         schemaVersion: 1,
         kind: 'remappr.keymap',
@@ -319,7 +339,7 @@ export function normalizeKeymap(km: SurfaceKeymap): ConfigKeymap {
         layers: km.layers.map((l) => ({
             name: l.name,
             ...(l.description ? { description: l.description } : {}),
-            bindings: l.bindings.map(normalizeAction),
+            bindings: padBindings(l.bindings.map(normalizeAction), keyCount),
             ...(l.encoders
                 ? { encoders: l.encoders.map(normalizeEncoder) }
                 : {}),

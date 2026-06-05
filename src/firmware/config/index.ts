@@ -64,9 +64,11 @@ export {
 } from './schema'
 
 export { buildConfigJsonSchema } from './jsonSchema'
+export { type TargetDefaults, resolveDefaults } from './defaults'
 export { normalizeAction, normalizeKeymap, parseKeymap } from './normalize'
 export {
     denormalizeAction,
+    preferredSourceJson,
     serializeKeymap,
     toSurfaceObject,
 } from './serialize'
