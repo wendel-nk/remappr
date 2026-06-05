@@ -77,6 +77,12 @@ export {
     resolveKeyMatrix,
 } from './matrix'
 export { resolveController } from './controller'
+export {
+    checkCompleteness,
+    effectiveFirmware,
+    type FirmwareReadiness,
+    type ReadinessIssue,
+} from './completeness'
 export { normalizeAction, normalizeKeymap, parseKeymap } from './normalize'
 export {
     denormalizeAction,

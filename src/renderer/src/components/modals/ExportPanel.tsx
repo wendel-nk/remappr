@@ -1,30 +1,27 @@
-// Pattern check: no GoF pattern (-) — rejected — presentational shared export
-// panel; per-target compilation delegates to the existing getCompiler() Strategy
-// (firmware/config/compiler.ts) + buildProjectBundle + preferredSourceJson, no
-// new abstraction.
+// pattern-check: skip presentational export panel rewrite, delegates to config layer, no abstraction
 //
 // The shared core of BOTH export surfaces (editor Download + builder
-// BuilderExportModal): a tabbed code preview with copy / download-config /
-// download-project actions and inline diagnostics. Tabs:
-//   • Remappr config — the source-of-truth .json (the user's literal text when
-//     it's still in sync, else a fresh canonical serialize).
-//   • one per compiler target — the ready-to-build firmware config. Its primary
-//     download is the FULL project (.zip): config + GitHub Actions workflow +
-//     README, so a push to GitHub builds the firmware on its own.
-import { useMemo, useState } from 'react'
-import { Code2, Copy, Download, FileJson, Package } from 'lucide-react'
+// BuilderExportModal). The export dialog shows ONLY the remappr source-of-truth
+// .json; each firmware's buildable output is a downloadable PROJECT (.zip) —
+// config + GitHub Actions workflow + README — not a preview tab. A per-firmware
+// readiness checklist (checkCompleteness) surfaces what's still missing (controller,
+// USB ids, matrix pins, Vial UID/unlock) before the user pushes to a build.
+import {
+    CheckCircle2,
+    Copy,
+    FileJson,
+    Package,
+    TriangleAlert,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/ui/button'
-import { Tabs, TabsList, TabsTrigger } from '@/ui/tabs'
-import { downloadExports, exportedContentToString } from '@/lib/blob'
+import { downloadExports } from '@/lib/blob'
 import { zipStore } from '@/lib/zip'
 import {
-    type CompileResult,
     type ConfigKeymap,
     type Target,
     buildProjectBundle,
-    formatPath,
-    getCompiler,
+    checkCompleteness,
     preferredSourceJson,
 } from '@firmware/config'
 import { createLogger } from '@shared/logger'
@@ -37,9 +34,7 @@ const TARGET_LABELS: Record<Target, string> = {
     keychron: 'Keychron',
 }
 
-const NATIVE = 'native'
-
-/** Firmwares (other than the obvious one) a compiler tab also covers, for a
+/** Firmwares (other than the obvious one) a compiler target also covers, for a
  *  small "· covers VIA · Vial" hint so the qmk→via/vial collapse is visible. */
 function alsoCovers(config: ConfigKeymap, target: Target): string[] {
     if (target !== 'qmk') return []
@@ -55,7 +50,7 @@ interface ExportPanelProps {
     config: ConfigKeymap
     /** Raw JSON the config was parsed from, for verbatim "Remappr config" export. */
     source: string | null
-    /** Compiler targets to offer tabs for (defaults to ZMK). */
+    /** Compiler targets to offer project downloads for (defaults to ZMK). */
     targets: Target[]
 }
 
@@ -64,95 +59,31 @@ export function ExportPanel({
     source,
     targets,
 }: ExportPanelProps): JSX.Element {
-    const [tab, setTab] = useState<string>(NATIVE)
-
-    // The active tab can go stale if targets change — fall back to the config tab.
-    const activeTab =
-        tab === NATIVE || targets.includes(tab as Target) ? tab : NATIVE
-
-    // Compile / serialize for the active tab. A compiler throw becomes a single
-    // error diagnostic rather than crashing the panel.
-    const view = useMemo(() => {
-        const id = configId(config)
-        if (activeTab === NATIVE) {
-            return {
-                code: preferredSourceJson(config, source),
-                filename: `${id}.keymap.json`,
-                diagnostics: [] as CompileResult['diagnostics'],
-            }
-        }
-        try {
-            const result = getCompiler(activeTab as Target).compile(config)
-            const primary = result.files[0]
-            return {
-                code: primary ? exportedContentToString(primary.content) : '',
-                filename: primary?.filename ?? `${id}.txt`,
-                diagnostics: result.diagnostics,
-            }
-        } catch (e) {
-            log.error('compile failed', e)
-            return {
-                code: '',
-                filename: `${id}.txt`,
-                diagnostics: [
-                    {
-                        level: 'error' as const,
-                        message: e instanceof Error ? e.message : String(e),
-                        path: [],
-                    },
-                ],
-            }
-        }
-    }, [config, source, activeTab])
-
-    const hasErrors = view.diagnostics.some((d) => d.level === 'error')
-    const isNative = activeTab === NATIVE
+    const id = configId(config)
+    const code = preferredSourceJson(config, source)
+    const filename = `${id}.keymap.json`
+    const readiness = checkCompleteness(config)
 
     const handleCopy = async (): Promise<void> => {
-        if (!view.code) {
-            toast.error('Nothing to copy')
-            return
-        }
         try {
-            await navigator.clipboard.writeText(view.code)
-            toast.success(`${view.filename} copied`)
+            await navigator.clipboard.writeText(code)
+            toast.success(`${filename} copied`)
         } catch (e) {
             log.error('copy failed', e)
             toast.error('Failed to copy to clipboard')
         }
     }
 
-    // The "Remappr config" tab downloads the single .json; a compiler tab
-    // downloads the firmware config file(s) on their own (no scaffolding).
     const handleDownloadConfig = (): void => {
-        if (isNative) {
-            downloadExports([
-                {
-                    filename: view.filename,
-                    mime: 'application/json',
-                    content: view.code,
-                },
-            ])
-            toast.success(`Downloaded ${view.filename}`)
-            return
-        }
-        try {
-            const result = getCompiler(activeTab as Target).compile(config)
-            downloadExports(result.files)
-            toast.success(
-                `${TARGET_LABELS[activeTab as Target]} config downloaded`,
-            )
-        } catch (e) {
-            log.error('download failed', e)
-            toast.error('Failed to compile config')
-        }
+        downloadExports([{ filename, mime: 'application/json', content: code }])
+        toast.success(`Downloaded ${filename}`)
     }
 
-    // A compiler tab's primary action: the whole buildable repo as one .zip —
-    // config + .github/workflows + README — ready to push to GitHub Actions.
-    const handleDownloadProject = (): void => {
+    // Each target's whole buildable repo as one .zip — config + .github/workflows
+    // + README — ready to push to GitHub Actions.
+    const handleDownloadProject = (target: Target): void => {
         try {
-            const bundle = buildProjectBundle(config, activeTab as Target)
+            const bundle = buildProjectBundle(config, target)
             const zip = zipStore(
                 bundle.files.map((f) => ({
                     path: `${bundle.rootName}/${f.filename}`,
@@ -169,7 +100,7 @@ export function ExportPanel({
                     content: zip,
                 },
             ])
-            toast.success('Project bundle downloaded')
+            toast.success(`${TARGET_LABELS[target]} project downloaded`)
         } catch (e) {
             log.error('bundle failed', e)
             toast.error('Failed to build project bundle')
@@ -178,104 +109,116 @@ export function ExportPanel({
 
     return (
         <div className="space-y-4">
-            <Tabs value={activeTab} onValueChange={setTab}>
-                <TabsList className="flex h-auto flex-wrap">
-                    <TabsTrigger value={NATIVE}>Remappr config</TabsTrigger>
-                    {targets.map((t) => (
-                        <TabsTrigger key={t} value={t}>
-                            {TARGET_LABELS[t]}
-                        </TabsTrigger>
-                    ))}
-                </TabsList>
-            </Tabs>
-
-            {/* note line */}
+            {/* Source-of-truth remappr config */}
             <div className="flex items-center gap-2 text-[12.5px] text-muted-foreground">
-                <Code2 className="size-3.5 shrink-0" />
-                {isNative ? (
-                    <span>
-                        The source-of-truth config — drop it into your repo as
-                        the downloadable keymap.
-                    </span>
-                ) : (
-                    <span>
-                        Ready-to-build {TARGET_LABELS[activeTab as Target]}{' '}
-                        config. The project (.zip) includes a GitHub Actions
-                        workflow that builds the firmware on push.
-                        {alsoCovers(config, activeTab as Target).length > 0 &&
-                            ` · covers ${alsoCovers(
-                                config,
-                                activeTab as Target,
-                            ).join(' · ')}`}
-                    </span>
-                )}
+                <FileJson className="size-3.5 shrink-0" />
+                <span>
+                    The source-of-truth remappr config. Firmware projects build
+                    from it — download each as a ready-to-push .zip below.
+                </span>
             </div>
 
-            {/* code preview */}
-            <pre className="m-0 max-h-[42vh] overflow-auto rounded-xl border border-border bg-[oklch(0.16_0_0)] p-3.5 font-mono text-[12px] leading-relaxed text-[oklch(0.9_0_0)]">
-                <code>{view.code || '— empty —'}</code>
+            <pre className="m-0 max-h-[34vh] overflow-auto rounded-xl border border-border bg-[oklch(0.16_0_0)] p-3.5 font-mono text-[12px] leading-relaxed text-[oklch(0.9_0_0)]">
+                <code>{code || '— empty —'}</code>
             </pre>
 
-            {/* diagnostics */}
-            {view.diagnostics.length > 0 && (
-                <ul className="space-y-1.5">
-                    {view.diagnostics.map((d, i) => (
-                        <li
-                            key={i}
-                            data-level={d.level}
-                            className="flex gap-2 rounded-lg border p-2 text-xs data-[level=error]:border-red-500/40 data-[level=error]:bg-red-500/5 data-[level=warn]:border-amber-500/40 data-[level=warn]:bg-amber-500/5"
-                        >
-                            <span>
-                                {d.path.length > 0 && (
-                                    <span className="font-mono font-semibold">
-                                        {formatPath(d.path)}:{' '}
-                                    </span>
-                                )}
-                                {d.message}
-                            </span>
-                        </li>
-                    ))}
-                </ul>
-            )}
-
-            {/* actions */}
             <div className="flex flex-wrap items-center gap-2">
-                {isNative ? (
-                    <Button
-                        onClick={handleDownloadConfig}
-                        disabled={!view.code}
-                        className="flex items-center gap-2"
-                    >
-                        <FileJson className="size-4" /> Download {view.filename}
-                    </Button>
-                ) : (
-                    <>
-                        <Button
-                            onClick={handleDownloadProject}
-                            disabled={hasErrors}
-                            className="flex items-center gap-2"
-                        >
-                            <Package className="size-4" /> Download project
-                            (.zip)
-                        </Button>
-                        <Button
-                            variant="outline"
-                            onClick={handleDownloadConfig}
-                            disabled={hasErrors}
-                            className="flex items-center gap-2"
-                        >
-                            <Download className="size-4" /> Config only
-                        </Button>
-                    </>
-                )}
+                <Button
+                    onClick={handleDownloadConfig}
+                    disabled={!code}
+                    className="flex items-center gap-2"
+                >
+                    <FileJson className="size-4" /> Download {filename}
+                </Button>
                 <Button
                     variant="outline"
                     onClick={handleCopy}
-                    disabled={!view.code}
+                    disabled={!code}
                     className="flex items-center gap-2"
                 >
                     <Copy className="size-4" /> Copy
                 </Button>
+            </div>
+
+            {/* Per-firmware readiness checklist */}
+            <div className="space-y-2">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Firmware readiness
+                </p>
+                <ul className="space-y-1.5">
+                    {readiness.map((r) => (
+                        <li
+                            key={r.firmware}
+                            className="rounded-lg border border-border p-2.5"
+                        >
+                            <div className="flex items-center gap-2 text-[13px] font-semibold">
+                                {r.ready ? (
+                                    <CheckCircle2 className="size-4 text-emerald-500" />
+                                ) : (
+                                    <TriangleAlert className="size-4 text-red-500" />
+                                )}
+                                {r.label}
+                                <span className="text-[11px] font-normal text-muted-foreground">
+                                    {r.ready ? 'ready to build' : 'needs setup'}
+                                </span>
+                            </div>
+                            {r.issues.length > 0 && (
+                                <ul className="mt-1.5 space-y-1 pl-6 text-[11.5px]">
+                                    {r.issues.map((i, idx) => (
+                                        <li
+                                            key={idx}
+                                            data-level={i.level}
+                                            className="text-muted-foreground data-[level=error]:text-red-400"
+                                        >
+                                            {i.level === 'error' ? '• ' : '· '}
+                                            {i.message}
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </li>
+                    ))}
+                </ul>
+            </div>
+
+            {/* Per-target project downloads */}
+            <div className="space-y-2">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Build projects
+                </p>
+                <div className="flex flex-col gap-2">
+                    {targets.map((t) => {
+                        const covers = alsoCovers(config, t)
+                        return (
+                            <div
+                                key={t}
+                                className="flex items-center gap-2 rounded-lg border border-border p-2.5"
+                            >
+                                <div className="flex-1">
+                                    <div className="text-[13px] font-semibold">
+                                        {TARGET_LABELS[t]}
+                                        {covers.length > 0 && (
+                                            <span className="text-[11px] font-normal text-muted-foreground">
+                                                {' '}
+                                                · covers {covers.join(' · ')}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="text-[11px] text-muted-foreground">
+                                        Buildable project (.zip) with a GitHub
+                                        Actions workflow.
+                                    </div>
+                                </div>
+                                <Button
+                                    onClick={() => handleDownloadProject(t)}
+                                    className="flex items-center gap-2"
+                                >
+                                    <Package className="size-4" /> .zip
+                                </Button>
+                            </div>
+                        )
+                    })}
+                </div>
             </div>
         </div>
     )
