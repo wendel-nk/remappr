@@ -80,12 +80,29 @@ describe('buildProjectBundle — ZMK', () => {
     })
 })
 
+const QMK_FULL = `{
+    "schemaVersion": 1, "kind": "remappr.keymap",
+    "meta": { "name": "Plank", "target": "qmk", "author": "me",
+              "vendorId": "0x1234", "productId": "0x5678" },
+    "keyboard": {
+        "id": "plank", "name": "Plank",
+        "keys": [{"x":0,"y":0},{"x":1,"y":0,"w":2}],
+        "controller": {
+            "processor": "atmega32u4", "bootloader": "atmel-dfu",
+            "board": "PROMICRO", "deviceVersion": "1.0.0"
+        },
+        "pins": { "rows": ["B0"], "cols": ["B1", "B2"] }
+    },
+    "layers": [{ "name": "base", "bindings": ["A", "B"] }]
+}`
+
 describe('buildProjectBundle — QMK', () => {
-    it('emits a qmk_userspace skeleton with build target', () => {
+    it('emits a qmk_userspace skeleton with a keyboard.json + build target', () => {
         const b = buildProjectBundle(seedConfig, 'qmk')
         const kb = seedConfig.keyboard.id
         expect(paths(b)).toEqual(
             expect.arrayContaining([
+                `keyboards/${kb}/keyboard.json`,
                 `keyboards/${kb}/keymaps/remappr/keymap.c`,
                 `keyboards/${kb}/keymaps/remappr/rules.mk`,
                 `keyboards/${kb}/keymaps/remappr/config.h`,
@@ -100,5 +117,37 @@ describe('buildProjectBundle — QMK', () => {
         ).toContain('PROGMEM keymaps')
         const manifest = JSON.parse(fileText(b, 'qmk.json'))
         expect(manifest.build_targets).toEqual([[kb, 'remappr']])
+    })
+
+    it('keyboard.json carries identity, matrix pins and a LAYOUT', () => {
+        const b = buildProjectBundle(parseKeymap(QMK_FULL), 'qmk')
+        const json = JSON.parse(fileText(b, 'keyboards/plank/keyboard.json'))
+        expect(json.keyboard_name).toBe('Plank')
+        expect(json.maintainer).toBe('me')
+        expect(json.usb).toEqual({
+            vid: '0x1234',
+            pid: '0x5678',
+            device_version: '1.0.0',
+        })
+        expect(json.processor).toBe('atmega32u4')
+        expect(json.bootloader).toBe('atmel-dfu')
+        expect(json.board).toBe('PROMICRO')
+        expect(json.matrix_pins).toEqual({ rows: ['B0'], cols: ['B1', 'B2'] })
+        expect(json.diode_direction).toBe('COL2ROW')
+        // LAYOUT pairs each key's [row,col] with its placement; w!=1 is kept.
+        expect(json.layouts.LAYOUT.layout).toEqual([
+            { matrix: [0, 0], x: 0, y: 0 },
+            { matrix: [0, 1], x: 1, y: 0, w: 2 },
+        ])
+    })
+
+    it('warns + defaults USB ids when the builder left them unset', () => {
+        const b = buildProjectBundle(seedConfig, 'qmk')
+        const kb = seedConfig.keyboard.id
+        const json = JSON.parse(fileText(b, `keyboards/${kb}/keyboard.json`))
+        expect(json.usb.vid).toBe('0xFEED')
+        expect(
+            b.diagnostics.some((d) => /vendor\/product id/.test(d.message)),
+        ).toBe(true)
     })
 })

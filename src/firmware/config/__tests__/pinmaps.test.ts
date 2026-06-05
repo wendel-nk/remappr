@@ -132,26 +132,26 @@ describe('ZMK synth kscan from pins', () => {
     })
 })
 
-/* ── QMK config.h ──────────────────────────────────────────────────────── */
+/* ── QMK keyboard.json matrix_pins ─────────────────────────────────────── */
 
-describe('QMK config.h pin defines', () => {
-    it('emits MATRIX_ROW_PINS / MATRIX_COL_PINS from pins', () => {
-        const b = buildProjectBundle(parseKeymap(matrixConfig('rp2040')), 'qmk')
-        const configH = String(
-            b.files.find((f) => f.filename.endsWith('config.h'))!.content,
-        )
-        expect(configH).toContain('#define MATRIX_ROW_PINS { GP5 }')
-        expect(configH).toContain('GP6, GP7')
-        expect(configH).toContain('#define MATRIX_COL_PINS { GP6, GP7 }')
-        expect(configH).toContain('#define DIODE_DIRECTION COL2ROW')
+const kbJson = (src: string): Record<string, unknown> => {
+    const b = buildProjectBundle(parseKeymap(src), 'qmk')
+    const f = b.files.find((f) => f.filename.endsWith('keyboard.json'))!
+    return JSON.parse(String(f.content))
+}
+
+describe('QMK keyboard.json matrix_pins', () => {
+    it('emits matrix_pins cols/rows + diode_direction from friendly pins', () => {
+        const json = kbJson(matrixConfig('rp2040'))
+        expect(json.matrix_pins).toEqual({
+            rows: ['GP5'],
+            cols: ['GP6', 'GP7'],
+        })
+        expect(json.diode_direction).toBe('COL2ROW')
     })
 
-    it('emits DIRECT_PINS from per-key pins and warns to reshape', () => {
-        const b = buildProjectBundle(parseKeymap(directConfig), 'qmk')
-        const configH = String(
-            b.files.find((f) => f.filename.endsWith('config.h'))!.content,
-        )
-        expect(configH).toContain('#define DIRECT_PINS {{ GP2, GP3 }}')
-        expect(b.diagnostics.some((d) => /reshape/.test(d.message))).toBe(true)
+    it('emits a direct-pin grid placed by [row,col] from per-key pins', () => {
+        const json = kbJson(directConfig)
+        expect(json.matrix_pins).toEqual({ direct: [['GP2', 'GP3']] })
     })
 })
