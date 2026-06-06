@@ -42,12 +42,12 @@ import useConfigStore from '@/stores/configStore'
 import {
     addKey,
     duplicateKeys,
-    newBoardConfig,
     removeKeys,
     snap as snapStep,
     updateKeys,
 } from './geometryEditor'
-import { matrixDims } from './builderMatrix'
+import { defaultBoardConfig } from './builderPresets'
+import { displayMatrixDims } from './builderMatrix'
 import { BuilderCanvas } from './BuilderCanvas'
 import { BuilderLayersPanel } from './BuilderLayersPanel'
 import { BuilderMetaForm } from './BuilderMetaForm'
@@ -288,19 +288,12 @@ export function FullScreenBuilder(): JSX.Element {
         toast.success(`Saved "${config.meta.name}" to your library`)
     }
 
-    // Seed a default from-scratch board the first time the builder opens with no
-    // config loaded (a connected device would already have seeded configStore).
+    // Seed a complete default board (the showcase preset) the first time the
+    // builder opens with no config loaded, so closing the start dialog without
+    // picking still leaves a usable keyboard — not a grid of transparent keys.
+    // (A connected device would already have seeded configStore.)
     useEffect(() => {
-        if (!config) {
-            setConfig(
-                newBoardConfig({
-                    name: 'My Keyboard',
-                    rows: 4,
-                    cols: 12,
-                    target: 'zmk',
-                }),
-            )
-        }
+        if (!config) setConfig(defaultBoardConfig())
     }, [config, setConfig])
 
     // Keyboard shortcuts (ported from the prototype): undo/redo, select-all,
@@ -388,7 +381,8 @@ export function FullScreenBuilder(): JSX.Element {
     }, [])
 
     // Matrix dimensions: the committed transform, else position-derived bands.
-    const dims = matrixDims(config)
+    // Split boards show per-half dims (each half is its own matrix).
+    const dims = displayMatrixDims(config)
     const keyCount = config?.keyboard.keys.length ?? 0
 
     return (
@@ -431,7 +425,8 @@ export function FullScreenBuilder(): JSX.Element {
                             </span>
                         )}
                         <span className="text-[11px] font-semibold text-muted-foreground">
-                            {dims.rows}×{dims.cols} · {keyCount} keys
+                            {dims.rows}×{dims.cols}
+                            {dims.perHalf ? ' per half' : ''} · {keyCount} keys
                         </span>
                     </div>
                 </div>

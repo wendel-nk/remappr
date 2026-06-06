@@ -10,9 +10,15 @@
 // becomes a transparent key. `guessCategory` is kept for cap colouring.
 
 import type { KeyCategory } from '@/lib/keymap/keyCategory'
-import type { CanonAction, CanonGeometry } from '@firmware/config'
+import type {
+    CanonAction,
+    CanonGeometry,
+    ConfigKeymap,
+    Target,
+} from '@firmware/config'
 import { resolveKeycode } from '@firmware/config'
 import { normalizeBoard } from './builderMatrix'
+import { newBoardConfig, replaceGeometry } from './geometryEditor'
 
 const r3 = (v: number): number => Math.round(v * 1000) / 1000
 
@@ -29,6 +35,50 @@ export function actionFromToken(tok: string): CanonAction {
     if (!t) return { type: 'transparent' }
     const key = resolveKeycode(t)
     return key ? { type: 'key_press', key } : { type: 'transparent' }
+}
+
+/** Options carried by a preset (or grid/KLE import) when it lands on the board. */
+export interface ApplyPresetOpts {
+    firmware?: string[]
+    tokens?: string[]
+    split?: boolean
+    controller?: { board?: string; shield?: string }
+}
+
+// pattern-check: skip shared pure preset-apply transform, dedups modal + seed, no abstraction
+/** Land a fresh geometry on `config`: swap the keys (resets bindings), seed the
+ *  base-layer legend from `tokens`, and carry the preset's firmware/split/controller.
+ *  Pure — the single source of truth used by both the "Build from" modal and the
+ *  builder's first-open seed, so an unattended start is as complete as a picked preset. */
+export function applyPresetGeometry(
+    config: ConfigKeymap,
+    keys: CanonGeometry[],
+    opts: ApplyPresetOpts = {},
+): ConfigKeymap {
+    let next = replaceGeometry(config, keys)
+    const keyboard = { ...next.keyboard }
+    if (opts.firmware) keyboard.firmware = opts.firmware
+    if (opts.split !== undefined) keyboard.split = opts.split
+    if (opts.controller)
+        keyboard.controller = { ...keyboard.controller, ...opts.controller }
+    next = { ...next, keyboard }
+    if (opts.tokens) {
+        const tokens = opts.tokens
+        next = {
+            ...next,
+            layers: next.layers.map((l, i) =>
+                i === 0
+                    ? {
+                          ...l,
+                          bindings: keys.map((_k, j) =>
+                              actionFromToken(tokens[j] ?? ''),
+                          ),
+                      }
+                    : l,
+            ),
+        }
+    }
+    return next
 }
 
 /** Best-effort legend → function category, for cap colouring (ported guessCat). */
@@ -332,6 +382,11 @@ export interface BuilderPreset {
     /** Firmware targets this preset naturally builds for — preselected on apply
      *  (wireless/split → ZMK; ortho / macro / numpad → QMK + VIA). */
     firmware: string[]
+    /** Controller identity for well-known boards — seeded on apply so the export
+     *  readiness check isn't flagging a board the preset already implies (e.g. the
+     *  Corne is a nice_nano_v2 + corne_left shield). Omitted where the MCU is a
+     *  genuine user choice (generic ortho / numpad / macro). */
+    controller?: { board?: string; shield?: string }
     /** Physical layout + base-layer legend. */
     build: () => PresetBuild
 }
@@ -345,6 +400,7 @@ export const PRESETS: BuilderPreset[] = [
         icon: 'split',
         split: true,
         firmware: ['zmk'],
+        controller: { board: 'nice_nano_v2', shield: 'corne_left' },
         build: presetCorne,
     },
     {
@@ -396,6 +452,32 @@ export const PRESETS: BuilderPreset[] = [
         build: () => ({ keys: [key({})], tokens: [''] }),
     },
 ]
+
+/** Preset the builder seeds when it opens with no config — so closing the start
+ *  dialog without picking still leaves a complete, usable board (not a grid of
+ *  transparent placeholders). The Corne is the showcase default. */
+export const DEFAULT_PRESET_ID = 'corne'
+
+// pattern-check: skip thin compose of newBoardConfig + applyPresetGeometry for the default seed, no abstraction
+/** Build a complete starting config from the default preset (full geometry +
+ *  base-layer legend + firmware/split/controller). Used as the builder's first-open
+ *  seed; mirrors picking that preset from the "Build from" modal. */
+export function defaultBoardConfig(): ConfigKeymap {
+    const p = PRESETS.find((x) => x.id === DEFAULT_PRESET_ID) ?? PRESETS[0]
+    const built = p.build()
+    const base = newBoardConfig({
+        name: 'My Keyboard',
+        rows: 4,
+        cols: 12,
+        target: (p.firmware[0] as Target) ?? 'zmk',
+    })
+    return applyPresetGeometry(base, built.keys, {
+        firmware: p.firmware,
+        tokens: built.tokens,
+        split: p.split,
+        controller: p.controller,
+    })
+}
 
 /* ── KLE raw-data → geometry ───────────────────────────────────────────── */
 

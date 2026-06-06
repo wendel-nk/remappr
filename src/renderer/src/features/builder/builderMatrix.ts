@@ -77,6 +77,43 @@ export function matrixDims(config: ConfigKeymap | null): MatrixDims {
     return configMatrixDims(config)
 }
 
+export interface DisplayMatrixDims extends MatrixDims {
+    /** True when `rows`/`cols` describe one half of a split board (each half is
+     *  wired to its own controller), so the UI can label it "per half". */
+    perHalf: boolean
+}
+
+// pattern-check: skip — split-aware label helper composing matrixDims/splitInfo/deriveMatrix, no abstraction
+/** Rows × columns to *show* in the builder. The internal `matrixDims` reports the
+ *  unified grid (left + right halves concatenated, e.g. 4×12 for a Corne) because
+ *  pin-mapping and per-key editing index into one matrix. But a split is two
+ *  independent matrices, so each half is really 4×6 — that's what a user expects
+ *  to see. When the board is split, this derives the larger half's own dims and
+ *  flags `perHalf`; otherwise it's the unified dims with `perHalf: false`. */
+export function displayMatrixDims(
+    config: ConfigKeymap | null,
+): DisplayMatrixDims {
+    const unified = matrixDims(config)
+    if (!config?.keyboard.split) return { ...unified, perHalf: false }
+    const keys = config.keyboard.keys
+    const split = splitInfo(keys)
+    if (!split) return { ...unified, perHalf: false }
+    const halves = [
+        keys.filter((k) => k.x + k.w / 2 < split.mid),
+        keys.filter((k) => k.x + k.w / 2 >= split.mid),
+    ]
+    let rows = 0
+    let cols = 0
+    for (const half of halves) {
+        if (!half.length) continue
+        const m = deriveMatrix(half)
+        rows = Math.max(rows, m.rows)
+        cols = Math.max(cols, m.columns)
+    }
+    if (!rows || !cols) return { ...unified, perHalf: false }
+    return { rows, cols, perHalf: true }
+}
+
 export interface SplitInfo {
     mid: number
     gap: number

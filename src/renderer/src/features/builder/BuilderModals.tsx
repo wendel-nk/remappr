@@ -23,11 +23,12 @@ import { Input } from '@/ui/input'
 import useBuilderStore from '@/stores/builderStore'
 import useConfigStore from '@/stores/configStore'
 import type { CanonGeometry } from '@firmware/config'
-import { clampDim, gridKeys, replaceGeometry } from './geometryEditor'
+import { clampDim, gridKeys } from './geometryEditor'
 import {
     PRESETS,
-    actionFromToken,
+    applyPresetGeometry,
     parseKleGeometry,
+    type ApplyPresetOpts,
     type BuilderPreset,
 } from './builderPresets'
 
@@ -41,11 +42,13 @@ const PRESET_ICON: Record<BuilderPreset['icon'], JSX.Element> = {
 // pattern-check: skip presentational apply-geometry hook with token→binding seeding, no abstraction
 /** Shared: apply a fresh geometry to the board + reset the transient view.
  *  `opts.firmware` preselects the firmware targets; `opts.tokens` (index-aligned
- *  to `keys`) seeds the base-layer legend. Presets carry both; grid/KLE pass
- *  nothing (current firmware kept, keys land transparent). */
+ *  to `keys`) seeds the base-layer legend; `opts.split` sets the two-piece flag;
+ *  `opts.controller` seeds a well-known board/shield. Presets carry these; grid/KLE
+ *  pass nothing (current firmware/split kept, keys land transparent). */
+// pattern-check: skip refactor to shared applyPresetGeometry helper, net deletion no abstraction
 function useApplyGeometry(): (
     keys: CanonGeometry[],
-    opts?: { firmware?: string[]; tokens?: string[] },
+    opts?: ApplyPresetOpts,
 ) => void {
     const commit = useBuilderStore((s) => s.commit)
     const clearSelection = useBuilderStore((s) => s.clearSelection)
@@ -54,29 +57,7 @@ function useApplyGeometry(): (
     return (keys, opts) => {
         const config = useConfigStore.getState().config
         if (!config) return
-        let next = replaceGeometry(config, keys)
-        if (opts?.firmware)
-            next = {
-                ...next,
-                keyboard: { ...next.keyboard, firmware: opts.firmware },
-            }
-        if (opts?.tokens) {
-            const tokens = opts.tokens
-            next = {
-                ...next,
-                layers: next.layers.map((l, i) =>
-                    i === 0
-                        ? {
-                              ...l,
-                              bindings: keys.map((_k, j) =>
-                                  actionFromToken(tokens[j] ?? ''),
-                              ),
-                          }
-                        : l,
-                ),
-            }
-        }
-        commit(next)
+        commit(applyPresetGeometry(config, keys, opts))
         clearSelection()
         setActiveLayer(0)
         resetView()
@@ -111,6 +92,8 @@ export function PresetModal({
                             apply(b.keys, {
                                 firmware: p.firmware,
                                 tokens: b.tokens,
+                                split: p.split,
+                                controller: p.controller,
                             })
                             onClose()
                         }}

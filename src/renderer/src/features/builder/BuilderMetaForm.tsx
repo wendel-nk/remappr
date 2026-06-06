@@ -40,7 +40,7 @@ import {
     materializeMatrix,
     resolveZmkConfFlags,
 } from '@firmware/config'
-import { matrixDims } from './builderMatrix'
+import { displayMatrixDims } from './builderMatrix'
 import { rowPins, colPins, setRowPinsText, setColPinsText } from './builderPins'
 import { setMatrixMeta } from './builderInspectorOps'
 
@@ -299,7 +299,7 @@ export function BuilderMetaForm(): JSX.Element {
 
     const meta = config.meta
     const kb = config.keyboard
-    const dims = matrixDims(config)
+    const dims = displayMatrixDims(config)
     const targets = kb.firmware ?? []
     const kt = keyboardTypeFor(targets)
     const L: CanonLighting = kb.lighting ?? {}
@@ -731,7 +731,8 @@ export function BuilderMetaForm(): JSX.Element {
                             {dims.rows} × {dims.cols}
                         </div>
                         <div className="text-[11px] text-muted-foreground">
-                            rows × columns · {kb.keys.length} keys
+                            rows × columns{dims.perHalf ? ' per half' : ''} ·{' '}
+                            {kb.keys.length} keys
                             {kb.keys.some((k) => k.matrix) ? ' · wired' : ''}
                         </div>
                     </div>
