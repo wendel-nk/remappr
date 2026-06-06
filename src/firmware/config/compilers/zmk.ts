@@ -320,10 +320,73 @@ function emitChosen(
 }
 
 // ── full-parity peripheral overlay nodes ────────────────────────────────────
+// pattern-check: skip SoC classifier + pinctrl string-emit helpers, no abstraction
 // Parse an nRF pin label "P0.13" → {port:0, pin:13}; null if not that form.
 function parseNrfPin(s: string): { port: number; pin: number } | null {
     const m = /^P(\d+)\.(\d+)$/i.exec(s.trim())
     return m ? { port: Number(m[1]), pin: Number(m[2]) } : null
+}
+
+// Which ZMK SoC family a controller board belongs to. Pin-mux (pinctrl) syntax is
+// SoC-specific — only nRF gets full NRF_PSEL generation; others get a labelled
+// FIXME scaffold the user completes with their board's pinctrl bindings.
+type ZmkSoc = 'nrf' | 'rp2040' | 'unknown'
+function boardSoc(board: string | undefined): ZmkSoc {
+    const b = (board ?? '').toLowerCase()
+    if (!b) return 'unknown'
+    if (b.includes('nrf') || b.includes('nice_nano') || b.includes('xiao_ble'))
+        return 'nrf'
+    if (b.includes('rp2040') || b.includes('pico')) return 'rp2040'
+    return 'unknown'
+}
+
+// A default+sleep pinctrl group pair for an nRF instance, both pointing at the
+// same psel (sleep adds low-power-enable). Shared by the PWM + SPI emitters.
+function nrfPinctrlPair(instance: string, psel: string): string[] {
+    return [
+        `    ${instance}_default: ${instance}_default {`,
+        `        group1 {`,
+        `            psels = <${psel}>;`,
+        `        };`,
+        `    };`,
+        `    ${instance}_sleep: ${instance}_sleep {`,
+        `        group1 {`,
+        `            psels = <${psel}>;`,
+        `            low-power-enable;`,
+        `        };`,
+        `    };`,
+    ]
+}
+
+// A clearly-FIXME pinctrl scaffold for non-nRF SoCs: the default+sleep groups
+// exist (so the &instance block's pinctrl-0/-1 refs resolve) but the pin-mux is
+// a placeholder the user must replace with their board's binding. nRF uses
+// `psels = <NRF_PSEL(...)>`; RP2040 uses `pinmux = <…>` from the rpi-pico header.
+function fixmePinctrlPair(
+    instance: string,
+    soc: ZmkSoc,
+    pin: string,
+    fn: string,
+): string[] {
+    const hint =
+        soc === 'rp2040'
+            ? 'RP2040: pinmux = <…> from <zephyr/dt-bindings/pinctrl/rpi-pico-rp2040-pinctrl.h>'
+            : 'set your SoC pin-mux (nRF: psels=<NRF_PSEL(…)>; RP2040: pinmux=<…>)'
+    const group = (extra: string[]): string[] => [
+        `        /* FIXME (${soc}): pin-mux for ${fn} pin "${pin}" — ${hint}. */`,
+        `        group1 {`,
+        `            psels = <0>;`,
+        ...extra,
+        `        };`,
+    ]
+    return [
+        `    ${instance}_default: ${instance}_default {`,
+        ...group([]),
+        `    };`,
+        `    ${instance}_sleep: ${instance}_sleep {`,
+        ...group([`            low-power-enable;`]),
+        `    };`,
+    ]
 }
 
 // Resolve a single control/data pin label → a devicetree GPIO core "&gpioN M".
@@ -376,12 +439,15 @@ function emitExtPowerGeneric(
     ]
 }
 
-// Backlight: the `pwm-leds` root node + the `&pwm<n>` override + the `&pinctrl`
-// group pair. When the pin isn't an nRF "P<port>.<pin>" we skip the psel/pinctrl
-// (board overlay must wire it) and warn.
+// pattern-check: skip SoC-aware branch in existing PWM emitter, conditional string building no abstraction
+// Backlight: the `pwm-leds` root node + the `&pwm<n>` override + a `&pinctrl`
+// group pair. nRF "P<port>.<pin>" pins get a real NRF_PSEL; other SoCs get a
+// labelled FIXME pinctrl scaffold (the block is always emitted so the structure
+// is complete — the user fills the board-specific pin-mux).
 function emitBacklightPwm(
     bl: CanonBacklightPwm,
     diag: DiagnosticBag,
+    board: string | undefined,
 ): { root: string[]; pinctrl: string[]; block: string[] } {
     const period = bl.periodMs ?? 10
     const polarity = bl.inverted
@@ -395,28 +461,6 @@ function emitBacklightPwm(
         `        };`,
         `    };`,
     ]
-    const p = parseNrfPin(bl.pin)
-    if (!p) {
-        diag.warn(
-            `backlight pin "${bl.pin}" is not an nRF "P<port>.<pin>" — wire &${bl.instance} pinctrl in your board overlay`,
-            ['keyboard', 'hardware', 'backlightPwm'],
-        )
-        return { root, pinctrl: [], block: [] }
-    }
-    const psel = `NRF_PSEL(PWM_OUT${bl.channel}, ${p.port}, ${p.pin})`
-    const pinctrl = [
-        `    ${bl.instance}_default: ${bl.instance}_default {`,
-        `        group1 {`,
-        `            psels = <${psel}>;`,
-        `        };`,
-        `    };`,
-        `    ${bl.instance}_sleep: ${bl.instance}_sleep {`,
-        `        group1 {`,
-        `            psels = <${psel}>;`,
-        `            low-power-enable;`,
-        `        };`,
-        `    };`,
-    ]
     const block = [
         `&${bl.instance} {`,
         `    status = "okay";`,
@@ -425,20 +469,47 @@ function emitBacklightPwm(
         `    pinctrl-names = "default", "sleep";`,
         `};`,
     ]
-    return { root, pinctrl, block }
+    const soc = boardSoc(board)
+    const p = parseNrfPin(bl.pin)
+    if (soc === 'nrf' && p) {
+        const psel = `NRF_PSEL(PWM_OUT${bl.channel}, ${p.port}, ${p.pin})`
+        return { root, pinctrl: nrfPinctrlPair(bl.instance, psel), block }
+    }
+    diag.warn(
+        `backlight pin "${bl.pin}" on a ${soc} board — pinctrl emitted as a FIXME scaffold; complete the &${bl.instance} pin-mux for your board`,
+        ['keyboard', 'hardware', 'backlightPwm'],
+    )
+    return {
+        root,
+        pinctrl: fixmePinctrlPair(bl.instance, soc, bl.pin, 'PWM backlight'),
+        block,
+    }
 }
 
+// pattern-check: skip SoC-aware branch in existing SPI/underglow emitter, conditional string building no abstraction
 // Underglow: the `&spi<n>` block with a `worldsemi,ws2812-spi` led_strip child +
-// the `&pinctrl` MOSI group pair. Degrades to a warn when the pin isn't nRF form.
+// a `&pinctrl` MOSI group pair. The SPI controller `compatible` + pin-mux are
+// SoC-specific: nRF emits `nordic,nrf-spim` + a real NRF_PSEL; other SoCs emit
+// the matching `compatible` (best-effort) + a FIXME pinctrl scaffold to complete.
 function emitWs2812(
     ws: CanonWs2812,
     diag: DiagnosticBag,
+    board: string | undefined,
 ): { pinctrl: string[]; block: string[] } {
     const freq = ws.spiMaxFrequency ?? 4000000
     const mapping = colorMapping(ws.colorOrder ?? 'GRB')
+    const soc = boardSoc(board)
+    const spiCompatible =
+        soc === 'rp2040' ? 'raspberrypi,pico-spi' : 'nordic,nrf-spim'
     const block = [
         `&${ws.spi} {`,
-        `    compatible = "nordic,nrf-spim";`,
+        ...(soc === 'nrf'
+            ? []
+            : [
+                  `    /* FIXME (${soc}): verify the SPI controller compatible + that ws2812-over-SPI`,
+                  `       suits this SoC (RP2040 underglow is often PIO-based, not SPI). */`,
+              ]),
+        `    compatible = "${spiCompatible}";`,
         `    status = "okay";`,
         `    pinctrl-0 = <&${ws.spi}_default>;`,
         `    pinctrl-1 = <&${ws.spi}_sleep>;`,
@@ -456,28 +527,18 @@ function emitWs2812(
         `};`,
     ]
     const p = parseNrfPin(ws.dataPin)
-    if (!p) {
-        diag.warn(
-            `WS2812 data pin "${ws.dataPin}" is not an nRF "P<port>.<pin>" — wire &${ws.spi} pinctrl in your board overlay`,
-            ['keyboard', 'hardware', 'ws2812'],
-        )
-        return { pinctrl: [], block }
+    if (soc === 'nrf' && p) {
+        const psel = `NRF_PSEL(SPIM_MOSI, ${p.port}, ${p.pin})`
+        return { pinctrl: nrfPinctrlPair(ws.spi, psel), block }
     }
-    const psel = `NRF_PSEL(SPIM_MOSI, ${p.port}, ${p.pin})`
-    const pinctrl = [
-        `    ${ws.spi}_default: ${ws.spi}_default {`,
-        `        group1 {`,
-        `            psels = <${psel}>;`,
-        `        };`,
-        `    };`,
-        `    ${ws.spi}_sleep: ${ws.spi}_sleep {`,
-        `        group1 {`,
-        `            psels = <${psel}>;`,
-        `            low-power-enable;`,
-        `        };`,
-        `    };`,
-    ]
-    return { pinctrl, block }
+    diag.warn(
+        `WS2812 data pin "${ws.dataPin}" on a ${soc} board — pinctrl emitted as a FIXME scaffold; complete the &${ws.spi} pin-mux (and verify ws2812-over-SPI fits this SoC)`,
+        ['keyboard', 'hardware', 'ws2812'],
+    )
+    return {
+        pinctrl: fixmePinctrlPair(ws.spi, soc, ws.dataPin, 'WS2812 SPI MOSI'),
+        block,
+    }
 }
 
 // CDC-ACM endpoint for ZMK Studio's RPC-over-USB transport.
@@ -1127,8 +1188,10 @@ function emitOverlay(config: ConfigKeymap, diag: DiagnosticBag): ExportedFile {
     const extPowerNode = hw?.extPowerCtrl
         ? emitExtPowerGeneric(hw.extPowerCtrl, diag)
         : []
-    const bl = hw?.backlightPwm ? emitBacklightPwm(hw.backlightPwm, diag) : null
-    const ws = hw?.ws2812 ? emitWs2812(hw.ws2812, diag) : null
+    const bl = hw?.backlightPwm
+        ? emitBacklightPwm(hw.backlightPwm, diag, ctrl.board)
+        : null
+    const ws = hw?.ws2812 ? emitWs2812(hw.ws2812, diag, ctrl.board) : null
     const studio = hw?.studioAcm ? emitStudioAcm() : []
 
     const rootPeripherals = [
@@ -1269,8 +1332,10 @@ function emitSplitOverlay(
     const extPowerNode = hw?.extPowerCtrl
         ? emitExtPowerGeneric(hw.extPowerCtrl, diag)
         : []
-    const bl = hw?.backlightPwm ? emitBacklightPwm(hw.backlightPwm, diag) : null
-    const ws = hw?.ws2812 ? emitWs2812(hw.ws2812, diag) : null
+    const bl = hw?.backlightPwm
+        ? emitBacklightPwm(hw.backlightPwm, diag, board)
+        : null
+    const ws = hw?.ws2812 ? emitWs2812(hw.ws2812, diag, board) : null
     const studio = hw?.studioAcm ? emitStudioAcm() : []
     const rootPeripherals = [
         ...(extPowerNode.length ? [``, ...extPowerNode] : []),

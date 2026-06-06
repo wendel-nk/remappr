@@ -60,6 +60,26 @@ const HW_FULL = `{
     "layers": [{ "name": "base", "bindings": ["A", "B"] }]
 }`
 
+// Same peripherals on a non-nRF (RP2040) board: pins aren't nRF "P<port>.<pin>".
+const HW_RP2040 = `{
+    "schemaVersion": 1, "kind": "remappr.keymap",
+    "meta": { "name": "Board Z", "target": "zmk" },
+    "keyboard": {
+        "id": "board_z", "name": "Board Z",
+        "keys": [{"x":0,"y":0},{"x":1,"y":0}],
+        "controller": { "board": "sparkfun_pro_micro_rp2040", "shield": "boardz" },
+        "hardware": {
+            "kscan": {
+                "type": "matrix", "diodeDirection": "col2row",
+                "rowGpios": ["&gpio0 5 X"], "colGpios": ["&gpio0 6 X"]
+            },
+            "backlightPwm": { "instance": "pwm0", "channel": 0, "pin": "GP4" },
+            "ws2812": { "spi": "spi0", "dataPin": "GP16", "chainLength": 8 }
+        }
+    },
+    "layers": [{ "name": "base", "bindings": ["A", "B"] }]
+}`
+
 // A split board: two 2×2 clusters separated by a clear horizontal gap, shield
 // "mysplit_left" (base "mysplit"), four column pins (2 per half).
 const SPLIT = `{
@@ -170,6 +190,26 @@ describe('buildProjectBundle — ZMK', () => {
         expect(conf).toContain('CONFIG_ZMK_EXT_POWER=y')
         expect(conf).toContain('CONFIG_ZMK_BLE=y')
         expect(conf).toContain('CONFIG_ZMK_STUDIO_TRANSPORT_UART=y')
+    })
+
+    it('scaffolds peripheral pinctrl (not drops it) on a non-nRF board', () => {
+        const b = buildProjectBundle(parseKeymap(HW_RP2040), 'zmk')
+        const overlay = fileText(
+            b,
+            'config/boards/shields/boardz/BOARDZ.overlay',
+        )
+        // backlight &pwm block is still emitted (was previously dropped)
+        expect(overlay).toContain('&pwm0 {')
+        expect(overlay).toContain('pinctrl-0 = <&pwm0_default>')
+        // SPI compatible is SoC-aware, not hardcoded nordic
+        expect(overlay).toContain('compatible = "raspberrypi,pico-spi"')
+        expect(overlay).not.toContain('nordic,nrf-spim')
+        // pinctrl groups exist as a labelled FIXME scaffold (so refs resolve), not
+        // a real nRF psel
+        expect(overlay).toContain('pwm0_default: pwm0_default')
+        expect(overlay).toContain('spi0_default: spi0_default')
+        expect(overlay).toContain('FIXME (rp2040)')
+        expect(overlay).not.toContain('NRF_PSEL')
     })
 
     it('emits a real split shield (shared dtsi + two half overlays)', () => {
