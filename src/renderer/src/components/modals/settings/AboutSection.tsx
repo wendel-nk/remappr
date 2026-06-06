@@ -7,16 +7,11 @@ import { APP_VERSION } from '@/lib/constants'
 import { isElectron as isElectronEnv } from '@/transport'
 import type { UpdateCheckResultPayload } from '../../../../../shared/ipc-types'
 import { IpcChannels } from '../../../../../shared/ipc-types'
-
-interface ElectronWindow {
-    api?: {
-        invoke: (channel: string, ...args: unknown[]) => Promise<unknown>
-    }
-}
+import { getApi } from '@/electron/api'
 
 export function AboutSection(): JSX.Element {
     const [checking, setChecking] = useState(false)
-    const api = (window as unknown as ElectronWindow).api
+    const api = getApi()
     const isElectron = isElectronEnv()
 
     const handleCheckUpdates = async (): Promise<void> => {

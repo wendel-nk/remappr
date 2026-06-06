@@ -31,57 +31,33 @@ import type {
     CanonLighting,
     CanonVial,
     ConfigHardware,
+    ConfigKeyboard,
     ConfigKeymap,
     ConfigMeta,
-    ConfigKeyboard,
 } from '@firmware/config'
 import {
-    KNOWN_ZMK_BOARDS,
+    BUILDER_FIRMWARE_TARGETS,
     checkCompleteness,
     deriveQmkConfigH,
     deriveQmkRulesMk,
     deriveZmkConf,
+    KNOWN_ZMK_BOARDS,
     materializeMatrix,
+    parseUid,
+    parseUnlock,
+    randomUid,
     resolveZmkConfFlags,
+    uidToHex,
+    unlockToText,
 } from '@firmware/config'
+import { MiniLabel } from './MiniLabel'
 import { displayMatrixDims } from './builderMatrix'
-import { rowPins, colPins, setRowPinsText, setColPinsText } from './builderPins'
+import { colPins, rowPins, setColPinsText, setRowPinsText } from './builderPins'
 import { keyMatrix, setMatrixMeta } from './builderInspectorOps'
 
 /* ── firmware targets ──────────────────────────────────────────────────── */
-interface Firmware {
-    id: string
-    name: string
-    blurb: string
-    wireless: boolean
-}
-const FIRMWARES: Firmware[] = [
-    {
-        id: 'qmk',
-        name: 'QMK',
-        blurb: 'C firmware · info.json + keymap',
-        wireless: false,
-    },
-    {
-        id: 'via',
-        name: 'VIA',
-        blurb: 'Live remap · v3 definition',
-        wireless: false,
-    },
-    {
-        id: 'vial',
-        name: 'Vial',
-        blurb: 'On-device · VIA + vial.json',
-        wireless: false,
-    },
-    {
-        id: 'zmk',
-        name: 'ZMK',
-        blurb: 'Wireless · devicetree keymap',
-        wireless: true,
-    },
-]
 
+// pattern-check: skip — firmware-target descriptor table moved to @firmware/config/firmwareTargets
 /** The keyboard "type" implied by the selected firmware targets. */
 function keyboardTypeFor(targets: string[]): {
     conn: string
@@ -90,10 +66,10 @@ function keyboardTypeFor(targets: string[]): {
 } {
     const t = targets.length ? targets : ['qmk']
     const anyWireless = t.some(
-        (id) => FIRMWARES.find((f) => f.id === id)?.wireless,
+        (id) => BUILDER_FIRMWARE_TARGETS.find((f) => f.id === id)?.wireless,
     )
     const names = t
-        .map((id) => FIRMWARES.find((f) => f.id === id)?.name)
+        .map((id) => BUILDER_FIRMWARE_TARGETS.find((f) => f.id === id)?.name)
         .filter(Boolean)
     return {
         conn: anyWireless
@@ -110,14 +86,6 @@ const LIGHTING_EFFECTS = ['solid', 'breathe', 'rainbow', 'swirl', 'gradient']
 const HUE_SWATCHES: (number | undefined)[] = [undefined, 25, 90, 152, 250, 300]
 
 /* ── small form controls ───────────────────────────────────────────────── */
-function MiniLabel({ children }: { children: React.ReactNode }): JSX.Element {
-    return (
-        <div className="mb-1.5 text-[10.5px] font-bold uppercase tracking-[0.06em] text-muted-foreground">
-            {children}
-        </div>
-    )
-}
-
 // pattern-check: skip additive optional `list` (datalist) prop, presentational
 /** Text input that holds a local draft and commits (with history) on blur/Enter. */
 function TextField({
@@ -250,48 +218,6 @@ function HistorySlider({
         />
     )
 }
-
-/* ── Vial security helpers (pure) ──────────────────────────────────────── */
-// pattern-check: skip pure UID/unlock-combo formatters + parsers, no abstraction
-
-const uidToHex = (uid?: number[]): string =>
-    (uid ?? [])
-        .map(
-            (b) =>
-                '0x' + (b & 0xff).toString(16).toUpperCase().padStart(2, '0'),
-        )
-        .join(' ')
-
-/** Parse 8 hex/decimal bytes from free text; undefined unless exactly 8 valid. */
-const parseUid = (s: string): number[] | undefined => {
-    const bytes = s
-        .trim()
-        .split(/[\s,]+/)
-        .filter(Boolean)
-        .map((t) => Number(t))
-    return bytes.length === 8 &&
-        bytes.every((b) => Number.isInteger(b) && b >= 0 && b <= 255)
-        ? bytes
-        : undefined
-}
-
-const randomUid = (): number[] =>
-    Array.from({ length: 8 }, () => Math.floor(Math.random() * 256))
-
-const unlockToText = (keys?: [number, number][]): string =>
-    (keys ?? []).map(([r, c]) => `${r},${c}`).join(' ')
-
-/** Parse "r,c r,c …" into matrix positions, dropping malformed entries. */
-const parseUnlock = (s: string): [number, number][] =>
-    s
-        .trim()
-        .split(/\s+/)
-        .filter(Boolean)
-        .map((p) => p.split(',').map(Number) as [number, number])
-        .filter(
-            ([r, c]) =>
-                Number.isInteger(r) && Number.isInteger(c) && r >= 0 && c >= 0,
-        )
 
 /* ── the form ──────────────────────────────────────────────────────────── */
 export function BuilderMetaForm(): JSX.Element {
@@ -575,7 +501,7 @@ export function BuilderMetaForm(): JSX.Element {
             <div>
                 <MiniLabel>Firmware targets</MiniLabel>
                 <div className="grid grid-cols-2 gap-[7px]">
-                    {FIRMWARES.map((f) => {
+                    {BUILDER_FIRMWARE_TARGETS.map((f) => {
                         const on = targets.includes(f.id)
                         return (
                             <button

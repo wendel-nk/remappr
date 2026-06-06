@@ -54,6 +54,7 @@ export type {
 } from './adapter'
 
 export type { Transport } from './transport'
+export { parseVidPidFromLabel, readTransportIds } from './transport'
 
 export {
     FirmwareError,

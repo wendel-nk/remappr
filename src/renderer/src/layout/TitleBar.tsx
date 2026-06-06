@@ -1,25 +1,9 @@
 // pattern-check: skip — custom titlebar wired to window-control IPC, no abstraction
 import { useEffect, useState } from 'react'
-import { Minus, Square, Copy, X } from 'lucide-react'
+import { Copy, Minus, Square, X } from 'lucide-react'
 import { IpcChannels } from '../../../shared/ipc-types'
 import { APP_VERSION } from '@/lib/constants'
-
-interface ElectronWindow {
-    api?: {
-        invoke: (channel: string, ...args: unknown[]) => Promise<unknown>
-    }
-    electron?: {
-        process?: { platform?: string }
-    }
-}
-
-function getApi(): ElectronWindow['api'] | undefined {
-    return (window as unknown as ElectronWindow).api
-}
-
-function getPlatform(): string | undefined {
-    return (window as unknown as ElectronWindow).electron?.process?.platform
-}
+import { getApi, getPlatform } from '@/electron/api'
 
 export function TitleBar(): JSX.Element | null {
     const api = getApi()

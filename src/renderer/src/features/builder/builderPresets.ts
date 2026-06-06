@@ -9,6 +9,7 @@
 // builder resolves to bindings via `actionFromToken`; an empty/unknown token
 // becomes a transparent key. `guessCategory` is kept for cap colouring.
 
+import { round3 } from '@/lib/clampInt'
 import type { KeyCategory } from '@/lib/keymap/keyCategory'
 import type {
     CanonAction,
@@ -19,8 +20,6 @@ import type {
 import { resolveKeycode } from '@firmware/config'
 import { normalizeBoard } from './builderMatrix'
 import { newBoardConfig, replaceGeometry } from './geometryEditor'
-
-const r3 = (v: number): number => Math.round(v * 1000) / 1000
 
 /** A preset's output: physical geometry + an index-aligned base-layer legend. */
 export interface PresetBuild {
@@ -339,9 +338,9 @@ function presetCorne(): PresetBuild {
     ]
     for (let r = 0; r < 3; r++)
         for (let c = 0; c < 6; c++) {
-            keys.push(key({ x: c, y: r3(r + stag[c]) }))
+            keys.push(key({ x: c, y: round3(r + stag[c]) }))
             tokens.push(left[r][c])
-            keys.push(key({ x: RIGHT + c, y: r3(r + stag[5 - c]) }))
+            keys.push(key({ x: RIGHT + c, y: round3(r + stag[5 - c]) }))
             tokens.push(right[r][c])
         }
     const ty = 3 + 0.55
@@ -351,7 +350,7 @@ function presetCorne(): PresetBuild {
         keys.push(
             key({
                 x: 3 + i,
-                y: r3(ty + (i === 0 ? 0.3 : i === 1 ? 0.12 : 0)),
+                y: round3(ty + (i === 0 ? 0.3 : i === 1 ? 0.12 : 0)),
                 r: 6 - i * 6,
                 rx: 3 + i + 0.5,
                 ry: ty + 0.5,
@@ -361,7 +360,7 @@ function presetCorne(): PresetBuild {
         keys.push(
             key({
                 x: RIGHT + 1 + i,
-                y: r3(ty + (i === 2 ? 0.3 : i === 1 ? 0.12 : 0)),
+                y: round3(ty + (i === 2 ? 0.3 : i === 1 ? 0.12 : 0)),
                 r: -(i * 6),
                 rx: RIGHT + 1 + i + 0.5,
                 ry: ty + 0.5,
@@ -533,8 +532,8 @@ export function parseKleGeometry(text: string): KleResult {
             } else {
                 keys.push(
                     key({
-                        x: r3(x),
-                        y: r3(y),
+                        x: round3(x),
+                        y: round3(y),
                         w,
                         h,
                         r,

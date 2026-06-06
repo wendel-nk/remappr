@@ -27,13 +27,13 @@ import { KeyButton } from '@/features/keymap/keyboard/KeyButton'
 import { Switch } from '@/ui/switch'
 import useBuilderStore from '@/stores/builderStore'
 import useConfigStore from '@/stores/configStore'
-import { matrixDims } from '@firmware/config'
 import type {
     CanonAction,
     CanonGeometry,
     ConfigKeymap,
     SliderMap,
 } from '@firmware/config'
+import { matrixDims } from '@firmware/config'
 import { duplicateKeys, removeKeys, snap as snapStep } from './geometryEditor'
 import {
     applyAutoMatrix,
@@ -41,30 +41,23 @@ import {
     bulkNumberCols,
     bulkSetRow,
     clearMatrix,
+    clearSliderBinding,
+    type EncoderSlot,
     isAutoAssign,
     keyMatrix,
     patchKey,
     setBinding,
     setEncoderBinding,
-    setSliderBinding,
-    clearSliderBinding,
     setKeyMatrix,
     setKeyVariant,
+    setSliderBinding,
     SLIDER_MAPS,
-    type EncoderSlot,
 } from './builderInspectorOps'
-import { builderCapProps, builderBindingCode } from './builderCapProps'
+import { MiniLabel } from './MiniLabel'
+import { builderBindingCode, builderCapProps } from './builderCapProps'
 import { colPins, rowPins } from './builderPins'
 
 const WIDTH_PRESETS = [1, 1.25, 1.5, 1.75, 2, 2.25, 2.75, 6.25]
-
-function MiniLabel({ children }: { children: React.ReactNode }): JSX.Element {
-    return (
-        <div className="mb-1.5 text-[10.5px] font-bold uppercase tracking-[0.06em] text-muted-foreground">
-            {children}
-        </div>
-    )
-}
 
 /** Numeric field that commits a number immediately (geometry is discrete). */
 function NumInput({

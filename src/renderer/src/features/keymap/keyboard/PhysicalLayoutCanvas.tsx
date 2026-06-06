@@ -8,6 +8,7 @@ import React, {
 } from 'react'
 import { Maximize2, Minus, Plus } from 'lucide-react'
 import { HoldTapLabels, KeyButton } from './KeyButton.tsx'
+import { clamp } from '@/lib/clampInt'
 import { scalePosition } from '@/lib/scalePosition'
 import { LayoutZoom } from '@/lib/helpers'
 import type { ColorMode, KeyCategory } from '@/lib/keymap/keyCategory'
@@ -87,9 +88,6 @@ const MAX_ZOOM = 3.2
 const MIN_ONE_U = 34
 const MAX_ONE_U = 92
 const FIT_PADDING = 48
-
-const clamp = (v: number, lo: number, hi: number): number =>
-    Math.min(hi, Math.max(lo, v))
 
 // pattern-check: skip — rename View.scale→zoom + relative-zoom semantics, no new abstraction
 // User-adjusted view; null = follow auto-fit (zoom 1, no pan). `zoom` is the

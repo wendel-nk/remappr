@@ -3,6 +3,7 @@
 // Spec: https://www.caniusevia.com/docs/specification (v12).
 
 import { ProtocolError } from '@firmware/errors'
+import type { HidClient } from '@firmware/hid/rawHidClient'
 
 export const VIA_PAYLOAD_SIZE = 32
 export const VIA_USAGE_PAGE = 0xff60
@@ -175,6 +176,30 @@ export function parseBuffer(resp: Uint8Array): BufferResponse {
     const offset = readU16BE(resp, 1)
     const size = resp[3] & 0xff
     return { offset, size, data: resp.slice(4, 4 + size) }
+}
+
+// pattern-check: skip mechanical dedupe of identical fetch loop from qmk + qmk-vial services
+/** Max payload bytes per get-buffer round trip (4-byte VIA frame header). */
+export const BUFFER_FETCH_CHUNK = VIA_PAYLOAD_SIZE - 4
+
+/** Bulk-read the whole dynamic keymap as one byte stream (rows*cols*2 per layer). */
+export async function fetchKeymapBuffer(
+    client: HidClient,
+    layerCount: number,
+    rows: number,
+    cols: number,
+): Promise<Uint8Array> {
+    const total = layerCount * rows * cols * 2
+    const out = new Uint8Array(total)
+    let offset = 0
+    while (offset < total) {
+        const size = Math.min(total - offset, BUFFER_FETCH_CHUNK)
+        const resp = await client.send(getBufferCmd(offset, size))
+        const { data } = parseBuffer(resp)
+        out.set(data.subarray(0, size), offset)
+        offset += size
+    }
+    return out
 }
 
 export function setBufferCmd(offset: number, data: Uint8Array): Uint8Array {

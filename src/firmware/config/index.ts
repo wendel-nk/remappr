@@ -72,6 +72,18 @@ export {
 } from './schema'
 
 export { buildConfigJsonSchema } from './jsonSchema'
+export {
+    type BuilderFirmwareId,
+    type BuilderFirmwareTarget,
+    BUILDER_FIRMWARE_TARGETS,
+} from './firmwareTargets'
+export {
+    uidToHex,
+    parseUid,
+    randomUid,
+    unlockToText,
+    parseUnlock,
+} from './vial'
 export { type TargetDefaults, resolveDefaults } from './defaults'
 export {
     type DerivedMatrix,

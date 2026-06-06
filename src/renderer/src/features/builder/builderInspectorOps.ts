@@ -10,14 +10,6 @@
 // "Ctrl+C" / transparent / none) via the existing normalize/denormalize seam;
 // richer actions (layer, tap-hold, macros) stay for the editor / Monaco panel.
 
-import {
-    denormalizeAction,
-    isKnownKeyToken,
-    materializeMatrix,
-    matrixDims,
-    normalizeAction,
-    resolveKeyMatrix,
-} from '@firmware/config'
 import type {
     CanonAction,
     CanonKeyboardMatrix,
@@ -27,9 +19,15 @@ import type {
     ConfigKeymap,
     SliderMap,
 } from '@firmware/config'
+import {
+    denormalizeAction,
+    isKnownKeyToken,
+    materializeMatrix,
+    matrixDims,
+    normalizeAction,
+    resolveKeyMatrix,
+} from '@firmware/config'
 import { updateKey, updateKeys } from './geometryEditor'
-
-const r3 = (v: number): number => Math.round(v * 1000) / 1000
 
 /* ── per-key matrix wiring (writes keys[].matrix, the friendly source of truth) ── */
 
@@ -377,5 +375,3 @@ export function setKeyVariant(
 ): ConfigKeymap {
     return updateKey(config, index, { variant: variant || undefined })
 }
-
-export { r3 }

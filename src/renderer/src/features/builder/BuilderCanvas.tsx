@@ -15,13 +15,14 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { RotateCw, SlidersHorizontal } from 'lucide-react'
 import { KeyButton } from '@/features/keymap/keyboard/KeyButton'
+import { clamp, round3 } from '@/lib/clampInt'
 import { scalePosition } from '@/lib/scalePosition'
 import useConfigStore from '@/stores/configStore'
 import useBuilderStore from '@/stores/builderStore'
 import { snap as snapStep, updateKeys } from './geometryEditor'
 import { splitInfo } from './builderMatrix'
 import { resolvedTransform } from './builderInspectorOps'
-import { builderCapProps, builderBindingCode } from './builderCapProps'
+import { builderBindingCode, builderCapProps } from './builderCapProps'
 import {
     addCol,
     addRow,
@@ -33,15 +34,13 @@ import {
 import { MatrixOverlay } from './MatrixOverlay'
 import type { CanonGeometry } from '@firmware/config'
 
-const Z_MIN = 0.25
-const Z_MAX = 4
+// pattern-check: skip shared zoom bounds promoted to module exports (dedupe with FullScreenBuilder)
+export const Z_MIN = 0.25
+export const Z_MAX = 4
 const GRID_U = 0.125
 const FIT_PAD = 70
 const MIN_U = 26
 const MAX_U = 110
-
-const clampZ = (z: number): number => Math.max(Z_MIN, Math.min(Z_MAX, z))
-const round3 = (v: number): number => Math.round(v * 1000) / 1000
 
 interface Bounds {
     maxX: number
@@ -173,7 +172,11 @@ export function BuilderCanvas(): JSX.Element {
             const rect = el.getBoundingClientRect()
             const cx = e.clientX - rect.left - rect.width / 2
             const cy = e.clientY - rect.top - rect.height / 2
-            const nz = clampZ(v.zoom * (e.deltaY < 0 ? 1.12 : 1 / 1.12))
+            const nz = clamp(
+                v.zoom * (e.deltaY < 0 ? 1.12 : 1 / 1.12),
+                Z_MIN,
+                Z_MAX,
+            )
             if (nz === v.zoom) return
             const k = nz / v.zoom
             useBuilderStore.getState().setView({

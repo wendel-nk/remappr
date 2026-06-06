@@ -12,18 +12,18 @@ import {
 } from '@firmware/hid/rawHidClient'
 import { QmkKeyboardService, readQmkLayerCount } from '@firmware/qmk/service'
 import type { KeyboardService } from '@firmware/service'
-import type { Transport } from '@firmware/transport'
+import { readTransportIds, type Transport } from '@firmware/transport'
 import type { DeviceInfo } from '@firmware/types'
 
 import {
-    KEYCHRON_PAYLOAD_SIZE,
-    KEYCHRON_USAGE,
-    KEYCHRON_USAGE_PAGE,
     type FeatureFlags,
     getFirmwareVersionCmd,
     getMiscProtocolVersionCmd,
     getProtocolVersionCmd,
     getSupportFeatureCmd,
+    KEYCHRON_PAYLOAD_SIZE,
+    KEYCHRON_USAGE,
+    KEYCHRON_USAGE_PAGE,
     parseFeatureFlags,
     parseFirmwareVersion,
     parseMiscProtocolVersion,
@@ -32,25 +32,9 @@ import {
 } from './protocol'
 import { keychronCodec } from './codec'
 
-// pattern-check: skip — same shape as qmk/adapter.ts readTransportIds, kept inline to avoid cross-adapter import
-function readTransportIds(transport: Transport): {
-    vid?: number
-    pid?: number
-} {
-    if (
-        typeof transport.vid === 'number' &&
-        typeof transport.pid === 'number'
-    ) {
-        return { vid: transport.vid, pid: transport.pid }
-    }
-    const m = (transport.label || '').match(/\b([0-9a-f]{4}):([0-9a-f]{4})\b/i)
-    if (!m) return {}
-    return { vid: Number.parseInt(m[1], 16), pid: Number.parseInt(m[2], 16) }
-}
-
 import { createRgbFacade } from './rgb'
 import { createWirelessFacade } from './wireless'
-import { getBoardById, matchBoard, type KeychronBoardPreset } from './boards'
+import { getBoardById, type KeychronBoardPreset, matchBoard } from './boards'
 
 const PROBE_DEADLINE_MS = 1500
 const KEYCHRON_VID = 0x3434

@@ -2,25 +2,9 @@
 // wired straight to the existing window-control IPC; extracted from TitleBar so the
 // editor header and start page can both host them. No abstraction warranted.
 import { useEffect, useState } from 'react'
-import { Minus, Square, Copy, X } from 'lucide-react'
+import { Copy, Minus, Square, X } from 'lucide-react'
 import { IpcChannels } from '../../../shared/ipc-types'
-
-interface ElectronWindow {
-    api?: {
-        invoke: (channel: string, ...args: unknown[]) => Promise<unknown>
-    }
-    electron?: {
-        process?: { platform?: string }
-    }
-}
-
-function getApi(): ElectronWindow['api'] | undefined {
-    return (window as unknown as ElectronWindow).api
-}
-
-function getPlatform(): string | undefined {
-    return (window as unknown as ElectronWindow).electron?.process?.platform
-}
+import { getApi, getPlatform } from '@/electron/api'
 
 /**
  * Native window min/max/close controls for the custom (frameless) Electron titlebar.

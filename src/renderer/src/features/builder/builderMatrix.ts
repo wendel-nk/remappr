@@ -6,14 +6,14 @@
 // derivation now lives in the config layer (firmware/config/matrix.ts) so the
 // compilers share it; `autoMatrix` is re-exported here for existing callers.
 
-import { deriveMatrix, matrixDims as configMatrixDims } from '@firmware/config'
 import type { CanonGeometry, ConfigKeymap } from '@firmware/config'
+import { deriveMatrix, matrixDims as configMatrixDims } from '@firmware/config'
+
+import { round3 } from '@/lib/clampInt'
 
 /** Derive a [row,col]-per-key electrical transform from physical position.
  *  Re-exported from the config layer (single source of truth). */
 export const autoMatrix = deriveMatrix
-
-const r3 = (v: number): number => Math.round(v * 1000) / 1000
 
 export interface BoardBounds {
     minX: number
@@ -57,10 +57,10 @@ export function normalizeBoard(keys: CanonGeometry[]): CanonGeometry[] {
     const dy = b.minY
     return keys.map((k) => ({
         ...k,
-        x: r3(k.x - dx),
-        y: r3(k.y - dy),
-        ...(k.rx !== undefined ? { rx: r3(k.rx - dx) } : {}),
-        ...(k.ry !== undefined ? { ry: r3(k.ry - dy) } : {}),
+        x: round3(k.x - dx),
+        y: round3(k.y - dy),
+        ...(k.rx !== undefined ? { rx: round3(k.rx - dx) } : {}),
+        ...(k.ry !== undefined ? { ry: round3(k.ry - dy) } : {}),
     }))
 }
 

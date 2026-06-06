@@ -5,18 +5,9 @@ import {
     IpcEvents,
     type UpdateAvailablePayload,
 } from '../../../shared/ipc-types'
+import { getApi } from '@/electron/api'
 
 const DISMISS_KEY_PREFIX = 'remappr:dismissed-update:'
-
-interface ElectronWindow {
-    api?: {
-        on: (event: string, cb: (...args: unknown[]) => void) => () => void
-    }
-}
-
-function getApi(): ElectronWindow['api'] | undefined {
-    return (window as unknown as ElectronWindow).api
-}
 
 function parseSemver(v: string): [number, number, number] | null {
     const m = v.replace(/^v/, '').match(/^(\d+)\.(\d+)\.(\d+)/)
