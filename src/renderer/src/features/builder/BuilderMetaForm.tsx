@@ -12,9 +12,12 @@ import {
     Bluetooth,
     Check,
     CheckCircle2,
+    Plus,
+    Trash2,
     TriangleAlert,
     Usb,
     Wand2,
+    X,
     XCircle,
 } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/ui/tooltip'
@@ -24,6 +27,7 @@ import useConfigStore from '@/stores/configStore'
 import type {
     CanonController,
     CanonFirmwareConfig,
+    CanonLayoutOption,
     CanonLighting,
     CanonVial,
     ConfigHardware,
@@ -42,7 +46,7 @@ import {
 } from '@firmware/config'
 import { displayMatrixDims } from './builderMatrix'
 import { rowPins, colPins, setRowPinsText, setColPinsText } from './builderPins'
-import { setMatrixMeta } from './builderInspectorOps'
+import { keyMatrix, setMatrixMeta } from './builderInspectorOps'
 
 /* ── firmware targets ──────────────────────────────────────────────────── */
 interface Firmware {
@@ -294,6 +298,7 @@ export function BuilderMetaForm(): JSX.Element {
     const config = useConfigStore((s) => s.config)
     const commit = useBuilderStore((s) => s.commit)
     const liveCommit = useBuilderStore((s) => s.liveCommit)
+    const selection = useBuilderStore((s) => s.selection)
 
     if (!config) return <div />
 
@@ -355,6 +360,82 @@ export function BuilderMetaForm(): JSX.Element {
         if (!next.unlockKeys?.length) delete next.unlockKeys
         if (!next.insecure) delete next.insecure
         patchKeyboard({ vial: Object.keys(next).length ? next : undefined })
+    }
+
+    // pattern-check: skip presentational selection→config writers for the unlock + layout-option pickers, no abstraction
+    // Selected key indices (into keys[]), clamped to the current board.
+    const selKeys = [...selection].filter((i) => i < kb.keys.length)
+    // Selected keys' [row,col] (the matrix positions Vial's unlock combo + the
+    // visual picker speak in). Deduped against what's already in the combo.
+    const keyAt = (i: number): [number, number] => keyMatrix(config, i)
+    const addUnlockSelected = (): void => {
+        const have = new Set(
+            (vial?.unlockKeys ?? []).map(([r, c]) => `${r},${c}`),
+        )
+        const add = selKeys
+            .map(keyAt)
+            .filter(([r, c]) => !have.has(`${r},${c}`))
+        if (add.length)
+            setVial({ unlockKeys: [...(vial?.unlockKeys ?? []), ...add] })
+    }
+    const removeUnlockAt = (idx: number): void =>
+        setVial({
+            unlockKeys: (vial?.unlockKeys ?? []).filter((_k, i) => i !== idx),
+        })
+
+    // Layout-options writers. Removing an option also fixes up `keys[].option`:
+    // keys tagged to it lose the tag, and tags above it shift down a group.
+    type CanonKey = ConfigKeyboard['keys'][number]
+    const stripOption = (k: CanonKey): CanonKey => {
+        if (!k.option) return k
+        const rest = { ...k }
+        delete rest.option
+        return rest
+    }
+    const opts = kb.layoutOptions ?? []
+    const setOptions = (next: CanonLayoutOption[]): void =>
+        patchKeyboard({ layoutOptions: next.length ? next : undefined })
+    const patchOption = (g: number, p: Partial<CanonLayoutOption>): void =>
+        setOptions(opts.map((o, i) => (i === g ? { ...o, ...p } : o)))
+    const addOption = (): void =>
+        setOptions([...opts, { label: `Option ${opts.length + 1}` }])
+    const removeOption = (g: number): void => {
+        const keys = kb.keys.map((k) => {
+            if (!k.option) return k
+            const [grp, ch] = k.option
+            if (grp === g) return stripOption(k)
+            return grp > g
+                ? { ...k, option: [grp - 1, ch] as [number, number] }
+                : k
+        })
+        commit({
+            ...config,
+            keyboard: {
+                ...kb,
+                keys,
+                layoutOptions:
+                    opts.length > 1
+                        ? opts.filter((_o, i) => i !== g)
+                        : undefined,
+            },
+        })
+    }
+    // Tag / untag the selected keys to a (group, choice) layout-option variant.
+    const tagSelected = (g: number, choice: number): void => {
+        const sel = new Set(selKeys)
+        patchKeyboard({
+            keys: kb.keys.map((k, i) =>
+                sel.has(i)
+                    ? { ...k, option: [g, choice] as [number, number] }
+                    : k,
+            ),
+        })
+    }
+    const untagSelected = (): void => {
+        const sel = new Set(selKeys)
+        patchKeyboard({
+            keys: kb.keys.map((k, i) => (sel.has(i) ? stripOption(k) : k)),
+        })
     }
 
     // Lighting writers. `commit` for discrete edits, `liveCommit` for slider drags.
@@ -705,6 +786,33 @@ export function BuilderMetaForm(): JSX.Element {
                         }
                         placeholder="0,0 0,1"
                     />
+                    {/* visual picker — // pattern-check: skip presentational chips + add-selected control */}
+                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                        {(vial?.unlockKeys ?? []).map(([r, c], i) => (
+                            <span
+                                key={`${r},${c},${i}`}
+                                className="inline-flex items-center gap-1 rounded-md border border-border bg-secondary px-1.5 py-0.5 font-mono text-[11px]"
+                            >
+                                {r},{c}
+                                <button
+                                    type="button"
+                                    onClick={() => removeUnlockAt(i)}
+                                    className="text-muted-foreground hover:text-foreground"
+                                    aria-label={`Remove unlock key ${r},${c}`}
+                                >
+                                    <X size={11} />
+                                </button>
+                            </span>
+                        ))}
+                        <button
+                            type="button"
+                            onClick={addUnlockSelected}
+                            disabled={selKeys.length === 0}
+                            className="inline-flex items-center gap-1 rounded-md border border-border bg-secondary px-2 py-0.5 text-[11px] font-semibold hover:border-primary disabled:opacity-40"
+                        >
+                            <Plus size={11} /> Add selected ({selKeys.length})
+                        </button>
+                    </div>
                     <div className="mt-2.5">
                         <ToggleRow
                             on={!!vial?.insecure}
@@ -717,8 +825,108 @@ export function BuilderMetaForm(): JSX.Element {
                     <p className="mt-1.5 text-[10.5px] leading-relaxed text-muted-foreground">
                         Vial ties a flashed board to its definition by UID and
                         locks the keymap until the unlock keys are held. Emitted
-                        to the vial keymap&apos;s config.h.
+                        to the vial keymap&apos;s config.h. Select keys on the
+                        board, then “Add selected”.
                     </p>
+                </div>
+            )}
+
+            {/* Layout options — // pattern-check: skip presentational VIA/Vial layout-option editor */}
+            {targets.some((t) => t === 'via' || t === 'vial') && (
+                <div>
+                    <MiniLabel>Layout options</MiniLabel>
+                    <p className="mb-1.5 text-[10.5px] leading-relaxed text-muted-foreground">
+                        VIA/Vial variants. A blank choices field is an on/off
+                        toggle; two or more comma-separated choices make a
+                        dropdown. Tag keys so they appear only in a chosen
+                        variant.
+                    </p>
+                    {opts.length === 0 && (
+                        <div className="mb-1.5 text-[11px] text-muted-foreground">
+                            No layout options yet.
+                        </div>
+                    )}
+                    {opts.map((o, g) => (
+                        <div
+                            key={g}
+                            className="mb-2 rounded-lg border border-border bg-background p-2"
+                        >
+                            <div className="flex items-center gap-2">
+                                <div className="flex-1">
+                                    <TextField
+                                        value={o.label}
+                                        onCommit={(v) =>
+                                            patchOption(g, {
+                                                label:
+                                                    v.trim() ||
+                                                    `Option ${g + 1}`,
+                                            })
+                                        }
+                                        placeholder="Option label"
+                                    />
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => removeOption(g)}
+                                    className="rounded-md border border-border bg-secondary p-1.5 text-muted-foreground hover:border-destructive hover:text-destructive"
+                                    aria-label={`Remove option ${o.label}`}
+                                >
+                                    <Trash2 size={13} />
+                                </button>
+                            </div>
+                            <div className="mt-1.5">
+                                <TextField
+                                    value={(o.choices ?? []).join(', ')}
+                                    onCommit={(v) => {
+                                        const arr = v
+                                            .split(',')
+                                            .map((s) => s.trim())
+                                            .filter(Boolean)
+                                        patchOption(g, {
+                                            choices:
+                                                arr.length >= 2
+                                                    ? arr
+                                                    : undefined,
+                                        })
+                                    }}
+                                    placeholder="Choices, comma-separated (blank = toggle)"
+                                />
+                            </div>
+                            {selKeys.length > 0 && (
+                                <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                                    {(o.choices ?? ['(on)']).map((ch, c) => (
+                                        <button
+                                            key={c}
+                                            type="button"
+                                            onClick={() => tagSelected(g, c)}
+                                            className="inline-flex items-center gap-1 rounded-md border border-border bg-secondary px-2 py-0.5 text-[11px] font-semibold hover:border-primary"
+                                        >
+                                            Tag → {ch}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                    <div className="flex flex-wrap items-center gap-1.5">
+                        <button
+                            type="button"
+                            onClick={addOption}
+                            className="inline-flex items-center gap-1 rounded-md border border-border bg-secondary px-2 py-1 text-[11px] font-semibold hover:border-primary"
+                        >
+                            <Plus size={12} /> Add option
+                        </button>
+                        {selKeys.length > 0 && opts.length > 0 && (
+                            <button
+                                type="button"
+                                onClick={untagSelected}
+                                className="inline-flex items-center gap-1 rounded-md border border-border bg-secondary px-2 py-1 text-[11px] font-semibold hover:border-primary"
+                            >
+                                <X size={12} /> Untag selected ({selKeys.length}
+                                )
+                            </button>
+                        )}
+                    </div>
                 </div>
             )}
 
