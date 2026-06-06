@@ -102,6 +102,38 @@ export function deriveMatrix(keys: CanonGeometry[]): DerivedMatrix {
     return { rows: rowMax, columns: Math.max(1, colOffset), map }
 }
 
+// pattern-check: skip pure geometry grouping helper reusing columnGroups/localMatrix, no abstraction
+/** One electrical half of a split board: its own column count, the column offset
+ *  that places it in the unified matrix (0 for the left, left-column-count for the
+ *  right), and the indices (into `keys`) of the keys it owns. */
+export interface MatrixGroup {
+    columns: number
+    rows: number
+    colOffset: number
+    keyIndices: number[]
+}
+
+/** Decompose a key set into electrical halves the way `deriveMatrix` wires them —
+ *  one `MatrixGroup` per contiguous column cluster (one for a unibody board, one
+ *  per half for a split). Lets the ZMK split emitter wire each half's own kscan
+ *  (`columns` col-gpios) and offset the right transform by the left's column count. */
+export function matrixSplit(keys: CanonGeometry[]): MatrixGroup[] {
+    const groups = columnGroups(keys)
+    const out: MatrixGroup[] = []
+    let colOffset = 0
+    for (const group of groups) {
+        const local = localMatrix(group.map((i) => keys[i]))
+        out.push({
+            columns: local.columns,
+            rows: local.rows,
+            colOffset,
+            keyIndices: group,
+        })
+        colOffset += local.columns
+    }
+    return out
+}
+
 /** Resolve the per-key matrix for an already-loaded config, honoring precedence:
  *  explicit `keys[].matrix` > `hardware.transform.map` > position-derived. */
 export function resolveKeyMatrix(config: ConfigKeymap): [number, number][] {

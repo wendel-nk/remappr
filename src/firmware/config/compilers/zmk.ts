@@ -29,7 +29,8 @@ import type {
 } from '../types'
 import type { Modifier } from '../keycodes'
 import { resolveZmkPin, gpioSpec, type PinRole } from '../pinmaps'
-import { resolveController } from '../controller'
+import { resolveController, zmkSplitShields } from '../controller'
+import { deriveMatrix, matrixSplit } from '../matrix'
 
 const RGB_UG: Partial<Record<LightingAction, string>> = {
     toggle: 'RGB_TOG',
@@ -1182,6 +1183,194 @@ function emitOverlay(config: ConfigKeymap, diag: DiagnosticBag): ExportedFile {
     }
 }
 
+// pattern-check: skip split-overlay emitter composing existing emit helpers, no abstraction
+// Emit a real ZMK SPLIT shield: a shared `<base>.dtsi` (physical-layout + unified
+// matrix-transform + a rows-only kscan + chosen + peripherals) and two thin
+// overlays `<base>_left.overlay` / `<base>_right.overlay` that #include it and set
+// each half's own col-gpios — the right one offsetting the transform by the left's
+// column count. Mirrors the upstream corne shield. Falls back to the unibody overlay
+// when the geometry doesn't split into exactly two column groups.
+function emitSplitOverlay(
+    config: ConfigKeymap,
+    diag: DiagnosticBag,
+): ExportedFile[] {
+    const split = zmkSplitShields(config)
+    const groups = matrixSplit(config.keyboard.keys)
+    if (!split || groups.length !== 2) return [emitOverlay(config, diag)]
+    const [left, right] = groups
+    const L = left.columns
+    const hw = config.keyboard.hardware
+    const board = resolveController(config).board
+
+    // Unified transform from the SAME derivation as the split groups, so the
+    // right half's col-offset (= left column count) lines up with the map.
+    const dm = deriveMatrix(config.keyboard.keys)
+    const mapLines: string[] = []
+    let curRow = -1
+    let row: string[] = []
+    const flushRow = (): void => {
+        if (row.length) mapLines.push('            ' + row.join(' '))
+        row = []
+    }
+    for (const [r, c] of dm.map) {
+        if (r !== curRow) {
+            flushRow()
+            curRow = r
+        }
+        row.push(`RC(${r},${c})`)
+    }
+    flushRow()
+    diag.warn(
+        'split matrix-transform RC() values are derived from physical key position, ' +
+            'not the board kscan wiring — verify them against your halves before flashing.',
+        ['keyboard', 'keys'],
+    )
+    const transformLabel = 'default_transform'
+
+    const cu = (n: number): number => Math.round(n * 100)
+    const keyLines = config.keyboard.keys.map((k, i) => {
+        const attrs =
+            `<&key_physical_attrs ${cu(k.w)} ${cu(k.h)} ${cu(k.x)} ${cu(k.y)} ` +
+            `${cu(k.r)} ${cu(k.rx ?? 0)} ${cu(k.ry ?? 0)}>`
+        return `            ${i === 0 ? '=' : ','} ${attrs}`
+    })
+
+    // Per-half col labels: slice the unified col pins; an under-filled right half
+    // reuses the left's (identical-half boards share the same column pins). Pad to
+    // each half's column count so the kscan node always has the right shape.
+    const pad = (arr: string[], n: number): string[] =>
+        arr.length >= n
+            ? arr.slice(0, n)
+            : [...arr, ...Array(n - arr.length).fill('')]
+    const pins = config.keyboard.pins
+    const allCols = pins?.cols ?? []
+    const rowLabels = pad(pins?.rows ?? [], dm.rows)
+    const leftCols = pad(allCols.slice(0, L), L)
+    const rightSlice = allCols.slice(L, L + right.columns)
+    const rightCols = pad(
+        rightSlice.length ? rightSlice : allCols.slice(0, right.columns),
+        right.columns,
+    )
+
+    // Shared rows-only kscan (col-gpios are set per half in the overlays).
+    const kscanRows = [
+        `    kscan0: kscan {`,
+        `        compatible = "zmk,kscan-gpio-matrix";`,
+        `        wakeup-source;`,
+        `        /* diode-direction assumed "col2row" — verify against your wiring. */`,
+        `        diode-direction = "col2row";`,
+        ...resolvedGpioListProp('row-gpios', rowLabels, board, 'input', diag),
+        `        /* col-gpios set per half in ${split.left}.overlay / ${split.right}.overlay */`,
+        `    };`,
+    ]
+
+    // Peripherals live in the shared dtsi → present on both halves (correct for
+    // underglow/backlight/ext-power; the studio CDC is only used by the half on USB).
+    const extPowerNode = hw?.extPowerCtrl
+        ? emitExtPowerGeneric(hw.extPowerCtrl, diag)
+        : []
+    const bl = hw?.backlightPwm ? emitBacklightPwm(hw.backlightPwm, diag) : null
+    const ws = hw?.ws2812 ? emitWs2812(hw.ws2812, diag) : null
+    const studio = hw?.studioAcm ? emitStudioAcm() : []
+    const rootPeripherals = [
+        ...(extPowerNode.length ? [``, ...extPowerNode] : []),
+        ...(bl ? [``, ...bl.root] : []),
+    ]
+    const pinctrlGroups = [...(bl?.pinctrl ?? []), ...(ws?.pinctrl ?? [])]
+    const pinctrlBlock = pinctrlGroups.length
+        ? [``, `&pinctrl {`, ...pinctrlGroups, `};`]
+        : []
+    const peripheralBlocks = [
+        ...(bl && bl.block.length ? [``, ...bl.block] : []),
+        ...(ws ? [``, ...ws.block] : []),
+        ...(studio.length ? [``, ...studio] : []),
+    ]
+    const chosen = emitChosen(true, hw)
+
+    const dtsi = [
+        `/* Generated by remappr — SHARED split base for ${config.keyboard.name}.`,
+        ` * #included by ${split.left}.overlay and ${split.right}.overlay. Holds the`,
+        ` * physical layout, unified matrix-transform, a rows-only kscan and chosen.`,
+        ` * Each half sets its own col-gpios; the right half offsets the transform. */`,
+        `#include <physical_layouts.dtsi>`,
+        `#include <dt-bindings/zmk/matrix_transform.h>`,
+        `#include <dt-bindings/gpio/gpio.h>`,
+        ...(ws ? [`#include <zephyr/dt-bindings/led/led.h>`] : []),
+        ``,
+        `/ {`,
+        ...(chosen.length ? [...chosen, ``] : []),
+        `    physical_layout_default: physical_layout_default {`,
+        `        compatible = "zmk,physical-layout";`,
+        `        display-name = "${config.keyboard.name}";`,
+        `        transform = <&${transformLabel}>;`,
+        `        keys`,
+        ...keyLines,
+        `            ;`,
+        `    };`,
+        ``,
+        `    ${transformLabel}: keymap_transform_0 {`,
+        `        compatible = "zmk,matrix-transform";`,
+        `        /* DERIVED from key geometry — confirm against your kscan. */`,
+        `        columns = <${dm.columns}>;`,
+        `        rows = <${dm.rows}>;`,
+        `        map = <`,
+        ...mapLines,
+        `        >;`,
+        `    };`,
+        ``,
+        ...kscanRows,
+        ...rootPeripherals,
+        `};`,
+        ...pinctrlBlock,
+        ...peripheralBlocks,
+        ``,
+        ...notGeneratedBlock(true, hw),
+        ``,
+    ]
+
+    const leftOverlay = [
+        `/* Generated by remappr — ${split.left} half. Sets this half's col-gpios. */`,
+        `#include "${split.base}.dtsi"`,
+        ``,
+        `&kscan0 {`,
+        ...resolvedGpioListProp('col-gpios', leftCols, board, 'output', diag),
+        `};`,
+        ``,
+    ]
+    const rightOverlay = [
+        `/* Generated by remappr — ${split.right} half. col-offset shifts this half's`,
+        ` * ${right.columns} columns into the right block of the ${dm.columns}-column transform. */`,
+        `#include "${split.base}.dtsi"`,
+        ``,
+        `&${transformLabel} {`,
+        `    col-offset = <${L}>;`,
+        `};`,
+        ``,
+        `&kscan0 {`,
+        ...resolvedGpioListProp('col-gpios', rightCols, board, 'output', diag),
+        `};`,
+        ``,
+    ]
+
+    return [
+        {
+            filename: `${split.base}.dtsi`,
+            mime: 'text/plain',
+            content: dtsi.join('\n'),
+        },
+        {
+            filename: `${split.left}.overlay`,
+            mime: 'text/plain',
+            content: leftOverlay.join('\n'),
+        },
+        {
+            filename: `${split.right}.overlay`,
+            mime: 'text/plain',
+            content: rightOverlay.join('\n'),
+        },
+    ]
+}
+
 function emitKeymap(config: ConfigKeymap, diag: DiagnosticBag): ExportedFile[] {
     const ctx: Ctx = {
         layerIndex: new Map(config.layers.map((l, i) => [l.name, i])),
@@ -1309,13 +1498,16 @@ function emitKeymap(config: ConfigKeymap, diag: DiagnosticBag): ExportedFile[] {
     lines.push(`};`)
     lines.push(``)
 
+    const keymapFile: ExportedFile = {
+        filename: `${sanitize(config.keyboard.id || config.keyboard.name)}.keymap`,
+        mime: 'text/plain',
+        content: lines.join('\n'),
+    }
     return [
-        {
-            filename: `${sanitize(config.keyboard.id || config.keyboard.name)}.keymap`,
-            mime: 'text/plain',
-            content: lines.join('\n'),
-        },
-        emitOverlay(config, diag),
+        keymapFile,
+        ...(config.keyboard.split
+            ? emitSplitOverlay(config, diag)
+            : [emitOverlay(config, diag)]),
     ]
 }
 

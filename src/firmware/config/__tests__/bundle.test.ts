@@ -60,6 +60,26 @@ const HW_FULL = `{
     "layers": [{ "name": "base", "bindings": ["A", "B"] }]
 }`
 
+// A split board: two 2×2 clusters separated by a clear horizontal gap, shield
+// "mysplit_left" (base "mysplit"), four column pins (2 per half).
+const SPLIT = `{
+    "schemaVersion": 1, "kind": "remappr.keymap",
+    "meta": { "name": "My Split", "target": "zmk" },
+    "keyboard": {
+        "id": "my_split", "name": "My Split", "split": true,
+        "keys": [
+            {"x":0,"y":0},{"x":1,"y":0},{"x":0,"y":1},{"x":1,"y":1},
+            {"x":4,"y":0},{"x":5,"y":0},{"x":4,"y":1},{"x":5,"y":1}
+        ],
+        "controller": { "board": "nice_nano_v2", "shield": "mysplit_left" },
+        "pins": {
+            "rows": ["P0.5", "P0.6"],
+            "cols": ["P0.7", "P0.8", "P0.9", "P0.10"]
+        }
+    },
+    "layers": [{ "name": "base", "bindings": ["A","B","C","D","E","F","G","H"] }]
+}`
+
 describe('buildProjectBundle — ZMK', () => {
     it('emits a full zmk-config shield skeleton', () => {
         const b = buildProjectBundle(seedConfig, 'zmk')
@@ -150,6 +170,58 @@ describe('buildProjectBundle — ZMK', () => {
         expect(conf).toContain('CONFIG_ZMK_EXT_POWER=y')
         expect(conf).toContain('CONFIG_ZMK_BLE=y')
         expect(conf).toContain('CONFIG_ZMK_STUDIO_TRANSPORT_UART=y')
+    })
+
+    it('emits a real split shield (shared dtsi + two half overlays)', () => {
+        const b = buildProjectBundle(parseKeymap(SPLIT), 'zmk')
+        const dir = 'config/boards/shields/mysplit'
+        expect(b.rootName).toBe('mysplit-zmk-config')
+        // one shield dir, shared base files + both half overlays
+        expect(paths(b)).toEqual(
+            expect.arrayContaining([
+                `${dir}/mysplit.keymap`,
+                `${dir}/mysplit.conf`,
+                `${dir}/mysplit.dtsi`,
+                `${dir}/mysplit_left.overlay`,
+                `${dir}/mysplit_right.overlay`,
+                `${dir}/Kconfig.shield`,
+                `${dir}/Kconfig.defconfig`,
+                `${dir}/mysplit.zmk.yml`,
+                'build.yaml',
+            ]),
+        )
+        // build.yaml builds BOTH halves on the same board
+        const build = fileText(b, 'build.yaml')
+        expect(build).toContain('shield: mysplit_left')
+        expect(build).toContain('shield: mysplit_right')
+        expect(build).toContain('board: nice_nano_v2')
+        // Kconfig registers both half symbols + split roles
+        const kshield = fileText(b, `${dir}/Kconfig.shield`)
+        expect(kshield).toContain('config SHIELD_MYSPLIT_LEFT')
+        expect(kshield).toContain('config SHIELD_MYSPLIT_RIGHT')
+        expect(kshield).toContain('$(shields_list_contains, mysplit_left)')
+        const kdef = fileText(b, `${dir}/Kconfig.defconfig`)
+        expect(kdef).toContain('ZMK_SPLIT_ROLE_CENTRAL') // left = central
+        expect(kdef).toContain('config ZMK_SPLIT')
+        // shared dtsi: physical layout + unified transform + rows-only kscan
+        const dtsi = fileText(b, `${dir}/mysplit.dtsi`)
+        expect(dtsi).toContain('compatible = "zmk,physical-layout"')
+        expect(dtsi).toContain('default_transform: keymap_transform_0')
+        expect(dtsi).toContain('columns = <4>') // 2 left + 2 right
+        expect(dtsi).toContain('row-gpios')
+        expect(dtsi).toContain('col-gpios set per half') // cols deferred to overlays
+        expect(dtsi).not.toMatch(/col-gpios\n\s+=/) // no real col-gpios property here
+        // left overlay: includes the base, sets col-gpios, no offset
+        const lo = fileText(b, `${dir}/mysplit_left.overlay`)
+        expect(lo).toContain('#include "mysplit.dtsi"')
+        expect(lo).toContain('col-gpios')
+        expect(lo).not.toContain('col-offset')
+        // right overlay: offsets the transform by the left column count
+        const ro = fileText(b, `${dir}/mysplit_right.overlay`)
+        expect(ro).toContain('#include "mysplit.dtsi"')
+        expect(ro).toContain('&default_transform')
+        expect(ro).toContain('col-offset = <2>')
+        expect(ro).toContain('col-gpios')
     })
 })
 
