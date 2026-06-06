@@ -342,3 +342,64 @@
     backdrop-filter: blur(3px);
     -webkit-backdrop-filter: blur(3px);
 }
+
+/* RGB lighting simulation (lib/lighting) — keyframes for the per-key glow layer,
+   ported from the design prototype's app/Lighting.jsx. The reduced-motion guard
+   freezes the animation; .kl-reactive brightens when its keycap (.group) is
+   hovered (the 'reactive' effect). */
+@keyframes klBreathe {
+    0%,
+    100% {
+        opacity: 0.28;
+    }
+    50% {
+        opacity: 1;
+    }
+}
+
+@keyframes klHue {
+    to {
+        filter: hue-rotate(360deg);
+    }
+}
+
+@keyframes klWave {
+    0%,
+    100% {
+        opacity: 0.22;
+    }
+    50% {
+        opacity: 1;
+    }
+}
+
+@keyframes klTwinkle {
+    0% {
+        opacity: 0.08;
+    }
+    42% {
+        opacity: 1;
+    }
+    64% {
+        opacity: 0.25;
+    }
+    100% {
+        opacity: 0.08;
+    }
+}
+
+.kl-glow {
+    will-change: opacity, filter;
+}
+
+.group:hover .kl-reactive {
+    opacity: 1 !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .kl-glow {
+        animation: none !important;
+        filter: none !important;
+        opacity: 1 !important;
+    }
+}

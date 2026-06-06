@@ -280,23 +280,24 @@ export function Header(): JSX.Element {
                     opened={wirelessOpen}
                     onClose={(): void => setWirelessOpen(false)}
                 />
-                <FeatureGate feature="rgb">
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                disabled={!service}
-                                onClick={(): void => setRgbOpen(true)}
-                            >
-                                <Lightbulb aria-label="RGB settings" />
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                            <p>RGB lighting</p>
-                        </TooltipContent>
-                    </Tooltip>
-                </FeatureGate>
+                {/* RGB lighting — device controls when an RGB keyboard is
+                    connected, else the on-screen simulation editor. Ungated so it
+                    works in demo mode and on non-RGB boards. */}
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            disabled={!service}
+                            onClick={(): void => setRgbOpen(true)}
+                        >
+                            <Lightbulb aria-label="RGB lighting" />
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        <p>RGB lighting</p>
+                    </TooltipContent>
+                </Tooltip>
                 <RgbSettingsModal
                     opened={rgbOpen}
                     onClose={(): void => setRgbOpen(false)}

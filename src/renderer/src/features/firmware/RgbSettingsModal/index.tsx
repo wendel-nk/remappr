@@ -1,4 +1,11 @@
-// pattern-check: skip — Keychron RGB settings modal shell; sidebar-nav orchestration only
+// pattern-check: skip — RGB settings modal shell; sidebar-nav orchestration only
+//
+// One RGB-lighting modal. When an RGB-capable keyboard is connected it shows the
+// device control panels (Backlight / Per-key / Mix / Indicators) and the on-screen
+// keyboard glow mirrors those settings. With no RGB device (demo mode, non-RGB
+// boards) it shows the manual simulation controls instead. Either way the glow is a
+// *simulation* — the firmware does not report per-key colours, so the on-screen
+// colours reflect the configured effect/hue/brightness, not the literal LED state.
 import { useEffect, useState } from 'react'
 import { CircleDot, Grid3x3, Layers, Lightbulb, Save, Sun } from 'lucide-react'
 
@@ -13,6 +20,7 @@ import { BacklightPanel } from './BacklightPanel'
 import { BytesEditor } from './BytesEditor'
 import { MixedPanel } from './MixedPanel'
 import { PerKeyPanel } from './PerKeyPanel'
+import { SimulationPanel } from './SimulationPanel'
 
 interface Props {
     opened: boolean
@@ -63,7 +71,22 @@ export function RgbSettingsModal({ opened, onClose }: Props): JSX.Element {
         }
     }, [opened, rgb])
 
-    if (!rgb) return <></>
+    // No RGB-capable device: the modal becomes the on-screen simulation editor.
+    if (!rgb) {
+        return (
+            <Modal
+                opened={opened}
+                onClose={onClose}
+                title="RGB Lighting"
+                subtitle="Simulated on-screen — preview effects, colour & speed"
+                headerIcon={<Lightbulb />}
+                customModalBoxClass="w-11/14 max-w-lg"
+                showFooter={false}
+            >
+                <SimulationPanel />
+            </Modal>
+        )
+    }
 
     const save = (): Promise<void | undefined> =>
         saveWithToast(
@@ -165,6 +188,12 @@ export function RgbSettingsModal({ opened, onClose }: Props): JSX.Element {
                             </div>
                         </div>
                     )}
+
+                    {/* on-screen glow note */}
+                    <p className="mt-4 px-1 text-[10.5px] leading-relaxed text-muted-foreground">
+                        The on-screen keyboard glow simulates these settings.
+                        Per-key colours aren&apos;t reported by the keyboard.
+                    </p>
                 </aside>
 
                 {/* active section */}

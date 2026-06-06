@@ -9,6 +9,8 @@
 // fixed grey, so caps still follow the active theme + light/dark mode.
 import { CSSProperties, PropsWithChildren } from 'react'
 import { type HoldTapLabels, type KeyCapLegend } from './keyCapLegend'
+import { KeyLight } from '@/features/lighting/KeyLight'
+import type { KeyLightInput } from '@/features/lighting/engine'
 import { glyphNode } from './keyGlyph'
 import useUserSettingsStore, { type CapStyle } from '@/stores/userSettingsStore'
 import useConnectionStore from '@/stores/connectionStore'
@@ -69,6 +71,10 @@ interface KeyButtonProps extends KeyCapLegend {
     showHeaderTag?: boolean
     /** Hide the category dot (top-right) — used by small, clean previews. */
     showCategoryDot?: boolean
+    /** RGB-simulation glow input (cfg + normalized key centre + index). When set
+     *  and enabled, a <KeyLight> underglow layer renders above the face. Skipped
+     *  automatically while the heatmap is coloring the cap. */
+    light?: KeyLightInput | null
     onClick?: () => void
 }
 
@@ -299,6 +305,7 @@ export const KeyButton = ({
     colorModeOverride,
     showHeaderTag = true,
     showCategoryDot = true,
+    light = null,
     ...props
 }: PropsWithChildren<KeyButtonProps>): JSX.Element => {
     const size = makeSize(props, oneU)
@@ -375,6 +382,27 @@ export const KeyButton = ({
     const F = resolveFaceColors(category, colorMode, heat)
     const chrome = CAP_CHROME[capStyle](F, oneU)
     const sculpted = capStyle === 'sculpted'
+
+    // Outer border-radius for the underglow layer, matched per cap style so the
+    // glow tracks the skirt edge. Skipped while the heatmap is coloring the cap.
+    const lightRad =
+        capStyle === 'sculpted' || capStyle === 'glass'
+            ? Math.max(5, Math.round(oneU * 0.16))
+            : capStyle === 'mono'
+              ? Math.max(4, Math.round(oneU * 0.11))
+              : Math.max(4, Math.round(oneU * 0.12))
+    const lightEl =
+        light && light.cfg.enabled && heat == null ? (
+            <KeyLight
+                cfg={light.cfg}
+                fx={light.fx}
+                fy={light.fy}
+                idx={light.idx}
+                oneU={oneU}
+                radius={lightRad}
+                lit={pressed}
+            />
+        ) : null
     const showDot = showCategoryDot && !!F.dot && !F.heat && !shift
 
     // Accent colour (header tag + hold legend + chips). Falls back to the face
@@ -597,6 +625,8 @@ export const KeyButton = ({
         >
             {chrome.face && !pressed && <div style={chrome.face} aria-hidden />}
             {chrome.accentBar && <div style={chrome.accentBar} aria-hidden />}
+            {/* RGB-simulation underglow (above the face, below the legend) */}
+            {lightEl}
             {/* content layer (sits inside the lit face for sculpted) */}
             <div className="absolute flex flex-col" style={chrome.content}>
                 {/* header / shift-or-dot row */}

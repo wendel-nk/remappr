@@ -28,6 +28,8 @@ import {
 import type { RgbApi, RgbEffectState } from '@firmware/service'
 import { COLORLESS_EFFECT } from '@firmware/lighting'
 import { saveWithToast } from '@/lib/saveWithToast'
+import useLightingStore from '@/stores/lightingStore'
+import { lightingFromDevice } from '@/features/lighting/engine'
 
 import { ColorPicker } from './ColorPicker'
 
@@ -66,6 +68,16 @@ const iconFor = (name: string): LucideIcon =>
 
 export function BacklightPanel({ rgb }: Props): JSX.Element {
     const [state, setState] = useState<RgbEffectState | null>(null)
+    const setDeviceLighting = useLightingStore((s) => s.setDevice)
+
+    // Mirror device effect state into the on-screen glow (sim derived from settings).
+    const syncGlow = (st: RgbEffectState): void => {
+        const cat = rgb.effectCatalog
+        if (!cat) return
+        setDeviceLighting(
+            lightingFromDevice(st, cat.effects[st.mode] ?? '', cat),
+        )
+    }
 
     useEffect(() => {
         if (!rgb.getEffect) return
@@ -76,11 +88,15 @@ export function BacklightPanel({ rgb }: Props): JSX.Element {
                 null,
                 'Read backlight failed',
             )
-            if (!cancelled && r) setState(r)
+            if (!cancelled && r) {
+                setState(r)
+                syncGlow(r)
+            }
         })()
         return (): void => {
             cancelled = true
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [rgb])
 
     const cat = rgb.effectCatalog
@@ -97,6 +113,7 @@ export function BacklightPanel({ rgb }: Props): JSX.Element {
         if (!state) return
         const next = { ...state, ...patch }
         setState(next)
+        syncGlow(next)
         void rgb.setEffect!(next)
     }
 

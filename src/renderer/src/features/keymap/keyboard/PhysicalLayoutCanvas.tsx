@@ -13,6 +13,7 @@ import { scalePosition } from '@/lib/scalePosition'
 import { LayoutZoom } from '@/lib/helpers'
 import type { ColorMode, KeyCategory } from '@/lib/keymap/keyCategory'
 import type { CapStyle } from '@/stores/userSettingsStore'
+import type { UnifiedLighting } from '@/features/lighting/engine'
 
 export type KeyPosition = PropsWithChildren<{
     id?: string
@@ -66,6 +67,8 @@ interface PhysicalLayoutCanvasProps {
     pannable?: boolean
     // Opt-in rich hover tooltips on each key (tap/action/hold/type/press-count).
     tooltips?: boolean
+    // RGB-simulation config; when enabled, each key renders an underglow layer.
+    lighting?: UnifiedLighting | null
     onPositionClicked?: (position: number, mods?: ClickModifiers) => void
     onEncoderClicked?: (slot: number, dir: 'cw' | 'ccw') => void
     // Right-click on a key (not encoder) → host shows a context menu at the
@@ -114,6 +117,7 @@ export const PhysicalLayoutCanvas = ({
     showCategoryDot,
     pannable = false,
     tooltips = false,
+    lighting = null,
     onPositionClicked,
     onEncoderClicked,
     onPositionContextMenu,
@@ -347,6 +351,17 @@ export const PhysicalLayoutCanvas = ({
               selectedEncoder?.dir === p.encoder!.dir
             : idx === selectedPosition
         const isMultiSelected = !isEncoder && !!selectedPositions?.has(idx)
+        // Underglow input: key centre normalized to the board bounds (drives the
+        // spatial hue). Encoders skip the glow.
+        const lightInput =
+            lighting?.enabled && !isEncoder && rightMost > 0 && bottomMost > 0
+                ? {
+                      cfg: lighting,
+                      fx: (p.x + p.width / 2) / rightMost,
+                      fy: (p.y + p.height / 2) / bottomMost,
+                      idx,
+                  }
+                : null
         const handleClick = (mods?: ClickModifiers): void => {
             if (isEncoder) {
                 onEncoderClicked?.(p.encoder!.slot, p.encoder!.dir)
@@ -394,6 +409,7 @@ export const PhysicalLayoutCanvas = ({
                     colorModeOverride={colorModeOverride}
                     showHeaderTag={showHeaderTag}
                     showCategoryDot={showCategoryDot}
+                    light={lightInput}
                     {...p}
                 />
             </div>

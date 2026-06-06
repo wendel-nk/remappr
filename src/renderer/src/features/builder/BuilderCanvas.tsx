@@ -12,9 +12,10 @@
 /* eslint-disable jsx-a11y/no-static-element-interactions -- this is a
    pointer-driven canvas editor (drag/marquee/resize/rotate); keyboard editing is
    provided at the builder level (arrow-nudge, ⌘Z, delete, etc.), not per div. */
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { RotateCw, SlidersHorizontal } from 'lucide-react'
 import { KeyButton } from '@/features/keymap/keyboard/KeyButton'
+import { lightingFromCanon } from '@/features/lighting/engine'
 import { clamp, round3 } from '@/lib/clampInt'
 import { scalePosition } from '@/lib/scalePosition'
 import useConfigStore from '@/stores/configStore'
@@ -116,6 +117,14 @@ export function BuilderCanvas(): JSX.Element {
 
     const keys = config?.keyboard.keys ?? []
     const { canvasW, canvasH } = computeCanvas(keys)
+
+    // RGB-simulation glow from the board's lighting config (builder source of truth).
+    // fx/fy below normalize each key centre to the board bounds (drives spatial hue).
+    const lighting = useMemo(
+        () => lightingFromCanon(config?.keyboard.lighting),
+        [config?.keyboard.lighting],
+    )
+    const { maxX: boundsX, maxY: boundsY } = boardBounds(keys)
 
     // Fit oneU to the viewport (caps render at real size → crisp at every zoom).
     useLayoutEffect(() => {
@@ -639,6 +648,18 @@ export function BuilderCanvas(): JSX.Element {
                                 mods={legend?.mods}
                                 showHeaderTag={
                                     !!(legend?.header || bindingCode)
+                                }
+                                light={
+                                    lighting.enabled &&
+                                    boundsX > 0 &&
+                                    boundsY > 0
+                                        ? {
+                                              cfg: lighting,
+                                              fx: (k.x + k.w / 2) / boundsX,
+                                              fy: (k.y + k.h / 2) / boundsY,
+                                              idx: i,
+                                          }
+                                        : null
                                 }
                             >
                                 {legend && !legend.holdTap
