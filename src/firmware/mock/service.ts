@@ -66,7 +66,6 @@ const MOCK_DYNAMIC_COUNTS: DynamicEntryCounts = {
 const MOCK_MACRO_COUNT = 3
 const MOCK_MACRO_BUFFER = 256
 const MOCK_ENCODER_COUNT = 2
-const MOCK_LED_COUNT = 24
 
 const MOCK_CAPABILITIES: Capabilities = {
     lock: true,
@@ -192,14 +191,9 @@ export class MockKeyboardService implements KeyboardService {
 
     private nextLayerId = 0
 
-    private perKeyColors: HsvColor[] = Array.from(
-        { length: MOCK_LED_COUNT },
-        (_, i) => ({
-            h: Math.round(((i * 255) / MOCK_LED_COUNT) % 256),
-            s: 220,
-            v: 200,
-        }),
-    )
+    // Sized to keyCount in the constructor (one LED per key, like a real per-key
+    // board) so per-key reads/writes span the whole keyboard, not a fixed 24.
+    private perKeyColors: HsvColor[] = []
     private perKeyType: number = 0
     private indicators: IndicatorConfig = {
         supported: {
@@ -231,6 +225,11 @@ export class MockKeyboardService implements KeyboardService {
     constructor(opts: MockServiceOptions = {}) {
         this.seedCfg = opts.seedConfig ?? SEED_CONFIG
         this.keyCount = this.seedCfg.keyboard.keys.length
+        this.perKeyColors = Array.from({ length: this.keyCount }, (_, i) => ({
+            h: Math.round(((i * 255) / this.keyCount) % 256),
+            s: 220,
+            v: 200,
+        }))
         this.layouts = opts.seedConfig
             ? [configToPhysicalLayout(opts.seedConfig)]
             : MOCK_LAYOUTS.map((l) => ({ ...l }))
@@ -330,7 +329,7 @@ export class MockKeyboardService implements KeyboardService {
             },
         }
         this.rgb = {
-            getLedCount: async () => MOCK_LED_COUNT,
+            getLedCount: async () => this.perKeyColors.length,
             getIndicators: async () => this.indicators,
             setIndicators: async (cfg) => {
                 this.indicators = { ...this.indicators, ...cfg }
@@ -339,6 +338,10 @@ export class MockKeyboardService implements KeyboardService {
             save: async () => {
                 /* in-memory mock has no persistence */
             },
+            // Simulated boards have no custom per-key effect enum; report the
+            // current mode so the per-key editor treats it as already active
+            // (no effect switch, no "could not resolve" warning).
+            getPerKeyEffectMode: async () => this.rgbEffect.mode,
             getPerKeyType: async () => this.perKeyType,
             setPerKeyType: async (t) => {
                 this.perKeyType = t & 0xff
