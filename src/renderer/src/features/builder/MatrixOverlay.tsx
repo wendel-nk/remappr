@@ -8,7 +8,7 @@
 // plus an EDITABLE GPIO pin chip at the run's anchor (click to rename) and "+"
 // buttons to append an unused row / column. Drag-to-reposition the chips is not
 // ported — pin chip offsets have no home in the canonical config.
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Plus } from 'lucide-react'
 import type { CanonGeometry, CanonMatrixTransform } from '@firmware/config'
 
@@ -92,8 +92,16 @@ export function MatrixOverlay({
     onAddCol: () => void
 }): JSX.Element {
     const map = transform.map
-    const rows = buildRuns(keys, (rc) => rc[0], map, oneU, true)
-    const cols = buildRuns(keys, (rc) => rc[1], map, oneU, false)
+    // buildRuns is O(N log N) (sort per group + path-string build); memoize both so it
+    // doesn't recompute on every canvas re-render (only when the wiring/size changes).
+    const rows = useMemo(
+        () => buildRuns(keys, (rc) => rc[0], map, oneU, true),
+        [keys, map, oneU],
+    )
+    const cols = useMemo(
+        () => buildRuns(keys, (rc) => rc[1], map, oneU, false),
+        [keys, map, oneU],
+    )
     const ctr = (k: CanonGeometry): { x: number; y: number } => ({
         x: (k.x + k.w / 2) * oneU,
         y: (k.y + k.h / 2) * oneU,

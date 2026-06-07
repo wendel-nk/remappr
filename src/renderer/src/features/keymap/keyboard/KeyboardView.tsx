@@ -67,9 +67,15 @@ export default function KeyboardView({
     onSelectedKeyInfoChange,
 }: KeyboardViewProps): JSX.Element {
     const { layouts, selectedPhysicalLayoutIndex } = useLayout()
-    const { selectedLayerIndex, setSelectedLayerIndex } =
-        useLayerSelectionStore()
-    const { service } = useConnectionStore()
+    // Per-field selectors (not whole-store reads) so this view — which owns the canvas
+    // — doesn't re-render on unrelated store changes.
+    const selectedLayerIndex = useLayerSelectionStore(
+        (s) => s.selectedLayerIndex,
+    )
+    const setSelectedLayerIndex = useLayerSelectionStore(
+        (s) => s.setSelectedLayerIndex,
+    )
+    const service = useConnectionStore((s) => s.service)
     const codec = useConnectionStore((s) => s.service?.codec)
     const peekLayerIndex = useLayerPeekStore((s) => s.peekLayerIndex)
 
@@ -141,6 +147,17 @@ export default function KeyboardView({
             setContextMenu({ position, x: coords.x, y: coords.y })
         },
         [],
+    )
+
+    // Stable encoder-click handler so PhysicalLayoutCanvas (memoized) isn't re-rendered
+    // by a fresh closure on every KeyboardView render.
+    const handleEncoderClicked = useCallback(
+        (slot: number, dir: 'cw' | 'ccw'): void => {
+            setSelectedEncoder?.({ slot, dir })
+            if (workspace === 'command') setPaletteOpen(true)
+            else setPickerOpen?.(true)
+        },
+        [setSelectedEncoder, workspace, setPickerOpen],
     )
 
     const keyCount = keymap?.layers[effectiveLayerIndex]?.keys.length ?? 0
@@ -299,11 +316,7 @@ export default function KeyboardView({
                 selectedPositions={multiSelection}
                 onPositionClicked={handlePositionClicked}
                 selectedEncoder={selectedEncoder}
-                onEncoderClicked={(slot, dir): void => {
-                    setSelectedEncoder?.({ slot, dir })
-                    if (workspace === 'command') setPaletteOpen(true)
-                    else setPickerOpen?.(true)
-                }}
+                onEncoderClicked={handleEncoderClicked}
                 onPositionContextMenu={handlePositionContextMenu}
                 pressedKeys={liveView ? pressedKeys : EMPTY_KEYS}
             />

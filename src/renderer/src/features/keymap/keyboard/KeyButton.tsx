@@ -7,12 +7,15 @@
 // "+"), and a tap-hold split into TAP + a "HOLD" eyebrow zone divided by a tinted
 // rule. The cap surfaces stay THEME-AWARE (FaceColors below) rather than RKey's
 // fixed grey, so caps still follow the active theme + light/dark mode.
-import { CSSProperties, PropsWithChildren } from 'react'
+import { CSSProperties, memo, PropsWithChildren } from 'react'
 import { type HoldTapLabels, type KeyCapLegend } from './keyCapLegend'
 import { KeyLight } from '@/features/lighting/KeyLight'
 import type { KeyLightInput } from '@/features/lighting/engine'
 import { glyphNode } from './keyGlyph'
-import useUserSettingsStore, { type CapStyle } from '@/stores/userSettingsStore'
+import useUserSettingsStore, {
+    type CapStyle,
+    type KeyDisplayMode,
+} from '@/stores/userSettingsStore'
 import useConnectionStore from '@/stores/connectionStore'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/ui/tooltip'
 import {
@@ -283,7 +286,20 @@ const CAP_CHROME: Record<
     }),
 }
 
-export const KeyButton = ({
+// View props: the four store-derived values (capStyle/colorMode/keyDisplayMode) arrive
+// resolved from the caller instead of being read per-key, so 100 keys don't each
+// subscribe to the connection + user-settings stores. The thin `KeyButton` wrapper
+// below preserves the original store-reading API for standalone callers.
+interface KeyButtonViewProps extends Omit<
+    KeyButtonProps,
+    'capStyleOverride' | 'colorModeOverride'
+> {
+    capStyle: CapStyle
+    colorMode: ColorMode
+    keyDisplayMode: KeyDisplayMode
+}
+
+const KeyButtonViewImpl = ({
     selected = false,
     multiSelected = false,
     pressed = false,
@@ -301,13 +317,14 @@ export const KeyButton = ({
     heat = null,
     pressCount = null,
     richTooltip = false,
-    capStyleOverride,
-    colorModeOverride,
+    capStyle,
+    colorMode,
+    keyDisplayMode,
     showHeaderTag = true,
     showCategoryDot = true,
     light = null,
     ...props
-}: PropsWithChildren<KeyButtonProps>): JSX.Element => {
+}: PropsWithChildren<KeyButtonViewProps>): JSX.Element => {
     const size = makeSize(props, oneU)
     const S = oneU
 
@@ -346,17 +363,6 @@ export const KeyButton = ({
     const chipLabel = Math.max(8, Math.round(S * 0.1))
     const plusSize = Math.round(S * 0.128)
     const shiftSize = Math.round(S * 0.13)
-
-    const firmware = useConnectionStore((s) => s.service?.deviceInfo.firmware)
-    const keyDisplayModeMap = useUserSettingsStore((s) => s.keyDisplayMode)
-    const capStyleSetting = useUserSettingsStore((s) => s.capStyle)
-    const colorModeSetting = useUserSettingsStore((s) => s.colorMode)
-    const capStyle = capStyleOverride ?? capStyleSetting
-    const colorMode = colorModeOverride ?? colorModeSetting
-    const keyDisplayMode =
-        keyDisplayModeMap[firmware ?? '_default'] ??
-        keyDisplayModeMap['_default'] ??
-        'displayName'
 
     const headerHidden = keyDisplayMode === 'hidden'
     const effectiveHeader =
@@ -726,5 +732,38 @@ export const KeyButton = ({
                 buttonEl
             )}
         </div>
+    )
+}
+
+/** Memoized presentational keycap. Canvases render this directly (resolving the
+ *  cap-style / colour-mode / display-mode once for the whole board) so a parent
+ *  re-render or a committed pan/zoom does not re-render every key. */
+export const KeyButtonView = memo(KeyButtonViewImpl)
+
+/** Store-reading keycap — the original public API. Resolves cap-style/colour-mode
+ *  (honouring per-call overrides) + the firmware-keyed display mode from the user
+ *  settings, then delegates to the memoized view. Kept for standalone callers
+ *  (settings previews, inspector cards, builder) that don't lift these reads. */
+export const KeyButton = (
+    props: PropsWithChildren<KeyButtonProps>,
+): JSX.Element => {
+    const { capStyleOverride, colorModeOverride, ...rest } = props
+    const firmware = useConnectionStore((s) => s.service?.deviceInfo.firmware)
+    const keyDisplayModeMap = useUserSettingsStore((s) => s.keyDisplayMode)
+    const capStyleSetting = useUserSettingsStore((s) => s.capStyle)
+    const colorModeSetting = useUserSettingsStore((s) => s.colorMode)
+    const capStyle = capStyleOverride ?? capStyleSetting
+    const colorMode = colorModeOverride ?? colorModeSetting
+    const keyDisplayMode =
+        keyDisplayModeMap[firmware ?? '_default'] ??
+        keyDisplayModeMap['_default'] ??
+        'displayName'
+    return (
+        <KeyButtonView
+            {...rest}
+            capStyle={capStyle}
+            colorMode={colorMode}
+            keyDisplayMode={keyDisplayMode}
+        />
     )
 }

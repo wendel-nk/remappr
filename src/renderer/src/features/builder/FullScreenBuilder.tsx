@@ -69,6 +69,11 @@ import { JsonConfigPanel } from './JsonConfigPanel'
 import { BuilderCoachmarkTour } from './BuilderCoachmarkTour'
 import { Settings } from '@/components/modals/Settings'
 
+// Hoisted: stable refs for the Electron title-bar drag regions (an inline object would
+// be a fresh ref each render).
+const DRAG_REGION = { WebkitAppRegion: 'drag' } as React.CSSProperties
+const NO_DRAG_REGION = { WebkitAppRegion: 'no-drag' } as React.CSSProperties
+
 export function FullScreenBuilder(): JSX.Element {
     // pattern-check: skip — single hook-read line, no new abstraction
     const stage = useBuilderStage()
@@ -215,7 +220,7 @@ export function FullScreenBuilder(): JSX.Element {
             {/* ===== toolbar ===== */}
             <header
                 className="relative z-30 flex h-[52px] shrink-0 items-center justify-between border-b border-border bg-card px-3"
-                style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
+                style={DRAG_REGION}
             >
                 <div className="flex items-center gap-2">
                     <ToolButton label="Back" onClick={() => setOpen(false)}>
@@ -312,11 +317,7 @@ export function FullScreenBuilder(): JSX.Element {
                         onClick={handleSave}
                         disabled={!config}
                         className="inline-flex h-[34px] items-center gap-1.5 rounded-lg border border-border bg-secondary px-3 text-[13px] font-semibold text-secondary-foreground transition-colors hover:border-primary disabled:opacity-40"
-                        style={
-                            {
-                                WebkitAppRegion: 'no-drag',
-                            } as React.CSSProperties
-                        }
+                        style={NO_DRAG_REGION}
                     >
                         <Save size={14} /> Save
                     </button>
@@ -325,11 +326,7 @@ export function FullScreenBuilder(): JSX.Element {
                         onClick={openInEditor}
                         disabled={!config}
                         className="inline-flex h-[34px] items-center gap-1.5 rounded-lg border border-border bg-secondary px-3 text-[13px] font-semibold text-secondary-foreground transition-colors hover:border-primary disabled:opacity-40"
-                        style={
-                            {
-                                WebkitAppRegion: 'no-drag',
-                            } as React.CSSProperties
-                        }
+                        style={NO_DRAG_REGION}
                     >
                         <ArrowRight size={14} /> Editor
                     </button>
@@ -339,11 +336,7 @@ export function FullScreenBuilder(): JSX.Element {
                         disabled={!config}
                         data-coach="builder-export"
                         className="inline-flex h-[34px] items-center gap-1.5 rounded-lg bg-primary px-3.5 text-[13px] font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
-                        style={
-                            {
-                                WebkitAppRegion: 'no-drag',
-                            } as React.CSSProperties
-                        }
+                        style={NO_DRAG_REGION}
                     >
                         <Rocket size={15} /> Export &amp; build
                     </button>

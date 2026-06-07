@@ -1,6 +1,6 @@
 import React, { JSX, useCallback, useEffect } from 'react'
-import { connectMock, isUnlocked, pickAdapter } from '@firmware'
 import type { Transport } from '@firmware'
+import { connectMock, isUnlocked, pickAdapter } from '@firmware'
 import { rememberConnectedDeviceName } from '@/transport/web-serial'
 import { LockedOverlay } from '@/features/connection/LockedOverlay'
 import useConnectionStore from '@/stores/connectionStore'
@@ -25,6 +25,16 @@ import { UpdateNotification } from '@/components/UpdateNotification'
 import { TitleBar } from '@/layout/TitleBar'
 import { isElectron as isElectronEnv } from '@/transport'
 import { useConfigRuntimeSync } from '@/hooks/use-config-runtime-sync'
+import { cacheKey, loadCached } from '@firmware/qmk/layoutSideload'
+
+// Hoisted so it's a stable reference — an inline object here makes a fresh ref every
+// App render, forcing the whole editor subtree (Drawer + KeymapEditor + canvas) to
+// re-render on any connection/lock-state change.
+const SIDEBAR_STYLE = {
+    '--sidebar-width': '15.5rem',
+    '--header-height': 'calc(var(--spacing) * 13)',
+    '--footer-height': 'calc(var(--spacing) * 8)',
+} as React.CSSProperties
 
 function App(): JSX.Element {
     // pattern-check: skip — UI sweep, replace store-connection with store-service
@@ -83,6 +93,22 @@ function App(): JSX.Element {
         }
         try {
             const next = await adapter.connect(t, connectionAbort.signal)
+            // Re-apply a previously imported QMK/VIA/Keychron layout BEFORE the
+            // service is exposed, so the first keymap read (Drawer) already
+            // reflects it. Doing it here — rather than in a sibling effect —
+            // keeps it off the same transport at the same time as the initial
+            // getKeymap, avoiding a last-writer-wins race on the keymap store.
+            if (next.capabilities.layoutSideloadable && next.applyLayout) {
+                const key = cacheKey(next.deviceInfo)
+                const def = key ? loadCached(key) : null
+                if (def) {
+                    try {
+                        await next.applyLayout(def)
+                    } catch (err) {
+                        console.warn('Failed to restore cached layout', err)
+                    }
+                }
+            }
             next.onClosed((): void => {
                 setDeviceName(null)
                 setService(null)
@@ -123,6 +149,17 @@ function App(): JSX.Element {
         return () => document.body.classList.remove('app-electron')
     }, [isElectron])
 
+    // Pause the per-key RGB glow animations while the window/tab is hidden — frees the
+    // compositor from re-filtering N hue-rotate layers when nothing is on screen.
+    useEffect(() => {
+        const sync = (): void => {
+            document.body.classList.toggle('kl-paused', document.hidden)
+        }
+        sync()
+        document.addEventListener('visibilitychange', sync)
+        return () => document.removeEventListener('visibilitychange', sync)
+    }, [])
+
     const builderOpen = useBuilderStore((s) => s.open)
 
     const showEditor =
@@ -149,15 +186,7 @@ function App(): JSX.Element {
                             <ErrorBoundary>
                                 <SidebarProvider
                                     className="!min-h-0 h-full"
-                                    style={
-                                        {
-                                            '--sidebar-width': '15.5rem',
-                                            '--header-height':
-                                                'calc(var(--spacing) * 13)',
-                                            '--footer-height':
-                                                'calc(var(--spacing) * 8)',
-                                        } as React.CSSProperties
-                                    }
+                                    style={SIDEBAR_STYLE}
                                 >
                                     <Drawer />
                                     <SidebarInset>

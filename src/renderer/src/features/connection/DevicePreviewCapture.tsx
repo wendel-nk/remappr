@@ -27,6 +27,9 @@ export function DevicePreviewCapture(): null {
 
     useEffect(() => {
         if (!service || !layouts || !keymap) return
+        // Demo/mock keyboards never appear in the discovered-device list, so their
+        // snapshots can't be shown — capturing one only risks clobbering a real slot.
+        if (service.deviceInfo.firmware === 'mock') return
         const layout = layouts[selectedPhysicalLayoutIndex]
         if (!layout || keymap.layers.length === 0) return
 

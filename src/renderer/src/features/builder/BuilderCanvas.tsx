@@ -12,14 +12,24 @@
 /* eslint-disable jsx-a11y/no-static-element-interactions -- this is a
    pointer-driven canvas editor (drag/marquee/resize/rotate); keyboard editing is
    provided at the builder level (arrow-nudge, ⌘Z, delete, etc.), not per div. */
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import {
+    memo,
+    useCallback,
+    useEffect,
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    useState,
+} from 'react'
 import { RotateCw, SlidersHorizontal } from 'lucide-react'
-import { KeyButton } from '@/features/keymap/keyboard/KeyButton'
+import { KeyButtonView } from '@/features/keymap/keyboard/KeyButton'
 import { lightingFromCanon } from '@/features/lighting/engine'
 import { clamp, round3 } from '@/lib/clampInt'
 import { scalePosition } from '@/lib/scalePosition'
 import useConfigStore from '@/stores/configStore'
 import useBuilderStore from '@/stores/builderStore'
+import useUserSettingsStore from '@/stores/userSettingsStore'
+import useConnectionStore from '@/stores/connectionStore'
 import { snap as snapStep, updateKeys } from './geometryEditor'
 import { splitInfo } from './builderMatrix'
 import { resolvedTransform } from './builderInspectorOps'
@@ -90,7 +100,7 @@ function computeCanvas(keys: CanonGeometry[]): {
 
 type HandleKind = 'se' | 'e' | 's' | 'rotate'
 
-export function BuilderCanvas(): JSX.Element {
+function BuilderCanvasImpl(): JSX.Element {
     const config = useConfigStore((s) => s.config)
     const selection = useBuilderStore((s) => s.selection)
     const view = useBuilderStore((s) => s.view)
@@ -98,6 +108,17 @@ export function BuilderCanvas(): JSX.Element {
     const matrixView = useBuilderStore((s) => s.matrixView)
     const activeVariant = useBuilderStore((s) => s.activeVariant)
     const activeLayer = useBuilderStore((s) => s.activeLayer)
+
+    // Cap-style / colour-mode / firmware display-mode resolved ONCE for the board
+    // (the keys render the memoized KeyButtonView so they don't each subscribe).
+    const capStyle = useUserSettingsStore((s) => s.capStyle)
+    const colorMode = useUserSettingsStore((s) => s.colorMode)
+    const keyDisplayModeMap = useUserSettingsStore((s) => s.keyDisplayMode)
+    const firmware = useConnectionStore((s) => s.service?.deviceInfo.firmware)
+    const keyDisplayMode =
+        keyDisplayModeMap[firmware ?? '_default'] ??
+        keyDisplayModeMap['_default'] ??
+        'displayName'
 
     const ref = useRef<HTMLDivElement>(null)
     const [oneU, setOneU] = useState(64)
@@ -125,6 +146,27 @@ export function BuilderCanvas(): JSX.Element {
         [config?.keyboard.lighting],
     )
     const { maxX: boundsX, maxY: boundsY } = boardBounds(keys)
+
+    // pattern-check: skip — imperative transform plumbing during gestures, no abstraction
+    // Pan/zoom is written DIRECTLY to the board's `style.transform` during a gesture and
+    // committed to the store only on gesture end, so dragging/zooming doesn't re-render
+    // the canvas (+ all keys) every frame. `liveViewRef` mirrors the store `view`
+    // synchronously for the imperative path; the layout effect keeps the DOM transform
+    // in sync with the committed store value (centring, reset, wheel-commit).
+    const boardRef = useRef<HTMLDivElement>(null)
+    const liveViewRef = useRef(view)
+    const applyBoardTransform = useCallback(
+        (v: { zoom: number; panX: number; panY: number }): void => {
+            const el = boardRef.current
+            if (el)
+                el.style.transform = `translate(${v.panX}px, ${v.panY}px) scale(${v.zoom})`
+        },
+        [],
+    )
+    useLayoutEffect((): void => {
+        liveViewRef.current = view
+        applyBoardTransform(view)
+    }, [view, applyBoardTransform])
 
     // Fit oneU to the viewport (caps render at real size → crisp at every zoom).
     useLayoutEffect(() => {
@@ -171,13 +213,16 @@ export function BuilderCanvas(): JSX.Element {
         setView,
     ])
 
-    // Wheel-zoom centred on the cursor (native non-passive listener).
+    // Wheel-zoom centred on the cursor (native non-passive listener). Reads/writes the
+    // live ref and applies the transform imperatively, committing to the store on a
+    // trailing debounce — so a wheel gesture doesn't re-render the canvas per notch.
     useEffect(() => {
         const el = ref.current
         if (!el) return
+        let commitTimer: number | undefined
         const onWheel = (e: WheelEvent): void => {
             e.preventDefault()
-            const v = useBuilderStore.getState().view
+            const v = liveViewRef.current
             const rect = el.getBoundingClientRect()
             const cx = e.clientX - rect.left - rect.width / 2
             const cy = e.clientY - rect.top - rect.height / 2
@@ -188,15 +233,24 @@ export function BuilderCanvas(): JSX.Element {
             )
             if (nz === v.zoom) return
             const k = nz / v.zoom
-            useBuilderStore.getState().setView({
+            const nv = {
                 zoom: nz,
                 panX: cx - (cx - v.panX) * k,
                 panY: cy - (cy - v.panY) * k,
-            })
+            }
+            liveViewRef.current = nv
+            applyBoardTransform(nv)
+            window.clearTimeout(commitTimer)
+            commitTimer = window.setTimeout(() => {
+                useBuilderStore.getState().setView(liveViewRef.current)
+            }, 140)
         }
         el.addEventListener('wheel', onWheel, { passive: false })
-        return () => el.removeEventListener('wheel', onWheel)
-    }, [])
+        return () => {
+            el.removeEventListener('wheel', onWheel)
+            window.clearTimeout(commitTimer)
+        }
+    }, [applyBoardTransform])
 
     // Space = temporary pan mode.
     useEffect(() => {
@@ -254,14 +308,24 @@ export function BuilderCanvas(): JSX.Element {
         e.preventDefault()
         setGrabbing(true)
         const start = { x: e.clientX, y: e.clientY }
-        const base = { ...useBuilderStore.getState().view }
-        const move = (ev: MouseEvent): void =>
-            useBuilderStore.getState().setView({
+        const base = { ...liveViewRef.current }
+        // Pan writes the DOM transform directly during the drag and commits to the
+        // store once on mouse-up — no per-move re-render.
+        const move = (ev: MouseEvent): void => {
+            const nv = {
+                zoom: base.zoom,
                 panX: base.panX + (ev.clientX - start.x),
                 panY: base.panY + (ev.clientY - start.y),
-            })
+            }
+            liveViewRef.current = nv
+            applyBoardTransform(nv)
+        }
         const up = (): void => {
             setGrabbing(false)
+            useBuilderStore.getState().setView({
+                panX: liveViewRef.current.panX,
+                panY: liveViewRef.current.panY,
+            })
             window.removeEventListener('mousemove', move)
             window.removeEventListener('mouseup', up)
         }
@@ -494,6 +558,7 @@ export function BuilderCanvas(): JSX.Element {
             style={{ cursor: panCursor }}
         >
             <div
+                ref={boardRef}
                 className="relative"
                 style={{
                     width: innerW,
@@ -632,13 +697,16 @@ export function BuilderCanvas(): JSX.Element {
                             }}
                             onMouseDown={(e) => onKeyDown(i, e)}
                         >
-                            <KeyButton
+                            <KeyButtonView
                                 oneU={oneU}
                                 width={k.w}
                                 height={k.h}
                                 hoverZoom={false}
                                 selected={lone}
                                 multiSelected={sized && !lone}
+                                capStyle={capStyle}
+                                colorMode={colorMode}
+                                keyDisplayMode={keyDisplayMode}
                                 tapText={legend?.tapText}
                                 header={legend?.header}
                                 actionLabel={bindingCode}
@@ -665,7 +733,7 @@ export function BuilderCanvas(): JSX.Element {
                                 {legend && !legend.holdTap
                                     ? legend.tapText
                                     : undefined}
-                            </KeyButton>
+                            </KeyButtonView>
                             {k.element && (
                                 <span
                                     className="pointer-events-none absolute right-1 top-1 text-primary"
@@ -824,6 +892,9 @@ export function BuilderCanvas(): JSX.Element {
         </div>
     )
 }
+
+// pattern-check: skip — memo wrapper around the existing canvas component, no abstraction
+export const BuilderCanvas = memo(BuilderCanvasImpl)
 
 /** A small square resize handle. */
 function Handle({

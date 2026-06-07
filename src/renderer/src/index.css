@@ -388,12 +388,23 @@
     }
 }
 
-.kl-glow {
+/* will-change is scoped to glows that actually animate (.kl-anim, set by KeyLight
+   only when the engine assigns an animation) — so static solid/gradient/idle-reactive
+   glows are NOT each promoted to their own compositor layer (100 keys = 100 layers). */
+.kl-anim {
     will-change: opacity, filter;
 }
 
 .group:hover .kl-reactive {
     opacity: 1 !important;
+    will-change: opacity;
+}
+
+/* Pause every glow animation while the window/tab is hidden — the compositor stops
+   re-filtering N hue-rotate layers when nothing is visible. Toggled on <body> by a
+   global visibilitychange listener (App). */
+body.kl-paused .kl-glow {
+    animation-play-state: paused !important;
 }
 
 @media (prefers-reduced-motion: reduce) {

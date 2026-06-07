@@ -108,6 +108,10 @@ const useConnectionStore = create<ConnectionState>()(
                     deviceName: null,
                     lockState: 'locked' as LockState,
                     keyCatalog: null,
+                    // Clear the connect→preview-capture bridge so a stale id from
+                    // the prior device can't key the next session's snapshot
+                    // (e.g. demo mode overwriting a real keyboard's preview).
+                    lastConnectedDevice: null,
                 })
                 useDynamicCatalogStore.getState().reset()
                 useConfigStore.getState().reset()

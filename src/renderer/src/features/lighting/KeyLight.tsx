@@ -1,4 +1,5 @@
 // pattern-check: skip — presentational glow layer over computeKeyLight, no abstraction
+import { memo, useMemo } from 'react'
 import { computeKeyLight, type UnifiedLighting } from './engine'
 
 interface KeyLightProps {
@@ -21,7 +22,7 @@ interface KeyLightProps {
  *  glow (no face fill, so the cap colour shows through). Returns null when disabled.
  *  The 'reactive' effect also lights on hover via the .kl-reactive CSS rule (it
  *  brightens when an ancestor `.group` is hovered). */
-export function KeyLight({
+function KeyLightImpl({
     cfg,
     fx = 0.5,
     fy = 0.5,
@@ -30,15 +31,31 @@ export function KeyLight({
     radius,
     lit = false,
 }: KeyLightProps): JSX.Element | null {
-    const g = computeKeyLight(cfg, fx, fy, idx, oneU, lit)
+    const g = useMemo(
+        () => computeKeyLight(cfg, fx, fy, idx, oneU, lit),
+        [cfg, fx, fy, idx, oneU, lit],
+    )
+    const style = useMemo(
+        () =>
+            g
+                ? radius != null
+                    ? { ...g.style, borderRadius: radius }
+                    : g.style
+                : undefined,
+        [g, radius],
+    )
     if (!g) return null
-    const style =
-        radius != null ? { ...g.style, borderRadius: radius } : g.style
     return (
         <div
             aria-hidden
-            className={`kl-glow${g.reactive ? ' kl-reactive' : ''}`}
+            // `kl-anim` (animated effects only) scopes the will-change layer promotion
+            // to the keys that actually animate — static glows stay un-promoted.
+            className={`kl-glow${g.style.animation ? ' kl-anim' : ''}${
+                g.reactive ? ' kl-reactive' : ''
+            }`}
             style={style}
         />
     )
 }
+
+export const KeyLight = memo(KeyLightImpl)
