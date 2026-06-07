@@ -7,6 +7,15 @@ import type { KeyboardService } from '@firmware/service'
 import type { LockState } from '@firmware/types'
 import useDynamicCatalogStore from '@/stores/dynamicCatalogStore'
 import useConfigStore from '@/stores/configStore'
+import useLayerSelectionStore from '@/stores/layerSelectionStore'
+import useLightingCatalogStore from '@/stores/lightingCatalogStore'
+import { cacheKey, loadCached } from '@firmware/qmk/layoutSideload'
+import { parseLightingMenu } from '@firmware/via/lightingMenu'
+
+// Teardown for the connected keyboard's default-layer subscription (Feature 1).
+// Module-scoped: the store is a singleton, and this keeps the internal handle off
+// the public ConnectionState surface.
+let defaultLayerUnsub: (() => void) | null = null
 
 interface ConnectionState {
     service: KeyboardService | null
@@ -61,6 +70,48 @@ const useConnectionStore = create<ConnectionState>()(
             lastConnectedDevice: null,
             setService: (service, communication) => {
                 set({ service, communication: communication ?? null })
+                // Diagnostics: which adapter connected + which facades attached.
+                if (service)
+                    console.info('[connect] service', {
+                        firmware: service.deviceInfo.firmware,
+                        firmwareVersion: service.deviceInfo.firmwareVersion,
+                        rgb: !!service.rgb,
+                        wireless: !!service.wireless,
+                        advanced: !!service.advanced,
+                        layerControl: !!service.layerControl,
+                    })
+                // Feature 1: auto-select the keyboard's hardware default layer
+                // (e.g. Keychron Mac/Win DIP) and follow live toggles. Adapters
+                // without a `layers` facade leave the editor's selection alone.
+                defaultLayerUnsub?.()
+                defaultLayerUnsub = null
+                // Seed the RGB effect list from a previously imported/cached board
+                // definition's lighting menu (real per-board effect names).
+                useLightingCatalogStore.getState().setCatalog(null)
+                if (service) {
+                    try {
+                        const k = cacheKey(service.deviceInfo)
+                        const def = k ? loadCached(k) : null
+                        if (def)
+                            useLightingCatalogStore
+                                .getState()
+                                .setCatalog(parseLightingMenu(def.raw.menus))
+                    } catch (err) {
+                        console.warn('lighting-menu seed failed', err)
+                    }
+                }
+                if (service?.layerControl) {
+                    const setLayer =
+                        useLayerSelectionStore.getState().setSelectedLayerIndex
+                    service.layerControl
+                        .getDefaultLayer()
+                        .then((n) => setLayer(n))
+                        .catch((err) =>
+                            console.warn('getDefaultLayer failed', err),
+                        )
+                    defaultLayerUnsub =
+                        service.layerControl.onDefaultLayerChanged(setLayer)
+                }
                 if (service?.listKeyCatalog) {
                     service
                         .listKeyCatalog()
@@ -102,6 +153,9 @@ const useConnectionStore = create<ConnectionState>()(
             setKeyCatalog: (catalog) => set({ keyCatalog: catalog }),
             setConnectionAbort: (abort) => set({ connectionAbort: abort }),
             resetConnection: () => {
+                defaultLayerUnsub?.()
+                defaultLayerUnsub = null
+                useLightingCatalogStore.getState().setCatalog(null)
                 set({
                     service: null,
                     communication: null,

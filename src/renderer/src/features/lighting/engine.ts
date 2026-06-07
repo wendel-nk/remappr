@@ -12,7 +12,7 @@
 //                    gradient · off
 import type { CSSProperties } from 'react'
 import type { CanonLighting } from '@firmware/config'
-import type { RgbEffectState } from '@firmware/service'
+import type { HsvColor, RgbEffectState } from '@firmware/service'
 import type { LightingCatalog } from '@firmware/lighting'
 
 export type LightingEffect =
@@ -54,11 +54,16 @@ export interface SimLighting {
 }
 
 /** Per-key input handed to <KeyLight> by a canvas (key centre normalized 0..1). */
+// pattern-check: skip — one optional DTO field (per-key colour), pure data plumbing
 export interface KeyLightInput {
     cfg: UnifiedLighting
     fx: number
     fy: number
     idx: number
+    /** Optional per-key colour (device HSV, 0–255). When set it overrides the
+     *  effect's computed hue so the glow shows the keyboard's / painted per-key
+     *  colour. The single firmware-agnostic seam for per-key colour → glow. */
+    color?: HsvColor
 }
 
 /** Effects offered by the editor's lighting modal (in display order). */
@@ -192,10 +197,10 @@ function deviceEffect(name: string): LightingEffect {
     return 'solid'
 }
 
-/** Device adapter: the keyboard's live RGB effect state → UnifiedLighting. The glow
- *  is ALWAYS a simulation (firmware doesn't report per-key colours), but this drives
- *  it from the settings we CAN read (effect / hue / brightness / speed). HSV bytes
- *  are 0–255. */
+/** Device adapter: the keyboard's live RGB effect state → UnifiedLighting. Drives the
+ *  glow from the keyboard's actual global settings (effect / hue / brightness / speed).
+ *  Per-key colours, when the firmware reports them (Keychron `getPerKeyColors`), are
+ *  layered on separately via KeyLightInput.color. HSV bytes are 0–255. */
 export function lightingFromDevice(
     state: RgbEffectState,
     effectName: string,
@@ -241,8 +246,34 @@ export function computeKeyLight(
     idx: number,
     oneU: number,
     lit: boolean,
+    perKeyColor?: HsvColor,
 ): KeyLightResult | null {
     if (!cfg || !cfg.enabled || cfg.effect === 'off') return null
+
+    // Per-key colour override (paint mode / device-reported colours): a steady glow
+    // of this key's own colour, ignoring the effect's spatial hue + animation. HSV
+    // bytes are 0–255. v == 0 means the LED is off → no glow.
+    if (perKeyColor) {
+        const pkBright = perKeyColor.v / 255
+        if (pkBright <= 0.01) return null
+        const pkHue = ((((perKeyColor.h / 255) * 360) % 360) + 360) % 360
+        const pkSat = perKeyColor.s / 255
+        const pkChroma = (0.05 + pkSat * 0.135).toFixed(3)
+        const pkColor = `oklch(0.68 ${pkChroma} ${pkHue.toFixed(1)})`
+        const pkGlowK = cfg.underglow !== false ? 1 : 0.6
+        return {
+            style: {
+                position: 'absolute',
+                inset: 0,
+                borderRadius: 'inherit',
+                pointerEvents: 'none',
+                boxShadow: `0 0 ${(oneU * 0.13).toFixed(1)}px ${mix(pkColor, pkBright * 58 * pkGlowK)}, 0 ${(oneU * 0.05).toFixed(1)}px ${(oneU * 0.22).toFixed(1)}px ${mix(pkColor, pkBright * 34 * pkGlowK)}`,
+                mixBlendMode: 'screen',
+            },
+            reactive: false,
+        }
+    }
+
     const e = cfg.effect
     const sat = cfg.sat ?? 0.9
     const bright = cfg.brightness ?? 0.8

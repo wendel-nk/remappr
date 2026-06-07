@@ -15,6 +15,9 @@ interface Inputs {
     setPickerOpen?: (open: boolean) => void
     setPaletteOpen: (open: boolean) => void
     setAssignOpen: (open: boolean) => void
+    // RGB sheet per-key mode: clicks still select (so the sheet can colour the key)
+    // but must not open the keymap binding picker.
+    suppressPicker?: boolean
 }
 
 interface Selection {
@@ -37,6 +40,7 @@ export function useStageSelection({
     setPickerOpen,
     setPaletteOpen,
     setAssignOpen,
+    suppressPicker,
 }: Inputs): Selection {
     // Anchor for shift-range selection.
     const anchorRef = useRef<number | null>(null)
@@ -72,6 +76,10 @@ export function useStageSelection({
                 setSelectedKeyPosition(position)
                 // Command workspace: clicking a key opens the assign palette.
                 if (workspace === 'command') setPaletteOpen(true)
+                // RGB sheet per-key mode: select only, the sheet edits the colour.
+                else if (suppressPicker) {
+                    /* no picker — selection drives the RGB sheet colour editor */
+                }
                 // Workbench/inspector: a click (re)opens the binding picker.
                 else setPickerOpen?.(true)
             }
@@ -85,6 +93,7 @@ export function useStageSelection({
             workspace,
             setPickerOpen,
             setPaletteOpen,
+            suppressPicker,
         ],
     )
 

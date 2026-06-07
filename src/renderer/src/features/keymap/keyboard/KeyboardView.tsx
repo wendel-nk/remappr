@@ -26,6 +26,7 @@ import { useLivePresses } from './stage/useLivePresses'
 import { useKeymapMutations } from './stage/useKeymapMutations'
 import { useStageSelection } from './stage/useStageSelection'
 import { useStageShortcuts } from './stage/useStageShortcuts'
+import type { PaintApi } from './stage/usePerKeyPaint'
 import { StageControls } from './stage/StageControls'
 import {
     LayerPill,
@@ -51,6 +52,12 @@ interface KeyboardViewProps {
     // inspector panel can render the design's selected-key summary card (which
     // needs the same tinted KeyButton preview the stage builds).
     onSelectedKeyInfoChange?: (info: KeyPosition | undefined) => void
+    // Per-key RGB paint instance, lifted to KeymapEditor so the RGB bottom sheet
+    // and the board share one (LED map, glow colours, coalesced writes).
+    paint: PaintApi
+    // RGB sheet per-key mode: clicks select keys for colour editing in the sheet,
+    // so a single click must NOT also open the keymap binding picker.
+    suppressPicker?: boolean
 }
 
 export default function KeyboardView({
@@ -65,6 +72,8 @@ export default function KeyboardView({
     pickerOpen,
     setPickerOpen,
     onSelectedKeyInfoChange,
+    paint,
+    suppressPicker,
 }: KeyboardViewProps): JSX.Element {
     const { layouts, selectedPhysicalLayoutIndex } = useLayout()
     // Per-field selectors (not whole-store reads) so this view — which owns the canvas
@@ -88,7 +97,10 @@ export default function KeyboardView({
     }, [keymap, selectedLayerIndex])
 
     useEffect(() => {
-        setSelectedLayerIndex(0)
+        // Feature 1: when the firmware drives a hardware default layer (e.g.
+        // Keychron Mac/Win DIP), connectionStore seeds the selection — don't
+        // clobber it here. Otherwise reset to layer 0 on device change.
+        if (!service?.layerControl) setSelectedLayerIndex(0)
         setSelectedKeyPosition(undefined)
     }, [service, setSelectedLayerIndex, setSelectedKeyPosition])
 
@@ -179,6 +191,7 @@ export default function KeyboardView({
         setPickerOpen,
         setPaletteOpen,
         setAssignOpen,
+        suppressPicker,
     })
 
     // Action-type lookups used by the assign/clear glue + command palette.
@@ -312,6 +325,7 @@ export default function KeyboardView({
                 pannable
                 tooltips
                 lighting={lighting}
+                perKeyColors={paint.perKeyColors}
                 selectedPosition={selectedKeyPosition}
                 selectedPositions={multiSelection}
                 onPositionClicked={handlePositionClicked}

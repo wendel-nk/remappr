@@ -121,8 +121,64 @@ export interface WirelessModuleInfo {
     versionPatch: number
 }
 
+// Pattern check: Facade (Tier 1) — applied — firmware's hardware-default layer
+// (e.g. Keychron Mac/Win DIP switch) behind one optional service member. Adapters
+// that have no such concept omit it; the editor then keeps its own layer selection.
+export interface LayersApi {
+    /** The keyboard's current hardware default layer index. */
+    getDefaultLayer(): Promise<number>
+
+    /** Fires when the default layer changes on-device (e.g. DIP toggle). */
+    onDefaultLayerChanged(cb: (layer: number) => void): () => void
+}
+
+// Pattern check: Facade (Tier 1) — applied — Keychron "Advanced Mode" surface
+// (debounce / report-rate / snap-click / quick-start) behind one optional member.
+// Each method is optional: present only when the firmware advertises that feature.
+export interface AdvancedDebounce {
+    /** Debounce algorithm index (raw; firmware-specific enum). */
+    mode: number
+    /** Response time in ms. */
+    responseMs: number
+}
+
+export interface AdvancedApi {
+    /** Whether the firmware exposes the Quick-Start onboarding feature. */
+    quickStart: boolean
+
+    getDebounce?(): Promise<AdvancedDebounce>
+    setDebounce?(cfg: AdvancedDebounce): Promise<void>
+
+    /** Raw report-rate value/divisor (units firmware-specific). */
+    getReportRate?(): Promise<number>
+    setReportRate?(value: number): Promise<void>
+
+    /** Snap-click (rapid-trigger / SOCD) toggle — analog/magnetic boards only. */
+    getSnapClick?(): Promise<boolean>
+    setSnapClick?(enabled: boolean): Promise<void>
+}
+
 // Pattern check: Facade (Tier 1) — applied — Keychron RGB surface (LED count, indicators, save) grouped behind one optional service member.
+
+/** OS-lock indicators present on / toggled per board (num/caps/scroll/compose/
+ *  kana). The firmware drives every supported indicator with one shared colour
+ *  and lights it only while that OS lock is active. */
+export interface IndicatorFlags {
+    numLock: boolean
+    capsLock: boolean
+    scrollLock: boolean
+    compose: boolean
+    kana: boolean
+}
+
 export interface IndicatorConfig {
+    /** Indicators this board physically has (others are absent, not just off). */
+    supported: IndicatorFlags
+    /** Indicators the user has turned off. */
+    disabled: IndicatorFlags
+    /** Shared indicator colour (device HSV, each channel 0–255). */
+    color: HsvColor
+    /** Raw GET payload — kept for diagnostics. */
     raw: Uint8Array
 }
 
@@ -158,6 +214,13 @@ export interface RgbApi {
 
     setEffect?(state: RgbEffectState): Promise<void>
 
+    /** Resolve the RGB-matrix effect index that displays the stored per-key
+     *  colour buffer. Firmware-specific: Keychron registers PER_KEY_RGB as a
+     *  *custom* effect appended after the built-ins, so it isn't in the VIA
+     *  definition's effect catalog and can't be matched by name. Returns null
+     *  when undeterminable. */
+    getPerKeyEffectMode?(): Promise<number | null>
+
     getPerKeyType?(): Promise<number>
 
     setPerKeyType?(type: number): Promise<void>
@@ -165,6 +228,11 @@ export interface RgbApi {
     getPerKeyColors?(startLed: number, count: number): Promise<HsvColor[]>
 
     setPerKeyColors?(startLed: number, colors: HsvColor[]): Promise<void>
+
+    /** Map physical-layout key index → LED index for per-key colour I/O. Identity
+     *  when the firmware's LED order matches layout order; firmware-specific
+     *  otherwise. `keyCount` is the number of layout keys. */
+    getLedIndexMap?(keyCount: number): Promise<number[]>
 
     getMixedRegions?(): Promise<Uint8Array>
 
@@ -212,6 +280,10 @@ export interface KeyboardService {
     macros?: MacroApi
     wireless?: WirelessApi
     rgb?: RgbApi
+    advanced?: AdvancedApi
+    /** Hardware default-layer reporting (Keychron Mac/Win DIP). Named `layerControl`
+     *  to avoid colliding with adapters' internal keymap `layers`. */
+    layerControl?: LayersApi
 
     addLayer(): Promise<Layer>
 

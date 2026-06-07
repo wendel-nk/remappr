@@ -7,16 +7,19 @@ import { Button } from '@/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/ui/tooltip'
 import useConnectionStore from '@/stores/connectionStore'
 import useKeymapStore from '@/stores/keymapStore'
+import useLightingCatalogStore from '@/stores/lightingCatalogStore'
 import { saveWithToast } from '@/lib/saveWithToast'
 import {
     cacheKey,
     parseSideloadJson,
     saveCached,
 } from '@firmware/qmk/layoutSideload'
+import { parseLightingMenu } from '@firmware/via/lightingMenu'
 
 export function LayoutSideloadAction(): JSX.Element | null {
     const service = useConnectionStore((s) => s.service)
     const setKeymap = useKeymapStore((s) => s.setKeymap)
+    const setLightingCatalog = useLightingCatalogStore((s) => s.setCatalog)
     const inputRef = useRef<HTMLInputElement | null>(null)
 
     const onPick = useCallback(
@@ -35,6 +38,8 @@ export function LayoutSideloadAction(): JSX.Element | null {
                     await service.applyLayout!(def)
                     const key = cacheKey(service.deviceInfo)
                     if (key) saveCached(key, def)
+                    // Drive the RGB modal's effect list from this board's menus.
+                    setLightingCatalog(parseLightingMenu(def.raw.menus))
                     const km = await service.getKeymap()
                     setKeymap(km)
                     return def.name
@@ -44,7 +49,7 @@ export function LayoutSideloadAction(): JSX.Element | null {
             )
             if (name) toast.success(`Layout loaded: ${name}`)
         },
-        [service, setKeymap],
+        [service, setKeymap, setLightingCatalog],
     )
 
     if (!service) return null

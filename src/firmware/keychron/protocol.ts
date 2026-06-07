@@ -378,6 +378,82 @@ export function parseDipSwitch(resp: Uint8Array): number {
     return resp[2] & 0xff
 }
 
+// ---------- 0xA7 misc: debounce / report-rate / snap-click ----------
+// pattern-check: skip — pure MISC sub-cmd codec helpers, byte marshalling only
+//
+// NOTE: exact byte layouts for these sub-cmds are not in stock QMK master (they
+// live in Keychron's launcher firmware fork). The shapes below mirror the LPM
+// pattern (data starts at resp[2]) and need confirmation against real hardware.
+
+export interface DebounceConfig {
+    /** Debounce algorithm index (e.g. eager-per-key). Raw — enum TBD on HW. */
+    mode: number
+    /** Response time in ms (the launcher's 10–80 slider). */
+    responseMs: number
+}
+
+export function getDebounceCmd(): Uint8Array {
+    return makeSubFrame(KC_ID.MISC_CMD_GROUP, MISC_SUB.DEBOUNCE_GET)
+}
+
+export function parseDebounce(resp: Uint8Array): DebounceConfig {
+    expectSub(resp, KC_ID.MISC_CMD_GROUP, MISC_SUB.DEBOUNCE_GET, 'debounce-get')
+    return { mode: resp[2] & 0xff, responseMs: resp[3] & 0xff }
+}
+
+export function setDebounceCmd(cfg: DebounceConfig): Uint8Array {
+    return makeSubFrame(KC_ID.MISC_CMD_GROUP, MISC_SUB.DEBOUNCE_SET, [
+        cfg.mode & 0xff,
+        cfg.responseMs & 0xff,
+    ])
+}
+
+export function getReportRateCmd(): Uint8Array {
+    return makeSubFrame(KC_ID.MISC_CMD_GROUP, MISC_SUB.REPORT_RATE_GET)
+}
+
+/** Raw report-rate value/divisor (units TBD). The notification variant carries a
+ *  0x7F sentinel at byte 4; solicited GET responses do not (see parseNotification). */
+export function parseReportRate(resp: Uint8Array): number {
+    expectSub(
+        resp,
+        KC_ID.MISC_CMD_GROUP,
+        MISC_SUB.REPORT_RATE_GET,
+        'report-rate-get',
+    )
+    return resp[3] & 0xff
+}
+
+export function setReportRateCmd(value: number): Uint8Array {
+    return makeSubFrame(KC_ID.MISC_CMD_GROUP, MISC_SUB.REPORT_RATE_SET, [
+        value & 0xff,
+    ])
+}
+
+export function getSnapClickCmd(): Uint8Array {
+    return makeSubFrame(KC_ID.MISC_CMD_GROUP, MISC_SUB.SNAP_CLICK_GET)
+}
+
+export function parseSnapClick(resp: Uint8Array): boolean {
+    expectSub(
+        resp,
+        KC_ID.MISC_CMD_GROUP,
+        MISC_SUB.SNAP_CLICK_GET,
+        'snap-click-get',
+    )
+    return (resp[2] & 0xff) !== 0
+}
+
+export function setSnapClickCmd(enabled: boolean): Uint8Array {
+    return makeSubFrame(KC_ID.MISC_CMD_GROUP, MISC_SUB.SNAP_CLICK_SET, [
+        enabled ? 1 : 0,
+    ])
+}
+
+export function snapClickSaveCmd(): Uint8Array {
+    return makeSubFrame(KC_ID.MISC_CMD_GROUP, MISC_SUB.SNAP_CLICK_SAVE)
+}
+
 // ---------- 0xA8 RGB ----------
 
 export function getRgbProtocolVersionCmd(): Uint8Array {
@@ -408,12 +484,82 @@ export function parseLedCount(resp: Uint8Array): number {
     return resp[2] & 0xff
 }
 
+// pattern-check: skip — pure 0xA8/0x06 codec helpers, byte marshalling only
+// ---------- 0xA8/0x06 GET_LED_IDX (key → LED index map) ----------
+//
+// One byte per key: the LED index that lights the key at (start + i), paged by
+// (start, count) like PER_KEY_GET_COLOR. 0xFF (NO_LED) marks a key with no LED.
+// Lets per-key paint address the correct LED on boards whose LED wiring order
+// differs from layout order.
+//
+// Response layout [0xA8, 0x06, start, count, led0, led1, …] — data at offset 4.
+// HW-CONFIRMED on a Keychron K5 V2: painting scattered non-corner keys (D, G,
+// up-arrow, numpad-8) lit the matching physical key, so the start+count echo and
+// offset=4 are correct. getLedIndexMap() still validates + falls back to identity.
+export const NO_LED = 0xff
+export const LED_IDX_BATCH_MAX = 16
+const LED_IDX_DATA_OFFSET = 4
+
+export function getLedIndexCmd(start: number, count: number): Uint8Array {
+    if (count <= 0 || count > LED_IDX_BATCH_MAX) {
+        throw new ProtocolError(
+            `LED index get count out of range: ${count} (max ${LED_IDX_BATCH_MAX})`,
+        )
+    }
+    return makeSubFrame(KC_ID.KEYCHRON_RGB, RGB_SUB.GET_LED_IDX, [
+        start & 0xff,
+        count & 0xff,
+    ])
+}
+
+export function parseLedIndexMap(resp: Uint8Array, count: number): number[] {
+    expectSub(resp, KC_ID.KEYCHRON_RGB, RGB_SUB.GET_LED_IDX, 'rgb-led-idx')
+    const out: number[] = []
+    for (let i = 0; i < count; i++) {
+        out.push(resp[LED_IDX_DATA_OFFSET + i] & 0xff)
+    }
+    return out
+}
+
 export function getIndicatorsConfigCmd(): Uint8Array {
     return makeSubFrame(KC_ID.KEYCHRON_RGB, RGB_SUB.GET_INDICATORS_CONFIG)
 }
 
+// OS-lock indicator bitmask bit positions, from keychron_rgb_type.h's os_led_t:
+//   bit0 num_lock, bit1 caps_lock, bit2 scroll_lock, bit3 compose, bit4 kana.
+export interface IndicatorFlags {
+    numLock: boolean
+    capsLock: boolean
+    scrollLock: boolean
+    compose: boolean
+    kana: boolean
+}
+
 export interface IndicatorsConfig {
+    supported: IndicatorFlags
+    disabled: IndicatorFlags
+    color: HSV
     raw: Uint8Array
+}
+
+function indicatorFlagsFromMask(m: number): IndicatorFlags {
+    return {
+        numLock: (m & (1 << 0)) !== 0,
+        capsLock: (m & (1 << 1)) !== 0,
+        scrollLock: (m & (1 << 2)) !== 0,
+        compose: (m & (1 << 3)) !== 0,
+        kana: (m & (1 << 4)) !== 0,
+    }
+}
+
+export function indicatorMask(f: IndicatorFlags): number {
+    return (
+        (f.numLock ? 1 << 0 : 0) |
+        (f.capsLock ? 1 << 1 : 0) |
+        (f.scrollLock ? 1 << 2 : 0) |
+        (f.compose ? 1 << 3 : 0) |
+        (f.kana ? 1 << 4 : 0)
+    )
 }
 
 export function parseIndicatorsConfig(resp: Uint8Array): IndicatorsConfig {
@@ -423,9 +569,32 @@ export function parseIndicatorsConfig(resp: Uint8Array): IndicatorsConfig {
         RGB_SUB.GET_INDICATORS_CONFIG,
         'rgb-indicators-get',
     )
-    // Payload shape varies per board; expose raw bytes for now and
-    // refine once we read a real K5 Max response.
-    return { raw: resp.slice(2) }
+    // GET payload (after [id, sub]): [unused, supportedMask, disableMask, h, s, v]
+    // — keychron_rgb.c get_indicators_config(). Confirmed on a K5 V2 (00 01 00
+    // ff 00 ff = num-lock supported, none disabled, white). Note the SET payload
+    // is *different* ([disableMask, h, s, v]); build it with buildIndicatorsPayload.
+    // Missing bytes (shorter board payloads) are treated as 0.
+    const raw = resp.slice(2)
+    return {
+        raw,
+        supported: indicatorFlagsFromMask(raw[1] ?? 0),
+        disabled: indicatorFlagsFromMask(raw[2] ?? 0),
+        color: { h: raw[3] ?? 0, s: raw[4] ?? 0, v: raw[5] ?? 0 },
+    }
+}
+
+/** SET payload [disableMask, h, s, v] — keychron_rgb.c set_indicators_config().
+ *  Firmware clamps v to ≥128. */
+export function buildIndicatorsPayload(
+    disabled: IndicatorFlags,
+    color: HSV,
+): Uint8Array {
+    return new Uint8Array([
+        indicatorMask(disabled),
+        color.h & 0xff,
+        color.s & 0xff,
+        color.v & 0xff,
+    ])
 }
 
 export function setIndicatorsConfigCmd(payload: Uint8Array): Uint8Array {

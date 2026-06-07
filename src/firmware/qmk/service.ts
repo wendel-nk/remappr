@@ -4,8 +4,10 @@ import { filterCatalogByCodec } from '@firmware/catalog/filter'
 import type { KeyCatalog } from '@firmware/catalog/types'
 import type { KeycodeCodec } from '@firmware/codec'
 import type {
+    AdvancedApi,
     Capabilities,
     KeyboardService,
+    LayersApi,
     RgbApi,
     WirelessApi,
 } from '@firmware/service'
@@ -77,6 +79,8 @@ export interface QmkServiceConfig {
     capabilitiesOverride?: Partial<Capabilities>
     wireless?: WirelessApi
     rgb?: RgbApi
+    advanced?: AdvancedApi
+    layerControl?: LayersApi
     /**
      * Optional per-keycode decoder. Returns non-null to override stock QMK
      * decode (e.g. Keychron BT_HST1 at 0x7E0C). Returns null to fall through
@@ -223,6 +227,8 @@ export class QmkKeyboardService implements KeyboardService {
     public readonly deviceInfo: DeviceInfo
     public readonly wireless?: WirelessApi
     public readonly rgb?: RgbApi
+    public readonly advanced?: AdvancedApi
+    public readonly layerControl?: LayersApi
     public readonly codec: KeycodeCodec
 
     protected readonly client: HidClient
@@ -260,6 +266,8 @@ export class QmkKeyboardService implements KeyboardService {
         }
         this.wireless = cfg.wireless
         this.rgb = cfg.rgb
+        this.advanced = cfg.advanced
+        this.layerControl = cfg.layerControl
         this.codec = cfg.codec ?? qmkCodec
         cfg.client.onClosed((reason) => this.handleClientClosed(reason))
     }

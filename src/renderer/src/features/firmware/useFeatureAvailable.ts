@@ -10,6 +10,7 @@ export const FEATURE_PROBES = {
     macros: (s) => s.macros,
     wireless: (s) => s.wireless,
     rgb: (s) => s.rgb,
+    advanced: (s) => s.advanced,
     lock: (s) => s.capabilities.lock,
     rename: (s) => s.capabilities.rename,
     reorderLayers: (s) => s.capabilities.reorderLayers,

@@ -1,5 +1,6 @@
 // pattern-check: skip — presentational glow layer over computeKeyLight, no abstraction
 import { memo, useMemo } from 'react'
+import type { HsvColor } from '@firmware/service'
 import { computeKeyLight, type UnifiedLighting } from './engine'
 
 interface KeyLightProps {
@@ -15,6 +16,8 @@ interface KeyLightProps {
     radius?: number
     /** For 'reactive': true while hovered/pressed. */
     lit?: boolean
+    /** Per-key colour override (device HSV 0–255) — paint mode / device colours. */
+    color?: HsvColor
 }
 
 /** The glow layer — drop inside a keycap (above the face, below the legend). It is
@@ -30,10 +33,11 @@ function KeyLightImpl({
     oneU = 56,
     radius,
     lit = false,
+    color,
 }: KeyLightProps): JSX.Element | null {
     const g = useMemo(
-        () => computeKeyLight(cfg, fx, fy, idx, oneU, lit),
-        [cfg, fx, fy, idx, oneU, lit],
+        () => computeKeyLight(cfg, fx, fy, idx, oneU, lit, color),
+        [cfg, fx, fy, idx, oneU, lit, color],
     )
     const style = useMemo(
         () =>

@@ -24,6 +24,8 @@ import {
     KEYCHRON_PAYLOAD_SIZE,
     KEYCHRON_USAGE,
     KEYCHRON_USAGE_PAGE,
+    type MiscFeatureFlags,
+    getLedCountCmd,
     parseFeatureFlags,
     parseFirmwareVersion,
     parseMiscProtocolVersion,
@@ -32,6 +34,8 @@ import {
 } from './protocol'
 import { keychronCodec } from './codec'
 
+import { createAdvancedFacade, hasAdvancedFeatures } from './advanced'
+import { createLayersFacade } from './layers'
 import { createRgbFacade } from './rgb'
 import { createWirelessFacade } from './wireless'
 import { getBoardById, type KeychronBoardPreset, matchBoard } from './boards'
@@ -57,6 +61,7 @@ interface ProbedSession {
     deviceInfo: DeviceInfo
     layerCount: number
     feats: FeatureFlags
+    misc: MiscFeatureFlags | null
     miscNkro: boolean
     miscWirelessLpm: boolean
     miscDfuInfo: boolean
@@ -107,6 +112,7 @@ async function probeKeychronSession(
         )
         const feats = parseFeatureFlags(featResp)
 
+        let misc: MiscFeatureFlags | null = null
         let miscNkro = false
         let miscWirelessLpm = false
         let miscDfuInfo = false
@@ -115,10 +121,10 @@ async function probeKeychronSession(
                 getMiscProtocolVersionCmd(),
                 PROBE_DEADLINE_MS,
             )
-            const misc = parseMiscProtocolVersion(miscResp)
-            miscNkro = misc.miscFeatures.nkro
-            miscWirelessLpm = misc.miscFeatures.wirelessLpm
-            miscDfuInfo = misc.miscFeatures.dfuInfo
+            misc = parseMiscProtocolVersion(miscResp).miscFeatures
+            miscNkro = misc.nkro
+            miscWirelessLpm = misc.wirelessLpm
+            miscDfuInfo = misc.dfuInfo
         } catch {
             // Older firmwares may not implement misc proto query.
         }
@@ -139,6 +145,7 @@ async function probeKeychronSession(
             deviceInfo,
             layerCount,
             feats,
+            misc,
             miscNkro,
             miscWirelessLpm,
             miscDfuInfo,
@@ -230,19 +237,60 @@ export function createKeychronAdapter(
                 { once: true },
             )
 
-            const wirelessFacade =
-                (session.feats.bluetooth || session.feats.p24g) &&
-                session.miscWirelessLpm
-                    ? createWirelessFacade(session.client, {
-                          feats: session.feats,
-                          miscNkro: session.miscNkro,
-                          miscDfuInfo: session.miscDfuInfo,
-                      })
-                    : null
+            // The 0xA2 feature word is unreliable on some firmwares (reports all
+            // false). Trust the 0xA7 misc mask: if it advertises wireless LPM the
+            // board is wireless-capable, regardless of the bluetooth/p24g bits.
+            const wirelessCapable =
+                session.miscWirelessLpm ||
+                session.feats.bluetooth ||
+                session.feats.p24g
+            const wirelessFacade = wirelessCapable
+                ? createWirelessFacade(session.client, {
+                      feats: session.feats,
+                      miscNkro: session.miscNkro,
+                      miscDfuInfo: session.miscDfuInfo,
+                  })
+                : null
 
-            const rgb = session.rgbAvailable
+            // Don't trust the 0xA2 RGB feature bit alone — some firmwares leave
+            // it clear yet still answer the 0xA8 RGB group. Probe GET_LED_COUNT
+            // and attach the facade if the keyboard responds.
+            let rgbAvailable = session.rgbAvailable
+            if (!rgbAvailable) {
+                try {
+                    await session.client.send(
+                        getLedCountCmd(),
+                        PROBE_DEADLINE_MS,
+                    )
+                    rgbAvailable = true
+                } catch {
+                    /* no Keychron RGB group on this board */
+                }
+            }
+            const rgb = rgbAvailable
                 ? createRgbFacade(session.client)
                 : undefined
+
+            console.info('[keychron] connected', {
+                firmwareVersion: session.deviceInfo.firmwareVersion,
+                rgbBit: session.feats.keychronRgb,
+                rgbAvailable,
+                feats: session.feats,
+                misc: session.misc,
+            })
+
+            const layersFacade = session.feats.defaultLayer
+                ? createLayersFacade(session.client)
+                : null
+
+            const advanced =
+                session.misc && hasAdvancedFeatures(session.misc, session.feats)
+                    ? createAdvancedFacade(
+                          session.client,
+                          session.misc,
+                          session.feats,
+                      )
+                    : undefined
 
             // State-notify pump: subscribe to unsolicited frames and fan
             // them out to facades that care.
@@ -250,6 +298,7 @@ export function createKeychronAdapter(
                 session.client.subscribe((frame) => {
                     const n = parseNotification(frame)
                     wirelessFacade?.onNotification(n)
+                    layersFacade?.onNotification(n)
                 })
             }
 
@@ -278,6 +327,8 @@ export function createKeychronAdapter(
                 },
                 wireless: wirelessFacade?.api,
                 rgb,
+                advanced,
+                layerControl: layersFacade?.api,
                 codec: keychronCodec,
             })
         },

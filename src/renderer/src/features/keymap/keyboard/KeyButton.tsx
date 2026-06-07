@@ -407,6 +407,7 @@ const KeyButtonViewImpl = ({
                 oneU={oneU}
                 radius={lightRad}
                 lit={pressed}
+                color={light.color}
             />
         ) : null
     const showDot = showCategoryDot && !!F.dot && !F.heat && !shift

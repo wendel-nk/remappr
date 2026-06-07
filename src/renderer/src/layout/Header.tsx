@@ -6,6 +6,7 @@ import {
     BarChart3,
     BookOpen,
     Flame,
+    Gauge,
     Keyboard,
     Lightbulb,
     Redo2,
@@ -21,7 +22,8 @@ import { LoadStatsModal } from '@/features/keymap/keyboard/LoadStatsModal'
 import { DynamicEntriesModal } from '@/features/dynamic/DynamicEntriesModal'
 import { MacroEditorModal } from '@/features/dynamic/MacroEditorModal'
 import { WirelessSettingsModal } from '@/features/firmware/WirelessSettingsModal'
-import { RgbSettingsModal } from '@/features/firmware/RgbSettingsModal'
+import { AdvancedSettingsModal } from '@/features/firmware/AdvancedSettingsModal'
+import useRgbSheetStore from '@/stores/rgbSheetStore'
 import { GitHubIcon } from '@/components/GitHubIcon'
 import { DiscordIcon } from '@/components/DiscordIcon'
 import { DISCORD_URL, REPO_URL } from '@/lib/constants'
@@ -60,7 +62,9 @@ export function Header(): JSX.Element {
     const [dynOpen, setDynOpen] = useState(false)
     const [macroOpen, setMacroOpen] = useState(false)
     const [wirelessOpen, setWirelessOpen] = useState(false)
-    const [rgbOpen, setRgbOpen] = useState(false)
+    const [advancedOpen, setAdvancedOpen] = useState(false)
+    const rgbSheetOpen = useRgbSheetStore((s) => s.open)
+    const toggleRgbSheet = useRgbSheetStore((s) => s.toggle)
 
     useEffect(() => {
         if (!service) {
@@ -280,16 +284,38 @@ export function Header(): JSX.Element {
                     opened={wirelessOpen}
                     onClose={(): void => setWirelessOpen(false)}
                 />
-                {/* RGB lighting — device controls when an RGB keyboard is
-                    connected, else the on-screen simulation editor. Ungated so it
-                    works in demo mode and on non-RGB boards. */}
+                <FeatureGate feature="advanced">
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                disabled={!service}
+                                onClick={(): void => setAdvancedOpen(true)}
+                            >
+                                <Gauge aria-label="Advanced settings" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>Advanced Mode</p>
+                        </TooltipContent>
+                    </Tooltip>
+                </FeatureGate>
+                <AdvancedSettingsModal
+                    opened={advancedOpen}
+                    onClose={(): void => setAdvancedOpen(false)}
+                />
+                {/* RGB lighting — opens the board-visible bottom sheet (device
+                    controls when an RGB keyboard is connected, else the on-screen
+                    simulation editor). Ungated so it works in demo mode and on
+                    non-RGB boards. The sheet itself renders in KeymapEditor. */}
                 <Tooltip>
                     <TooltipTrigger asChild>
                         <Button
-                            variant="ghost"
+                            variant={rgbSheetOpen ? 'secondary' : 'ghost'}
                             size="icon"
                             disabled={!service}
-                            onClick={(): void => setRgbOpen(true)}
+                            onClick={(): void => toggleRgbSheet()}
                         >
                             <Lightbulb aria-label="RGB lighting" />
                         </Button>
@@ -298,10 +324,6 @@ export function Header(): JSX.Element {
                         <p>RGB lighting</p>
                     </TooltipContent>
                 </Tooltip>
-                <RgbSettingsModal
-                    opened={rgbOpen}
-                    onClose={(): void => setRgbOpen(false)}
-                />
                 <FeatureGate feature="layoutSideloadable">
                     <LayoutSideloadAction />
                 </FeatureGate>

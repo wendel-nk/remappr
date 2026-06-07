@@ -7,6 +7,7 @@ import type {
     DynamicEntriesApi,
     EncoderApi,
     HsvColor,
+    IndicatorConfig,
     KeyboardService,
     MacroApi,
     RgbApi,
@@ -200,9 +201,24 @@ export class MockKeyboardService implements KeyboardService {
         }),
     )
     private perKeyType: number = 0
-    private indicatorsRaw: Uint8Array = new Uint8Array([
-        0x01, 0x00, 0xff, 0x80, 0x80,
-    ])
+    private indicators: IndicatorConfig = {
+        supported: {
+            numLock: true,
+            capsLock: true,
+            scrollLock: false,
+            compose: false,
+            kana: false,
+        },
+        disabled: {
+            numLock: false,
+            capsLock: false,
+            scrollLock: false,
+            compose: false,
+            kana: false,
+        },
+        color: { h: 0, s: 0, v: 255 },
+        raw: new Uint8Array([0x00, 0x03, 0x00, 0x00, 0x00, 0xff]),
+    }
     private mixedRegions: Uint8Array = new Uint8Array([0x01, 0x02, 0x03, 0x04])
     private mixedEffect: Uint8Array = new Uint8Array([0x05, 0x06, 0x07, 0x08])
     private rgbEffect: RgbEffectState = {
@@ -315,9 +331,9 @@ export class MockKeyboardService implements KeyboardService {
         }
         this.rgb = {
             getLedCount: async () => MOCK_LED_COUNT,
-            getIndicators: async () => ({ raw: this.indicatorsRaw.slice() }),
+            getIndicators: async () => this.indicators,
             setIndicators: async (cfg) => {
-                this.indicatorsRaw = cfg.raw.slice()
+                this.indicators = { ...this.indicators, ...cfg }
                 this.markPending(true)
             },
             save: async () => {

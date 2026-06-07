@@ -2,6 +2,8 @@
 import { useEffect, useMemo } from 'react'
 import type { KeyboardService } from '@firmware/service'
 import useLightingStore from '@/stores/lightingStore'
+import useLightingCatalogStore from '@/stores/lightingCatalogStore'
+import useRgbEffectStore from '@/stores/rgbEffectStore'
 import {
     lightingFromDevice,
     lightingFromSim,
@@ -21,6 +23,9 @@ export function useStageLighting(
 ): UnifiedLighting {
     const deviceLighting = useLightingStore((s) => s.device)
     const setDeviceLighting = useLightingStore((s) => s.setDevice)
+    const cachedEffect = useRgbEffectStore((s) => s.effect)
+    const setCachedEffect = useRgbEffectStore((s) => s.setEffect)
+    const boardCatalog = useLightingCatalogStore((s) => s.catalog)
     const simEffect = useLightingStore((s) => s.effect)
     const simBright = useLightingStore((s) => s.bright)
     const simSpeed = useLightingStore((s) => s.speed)
@@ -54,26 +59,43 @@ export function useStageLighting(
         ],
     )
 
+    // Read the device effect ONCE on connect into the cache (HID is serialized +
+    // slow). The modal reuses this cache so opening it is instant.
     useEffect(() => {
         const rgb = service?.rgb
         if (!rgb?.getEffect || !rgb.effectCatalog) {
             setDeviceLighting(null)
+            setCachedEffect(null)
             return
         }
-        const cat = rgb.effectCatalog
         let cancelled = false
         rgb.getEffect()
             .then((st) => {
-                if (cancelled) return
-                setDeviceLighting(
-                    lightingFromDevice(st, cat.effects[st.mode] ?? '', cat),
-                )
+                if (!cancelled) setCachedEffect(st)
             })
             .catch(() => {})
         return (): void => {
             cancelled = true
         }
-    }, [service, setDeviceLighting])
+    }, [service, setDeviceLighting, setCachedEffect])
+
+    // Derive the glow from the cached effect + board catalog — no HID, so it
+    // updates live as the modal writes optimistic changes into the cache.
+    useEffect(() => {
+        const rgb = service?.rgb
+        const cat =
+            boardCatalog && boardCatalog.kind === rgb?.effectCatalog?.kind
+                ? boardCatalog
+                : rgb?.effectCatalog
+        if (!cachedEffect || !cat) return
+        setDeviceLighting(
+            lightingFromDevice(
+                cachedEffect,
+                cat.effects[cachedEffect.mode] ?? '',
+                cat,
+            ),
+        )
+    }, [cachedEffect, boardCatalog, service, setDeviceLighting])
 
     return deviceLighting ?? simLighting
 }
