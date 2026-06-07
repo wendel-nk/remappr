@@ -17,6 +17,7 @@ import useConnectionStore from '@/stores/connectionStore'
 import useLayerSelectionStore from '@/stores/layerSelectionStore'
 import useHeatmapStore from '@/stores/heatmapStore'
 import useLiveViewStore from '@/stores/liveViewStore'
+import useKeyTestStore from '@/stores/keyTestStore'
 import useLayerPeekStore from '@/stores/layerPeekStore'
 import type { EncoderSelection } from './stage/helpers'
 import { useActionTypes } from './stage/useActionTypes'
@@ -28,6 +29,7 @@ import { useStageSelection } from './stage/useStageSelection'
 import { useStageShortcuts } from './stage/useStageShortcuts'
 import type { PaintApi } from './stage/usePerKeyPaint'
 import { StageControls } from './stage/StageControls'
+import { KeyTestPanel } from './stage/KeyTestPanel'
 import {
     LayerPill,
     MultiSelectBar,
@@ -118,6 +120,9 @@ export default function KeyboardView({
     const heatmapCounts = useHeatmapStore((s) => s.counts)
     const resetHeat = useHeatmapStore((s) => s.reset)
     const liveView = useLiveViewStore((s) => s.enabled)
+    const keyTestActive = useKeyTestStore((s) => s.active)
+    const keyTestSeen = useKeyTestStore((s) => s.seen)
+    const resetKeyTest = useKeyTestStore((s) => s.reset)
 
     // RGB-simulation glow (device-derived when connected, else manual sim store).
     const lighting = useStageLighting(service)
@@ -138,6 +143,8 @@ export default function KeyboardView({
         keymap,
         effectiveLayerIndex,
         selectedPhysicalLayoutIndex,
+        service,
+        keyTestActive,
     })
     const EMPTY_KEYS = useMemo(() => new Set<number>(), [])
 
@@ -332,7 +339,10 @@ export default function KeyboardView({
                 selectedEncoder={selectedEncoder}
                 onEncoderClicked={handleEncoderClicked}
                 onPositionContextMenu={handlePositionContextMenu}
-                pressedKeys={liveView ? pressedKeys : EMPTY_KEYS}
+                pressedKeys={
+                    liveView || keyTestActive ? pressedKeys : EMPTY_KEYS
+                }
+                seenKeys={keyTestActive ? keyTestSeen : EMPTY_KEYS}
             />
 
             <LayerPill
@@ -350,6 +360,14 @@ export default function KeyboardView({
                 heatmapEnabled={heatmapEnabled}
                 onResetHeat={resetHeat}
             />
+            {keyTestActive && (
+                <KeyTestPanel
+                    seenCount={keyTestSeen.size}
+                    total={keyCount}
+                    hardware={!!service?.keyTest}
+                    onReset={resetKeyTest}
+                />
+            )}
             {infoCardPos && (
                 <SelectedKeyCard
                     info={infoCardPos}

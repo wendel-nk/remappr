@@ -75,9 +75,28 @@ export interface DynamicEntriesApi {
 export interface MacroApi {
     getCount(): number
 
+    /** View-only firmwares (e.g. ZMK, whose macros are compile-time) expose
+     *  `macros` with `readonly: true` and omit `setMacro`. The UI keys off this
+     *  to disable every editing affordance — never gate on a firmware name. */
+    readonly?: boolean
+
     getMacro(idx: number): Promise<MacroAction[]>
 
-    setMacro(idx: number, actions: MacroAction[]): Promise<void>
+    setMacro?(idx: number, actions: MacroAction[]): Promise<void>
+}
+
+// Pattern check: Facade (Tier 1) — extended — mirrors EncoderApi/MacroApi/RgbApi:
+// groups the live switch-matrix surface behind one optional service member so the
+// renderer reads `service.keyTest` once instead of probing for a hardware channel.
+export interface KeyTestApi {
+    /** Subscribe to raw matrix state. Fires the full set of currently-pressed
+     *  key *positions* (layout indices) whenever it changes. Returns an
+     *  unsubscribe. Subscribe only while the Key Test view is open — the poll
+     *  is hot and HID is serialized. */
+    onMatrixState(cb: (pressed: Set<number>) => void): () => void
+
+    /** Optional one-shot poll for firmwares with no push channel. */
+    readMatrix?(): Promise<Set<number>>
 }
 
 // Pattern check: Facade (Tier 1) — applied — Keychron-style wireless surface (BT/2.4G/battery/LPM) grouped behind one optional service member; renderer reads service.wireless once instead of N capability flags.
@@ -278,6 +297,10 @@ export interface KeyboardService {
     encoders?: EncoderApi
     dynamic?: DynamicEntriesApi
     macros?: MacroApi
+    /** Live switch-matrix readout for the Key Test view. Present only when the
+     *  firmware can report raw matrix state over the wire; absent firmwares fall
+     *  back to OS-event press detection. */
+    keyTest?: KeyTestApi
     wireless?: WirelessApi
     rgb?: RgbApi
     advanced?: AdvancedApi

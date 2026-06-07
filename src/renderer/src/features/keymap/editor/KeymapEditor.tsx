@@ -3,12 +3,14 @@ import KeyboardView from '@/features/keymap/keyboard/KeyboardView'
 import type { KeyPosition } from '@/features/keymap/keyboard/PhysicalLayoutCanvas'
 import { usePerKeyPaint } from '@/features/keymap/keyboard/stage/usePerKeyPaint'
 import { RgbSheet } from '@/features/firmware/RgbSettingsModal/RgbSheet'
+import { AdvancedSheet } from '@/features/dynamic/AdvancedSheet'
 import { BindingEditor } from './BindingEditor'
 import useKeymapStore from '@/stores/keymapStore'
 import useUserSettingsStore from '@/stores/userSettingsStore'
 import useConnectionStore from '@/stores/connectionStore'
 import useLayerSelectionStore from '@/stores/layerSelectionStore'
 import useRgbSheetStore from '@/stores/rgbSheetStore'
+import useAdvancedSheetStore from '@/stores/advancedSheetStore'
 
 export type EncoderSelection = { slot: number; dir: 'cw' | 'ccw' }
 
@@ -76,6 +78,12 @@ export function KeymapEditor(): JSX.Element {
     // Per-key section: board clicks select keys to colour (no keymap picker).
     const lightingPerKey = rgbSheetOpen && rgbSection === 'perkey'
 
+    const advancedSheetOpen = useAdvancedSheetStore((s) => s.open)
+    const setAdvancedSheetOpen = useAdvancedSheetStore((s) => s.setOpen)
+    // The two bottom-dock sheets are mutually exclusive; either one replaces the
+    // binding picker while open.
+    const anySheetOpen = rgbSheetOpen || advancedSheetOpen
+
     const keyboard = (
         <KeyboardView
             keymap={keymap}
@@ -105,14 +113,21 @@ export function KeymapEditor(): JSX.Element {
         />
     ) : null
 
+    // Advanced editing sheet (dynamic entries + macros), same dock slot as the RGB
+    // sheet. Toggled by the Header Sliders/Sparkles triggers via advancedSheetStore.
+    const advancedSheet = advancedSheetOpen ? (
+        <AdvancedSheet onClose={(): void => setAdvancedSheetOpen(false)} />
+    ) : null
+
     if (workspace === 'inspector') {
         return (
             <div className="flex flex-1 min-h-0">
                 <div className="flex min-w-0 flex-1 flex-col">
                     {keyboard}
                     {rgbSheet}
+                    {advancedSheet}
                 </div>
-                {!rgbSheetOpen && (
+                {!anySheetOpen && (
                     <BindingEditor
                         variant="panel"
                         keymap={keymap}
@@ -134,7 +149,8 @@ export function KeymapEditor(): JSX.Element {
         <div className="flex flex-col flex-1">
             {keyboard}
             {rgbSheet}
-            {!rgbSheetOpen && workspace !== 'command' && (
+            {advancedSheet}
+            {!anySheetOpen && workspace !== 'command' && (
                 <BindingEditor
                     keymap={keymap}
                     setKeymap={setKeymap}

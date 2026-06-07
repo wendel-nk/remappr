@@ -107,6 +107,9 @@ interface PhysicalLayoutCanvasProps {
         coords: { x: number; y: number },
     ) => void
     pressedKeys?: Set<number>
+    /** Key Test: positions seen pressed at least once this sweep — rendered with a
+     *  persistent "tested" ring, distinct from the transient pressed flash. */
+    seenKeys?: Set<number>
 }
 
 const MIN_ZOOM = 0.4
@@ -155,6 +158,7 @@ const PhysicalLayoutCanvasImpl = ({
     onEncoderClicked,
     onPositionContextMenu,
     pressedKeys = new Set(),
+    seenKeys = new Set(),
     ...props
 }: PhysicalLayoutCanvasProps): JSX.Element => {
     const ref = useRef<HTMLDivElement>(null)
@@ -615,6 +619,7 @@ const PhysicalLayoutCanvasImpl = ({
                             selected={isSelected}
                             multiSelected={isMultiSelected}
                             pressed={!isEncoder && pressedKeys.has(idx)}
+                            seen={!isEncoder && seenKeys.has(idx)}
                             richTooltip={tooltips && !isEncoder}
                             capStyle={capStyle}
                             colorMode={colorMode}
@@ -634,6 +639,7 @@ const PhysicalLayoutCanvasImpl = ({
             selectedPositions,
             selectedEncoder,
             pressedKeys,
+            seenKeys,
             lightInputs,
             hoverZoom,
             tooltips,

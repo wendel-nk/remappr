@@ -50,6 +50,14 @@ const ZMK_CAPABILITIES: Capabilities = {
     variableLayerCount: true,
     exportFormats: ['devicetree'],
     behaviors: { capsWord: true },
+    // No `macros`: ZMK macros are compile-time devicetree nodes, and the Studio
+    // protocol exposes only keymap *bindings* (`&macro_name`), not the macro step
+    // sequences — so they can't be read or edited live. The Header gates the macro
+    // editor on `service.macros` (see useFeatureAvailable), so omitting the facade
+    // hides the feature entirely. When a config source that carries macro
+    // definitions becomes available (e.g. a builder-seeded board), expose `macros`
+    // with `readonly: true` and no `setMacro`; the Advanced sheet's MacrosTab already
+    // renders that view-only with a banner. Never fabricate macros the device can't read.
 }
 
 function mapLockState(state: ZmkLockState): LockState {

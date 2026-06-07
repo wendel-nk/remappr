@@ -11,9 +11,16 @@ interface Props {
     onChange: (next: number) => void
     /** Optional bitmask applied after parse (e.g. 0xff for byte fields). */
     mask?: number
+    disabled?: boolean
 }
 
-export function NumField({ label, value, onChange, mask }: Props): JSX.Element {
+export function NumField({
+    label,
+    value,
+    onChange,
+    mask,
+    disabled = false,
+}: Props): JSX.Element {
     const id = useId()
     return (
         <Field orientation="horizontal" className="gap-2">
@@ -23,6 +30,7 @@ export function NumField({ label, value, onChange, mask }: Props): JSX.Element {
             <Input
                 id={id}
                 value={hex16(value)}
+                disabled={disabled}
                 onChange={(e) => {
                     const v = parseHex16(e.target.value)
                     onChange(mask !== undefined ? v & mask : v)

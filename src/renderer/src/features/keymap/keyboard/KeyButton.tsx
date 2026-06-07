@@ -53,6 +53,8 @@ interface KeyButtonProps extends KeyCapLegend {
     /** Part of an active multi-selection (distinct accent ring from `selected`). */
     multiSelected?: boolean
     pressed?: boolean
+    /** Key Test: pressed at least once this sweep — persistent "tested" ring. */
+    seen?: boolean
     width: number
     height: number
     oneU: number
@@ -303,6 +305,7 @@ const KeyButtonViewImpl = ({
     selected = false,
     multiSelected = false,
     pressed = false,
+    seen = false,
     header,
     tapText,
     actionLabel,
@@ -440,6 +443,16 @@ const KeyButtonViewImpl = ({
               boxShadow: `0 0 ${oneU * 0.6}px color-mix(in oklch, oklch(0.7 0.2 150) 70%, transparent)`,
           }
         : {}
+
+    // Key Test "tested" ring: persistent green outline for keys already seen this
+    // sweep. Suppressed while actively pressed (the flash takes over) or selected.
+    const seenStyle: CSSProperties =
+        seen && !pressed && !selected && !multiSelected
+            ? {
+                  boxShadow:
+                      'inset 0 0 0 2px color-mix(in oklch, oklch(0.7 0.18 150) 80%, transparent)',
+              }
+            : {}
 
     const legendColor = pressed ? '#fff' : F.legend
     const headerColor = pressed
@@ -625,7 +638,12 @@ const KeyButtonViewImpl = ({
             aria-pressed={selected}
             data-zoomer={hoverZoom}
             title={richTooltip ? undefined : tooltip || undefined}
-            style={{ ...chrome.style, ...pressedStyle, ...ringStyle }}
+            style={{
+                ...chrome.style,
+                ...seenStyle,
+                ...pressedStyle,
+                ...ringStyle,
+            }}
             className={`relative transition-[box-shadow] duration-100 box-border text-secondary-foreground grow flex flex-col items-center justify-center w-full h-full ${chrome.className} ${
                 pressed ? 'text-white translate-y-[2px]' : ''
             }`}

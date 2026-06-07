@@ -11,6 +11,7 @@ import {
     Lightbulb,
     Redo2,
     Save,
+    ScanLine,
     Sliders,
     Sparkles,
     Trash2,
@@ -19,11 +20,10 @@ import {
     Zap,
 } from 'lucide-react'
 import { LoadStatsModal } from '@/features/keymap/keyboard/LoadStatsModal'
-import { DynamicEntriesModal } from '@/features/dynamic/DynamicEntriesModal'
-import { MacroEditorModal } from '@/features/dynamic/MacroEditorModal'
 import { WirelessSettingsModal } from '@/features/firmware/WirelessSettingsModal'
 import { AdvancedSettingsModal } from '@/features/firmware/AdvancedSettingsModal'
 import useRgbSheetStore from '@/stores/rgbSheetStore'
+import useAdvancedSheetStore from '@/stores/advancedSheetStore'
 import { GitHubIcon } from '@/components/GitHubIcon'
 import { DiscordIcon } from '@/components/DiscordIcon'
 import { DISCORD_URL, REPO_URL } from '@/lib/constants'
@@ -31,6 +31,7 @@ import useConnectionStore from '@/stores/connectionStore'
 import undoRedoStore from '@/stores/undoRedoStore'
 import useHeatmapStore from '@/stores/heatmapStore'
 import useLiveViewStore from '@/stores/liveViewStore'
+import useKeyTestStore from '@/stores/keyTestStore'
 import useLoadStatsStore from '@/stores/loadStatsStore'
 import { Settings } from '../components/modals/Settings.tsx'
 import { Download as DownloadModal } from '../components/modals/Download.tsx'
@@ -55,16 +56,35 @@ export function Header(): JSX.Element {
     const toggleHeatmap = useHeatmapStore((s) => s.toggle)
     const liveOn = useLiveViewStore((s) => s.enabled)
     const toggleLive = useLiveViewStore((s) => s.toggle)
+    const keyTestOn = useKeyTestStore((s) => s.active)
+    const toggleKeyTest = useKeyTestStore((s) => s.toggle)
     const loadOpen = useLoadStatsStore((s) => s.open)
     const setLoadOpen = useLoadStatsStore((s) => s.setOpen)
 
     const [unsaved, setUnsaved] = useState<boolean>(false)
-    const [dynOpen, setDynOpen] = useState(false)
-    const [macroOpen, setMacroOpen] = useState(false)
     const [wirelessOpen, setWirelessOpen] = useState(false)
     const [advancedOpen, setAdvancedOpen] = useState(false)
     const rgbSheetOpen = useRgbSheetStore((s) => s.open)
     const toggleRgbSheet = useRgbSheetStore((s) => s.toggle)
+    const setRgbSheetOpen = useRgbSheetStore((s) => s.setOpen)
+
+    // Dynamic entries + macros share one bottom-dock sheet (advancedSheetStore),
+    // mutually exclusive with the RGB sheet. The two triggers open it at their
+    // section: Sliders → dynamic (Tap Dance first), Sparkles → Macros.
+    const advSheetOpen = useAdvancedSheetStore((s) => s.open)
+    const advSection = useAdvancedSheetStore((s) => s.section)
+    const openAdvSheet = useAdvancedSheetStore((s) => s.openAt)
+    const setAdvSheetOpen = useAdvancedSheetStore((s) => s.setOpen)
+    const openDynamicSheet = (): void => {
+        setRgbSheetOpen(false)
+        openAdvSheet('td')
+    }
+    const openMacroSheet = (): void => {
+        setRgbSheetOpen(false)
+        openAdvSheet('macros')
+    }
+    const dynActive = advSheetOpen && advSection !== 'macros'
+    const macroActive = advSheetOpen && advSection === 'macros'
 
     useEffect(() => {
         if (!service) {
@@ -189,6 +209,22 @@ export function Header(): JSX.Element {
                         <Button
                             variant="ghost"
                             size="icon"
+                            data-active={keyTestOn}
+                            className="data-[active=true]:bg-primary/20 data-[active=true]:text-primary"
+                            onClick={toggleKeyTest}
+                        >
+                            <ScanLine aria-label="Key test" />
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        <p>Key test</p>
+                    </TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button
+                            variant="ghost"
+                            size="icon"
                             onClick={(): void => setLoadOpen(true)}
                         >
                             <BarChart3 aria-label="Typing load" />
@@ -223,10 +259,10 @@ export function Header(): JSX.Element {
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <Button
-                                variant="ghost"
+                                variant={dynActive ? 'secondary' : 'ghost'}
                                 size="icon"
                                 disabled={!service}
-                                onClick={(): void => setDynOpen(true)}
+                                onClick={openDynamicSheet}
                             >
                                 <Sliders aria-label="Dynamic entries" />
                             </Button>
@@ -236,19 +272,14 @@ export function Header(): JSX.Element {
                         </TooltipContent>
                     </Tooltip>
                 </FeatureGate>
-                <DynamicEntriesModal
-                    service={service}
-                    opened={dynOpen}
-                    onClose={(): void => setDynOpen(false)}
-                />
                 <FeatureGate feature="macros">
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <Button
-                                variant="ghost"
+                                variant={macroActive ? 'secondary' : 'ghost'}
                                 size="icon"
                                 disabled={!service}
-                                onClick={(): void => setMacroOpen(true)}
+                                onClick={openMacroSheet}
                             >
                                 <Sparkles aria-label="Macros" />
                             </Button>
@@ -258,11 +289,6 @@ export function Header(): JSX.Element {
                         </TooltipContent>
                     </Tooltip>
                 </FeatureGate>
-                <MacroEditorModal
-                    service={service}
-                    opened={macroOpen}
-                    onClose={(): void => setMacroOpen(false)}
-                />
                 <FeatureGate feature="wireless">
                     <Tooltip>
                         <TooltipTrigger asChild>
@@ -315,7 +341,10 @@ export function Header(): JSX.Element {
                             variant={rgbSheetOpen ? 'secondary' : 'ghost'}
                             size="icon"
                             disabled={!service}
-                            onClick={(): void => toggleRgbSheet()}
+                            onClick={(): void => {
+                                setAdvSheetOpen(false)
+                                toggleRgbSheet()
+                            }}
                         >
                             <Lightbulb aria-label="RGB lighting" />
                         </Button>
