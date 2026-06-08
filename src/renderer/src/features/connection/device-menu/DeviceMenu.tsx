@@ -41,7 +41,13 @@ export const DeviceMenu = (): JSX.Element => {
         }, 0)
     }, [service, communication, reset, setService])
 
-    const connected = !!deviceName
+    // Connected-state tracks the live RPC service, NOT the device name. Some
+    // firmwares (e.g. a ZMK build with a blank CONFIG_ZMK_KEYBOARD_NAME) report
+    // an empty name even though the session is fully live and editable —
+    // gating on the name string wrongly showed "Offline" and disabled the menu.
+    const connected = !!service
+    const displayName =
+        deviceName?.trim() || service?.deviceInfo.name?.trim() || 'Keyboard'
     const connLabel = communication === 'ble' ? 'BLE' : 'USB'
 
     return (
@@ -63,7 +69,7 @@ export const DeviceMenu = (): JSX.Element => {
                     />
                     <div className="min-w-0 flex-1">
                         <div className="truncate text-[12.5px] font-semibold">
-                            {deviceName || 'No Device Connected'}
+                            {connected ? displayName : 'No Device Connected'}
                         </div>
                         <div className="text-[10.5px] text-muted-foreground">
                             {connected ? `Connected · ${connLabel}` : 'Offline'}

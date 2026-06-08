@@ -25,10 +25,6 @@ const KNOWN_VENDOR_LABELS: Record<number, string> = {
     0x1209: 'Generic Keyboard',
 }
 
-const KNOWN_VENDOR_IDS: number[] = Object.keys(KNOWN_VENDOR_LABELS).map((k) =>
-    Number(k),
-)
-
 const NAME_CACHE_KEY = 'zmk-studio.usb-names'
 const USER_NAME_CACHE_KEY = 'zmk-studio.usb-names.user'
 
@@ -230,8 +226,10 @@ let lastOpenedPortInfo: SerialPortInfo | null = null
 
 export async function requestAndConnect(): Promise<Transport> {
     if (!navigator.serial) throw new Error('Web Serial not supported')
-    const filters = KNOWN_VENDOR_IDS.map((usbVendorId) => ({ usbVendorId }))
-    const port = await navigator.serial.requestPort({ filters })
+    // No VID filter: ZMK boards ship with many vendor IDs (and custom builds
+    // use arbitrary ones). Match upstream ZMK Studio — show all serial ports
+    // and let the user pick. KNOWN_VENDOR_LABELS is only a label fallback.
+    const port = await navigator.serial.requestPort({})
 
     // Single-prompt flow: Web Serial can't return the productName, but the
     // ZMK firmware does — once the Serial connection opens we receive the
