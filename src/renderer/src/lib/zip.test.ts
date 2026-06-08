@@ -47,6 +47,15 @@ describe('zipStore', () => {
         expect(dv.getUint16(eocd + 10, true)).toBe(2)
     })
 
+    it('sets the UTF-8 filename flag (bit 11) in the local header', () => {
+        const zip = zipStore([{ path: 'café.txt', data: enc('x') }])
+        const dv = new DataView(zip.buffer, zip.byteOffset, zip.byteLength)
+        // local header general-purpose flags at offset +6.
+        expect(dv.getUint16(6, true) & 0x0800).toBe(0x0800)
+        // round-trips the non-ASCII path back out intact.
+        expect(readStoredZip(zip)[0].path).toBe('café.txt')
+    })
+
     it('produces an empty but valid archive for no entries', () => {
         const zip = zipStore([])
         expect(zip.length).toBe(22) // EOCD only

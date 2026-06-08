@@ -175,4 +175,43 @@ describe('githubBuild client', () => {
         )
         await expect(c.getUser()).rejects.toThrow(/401/)
     })
+
+    it('ensureRepo throws on a non-404 (e.g. 401) instead of creating', async () => {
+        const fetchImpl = router({
+            'GET /user': () => json({ login: 'ann' }),
+            'GET /repos/ann/kb': () =>
+                json({ message: 'Bad creds' }, false, 401),
+            // no POST route: if create were (wrongly) attempted it'd throw
+            // "unrouted", which would NOT match /401/.
+        })
+        const c = createGithubBuildClient('tok', fetchImpl)
+        await expect(c.ensureRepo('kb')).rejects.toThrow(/401/)
+        const posted = (
+            fetchImpl as unknown as ReturnType<typeof vi.fn>
+        ).mock.calls.some((call) => call[1]?.method === 'POST')
+        expect(posted).toBe(false)
+    })
+
+    it('downloadArtifact uses the injected downloader (desktop proxy path)', async () => {
+        const bytes = new Uint8Array([1, 2, 3])
+        const download = vi.fn(async () => bytes)
+        const fetchImpl = router({}) // must NOT be hit when a downloader is given
+        const c = createGithubBuildClient('tok', fetchImpl, download)
+        expect(await c.downloadArtifact('http://api.github.com/x')).toBe(bytes)
+        expect(download).toHaveBeenCalledWith('http://api.github.com/x')
+        expect(
+            (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls
+                .length,
+        ).toBe(0)
+    })
+
+    it('downloadArtifact falls back to direct fetch when no downloader', async () => {
+        const c = createGithubBuildClient(
+            'tok',
+            router({ 'GET /3': () => json({}) }),
+        )
+        const out = await c.downloadArtifact('http://dl/3')
+        expect(out).toBeInstanceOf(Uint8Array)
+        expect(out.length).toBe(0)
+    })
 })

@@ -6,8 +6,13 @@
 // fetch the firmware artifact. Auth is a personal access token (repo + workflow
 // scopes) — no OAuth backend needed for an owner tool. `fetch` is injected so the
 // request shaping is unit-testable without network. GitHub's REST API sends CORS
-// headers, so this runs fine from the renderer. (Distinct from lib/github.ts,
-// which only reads this app's own GitHub Releases for self-update.)
+// headers, so the JSON calls run fine from the renderer. The artifact *download*
+// does not (api.github.com 302-redirects to a no-CORS signed blob URL), so it
+// goes through an injected downloader — main-process proxy on desktop, direct
+// fetch on web. (Distinct from lib/github.ts, which only reads this app's own
+// GitHub Releases for self-update.)
+
+import { IpcChannels } from '@shared/ipc-types'
 
 const API = 'https://api.github.com'
 
@@ -60,9 +65,39 @@ export interface GithubBuildClient {
     downloadArtifact(url: string): Promise<Uint8Array>
 }
 
+// pattern-check: skip — DI seam (injected downloader fn) matching the existing
+// fetchImpl injection; a function factory, not a GoF pattern.
+/** Fetches an artifact zip given its api.github.com download URL → raw bytes.
+ *  Injected so desktop can route around CORS via the main process. */
+export type ArtifactDownloader = (url: string) => Promise<Uint8Array>
+
+/** Downloader that proxies through the Electron main process (no CORS, token
+ *  read from the OS secret store there). Returns null on web / when the IPC
+ *  bridge isn't exposed, so callers can fall back to a direct fetch. */
+export function electronArtifactDownloader(): ArtifactDownloader | null {
+    const api = (
+        globalThis as {
+            api?: {
+                invoke(channel: string, ...args: unknown[]): Promise<unknown>
+            }
+        }
+    ).api
+    if (!api || typeof api.invoke !== 'function') return null
+    return async (url) => {
+        const bytes = await api.invoke(IpcChannels.GITHUB_DOWNLOAD_ARTIFACT, {
+            url,
+        })
+        if (bytes instanceof Uint8Array) return bytes
+        // Structured-clone may surface an ArrayBuffer / typed view.
+        if (bytes instanceof ArrayBuffer) return new Uint8Array(bytes)
+        throw new Error('artifact download failed in main process')
+    }
+}
+
 export function createGithubBuildClient(
     token: string,
     fetchImpl: typeof fetch = fetch,
+    download?: ArtifactDownloader,
 ): GithubBuildClient {
     const headers = {
         Authorization: `Bearer ${token}`,
@@ -102,6 +137,15 @@ export function createGithubBuildClient(
         if (res.ok) {
             const repo = (await res.json()) as { default_branch: string }
             return { owner: login, name, defaultBranch: repo.default_branch }
+        }
+        // Only a genuine 404 means "missing → create". Any other failure (401
+        // bad token, 403 rate-limit) must surface, not fall through to creating
+        // a repo we couldn't prove was absent.
+        if (res.status !== 404) {
+            const detail = await res.text().catch(() => '')
+            throw new Error(
+                `GitHub GET /repos/${login}/${name} → ${res.status}${detail ? `: ${detail}` : ''}`,
+            )
         }
         // 404 → create it (auto-init so a default branch + base commit exist).
         const created = await req<{ default_branch: string }>(
@@ -205,6 +249,11 @@ export function createGithubBuildClient(
     const downloadArtifact: GithubBuildClient['downloadArtifact'] = async (
         url,
     ) => {
+        // Prefer the injected downloader (desktop → main-process proxy, no CORS).
+        // Direct fetch is the web fallback: api.github.com sends CORS, but the
+        // 302 target (signed blob URL) usually does not, so this can fail in the
+        // browser — the desktop proxy is the supported path.
+        if (download) return download(url)
         const res = await fetchImpl(url, { headers })
         if (!res.ok) throw new Error(`GitHub artifact download → ${res.status}`)
         return new Uint8Array(await res.arrayBuffer())

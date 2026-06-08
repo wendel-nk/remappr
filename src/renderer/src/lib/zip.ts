@@ -57,7 +57,7 @@ export function zipStore(entries: ZipEntry[]): Uint8Array {
         const lv = new DataView(local.buffer)
         lv.setUint32(0, 0x04034b50, true) // local file header signature
         lv.setUint16(4, 20, true) // version needed
-        lv.setUint16(6, 0, true) // flags
+        lv.setUint16(6, 0x0800, true) // flags: bit 11 = UTF-8 filename
         lv.setUint16(8, 0, true) // method: store
         lv.setUint16(10, 0, true) // mod time
         lv.setUint16(12, 0x21, true) // mod date (1980-01-01)
@@ -76,7 +76,7 @@ export function zipStore(entries: ZipEntry[]): Uint8Array {
         cv.setUint32(0, 0x02014b50, true) // central dir signature
         cv.setUint16(4, 20, true) // version made by
         cv.setUint16(6, 20, true) // version needed
-        cv.setUint16(8, 0, true) // flags
+        cv.setUint16(8, 0x0800, true) // flags: bit 11 = UTF-8 filename
         cv.setUint16(10, 0, true) // method: store
         cv.setUint16(12, 0, true) // mod time
         cv.setUint16(14, 0x21, true) // mod date

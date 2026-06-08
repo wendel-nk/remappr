@@ -44,19 +44,26 @@ function keyOf(arg: unknown): string | null {
     return typeof k === 'string' && k ? k : null
 }
 
+/** Decrypt a stored secret for main-process use (e.g. attaching the GitHub
+ *  token to an artifact download). Returns null when absent or encryption is
+ *  unavailable. */
+export function getStoredSecret(key: string): string | null {
+    if (!key || !safeStorage.isEncryptionAvailable()) return null
+    const enc = readAll()[key]
+    if (!enc) return null
+    try {
+        return safeStorage.decryptString(Buffer.from(enc, 'base64'))
+    } catch (e) {
+        log.error('decrypt failed', e)
+        return null
+    }
+}
+
 /** Register secret:get/set/delete IPC handlers. Call once at startup. */
 export function registerSecretHandlers(): void {
     ipcMain.handle(IpcChannels.SECRET_GET, (_e, arg: unknown) => {
         const key = keyOf(arg)
-        if (!key || !safeStorage.isEncryptionAvailable()) return null
-        const enc = readAll()[key]
-        if (!enc) return null
-        try {
-            return safeStorage.decryptString(Buffer.from(enc, 'base64'))
-        } catch (e) {
-            log.error('decrypt failed', e)
-            return null
-        }
+        return key ? getStoredSecret(key) : null
     })
 
     ipcMain.handle(IpcChannels.SECRET_SET, (_e, arg: unknown) => {
