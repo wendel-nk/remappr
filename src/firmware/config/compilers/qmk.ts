@@ -66,136 +66,157 @@ interface Ctx {
     diag: DiagnosticBag
 }
 
+type Path = (string | number)[]
+
+const layerIdx = (ctx: Ctx, name: string): number =>
+    ctx.layerIndex.get(name) ?? 0
+
 function kp(a: CanonKeyPress): string {
     let token = qmkKeyName(a.key)
     for (const m of a.mods ?? []) token = `${QMK_MOD_FN[m]}(${token})`
     return token
 }
 
-function emitKeycode(
-    a: CanonAction,
-    ctx: Ctx,
-    path: (string | number)[],
-): string {
-    const layerIdx = (name: string): number => ctx.layerIndex.get(name) ?? 0
-    switch (a.type) {
-        case 'key_press':
-            return kp(a)
-        case 'tap_hold':
-            return a.hold.type === 'modifier'
-                ? `${QMK_MODTAP[a.hold.modifier]}(${qmkKeyName(a.tap.key)})`
-                : `LT(${layerIdx(a.hold.layer)}, ${qmkKeyName(a.tap.key)})`
-        case 'layer':
-            return a.mode === 'momentary'
-                ? `MO(${layerIdx(a.layer)})`
-                : a.mode === 'toggle'
-                  ? `TG(${layerIdx(a.layer)})`
-                  : a.mode === 'to'
-                    ? `TO(${layerIdx(a.layer)})`
-                    : `OSL(${layerIdx(a.layer)})`
-        case 'sticky_key':
+// One emit handler per CanonAction variant. The mapped type forces every
+// discriminant to be handled (compile error on a new action type, the same
+// safety the old `switch` gave) while keeping each variant's logic isolated;
+// emitKeycode is then just a dispatch. Handlers receive the narrowed action.
+type EmitHandlers = {
+    [T in CanonAction['type']]: (
+        a: Extract<CanonAction, { type: T }>,
+        ctx: Ctx,
+        path: Path,
+    ) => string
+}
+
+// ZMK-only actions: no QMK keycode exists, warn + KC_NO placeholder.
+const zmkOnly =
+    () =>
+    (a: { type: string }, ctx: Ctx, path: Path): string => {
+        ctx.diag.warn(
+            `"${a.type}" is ZMK-specific; no QMK keycode; emitted KC_NO`,
+            path,
+        )
+        return 'KC_NO'
+    }
+
+const HANDLERS: EmitHandlers = {
+    key_press: (a) => kp(a),
+    tap_hold: (a, ctx) =>
+        a.hold.type === 'modifier'
+            ? `${QMK_MODTAP[a.hold.modifier]}(${qmkKeyName(a.tap.key)})`
+            : `LT(${layerIdx(ctx, a.hold.layer)}, ${qmkKeyName(a.tap.key)})`,
+    layer: (a, ctx) =>
+        a.mode === 'momentary'
+            ? `MO(${layerIdx(ctx, a.layer)})`
+            : a.mode === 'toggle'
+              ? `TG(${layerIdx(ctx, a.layer)})`
+              : a.mode === 'to'
+                ? `TO(${layerIdx(ctx, a.layer)})`
+                : `OSL(${layerIdx(ctx, a.layer)})`,
+    sticky_key: (a, ctx, path) => {
+        ctx.diag.warn(
+            'QMK one-shot applies to modifiers only; emitted the bare key',
+            path,
+        )
+        return qmkKeyName(a.key)
+    },
+    caps_word: () => 'CW_TOGG',
+    transparent: () => 'KC_TRNS',
+    none: () => 'KC_NO',
+    bootloader: () => 'QK_BOOT',
+    reset: () => 'QK_RBT',
+    output: (a, ctx, path) => {
+        if (!supportsOutput(ctx.target, a.action)) {
             ctx.diag.warn(
-                'QMK one-shot applies to modifiers only; emitted the bare key',
+                `output "${a.action}" has no standard ${ctx.target} keycode; emitted KC_NO`,
                 path,
             )
-            return qmkKeyName(a.key)
-        case 'caps_word':
-            return 'CW_TOGG'
-        case 'transparent':
-            return 'KC_TRNS'
-        case 'none':
             return 'KC_NO'
-        case 'bootloader':
-            return 'QK_BOOT'
-        case 'reset':
-            return 'QK_RBT'
-        case 'output':
-            if (!supportsOutput(ctx.target, a.action)) {
-                ctx.diag.warn(
-                    `output "${a.action}" has no standard ${ctx.target} keycode; emitted KC_NO`,
-                    path,
-                )
-                return 'KC_NO'
-            }
-            return 'KC_NO' // usb is the implicit default on QMK; no dedicated keycode
-        case 'lighting': {
-            if (!supportsLighting(ctx.target, a.target)) {
-                ctx.diag.warn(
-                    `${a.target} lighting is unavailable on ${ctx.target}; emitted KC_NO`,
-                    path,
-                )
-                return 'KC_NO'
-            }
-            if (a.target === 'backlight') {
-                const t = BL[a.action]
-                if (!t) {
-                    ctx.diag.warn(
-                        `backlight has no "${a.action}" action on ${ctx.target}; emitted KC_NO`,
-                        path,
-                    )
-                    return 'KC_NO'
-                }
-                return t
-            }
-            const t = RGB[a.action]
+        }
+        return 'KC_NO' // usb is the implicit default on QMK; no dedicated keycode
+    },
+    lighting: (a, ctx, path) => {
+        if (!supportsLighting(ctx.target, a.target)) {
+            ctx.diag.warn(
+                `${a.target} lighting is unavailable on ${ctx.target}; emitted KC_NO`,
+                path,
+            )
+            return 'KC_NO'
+        }
+        if (a.target === 'backlight') {
+            const t = BL[a.action]
             if (!t) {
                 ctx.diag.warn(
-                    `RGB has no "${a.action}" action on ${ctx.target}; emitted RGB_TOG`,
+                    `backlight has no "${a.action}" action on ${ctx.target}; emitted KC_NO`,
                     path,
                 )
-                return 'RGB_TOG'
+                return 'KC_NO'
             }
             return t
         }
-        case 'macro':
+        const t = RGB[a.action]
+        if (!t) {
             ctx.diag.warn(
-                `macro "${a.ref}" requires hand-written C (process_record_user); emitted KC_NO`,
+                `RGB has no "${a.action}" action on ${ctx.target}; emitted RGB_TOG`,
                 path,
             )
-            return 'KC_NO'
-        case 'tap_dance':
-            ctx.diag.warn(
-                `tap-dance "${a.ref}" requires tap_dance_actions[]; emitted KC_NO`,
-                path,
-            )
-            return 'KC_NO'
-        case 'mod_morph':
-            ctx.diag.warn(
-                `mod-morph "${a.ref}" requires a custom QMK macro / Key Override; emitted KC_NO`,
-                path,
-            )
-            return 'KC_NO'
-        case 'hold_tap':
-            ctx.diag.warn(
-                `custom hold-tap "${a.ref}" has no direct QMK keycode; use MT()/LT() or a tap-hold config; emitted KC_NO`,
-                path,
-            )
-            return 'KC_NO'
-        case 'key_repeat':
-            return 'QK_REP'
-        case 'grave_escape':
-            return 'QK_GESC'
-        case 'mouse_key':
-            return MOUSE_BTN[a.button]
-        case 'mouse_move':
-            return MOVE[a.direction]
-        case 'mouse_scroll':
-            return SCRL[a.direction]
-        case 'key_toggle':
-            ctx.diag.warn(
-                'key-toggle has no standard QMK keycode; emitted the bare key',
-                path,
-            )
-            return qmkKeyName(a.key)
-        case 'soft_off':
-        case 'studio_unlock':
-        case 'ext_power':
-            ctx.diag.warn(
-                `"${a.type}" is ZMK-specific; no QMK keycode; emitted KC_NO`,
-                path,
-            )
-            return 'KC_NO'
-    }
+            return 'RGB_TOG'
+        }
+        return t
+    },
+    macro: (a, ctx, path) => {
+        ctx.diag.warn(
+            `macro "${a.ref}" requires hand-written C (process_record_user); emitted KC_NO`,
+            path,
+        )
+        return 'KC_NO'
+    },
+    tap_dance: (a, ctx, path) => {
+        ctx.diag.warn(
+            `tap-dance "${a.ref}" requires tap_dance_actions[]; emitted KC_NO`,
+            path,
+        )
+        return 'KC_NO'
+    },
+    mod_morph: (a, ctx, path) => {
+        ctx.diag.warn(
+            `mod-morph "${a.ref}" requires a custom QMK macro / Key Override; emitted KC_NO`,
+            path,
+        )
+        return 'KC_NO'
+    },
+    hold_tap: (a, ctx, path) => {
+        ctx.diag.warn(
+            `custom hold-tap "${a.ref}" has no direct QMK keycode; use MT()/LT() or a tap-hold config; emitted KC_NO`,
+            path,
+        )
+        return 'KC_NO'
+    },
+    key_repeat: () => 'QK_REP',
+    grave_escape: () => 'QK_GESC',
+    mouse_key: (a) => MOUSE_BTN[a.button],
+    mouse_move: (a) => MOVE[a.direction],
+    mouse_scroll: (a) => SCRL[a.direction],
+    key_toggle: (a, ctx, path) => {
+        ctx.diag.warn(
+            'key-toggle has no standard QMK keycode; emitted the bare key',
+            path,
+        )
+        return qmkKeyName(a.key)
+    },
+    soft_off: zmkOnly(),
+    studio_unlock: zmkOnly(),
+    ext_power: zmkOnly(),
+}
+
+function emitKeycode(a: CanonAction, ctx: Ctx, path: Path): string {
+    const handler = HANDLERS[a.type] as (
+        a: CanonAction,
+        ctx: Ctx,
+        path: Path,
+    ) => string
+    return handler(a, ctx, path)
 }
 
 // pattern-check: skip additive pure QMK encoder_map C-block emitter, no abstraction
