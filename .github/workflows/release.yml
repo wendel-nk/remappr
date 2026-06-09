@@ -33,7 +33,8 @@ jobs:
               if: ${{ steps.rp.outputs.pr }}
               env:
                   GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+                  RP_PR: ${{ steps.rp.outputs.pr }}
               run: |
-                  PR_NUM=$(echo '${{ steps.rp.outputs.pr }}' | jq -r '.number')
+                  PR_NUM=$(jq -r '.number' <<< "$RP_PR")
                   echo "Enabling auto-merge on release PR #$PR_NUM"
                   gh pr merge "$PR_NUM" --squash --auto --repo "$GITHUB_REPOSITORY"
