@@ -9,7 +9,7 @@ interface ElectronWindow {
     electron?: { process?: { platform?: string } }
 }
 
-/** The context-bridged IPC API, or undefined outside Electron (web/Tauri). */
+/** The context-bridged IPC API, or undefined outside Electron (e.g. the web build). */
 export function getApi(): ElectronIpcApi | undefined {
     return (window as unknown as ElectronWindow).api
 }

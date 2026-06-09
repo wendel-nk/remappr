@@ -1,7 +1,6 @@
 # Contributing
 
-Remappr is a cross-platform keymap editor — a single React UI wrapped in either
-an Electron or Tauri shell, with per-vendor firmware adapters. Full setup lives
+Remappr is a cross-platform keymap editor — a single React UI in an Electron shell, with per-vendor firmware adapters. Full setup lives
 in the [project README](https://github.com/Wolffyx/remappr#readme);
 this page is the short version plus how to work on these docs.
 

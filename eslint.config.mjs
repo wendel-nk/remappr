@@ -15,7 +15,6 @@ export default defineConfig(
             '**/out',
             '**/out-types',
             '**/build',
-            'src-tauri/target/**',
         ],
     },
     tseslint.configs.recommended,

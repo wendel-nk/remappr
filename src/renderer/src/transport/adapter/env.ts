@@ -1,11 +1,5 @@
-// Pattern check: no GoF pattern (-) — rejected — env detection helpers, no abstraction
-export type Env = 'tauri' | 'electron' | 'web'
-
-declare global {
-    interface Window {
-        __TAURI_INTERNALS__?: object
-    }
-}
+// pattern-check: skip — env detection helpers (Electron / web only)
+export type Env = 'electron' | 'web'
 
 export function isElectron(): boolean {
     return (
@@ -14,10 +8,6 @@ export function isElectron(): boolean {
     )
 }
 
-export function isTauri(): boolean {
-    return !!window.__TAURI_INTERNALS__
-}
-
 export function detectEnv(): Env {
-    return isTauri() ? 'tauri' : isElectron() ? 'electron' : 'web'
+    return isElectron() ? 'electron' : 'web'
 }

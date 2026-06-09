@@ -109,9 +109,8 @@ async function runScan(serviceUuid: string): Promise<AvailableDevice[]> {
     // Web Bluetooth `filters: [{ services }]` matches the BLE *advertisement*
     // payload, not GATT services exposed after connect. ZMK firmware does not
     // advertise its Studio service UUID, so a service-UUID filter would yield
-    // an empty chooser. Tauri's bluest::discover_devices works on Windows via
-    // WinRT enumeration of paired devices and isn't an analogue. Use
-    // acceptAllDevices + optionalServices and let the renderer pick.
+    // an empty chooser. Use acceptAllDevices + optionalServices and let the
+    // renderer pick.
     try {
         pendingDevicePromise = navigator.bluetooth.requestDevice({
             acceptAllDevices: true,

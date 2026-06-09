@@ -143,7 +143,7 @@ behaviors is limited by the ZMK Studio protocol.
 
 | Feature                                           | Status                          |
 | ------------------------------------------------- | ------------------------------- |
-| Electron + Tauri shells                           | <Badge type="tip" text="✅" />  |
+| Electron shell                                    | <Badge type="tip" text="✅" />  |
 | Firmware adapter abstraction (plug-in per vendor) | <Badge type="tip" text="✅" />  |
 | Capability-gated UI                               | <Badge type="tip" text="✅" />  |
 | Keymap import / export (Remappr JSON config)      | <Badge type="tip" text="✅" />  |

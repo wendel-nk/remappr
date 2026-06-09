@@ -69,7 +69,6 @@ body:
               - Desktop — Electron (.AppImage / .deb / .snap)
               - Desktop — Electron (.dmg)
               - Desktop — Electron (.exe)
-              - Desktop — Tauri
               - Local dev (`pnpm dev` / `pnpm edev`)
       validations:
           required: true
@@ -93,7 +92,6 @@ body:
               - BLE (Web Bluetooth)
               - BLE (Electron — Chromium bridge)
               - BLE (Electron — noble)
-              - BLE (Tauri)
               - Demo mode (no device)
               - N/A
       validations:

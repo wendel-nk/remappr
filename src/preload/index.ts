@@ -11,7 +11,6 @@ declare global {
     interface Window {
         electron: ElectronAPI
         api: ElectronIpcApi
-        __TAURI_INTERNALS__?: object
     }
 }
 

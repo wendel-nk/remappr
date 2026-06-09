@@ -1,14 +1,13 @@
 # Project structure
 
-Remappr is one React UI wrapped in either an **Electron** (primary) or **Tauri**
-(alternate) shell, with per-vendor **firmware adapters** behind a common
-interface. This page maps the repo so you know where to change things.
+Remappr is one React UI wrapped in an **Electron** shell, with per-vendor
+**firmware adapters** behind a common interface. This page maps the repo so you
+know where to change things.
 
 ## Top level
 
 ```
 src/            Application source (see below)
-src-tauri/      Rust shell — Tauri build path (commands, GATT, serial transports)
 docs/           This documentation site (VitePress)
 scripts/        Build / release helper scripts
 resources/      Static app resources bundled into the shells
@@ -18,7 +17,7 @@ build/          Electron-builder assets (icons, entitlements)
 ```
 
 Stack: React 19 · Vite 7 · Tailwind 4 · shadcn/ui · Zustand + Immer · Electron 39
-/ Tauri 2 · Vitest · Storybook. Package manager pnpm 10; Node ≥ 20 (`.nvmrc`).
+· Vitest · Storybook. Package manager pnpm 10; Node ≥ 20 (`.nvmrc`).
 
 ## `src/`
 
@@ -94,7 +93,6 @@ renderer/src/
   layout/           app chrome (Header, …)
   components/        shared UI (modals, shadcn primitives)
   transport/         web-serial / web-ble (browser transports)
-  tauri/             Tauri-side BLE / serial bridges
   lib/               helpers (e.g. githubBuild REST client)
 ```
 
@@ -113,15 +111,16 @@ State is split into small stores under `stores/`, each owning one concern:
 Reading a store + lifting selectors is the perf pattern used on the canvas (see
 the canvas-perf notes); keep component reads narrow.
 
-## The two shells
+## The Electron shell
 
-|                 | Electron (primary)                               | Tauri (alternate)                  |
-| --------------- | ------------------------------------------------ | ---------------------------------- |
-| Native I/O      | `src/main/*` (Node: serialport, node-hid, BlueZ) | `src-tauri/src/transport/*` (Rust) |
-| Renderer bridge | `preload/` IPC                                   | `renderer/src/tauri/*`             |
-| Build           | `pnpm ebuild`, `build:win/mac/linux`             | `pnpm tauri build`                 |
+|                 | Electron                                         |
+| --------------- | ------------------------------------------------ |
+| Native I/O      | `src/main/*` (Node: serialport, node-hid, BlueZ) |
+| Renderer bridge | `preload/` IPC                                   |
+| Build           | `pnpm ebuild`, `build:win/mac/linux`             |
 
-Same renderer, same firmware adapters — only the transport plumbing differs.
+A browser build (web-serial / web-hid transports) runs the same renderer and
+firmware adapters — only the transport plumbing differs.
 
 ## Where to change things
 
@@ -133,7 +132,7 @@ Same renderer, same firmware adapters — only the transport plumbing differs.
 | Firmware export output | `firmware/config/compilers/`                              |
 | A new firmware target  | [Adding a firmware target](/dev/adding-a-firmware-target) |
 | Live-device behavior   | the relevant `firmware/<vendor>/` adapter + `service.ts`  |
-| Native USB/BLE/HID     | `src/main/` (+ `preload/`) or `src-tauri/`                |
+| Native USB/BLE/HID     | `src/main/` (+ `preload/`)                                |
 
 ## Tooling
 

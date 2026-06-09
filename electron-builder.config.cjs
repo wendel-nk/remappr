@@ -28,7 +28,6 @@ module.exports = {
     files: [
         '!**/.vscode/*',
         '!src/*',
-        '!src-tauri/**/*',
         '!scripts/**/*',
         '!.storybook/**/*',
         '!stories/**/*',
