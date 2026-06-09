@@ -1,6 +1,7 @@
 // Pattern check: no GoF pattern (-) — rejected — pure 16-bit QMK keycode encode/decode + label generation; helper functions only.
 // QMK 16-bit keycode encoding/decoding for the action kinds the QMK adapter supports.
-// Reference: qmk_firmware-2025q3/quantum/keycodes.h (QK_* range constants).
+// The QK_* range bases are interface facts — the public VIA/QMK keycode numbering
+// exchanged over the wire, independently compiled, not copied firmware source.
 
 import { CATALOG } from '@firmware/catalog/entries'
 import type { KeycodeCodec } from '@firmware/codec'
@@ -30,7 +31,7 @@ export const QMK_KIND = {
     TAP_TOGGLE_LAYER: 'qmk:tap-toggle-layer',
 } as const
 
-// Quantum keycode range bases (authoritative per qmk keycodes.h enum).
+// Quantum keycode range bases (the public QMK quantum keycode numbering).
 const QK_BASIC_MAX = 0x00ff
 const QK_MOD_TAP = 0x2000
 const QK_MOD_TAP_MAX = 0x3fff

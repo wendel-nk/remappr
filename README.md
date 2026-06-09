@@ -3,9 +3,8 @@
 A **universal keyboard manager** — one app to connect, remap, light up and build
 keyboards across firmwares. Supports **ZMK, QMK, VIA, Vial and Keychron** today,
 with a pluggable adapter + compiler architecture built to add more firmwares over
-time — including a planned first-party **Remappr Firmware**. Wraps a single React
-UI in either an Electron or Tauri shell so the same firmware adapters serve both
-targets.
+time — including a planned first-party **Remappr Firmware**. Built on Electron,
+with a single React UI driving the firmware adapters.
 
 📖 **Documentation:** [docs.remappr.com](https://docs.remappr.com) — the Builder
 walkthrough, the JSON keymap config reference, and developer/compiler docs.
@@ -14,7 +13,7 @@ Source lives in [`docs/`](docs) (VitePress); run it with `pnpm docs:dev`.
 ## Stack
 
 - **UI:** React 19, Vite 7, Tailwind 4, shadcn/ui, react-aria-components
-- **Shell:** Electron 39 (primary) + Tauri 2 (alternate)
+- **Shell:** Electron 39
 - **State:** Zustand, Immer
 - **Firmware adapters:** ZMK (BLE/serial), QMK (raw HID via VIA), Vial, Keychron
 - **Testing:** Vitest, Storybook 10
@@ -26,8 +25,6 @@ Source lives in [`docs/`](docs) (VitePress); run it with `pnpm docs:dev`.
   `corepack enable` if needed
 - Linux only: BlueZ + D-Bus running for direct GATT (BLE) access
 - macOS only: Xcode command-line tools for `node-hid` / `serialport` builds
-- Tauri build target only: Rust toolchain + platform deps from
-  https://tauri.app/start/prerequisites/
 
 ## Setup
 
@@ -44,7 +41,6 @@ ABI.
 | Command          | Purpose                                                    |
 | ---------------- | ---------------------------------------------------------- |
 | `pnpm edev`      | Electron dev (renderer + main + preload, hot reload)       |
-| `pnpm tauri-dev` | Tauri dev shell (`vite --port 5174` + Rust)                |
 | `pnpm dev`       | Renderer-only Vite dev server (port 5174, browser preview) |
 | `pnpm storybook` | Storybook on port 6006                                     |
 
@@ -64,8 +60,7 @@ pnpm ebuild         # typecheck + electron-vite build (no installer)
 pnpm build:linux    # electron-builder Linux installer
 pnpm build:mac      # electron-builder macOS installer
 pnpm build:win      # electron-builder Windows installer
-pnpm build          # Vite-only renderer build (used by Tauri)
-pnpm tauri build    # Tauri release bundle
+pnpm build          # Vite-only renderer build (browser preview)
 ```
 
 ## Layout
@@ -77,7 +72,6 @@ src/
   renderer/    React app (Vite root)
   firmware/    Firmware adapters (zmk, qmk, qmk-vial, keychron, mock)
   shared/      Cross-process types + logger
-src-tauri/     Rust shell (Tauri build path)
 docs/firmware/ Per-vendor adapter notes
 ```
 
@@ -337,7 +331,6 @@ are also bindable live when the connected board exposes them.
 | Status                          | Feature                                                               |
 | ------------------------------- | --------------------------------------------------------------------- |
 | <abbr title="Done">✅</abbr>    | Electron shell (Windows / macOS / Linux)                              |
-| <abbr title="Done">✅</abbr>    | Tauri shell (alternate build target)                                  |
 | <abbr title="Done">✅</abbr>    | Firmware adapter abstraction (plug-in per vendor)                     |
 | <abbr title="Done">✅</abbr>    | Capability-gated UI (features shown only when firmware supports them) |
 | <abbr title="Done">✅</abbr>    | Keymap import / export (Remappr JSON config)                          |
@@ -372,9 +365,10 @@ See [Adding a firmware target](https://docs.remappr.com/dev/adding-a-firmware-ta
 ## License
 
 Licensed under the [Apache License 2.0](LICENSE) — see [NOTICE](NOTICE) for
-copyright information.
+copyright and third-party attributions.
 
-> Remappr was originally forked from [ZMK Studio](https://github.com/zmkfirmware/zmk-studio).
-> The application layer (renderer, main process, firmware adapters) has been
-> fully rewritten. The Tauri shell under `src-tauri/` is retained from the
-> upstream fork and remains under Apache 2.0 — see [NOTICE](NOTICE).
+> Remappr originated as a fork of [ZMK Studio](https://github.com/zmkfirmware/zmk-studio)
+> (Apache 2.0) and has since been substantially rewritten. Its firmware support
+> interoperates with ZMK, QMK, VIA, Vial and Keychron via their public protocols
+> and keycode numbering — it does not include or link their source. See
+> [NOTICE](NOTICE) for the full attribution list.

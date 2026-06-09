@@ -26,7 +26,7 @@ export const VIA_ID = {
     DYNAMIC_KEYMAP_SET_BUFFER: 0x13,
 } as const
 
-// VIA custom-channel ids (QMK quantum/via.h via_channel_id).
+// VIA custom-channel ids (per the public VIA protocol spec, via_channel_id).
 export const VIA_CHANNEL = {
     CUSTOM: 0,
     BACKLIGHT: 1,

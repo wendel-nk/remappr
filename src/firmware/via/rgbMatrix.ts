@@ -5,7 +5,8 @@
 //
 // QMK exposes the global RGB-matrix effect via the VIA custom channel 3
 // (id_custom_get/set/save_value). Per-key colours are NOT here — those are
-// firmware-specific (Keychron 0xA8 / VIAL). See quantum/via.c.
+// firmware-specific (Keychron 0xA8 / VIAL). Implemented from the public VIA
+// protocol spec: https://www.caniusevia.com/docs/specification
 import type { HidClient } from '@firmware/hid/rawHidClient'
 import { RGB_MATRIX_CATALOG } from '@firmware/lighting'
 import type { RgbEffectState } from '@firmware/service'

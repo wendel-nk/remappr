@@ -1,9 +1,10 @@
 // pattern-check: skip — data table + lookup for Keychron QK_KB_0..31 range; no abstraction
-// Keychron-specific keycodes occupy QK_KB_0 (0x7E00) … QK_KB_31 (0x7E1F). The
-// exact assignment depends on which *_ENABLE flags the firmware was built
-// with — see keyboards/keychron/common/keychron_common.h for the chained
-// offsets. We ship the most common K-series build (LK_WIRELESS, no analog,
-// no LED matrix) plus the universal media keys that always come first.
+// Keychron-specific keycodes occupy the QK_KB_0 (0x7E00) … QK_KB_31 (0x7E1F)
+// protocol range. The exact assignment depends on which *_ENABLE flags the
+// firmware was built with (the offsets chain in build order). These are interface
+// values — the keycodes a Keychron board reports over the wire — reconstructed by
+// observation, not copied source. We ship the most common K-series build
+// (LK_WIRELESS, no analog, no LED matrix) plus the universal media keys first.
 //
 // Caveat: a board with ANALOG_MATRIX or KEYCOMBO_OS_TOGGLE will shift later
 // entries. When that becomes a problem we can read the firmware version
@@ -39,8 +40,8 @@ function kc(
 }
 
 // K-series wireless build (LK_WIRELESS_ENABLE, no analog, no LED matrix,
-// no OS-toggle keycombo, no extra screens). Verified against
-// keychron_common.h for k5_max default flags.
+// no OS-toggle keycombo, no extra screens). Verified against a Keychron K5 Max's
+// reported keycodes (default build flags).
 const TABLE: KeychronKeycode[] = [
     kc(0x00, 'lopt', 'LOpt', 'Left Option (Mac)'),
     kc(0x01, 'ropt', 'ROpt', 'Right Option (Mac)'),
