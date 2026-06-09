@@ -12,11 +12,14 @@ import { categoryForUsage } from '@/lib/keymap/keyCategory'
 import { useKeycodeFilter } from '@/hooks/use-keycode-filter'
 import useConnectionStore from '@/stores/connectionStore'
 import useUserSettingsStore from '@/stores/userSettingsStore'
-import type { CatalogEntry } from '@firmware/catalog/types'
+import type { CatalogEntry, KeyCatalog } from '@firmware/catalog/types'
+import type { KeycodeCodec } from '@firmware/codec'
 import KeycodeButton from './KeycodeButton.tsx'
+import { emitFromState, idToModBit, isModifierKey } from './keycodePickerUtils'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/ui/tabs'
 import { Input } from '@/ui/input'
 
+// pattern-check: skip additive optional codec-injection prop on existing data interface
 interface KeycodePickerGridProps {
     value?: number
     label?: string
@@ -27,43 +30,27 @@ interface KeycodePickerGridProps {
     // the slot/value flow and emits the behavior id directly so the
     // caller can switch the bound action type wholesale.
     onActionChosen?: (kind: string) => void
+    // Optional codec override. The editor leaves this unset and the grid
+    // reads the connected device's codec from the store; the deviceless
+    // Keyboard Builder injects a codec (the HID-usage mockCodec) so the
+    // same grid works with no connection.
+    codec?: KeycodeCodec
+    // Optional catalog override (firmware-filtered pages). The builder passes
+    // this so the grid shows only keys valid for the selected firmware; the
+    // editor omits it and the hook reads the connected device's catalog.
+    catalog?: KeyCatalog
 }
 
 const CONTAINER_MAX_HEIGHT = 350
 
-const KEYBOARD_PAGE = 7
-const MOD_ID_LOW = 0xe0
-const MOD_ID_HIGH = 0xe7
-
-function isModifierKey(page: number, id: number): boolean {
-    return page === KEYBOARD_PAGE && id >= MOD_ID_LOW && id <= MOD_ID_HIGH
-}
-
-function idToModBit(id: number): number {
-    return 1 << (id - MOD_ID_LOW)
-}
-
-function emitFromState(
-    base: number | undefined,
-    flags: number,
-): number | undefined {
-    if (base !== undefined) return base | (flags << 24)
-    if (flags === 0) return undefined
-    for (let i = 0; i < 8; i++) {
-        const bit = 1 << i
-        if (flags & bit) {
-            const baseHid = (KEYBOARD_PAGE << 16) | (MOD_ID_LOW + i)
-            return baseHid | ((flags & ~bit) << 24)
-        }
-    }
-    return undefined
-}
-
+// pattern-check: skip mechanical move of pure mod-bit helpers to sibling utils
 export function KeycodePickerGrid({
     value,
     onValueChanged,
     onActionChosen,
     highlightedKeys,
+    codec: codecOverride,
+    catalog,
 }: KeycodePickerGridProps): JSX.Element {
     const {
         searchQuery,
@@ -72,9 +59,10 @@ export function KeycodePickerGrid({
         setActiveTab,
         pages,
         pagesWithMatches,
-    } = useKeycodeFilter()
+    } = useKeycodeFilter(catalog)
 
-    const codec = useConnectionStore((s) => s.service?.codec)
+    const storeCodec = useConnectionStore((s) => s.service?.codec)
+    const codec = codecOverride ?? storeCodec
     const colorMode = useUserSettingsStore((s) => s.colorMode)
 
     const [modFlags, setModFlags] = useState<number>(0)

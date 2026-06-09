@@ -72,7 +72,6 @@ body:
               - Desktop — Electron (Linux)
               - Desktop — Electron (macOS)
               - Desktop — Electron (Windows)
-              - Desktop — Tauri
               - Documentation / README
               - Build / CI / release pipeline
       validations:

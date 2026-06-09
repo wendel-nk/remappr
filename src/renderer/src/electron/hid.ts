@@ -21,7 +21,12 @@ export class ElectronHidAdapter extends IpcTransportAdapter {
         if (!result.ok) {
             throw new Error(result.error ?? 'HID connect failed')
         }
-        return { label: result.label ?? this.dev.label }
+        // HID_CONNECT returns the node-hid device *path* as its label, which has
+        // no "vid:pid" token. Overriding with it would strip the VID/PID that
+        // readTransportIds() parses out of the discovery label (buildLabel),
+        // breaking the QMK/VIA/Keychron layout cache key on Electron. Keep the
+        // discovery label, which carries "VVVV:PPPP".
+        return { label: this.dev.label }
     }
 }
 

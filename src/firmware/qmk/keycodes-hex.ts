@@ -1,6 +1,8 @@
-// Pattern check: no GoF pattern (-) — rejected — authoritative QMK quantum
-// keycode hex map sourced from qmk_firmware-2025q3/quantum/keycodes.h.
-// Pure data; expand by syncing the header.
+// Pattern check: no GoF pattern (-) — rejected — QMK quantum keycode hex map.
+// These are INTERFACE FACTS: the numeric keycode values a QMK/VIA keyboard
+// exchanges over the wire, independently compiled to match the public VIA keycode
+// numbering — not copied firmware source. Pure data; keep in sync with the
+// published keycode assignments.
 import type { CanonicalKeyId } from '../catalog/types'
 
 // MIDI note ids: octaves 0..5, 12 notes each. C0 starts at 0x7103.

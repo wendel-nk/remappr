@@ -121,7 +121,6 @@ export function LoadStatsModal({
             headerIcon={<BarChart3 />}
             customModalBoxClass="w-11/14 max-w-2xl"
             xButton
-            isDismissable
             showFooter={false}
         >
             {stats.total === 0 ? (

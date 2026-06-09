@@ -1,17 +1,38 @@
 import React, {
+    memo,
     PropsWithChildren,
     useCallback,
     useEffect,
     useLayoutEffect,
+    useMemo,
     useRef,
     useState,
 } from 'react'
 import { Maximize2, Minus, Plus } from 'lucide-react'
-import { HoldTapLabels, KeyButton } from './KeyButton.tsx'
+import { HoldTapLabels, KeyButtonView } from './KeyButton.tsx'
+import { clamp } from '@/lib/clampInt'
 import { scalePosition } from '@/lib/scalePosition'
 import { LayoutZoom } from '@/lib/helpers'
 import type { ColorMode, KeyCategory } from '@/lib/keymap/keyCategory'
-import type { CapStyle } from '@/stores/userSettingsStore'
+import useUserSettingsStore, { type CapStyle } from '@/stores/userSettingsStore'
+import useConnectionStore from '@/stores/connectionStore'
+import type { HsvColor } from '@firmware/service'
+import type { KeyLightInput, UnifiedLighting } from '@/features/lighting/engine'
+
+// Enabled solid cfg used to render per-key colours when no global effect is active
+// (e.g. paint mode with the device effect off) — the per-key colour overrides hue.
+const SOLID_BASE: UnifiedLighting = {
+    enabled: true,
+    effect: 'solid',
+    hue: 286,
+    rainbow: false,
+    sat: 0.9,
+    brightness: 0.85,
+    speed: 0.5,
+    underglow: true,
+    backlight: true,
+    perKey: true,
+}
 
 export type KeyPosition = PropsWithChildren<{
     id?: string
@@ -19,6 +40,8 @@ export type KeyPosition = PropsWithChildren<{
     tapText?: string
     actionLabel?: string
     holdTap?: HoldTapLabels
+    /** Chord modifier names (e.g. ["Ctrl","Shift"]) → chips above the legend. */
+    mods?: string[]
     category?: KeyCategory
     accentCategory?: KeyCategory
     heat?: number | null
@@ -63,6 +86,17 @@ interface PhysicalLayoutCanvasProps {
     pannable?: boolean
     // Opt-in rich hover tooltips on each key (tap/action/hold/type/press-count).
     tooltips?: boolean
+    // RGB-simulation config; when enabled, each key renders an underglow layer.
+    lighting?: UnifiedLighting | null
+    // Per-key colours (device HSV 0–255) indexed by key position; drives the glow
+    // and shows the keyboard's / painted per-key colours.
+    perKeyColors?: Array<HsvColor | null> | null
+    // Paint mode: clicks paint the key instead of selecting; right-click eyedrops.
+    paintMode?: boolean
+    onKeyPaint?: (position: number) => void
+    onKeyEyedrop?: (position: number) => void
+    // Paint gesture ended (pointerup) → flush coalesced writes to the device.
+    onPaintCommit?: () => void
     onPositionClicked?: (position: number, mods?: ClickModifiers) => void
     onEncoderClicked?: (slot: number, dir: 'cw' | 'ccw') => void
     // Right-click on a key (not encoder) → host shows a context menu at the
@@ -72,8 +106,17 @@ interface PhysicalLayoutCanvasProps {
         position: number,
         coords: { x: number; y: number },
     ) => void
-    pressedKeys?: Set<number>
+    pressedKeys?: ReadonlySet<number>
+    /** Key Test: positions seen pressed at least once this sweep — rendered with a
+     *  persistent "tested" ring, distinct from the transient pressed flash. */
+    seenKeys?: ReadonlySet<number>
 }
+
+// pattern-check: skip — shared frozen empty Set for stable prop defaults, no abstraction
+// Stable default for `pressedKeys`/`seenKeys` so an omitted prop doesn't create a fresh
+// Set every render and break the `keysPositions` memo. Only ever read (`.has`), never
+// mutated, so a single shared instance is safe.
+const EMPTY_SET: ReadonlySet<number> = new Set<number>()
 
 const MIN_ZOOM = 0.4
 const MAX_ZOOM = 3.2
@@ -85,9 +128,6 @@ const MAX_ZOOM = 3.2
 const MIN_ONE_U = 34
 const MAX_ONE_U = 92
 const FIT_PADDING = 48
-
-const clamp = (v: number, lo: number, hi: number): number =>
-    Math.min(hi, Math.max(lo, v))
 
 // pattern-check: skip — rename View.scale→zoom + relative-zoom semantics, no new abstraction
 // User-adjusted view; null = follow auto-fit (zoom 1, no pan). `zoom` is the
@@ -101,7 +141,7 @@ interface View {
     ty: number
 }
 
-export const PhysicalLayoutCanvas = ({
+const PhysicalLayoutCanvasImpl = ({
     positions,
     selectedPosition,
     selectedPositions,
@@ -114,10 +154,17 @@ export const PhysicalLayoutCanvas = ({
     showCategoryDot,
     pannable = false,
     tooltips = false,
+    lighting = null,
+    perKeyColors = null,
+    paintMode = false,
+    onKeyPaint,
+    onKeyEyedrop,
+    onPaintCommit,
     onPositionClicked,
     onEncoderClicked,
     onPositionContextMenu,
-    pressedKeys = new Set(),
+    pressedKeys = EMPTY_SET,
+    seenKeys = EMPTY_SET,
     ...props
 }: PhysicalLayoutCanvasProps): JSX.Element => {
     const ref = useRef<HTMLDivElement>(null)
@@ -133,21 +180,46 @@ export const PhysicalLayoutCanvas = ({
 
     const { zoom } = props
 
+    // Resolve the cap-style / colour-mode / firmware display-mode ONCE for the whole
+    // board (honouring per-call overrides) and pass them down as props, so the N keys
+    // don't each subscribe to the connection + user-settings stores.
+    const capStyleSetting = useUserSettingsStore((s) => s.capStyle)
+    const colorModeSetting = useUserSettingsStore((s) => s.colorMode)
+    const keyDisplayModeMap = useUserSettingsStore((s) => s.keyDisplayMode)
+    const firmware = useConnectionStore((s) => s.service?.deviceInfo.firmware)
+    const capStyle = capStyleOverride ?? capStyleSetting
+    const colorMode = colorModeOverride ?? colorModeSetting
+    const keyDisplayMode =
+        keyDisplayModeMap[firmware ?? '_default'] ??
+        keyDisplayModeMap['_default'] ??
+        'displayName'
+
     // TODO: Add a bit of padding for rotation when supported
-    const { rightMost, bottomMost } = positions.reduce(
-        (
-            acc: { rightMost: number; bottomMost: number },
-            {
-                x,
-                y,
-                width,
-                height,
-            }: { x: number; y: number; width: number; height: number },
-        ): { rightMost: number; bottomMost: number } => ({
-            rightMost: Math.max(acc.rightMost, x + width),
-            bottomMost: Math.max(acc.bottomMost, y + height),
-        }),
-        { rightMost: 0, bottomMost: 0 },
+    // Board bounds depend only on `positions`; memoized so the reduce doesn't run on
+    // every render (selection/pan/paint re-renders don't touch the geometry).
+    const { rightMost, bottomMost } = useMemo(
+        () =>
+            positions.reduce(
+                (
+                    acc: { rightMost: number; bottomMost: number },
+                    {
+                        x,
+                        y,
+                        width,
+                        height,
+                    }: {
+                        x: number
+                        y: number
+                        width: number
+                        height: number
+                    },
+                ): { rightMost: number; bottomMost: number } => ({
+                    rightMost: Math.max(acc.rightMost, x + width),
+                    bottomMost: Math.max(acc.bottomMost, y + height),
+                }),
+                { rightMost: 0, bottomMost: 0 },
+            ),
+        [positions],
     )
 
     useLayoutEffect((): (() => void) | void => {
@@ -200,8 +272,13 @@ export const PhysicalLayoutCanvas = ({
 
     // Pannable caps render at the fitted oneU; previews use the fixed prop.
     const effOneU = pannable ? fitU : oneU
-    const boardW = rightMost * effOneU
-    const boardH = bottomMost * effOneU
+    // Board pixel dims depend only on the bounds + fitted unit; memoized to keep the
+    // value referentially stable across unrelated re-renders (clampPan/applyTransform
+    // deps stay quiet when geometry is unchanged).
+    const { boardW, boardH } = useMemo(
+        () => ({ boardW: rightMost * effOneU, boardH: bottomMost * effOneU }),
+        [rightMost, bottomMost, effOneU],
+    )
 
     // For the pannable stage the board is already at its fitted size, so the
     // transform is just the relative zoom (1 = fitted, crisp). Previews still
@@ -210,6 +287,38 @@ export const PhysicalLayoutCanvas = ({
     const effScale = pannable ? zoomLevel : scale * zoomLevel
     const tx = view ? view.tx : 0
     const ty = view ? view.ty : 0
+
+    // pattern-check: skip — imperative transform plumbing during gestures, no abstraction
+    // Pan/zoom is applied DIRECTLY to the board's `style.transform` during a gesture
+    // (rAF-batched) and only committed to React state on gesture end, so dragging the
+    // empty stage doesn't re-render the whole key list every pointer frame. `viewRef`
+    // mirrors `view` synchronously for the imperative path; the layout effect keeps the
+    // DOM transform in sync with committed state (double-click reset, zoom buttons,
+    // ResizeObserver scale changes). It writes ONLY `transform` — no will-change /
+    // translateZ — so the crispness contract holds.
+    const viewRef = useRef<View | null>(view)
+    const rafId = useRef<number | null>(null)
+    const pendingView = useRef<View | null>(null)
+    const applyTransform = useCallback(
+        (v: View | null): void => {
+            const board = ref.current
+            if (!board) return
+            const zl = v ? v.zoom : 1
+            const eff = pannable ? zl : scale * zl
+            const px = v ? v.tx : 0
+            const py = v ? v.ty : 0
+            board.style.transform = `translate(${px}px, ${py}px) scale(${eff})`
+        },
+        [pannable, scale],
+    )
+    const flushTransform = useCallback((): void => {
+        rafId.current = null
+        if (pendingView.current) applyTransform(pendingView.current)
+    }, [applyTransform])
+    useLayoutEffect((): void => {
+        viewRef.current = view
+        applyTransform(view)
+    }, [view, applyTransform])
 
     // Pan clamp, ported from the design prototype: keep at least half the board
     // (or the whole viewport, whichever is larger) within reach. `z` is the
@@ -227,17 +336,23 @@ export const PhysicalLayoutCanvas = ({
         [boardW, boardH],
     )
 
-    // Wheel-zoom centred on the cursor. Native (non-passive) listener so we can preventDefault.
+    // Wheel-zoom centred on the cursor. Native (non-passive) listener so we can
+    // preventDefault. Reads live state from `viewRef` (not `view`) and applies the
+    // transform imperatively, committing to React state on a trailing debounce — so the
+    // listener registers once (no `view` in deps) and a wheel gesture doesn't re-render
+    // the key list per notch.
     useEffect((): (() => void) | void => {
         if (!pannable) return
         const vp = viewportRef.current
         if (!vp) return
+        let commitTimer: number | undefined
         const onWheel = (e: WheelEvent): void => {
             e.preventDefault()
             const rect = vp.getBoundingClientRect()
-            const curZoom = view ? view.zoom : 1
-            const curTx = view ? view.tx : 0
-            const curTy = view ? view.ty : 0
+            const cur = viewRef.current
+            const curZoom = cur ? cur.zoom : 1
+            const curTx = cur ? cur.tx : 0
+            const curTy = cur ? cur.ty : 0
             // Fixed multiplicative step per notch (design prototype), so the feel
             // is identical on a mouse wheel and a trackpad regardless of deltaY.
             const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12
@@ -252,11 +367,20 @@ export const PhysicalLayoutCanvas = ({
                 cy - (cy - curTy) * k,
                 nz,
             )
-            setView({ zoom: nz, ...next })
+            const v = { zoom: nz, ...next }
+            viewRef.current = v
+            applyTransform(v)
+            window.clearTimeout(commitTimer)
+            commitTimer = window.setTimeout(() => {
+                if (viewRef.current) setView(viewRef.current)
+            }, 140)
         }
         vp.addEventListener('wheel', onWheel, { passive: false })
-        return (): void => vp.removeEventListener('wheel', onWheel)
-    }, [pannable, view, scale, clampPan])
+        return (): void => {
+            vp.removeEventListener('wheel', onWheel)
+            window.clearTimeout(commitTimer)
+        }
+    }, [pannable, clampPan, applyTransform])
 
     // Drag-to-pan on empty stage space. A drag that starts on a key is left alone so
     // the key still selects on click.
@@ -270,30 +394,28 @@ export const PhysicalLayoutCanvas = ({
         pointerId: number
     } | null>(null)
 
-    const onPointerDown = useCallback(
-        (e: React.PointerEvent): void => {
-            const target = e.target as HTMLElement
-            if (
-                target.closest('[data-key="true"]') ||
-                target.closest('[data-zoomhud="true"]')
-            ) {
-                return
-            }
-            const z = view ? view.zoom : 1
-            drag.current = {
-                active: true,
-                startX: e.clientX,
-                startY: e.clientY,
-                baseTx: view ? view.tx : 0,
-                baseTy: view ? view.ty : 0,
-                zoom: z,
-                pointerId: e.pointerId,
-            }
-            setDragging(true)
-            viewportRef.current?.setPointerCapture(e.pointerId)
-        },
-        [view, scale],
-    )
+    // pattern-check: skip — imperative drag-pan handlers, no abstraction
+    const onPointerDown = useCallback((e: React.PointerEvent): void => {
+        const target = e.target as HTMLElement
+        if (
+            target.closest('[data-key="true"]') ||
+            target.closest('[data-zoomhud="true"]')
+        ) {
+            return
+        }
+        const cur = viewRef.current
+        drag.current = {
+            active: true,
+            startX: e.clientX,
+            startY: e.clientY,
+            baseTx: cur ? cur.tx : 0,
+            baseTy: cur ? cur.ty : 0,
+            zoom: cur ? cur.zoom : 1,
+            pointerId: e.pointerId,
+        }
+        setDragging(true)
+        viewportRef.current?.setPointerCapture(e.pointerId)
+    }, [])
 
     const onPointerMove = useCallback(
         (e: React.PointerEvent): void => {
@@ -304,15 +426,27 @@ export const PhysicalLayoutCanvas = ({
                 d.baseTy + (e.clientY - d.startY),
                 d.zoom,
             )
-            setView({ zoom: d.zoom, ...next })
+            // Imperative + rAF-batched: write the DOM transform now, commit to state
+            // on pointer-up — no re-render per move.
+            const v = { zoom: d.zoom, ...next }
+            viewRef.current = v
+            pendingView.current = v
+            if (rafId.current == null)
+                rafId.current = requestAnimationFrame(flushTransform)
         },
-        [clampPan],
+        [clampPan, flushTransform],
     )
 
     const onPointerUp = useCallback((e: React.PointerEvent): void => {
-        if (drag.current) {
+        if (drag.current?.active) {
             viewportRef.current?.releasePointerCapture(drag.current.pointerId)
             drag.current.active = false
+            if (rafId.current != null) {
+                cancelAnimationFrame(rafId.current)
+                rafId.current = null
+            }
+            // Commit the final view once so React state matches the DOM + the HUD %.
+            if (viewRef.current) setView(viewRef.current)
         }
         setDragging(false)
         void e
@@ -326,81 +460,223 @@ export const PhysicalLayoutCanvas = ({
 
     const zoomBy = useCallback(
         (factor: number): void => {
-            const curZoom = view ? view.zoom : 1
+            const cur = viewRef.current
+            const curZoom = cur ? cur.zoom : 1
             const nz = clamp(curZoom * factor, MIN_ZOOM, MAX_ZOOM)
             const k = nz / curZoom
             const next = clampPan(
-                (view ? view.tx : 0) * k,
-                (view ? view.ty : 0) * k,
+                (cur ? cur.tx : 0) * k,
+                (cur ? cur.ty : 0) * k,
                 nz,
             )
             setView({ zoom: nz, ...next })
         },
-        [view, clampPan],
+        [clampPan],
     )
 
-    const keysPositions = positions.map((p, idx) => {
-        const posStyle = scalePosition(p, effOneU)
-        const isEncoder = !!p.encoder
-        const isSelected = isEncoder
-            ? selectedEncoder?.slot === p.encoder!.slot &&
-              selectedEncoder?.dir === p.encoder!.dir
-            : idx === selectedPosition
-        const isMultiSelected = !isEncoder && !!selectedPositions?.has(idx)
-        const handleClick = (mods?: ClickModifiers): void => {
-            if (isEncoder) {
-                onEncoderClicked?.(p.encoder!.slot, p.encoder!.dir)
-            } else {
-                onPositionClicked?.(idx, mods)
+    // pattern-check: skip — event delegation + useMemo split of an existing render loop, no abstraction
+    // Click/context-menu/keyboard are delegated to the board container (one listener
+    // each, reading `data-idx`/`data-encoder`) instead of N per-key closures — so the
+    // memoized key list below doesn't depend on the handler identities and the wrapper
+    // divs stay cheap.
+    const keyFromEvent = (
+        e: React.SyntheticEvent,
+    ): {
+        idx: number
+        encoder?: { slot: number; dir: 'cw' | 'ccw' }
+    } | null => {
+        const el = (e.target as HTMLElement).closest(
+            '[data-key="true"]',
+        ) as HTMLElement | null
+        if (!el) return null
+        const idx = Number(el.dataset.idx)
+        const enc = el.dataset.encoder
+        if (enc) {
+            const [slot, dir] = enc.split(':')
+            return {
+                idx,
+                encoder: { slot: Number(slot), dir: dir as 'cw' | 'ccw' },
             }
         }
-        const handleContextMenu = (e: React.MouseEvent): void => {
-            if (isEncoder || !onPositionContextMenu) return
+        return { idx }
+    }
+    // pattern-check: skip — event-delegation paint handlers, plain callbacks, no abstraction
+    const handleBoardClick = useCallback(
+        (e: React.MouseEvent): void => {
+            const hit = keyFromEvent(e)
+            if (!hit) return
+            if (hit.encoder) {
+                onEncoderClicked?.(hit.encoder.slot, hit.encoder.dir)
+                return
+            }
+            // Paint mode: pointerdown/over already paints (and commits on
+            // pointerup); swallow the click so it doesn't select/edit the key.
+            if (paintMode) return
+            onPositionClicked?.(hit.idx, {
+                shiftKey: e.shiftKey,
+                metaKey: e.metaKey,
+                ctrlKey: e.ctrlKey,
+            })
+        },
+        [paintMode, onEncoderClicked, onPositionClicked],
+    )
+    const handleBoardContextMenu = useCallback(
+        (e: React.MouseEvent): void => {
+            const hit = keyFromEvent(e)
+            // Paint mode: right-click eyedrops the key's colour into the brush.
+            if (paintMode && hit && !hit.encoder) {
+                e.preventDefault()
+                onKeyEyedrop?.(hit.idx)
+                return
+            }
+            if (!onPositionContextMenu) return
+            if (!hit || hit.encoder) return
             e.preventDefault()
-            onPositionContextMenu(idx, { x: e.clientX, y: e.clientY })
+            onPositionContextMenu(hit.idx, { x: e.clientX, y: e.clientY })
+        },
+        [paintMode, onKeyEyedrop, onPositionContextMenu],
+    )
+
+    // Drag-to-paint: hold and sweep across keys. paintingRef tracks the held
+    // gesture; pointerover on each key paints it. A window pointerup ends it even
+    // if the release lands off the board.
+    const paintingRef = useRef(false)
+    const handleBoardPointerDown = useCallback(
+        (e: React.PointerEvent): void => {
+            if (!paintMode) return
+            const hit = keyFromEvent(e)
+            if (!hit || hit.encoder) return
+            paintingRef.current = true
+            onKeyPaint?.(hit.idx)
+        },
+        [paintMode, onKeyPaint],
+    )
+    const handleBoardPointerOver = useCallback(
+        (e: React.PointerEvent): void => {
+            if (!paintMode || !paintingRef.current) return
+            const hit = keyFromEvent(e)
+            if (!hit || hit.encoder) return
+            onKeyPaint?.(hit.idx)
+        },
+        [paintMode, onKeyPaint],
+    )
+    useEffect((): (() => void) | void => {
+        if (!paintMode) return
+        const end = (): void => {
+            if (!paintingRef.current) return
+            paintingRef.current = false
+            onPaintCommit?.() // flush the sweep's coalesced writes in one save
         }
-        return (
-            <div
-                key={p.id}
-                role="button"
-                tabIndex={0}
-                data-key="true"
-                onClick={(e) =>
-                    handleClick({
-                        shiftKey: e.shiftKey,
-                        metaKey: e.metaKey,
-                        ctrlKey: e.ctrlKey,
-                    })
-                }
-                onContextMenu={handleContextMenu}
-                onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault()
-                        handleClick()
-                    }
-                }}
-                className="absolute data-[zoomer=true]:hover:z-[1000] leading-[0]"
-                data-zoomer={hoverZoom}
-                style={posStyle as React.CSSProperties}
-            >
-                <KeyButton
-                    hoverZoom={hoverZoom}
-                    oneU={effOneU}
-                    selected={isSelected}
-                    multiSelected={isMultiSelected}
-                    pressed={!isEncoder && pressedKeys.has(idx)}
-                    richTooltip={tooltips && !isEncoder}
-                    capStyleOverride={capStyleOverride}
-                    colorModeOverride={colorModeOverride}
-                    showHeaderTag={showHeaderTag}
-                    showCategoryDot={showCategoryDot}
-                    {...p}
-                />
-            </div>
-        )
-    })
+        window.addEventListener('pointerup', end)
+        return (): void => window.removeEventListener('pointerup', end)
+    }, [paintMode, onPaintCommit])
+    const handleBoardKeyDown = useCallback(
+        (e: React.KeyboardEvent): void => {
+            if (e.key !== 'Enter' && e.key !== ' ') return
+            const hit = keyFromEvent(e)
+            if (!hit) return
+            e.preventDefault()
+            if (hit.encoder)
+                onEncoderClicked?.(hit.encoder.slot, hit.encoder.dir)
+            else onPositionClicked?.(hit.idx)
+        },
+        [onEncoderClicked, onPositionClicked],
+    )
+
+    // Underglow inputs: key centre normalized to the board bounds (drives the spatial
+    // hue). Encoders skip the glow. Kept in its own memo (NOT keyed on selection) so a
+    // selection change reuses the same light-object refs and only the keys whose
+    // selected/pressed state actually changed re-render.
+    const lightInputs = useMemo((): Array<KeyLightInput | null> | null => {
+        if (rightMost <= 0 || bottomMost <= 0) return null
+        const anyColor = !!perKeyColors && perKeyColors.some(Boolean)
+        if (!lighting?.enabled && !anyColor) return null
+        return positions.map((p, idx) => {
+            if (p.encoder) return null
+            const color = perKeyColors?.[idx] ?? undefined
+            // No effect glow and no per-key colour → nothing to render for this key.
+            if (!lighting?.enabled && !color) return null
+            return {
+                cfg: lighting?.enabled ? lighting : SOLID_BASE,
+                fx: (p.x + p.width / 2) / rightMost,
+                fy: (p.y + p.height / 2) / bottomMost,
+                idx,
+                color,
+            }
+        })
+    }, [positions, lighting, perKeyColors, rightMost, bottomMost])
+
+    const keysPositions = useMemo(
+        () =>
+            positions.map((p, idx) => {
+                const posStyle = scalePosition(p, effOneU)
+                const isEncoder = !!p.encoder
+                const isSelected = isEncoder
+                    ? selectedEncoder?.slot === p.encoder!.slot &&
+                      selectedEncoder?.dir === p.encoder!.dir
+                    : idx === selectedPosition
+                const isMultiSelected =
+                    !isEncoder && !!selectedPositions?.has(idx)
+                const lightInput =
+                    isEncoder || !lightInputs ? null : lightInputs[idx]
+                return (
+                    <div
+                        key={p.id}
+                        role="button"
+                        tabIndex={0}
+                        data-key="true"
+                        data-idx={idx}
+                        data-encoder={
+                            isEncoder
+                                ? `${p.encoder!.slot}:${p.encoder!.dir}`
+                                : undefined
+                        }
+                        className="absolute data-[zoomer=true]:hover:z-[1000] leading-[0]"
+                        data-zoomer={hoverZoom}
+                        style={posStyle as React.CSSProperties}
+                    >
+                        <KeyButtonView
+                            hoverZoom={hoverZoom}
+                            oneU={effOneU}
+                            selected={isSelected}
+                            multiSelected={isMultiSelected}
+                            pressed={!isEncoder && pressedKeys.has(idx)}
+                            seen={!isEncoder && seenKeys.has(idx)}
+                            richTooltip={tooltips && !isEncoder}
+                            capStyle={capStyle}
+                            colorMode={colorMode}
+                            keyDisplayMode={keyDisplayMode}
+                            showHeaderTag={showHeaderTag}
+                            showCategoryDot={showCategoryDot}
+                            light={lightInput}
+                            {...p}
+                        />
+                    </div>
+                )
+            }),
+        [
+            positions,
+            effOneU,
+            selectedPosition,
+            selectedPositions,
+            selectedEncoder,
+            pressedKeys,
+            seenKeys,
+            lightInputs,
+            hoverZoom,
+            tooltips,
+            capStyle,
+            colorMode,
+            keyDisplayMode,
+            showHeaderTag,
+            showCategoryDot,
+        ],
+    )
 
     const board = (
+        // Delegation container: click/keydown bubble up from the per-key role="button"
+        // tabIndex={0} wrappers, so the board itself needs no interactive role.
+        // eslint-disable-next-line jsx-a11y/no-static-element-interactions
         <div
             className="relative"
             style={
@@ -418,6 +694,11 @@ export const PhysicalLayoutCanvas = ({
                 } as React.CSSProperties
             }
             ref={ref}
+            onClick={handleBoardClick}
+            onContextMenu={handleBoardContextMenu}
+            onKeyDown={handleBoardKeyDown}
+            onPointerDown={paintMode ? handleBoardPointerDown : undefined}
+            onPointerOver={paintMode ? handleBoardPointerOver : undefined}
             {...props}
         >
             {keysPositions}
@@ -459,6 +740,9 @@ export const PhysicalLayoutCanvas = ({
         </div>
     )
 }
+
+// pattern-check: skip — memo wrapper around the existing canvas component, no abstraction
+export const PhysicalLayoutCanvas = memo(PhysicalLayoutCanvasImpl)
 
 function ZoomButton({
     label,

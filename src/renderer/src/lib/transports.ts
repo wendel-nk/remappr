@@ -14,7 +14,7 @@
  */
 
 import type { TransportFactory } from '../transport/types'
-import { detectEnv, isElectron, isTauri } from '../transport/adapter/env'
+import { detectEnv, isElectron } from '../transport/adapter/env'
 import {
     getRegisteredTransports,
     subscribeAllChanges,
@@ -24,15 +24,13 @@ import {
 import '../electron/serial'
 import '../electron/ble'
 import '../electron/hid'
-import '../tauri/serial'
-import '../tauri/ble'
 import '../transport/web-serial'
 import '../transport/web-hid'
 // Web Bluetooth disabled in browser builds — keep file referenced via
 // build-time import resolution but don't register a descriptor.
 import '../transport/web-ble'
 
-export { isElectron, isTauri }
+export { isElectron }
 
 let cachedTransports: TransportFactory[] | null = null
 

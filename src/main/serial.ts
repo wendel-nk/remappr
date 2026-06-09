@@ -205,10 +205,16 @@ export async function listSerialDevices(): Promise<SerialDeviceInfo[]> {
     }
 }
 
+// pattern-check: skip — change default baud param + add constant, no abstraction
+// ZMK Studio's RPC serial link runs at 12500 baud (matches the web transport's
+// BAUD_RATE in renderer/src/transport/web-serial.ts). Opening at any other rate
+// garbles the handshake and the board reads as "not detected".
+const ZMK_SERIAL_BAUD = 12500
+
 export async function connectSerial(
     deviceId: string,
     callbacks: SerialEventCallbacks,
-    baudRate: number = 115200,
+    baudRate: number = ZMK_SERIAL_BAUD,
 ): Promise<boolean> {
     if (activeConnection) {
         await disconnectSerial()

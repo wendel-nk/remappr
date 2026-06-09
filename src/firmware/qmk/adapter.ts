@@ -1,5 +1,5 @@
 // Pattern check: Adapter (Tier 1) — extended — extends src/firmware/qmk/adapter.ts FirmwareAdapter; real VIA HID probe (id_get_protocol_version) + connect builds QmkKeyboardService.
-import type { Transport } from '@firmware/transport'
+import { readTransportIds, type Transport } from '@firmware/transport'
 
 import type {
     Discovery,
@@ -47,31 +47,6 @@ interface ProbedSession {
 }
 
 const probedSessions = new WeakMap<Transport, ProbedSession>()
-
-function parseVidPidFromLabel(
-    label: string,
-): { vid: number; pid: number } | null {
-    const m = label.match(/\b([0-9a-f]{4}):([0-9a-f]{4})\b/i)
-    if (!m) return null
-    const vid = Number.parseInt(m[1], 16)
-    const pid = Number.parseInt(m[2], 16)
-    if (!Number.isFinite(vid) || !Number.isFinite(pid)) return null
-    return { vid, pid }
-}
-
-function readTransportIds(transport: Transport): {
-    vid?: number
-    pid?: number
-} {
-    if (
-        typeof transport.vid === 'number' &&
-        typeof transport.pid === 'number'
-    ) {
-        return { vid: transport.vid, pid: transport.pid }
-    }
-    const parsed = parseVidPidFromLabel(transport.label || '')
-    return parsed ?? {}
-}
 
 function resolveLayoutDefFromCache(
     deviceInfo: DeviceInfo,

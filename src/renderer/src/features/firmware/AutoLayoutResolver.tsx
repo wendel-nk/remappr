@@ -7,9 +7,11 @@ import type { KeyboardService } from '@firmware'
 import useConnectionStore from '@/stores/connectionStore'
 import useKeymapStore from '@/stores/keymapStore'
 import useUserSettingsStore from '@/stores/userSettingsStore'
+import useLightingCatalogStore from '@/stores/lightingCatalogStore'
 import { Button } from '@/ui/button'
 import { cacheKey, saveCached } from '@firmware/qmk/layoutSideload'
 import { findDef, type LookupStatus } from '@firmware/qmk/viaRegistry'
+import { parseLightingMenu } from '@firmware/via/lightingMenu'
 
 const dbg = (...args: unknown[]): void => {
     if (import.meta.env.DEV) console.log('[AutoLayoutResolver]', ...args)
@@ -119,6 +121,9 @@ export function AutoLayoutResolver(): JSX.Element | null {
                 try {
                     await service!.applyLayout(def)
                     if (key) saveCached(key, def)
+                    useLightingCatalogStore
+                        .getState()
+                        .setCatalog(parseLightingMenu(def.raw.menus))
                     const km = await service!.getKeymap()
                     setKeymap(km)
                     setDone('hit')

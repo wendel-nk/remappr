@@ -35,10 +35,10 @@ function createWindow(): void {
     const isLinux = process.platform === 'linux'
 
     const mainWindow = new BrowserWindow({
-        width: 1200,
-        height: 900,
-        minWidth: 800,
-        minHeight: 600,
+        width: 1300,
+        height: 1100,
+        minWidth: 1200,
+        minHeight: 1000,
         useContentSize: true,
         show: false,
         autoHideMenuBar: true,

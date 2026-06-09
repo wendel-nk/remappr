@@ -75,9 +75,28 @@ export interface DynamicEntriesApi {
 export interface MacroApi {
     getCount(): number
 
+    /** View-only firmwares (e.g. ZMK, whose macros are compile-time) expose
+     *  `macros` with `readonly: true` and omit `setMacro`. The UI keys off this
+     *  to disable every editing affordance — never gate on a firmware name. */
+    readonly?: boolean
+
     getMacro(idx: number): Promise<MacroAction[]>
 
-    setMacro(idx: number, actions: MacroAction[]): Promise<void>
+    setMacro?(idx: number, actions: MacroAction[]): Promise<void>
+}
+
+// Pattern check: Facade (Tier 1) — extended — mirrors EncoderApi/MacroApi/RgbApi:
+// groups the live switch-matrix surface behind one optional service member so the
+// renderer reads `service.keyTest` once instead of probing for a hardware channel.
+export interface KeyTestApi {
+    /** Subscribe to raw matrix state. Fires the full set of currently-pressed
+     *  key *positions* (layout indices) whenever it changes. Returns an
+     *  unsubscribe. Subscribe only while the Key Test view is open — the poll
+     *  is hot and HID is serialized. */
+    onMatrixState(cb: (pressed: Set<number>) => void): () => void
+
+    /** Optional one-shot poll for firmwares with no push channel. */
+    readMatrix?(): Promise<Set<number>>
 }
 
 // Pattern check: Facade (Tier 1) — applied — Keychron-style wireless surface (BT/2.4G/battery/LPM) grouped behind one optional service member; renderer reads service.wireless once instead of N capability flags.
@@ -121,8 +140,64 @@ export interface WirelessModuleInfo {
     versionPatch: number
 }
 
+// Pattern check: Facade (Tier 1) — applied — firmware's hardware-default layer
+// (e.g. Keychron Mac/Win DIP switch) behind one optional service member. Adapters
+// that have no such concept omit it; the editor then keeps its own layer selection.
+export interface LayersApi {
+    /** The keyboard's current hardware default layer index. */
+    getDefaultLayer(): Promise<number>
+
+    /** Fires when the default layer changes on-device (e.g. DIP toggle). */
+    onDefaultLayerChanged(cb: (layer: number) => void): () => void
+}
+
+// Pattern check: Facade (Tier 1) — applied — Keychron "Advanced Mode" surface
+// (debounce / report-rate / snap-click / quick-start) behind one optional member.
+// Each method is optional: present only when the firmware advertises that feature.
+export interface AdvancedDebounce {
+    /** Debounce algorithm index (raw; firmware-specific enum). */
+    mode: number
+    /** Response time in ms. */
+    responseMs: number
+}
+
+export interface AdvancedApi {
+    /** Whether the firmware exposes the Quick-Start onboarding feature. */
+    quickStart: boolean
+
+    getDebounce?(): Promise<AdvancedDebounce>
+    setDebounce?(cfg: AdvancedDebounce): Promise<void>
+
+    /** Raw report-rate value/divisor (units firmware-specific). */
+    getReportRate?(): Promise<number>
+    setReportRate?(value: number): Promise<void>
+
+    /** Snap-click (rapid-trigger / SOCD) toggle — analog/magnetic boards only. */
+    getSnapClick?(): Promise<boolean>
+    setSnapClick?(enabled: boolean): Promise<void>
+}
+
 // Pattern check: Facade (Tier 1) — applied — Keychron RGB surface (LED count, indicators, save) grouped behind one optional service member.
+
+/** OS-lock indicators present on / toggled per board (num/caps/scroll/compose/
+ *  kana). The firmware drives every supported indicator with one shared colour
+ *  and lights it only while that OS lock is active. */
+export interface IndicatorFlags {
+    numLock: boolean
+    capsLock: boolean
+    scrollLock: boolean
+    compose: boolean
+    kana: boolean
+}
+
 export interface IndicatorConfig {
+    /** Indicators this board physically has (others are absent, not just off). */
+    supported: IndicatorFlags
+    /** Indicators the user has turned off. */
+    disabled: IndicatorFlags
+    /** Shared indicator colour (device HSV, each channel 0–255). */
+    color: HsvColor
+    /** Raw GET payload — kept for diagnostics. */
     raw: Uint8Array
 }
 
@@ -158,6 +233,13 @@ export interface RgbApi {
 
     setEffect?(state: RgbEffectState): Promise<void>
 
+    /** Resolve the RGB-matrix effect index that displays the stored per-key
+     *  colour buffer. Firmware-specific: Keychron registers PER_KEY_RGB as a
+     *  *custom* effect appended after the built-ins, so it isn't in the VIA
+     *  definition's effect catalog and can't be matched by name. Returns null
+     *  when undeterminable. */
+    getPerKeyEffectMode?(): Promise<number | null>
+
     getPerKeyType?(): Promise<number>
 
     setPerKeyType?(type: number): Promise<void>
@@ -165,6 +247,11 @@ export interface RgbApi {
     getPerKeyColors?(startLed: number, count: number): Promise<HsvColor[]>
 
     setPerKeyColors?(startLed: number, colors: HsvColor[]): Promise<void>
+
+    /** Map physical-layout key index → LED index for per-key colour I/O. Identity
+     *  when the firmware's LED order matches layout order; firmware-specific
+     *  otherwise. `keyCount` is the number of layout keys. */
+    getLedIndexMap?(keyCount: number): Promise<number[]>
 
     getMixedRegions?(): Promise<Uint8Array>
 
@@ -210,8 +297,16 @@ export interface KeyboardService {
     encoders?: EncoderApi
     dynamic?: DynamicEntriesApi
     macros?: MacroApi
+    /** Live switch-matrix readout for the Key Test view. Present only when the
+     *  firmware can report raw matrix state over the wire; absent firmwares fall
+     *  back to OS-event press detection. */
+    keyTest?: KeyTestApi
     wireless?: WirelessApi
     rgb?: RgbApi
+    advanced?: AdvancedApi
+    /** Hardware default-layer reporting (Keychron Mac/Win DIP). Named `layerControl`
+     *  to avoid colliding with adapters' internal keymap `layers`. */
+    layerControl?: LayersApi
 
     addLayer(): Promise<Layer>
 
@@ -245,6 +340,12 @@ export interface KeyboardService {
     subscribe(cb: (notification: AdapterNotification) => void): () => void
 
     exportConfig(): Promise<ExportedFile[]>
+
+    /** Optional: raw `remappr.keymap` JSON this device seeds the config editor
+     *  from — the source-of-truth document the download modal compiles per
+     *  firmware. Demo/mock devices ship a seed; real adapters omit it until
+     *  raise-from-runtime (config ← live keymap) lands. */
+    getConfigSource?(): Promise<string | null>
 
     onClosed(cb: (reason?: unknown) => void): () => void
 

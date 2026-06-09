@@ -1,9 +1,17 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import KeyboardView from '@/features/keymap/keyboard/KeyboardView'
 import type { KeyPosition } from '@/features/keymap/keyboard/PhysicalLayoutCanvas'
+import { usePerKeyPaint } from '@/features/keymap/keyboard/stage/usePerKeyPaint'
+import { RgbSheet } from '@/features/firmware/RgbSettingsModal/RgbSheet'
+import { AdvancedSheet } from '@/features/dynamic/AdvancedSheet'
 import { BindingEditor } from './BindingEditor'
 import useKeymapStore from '@/stores/keymapStore'
 import useUserSettingsStore from '@/stores/userSettingsStore'
+import useConnectionStore from '@/stores/connectionStore'
+import useLayerSelectionStore from '@/stores/layerSelectionStore'
+import useRgbSheetStore from '@/stores/rgbSheetStore'
+import useConfigStore from '@/stores/configStore'
+import useAdvancedSheetStore from '@/stores/advancedSheetStore'
 
 export type EncoderSelection = { slot: number; dir: 'cw' | 'ccw' }
 
@@ -48,6 +56,40 @@ export function KeymapEditor(): JSX.Element {
 
     const workspace = useUserSettingsStore((s) => s.workspace)
 
+    // Per-key RGB paint is lifted here (not KeyboardView) so the RGB bottom sheet
+    // and the board share one instance — same LED map, glow colours, and coalesced
+    // device writes. keyCount tracks the selected layer's key count.
+    const service = useConnectionStore((s) => s.service)
+    const selectedLayerIndex = useLayerSelectionStore(
+        (s) => s.selectedLayerIndex,
+    )
+    const keyCountForPaint = useMemo(() => {
+        if (!keymap || keymap.layers.length === 0) return 0
+        const li = Math.min(
+            Math.max(0, selectedLayerIndex),
+            keymap.layers.length - 1,
+        )
+        return keymap.layers[li]?.keys.length ?? 0
+    }, [keymap, selectedLayerIndex])
+    const paint = usePerKeyPaint(service, keyCountForPaint)
+
+    // ZMK exposes no runtime RGB protocol — keep the sheet closed for it even if
+    // some stale state slips through (the Header trigger is already disabled).
+    const rgbUnsupported = useConfigStore(
+        (s) => s.config?.meta.target === 'zmk',
+    )
+    const rgbSheetOpen = useRgbSheetStore((s) => s.open) && !rgbUnsupported
+    const rgbSection = useRgbSheetStore((s) => s.section)
+    const setRgbSheetOpen = useRgbSheetStore((s) => s.setOpen)
+    // Per-key section: board clicks select keys to colour (no keymap picker).
+    const lightingPerKey = rgbSheetOpen && rgbSection === 'perkey'
+
+    const advancedSheetOpen = useAdvancedSheetStore((s) => s.open)
+    const setAdvancedSheetOpen = useAdvancedSheetStore((s) => s.setOpen)
+    // The two bottom-dock sheets are mutually exclusive; either one replaces the
+    // binding picker while open.
+    const anySheetOpen = rgbSheetOpen || advancedSheetOpen
+
     const keyboard = (
         <KeyboardView
             keymap={keymap}
@@ -61,25 +103,50 @@ export function KeymapEditor(): JSX.Element {
             pickerOpen={pickerOpen}
             setPickerOpen={setPickerOpen}
             onSelectedKeyInfoChange={setSelectedKeyInfo}
+            paint={paint}
+            suppressPicker={lightingPerKey}
         />
     )
+
+    // RGB lighting sheet, docked below the board (replaces the binding picker's
+    // bottom slot while open). Toggled by the Header Lightbulb via rgbSheetStore.
+    const rgbSheet = rgbSheetOpen ? (
+        <RgbSheet
+            paint={paint}
+            selectedKeyPosition={selectedKeyPosition}
+            multiSelection={multiSelection}
+            onClose={(): void => setRgbSheetOpen(false)}
+        />
+    ) : null
+
+    // Advanced editing sheet (dynamic entries + macros), same dock slot as the RGB
+    // sheet. Toggled by the Header Sliders/Sparkles triggers via advancedSheetStore.
+    const advancedSheet = advancedSheetOpen ? (
+        <AdvancedSheet onClose={(): void => setAdvancedSheetOpen(false)} />
+    ) : null
 
     if (workspace === 'inspector') {
         return (
             <div className="flex flex-1 min-h-0">
-                <div className="flex min-w-0 flex-1 flex-col">{keyboard}</div>
-                <BindingEditor
-                    variant="panel"
-                    keymap={keymap}
-                    setKeymap={setKeymap}
-                    selectedKeyPosition={selectedKeyPosition}
-                    setSelectedKeyPosition={setSelectedKeyPosition}
-                    selectedEncoder={selectedEncoder}
-                    setSelectedEncoder={setSelectedEncoder}
-                    pickerOpen={pickerOpen}
-                    setPickerOpen={setPickerOpen}
-                    selectedKeyInfo={selectedKeyInfo}
-                />
+                <div className="flex min-w-0 flex-1 flex-col">
+                    {keyboard}
+                    {rgbSheet}
+                    {advancedSheet}
+                </div>
+                {!anySheetOpen && (
+                    <BindingEditor
+                        variant="panel"
+                        keymap={keymap}
+                        setKeymap={setKeymap}
+                        selectedKeyPosition={selectedKeyPosition}
+                        setSelectedKeyPosition={setSelectedKeyPosition}
+                        selectedEncoder={selectedEncoder}
+                        setSelectedEncoder={setSelectedEncoder}
+                        pickerOpen={pickerOpen}
+                        setPickerOpen={setPickerOpen}
+                        selectedKeyInfo={selectedKeyInfo}
+                    />
+                )}
             </div>
         )
     }
@@ -87,7 +154,9 @@ export function KeymapEditor(): JSX.Element {
     return (
         <div className="flex flex-col flex-1">
             {keyboard}
-            {workspace !== 'command' && (
+            {rgbSheet}
+            {advancedSheet}
+            {!anySheetOpen && workspace !== 'command' && (
                 <BindingEditor
                     keymap={keymap}
                     setKeymap={setKeymap}

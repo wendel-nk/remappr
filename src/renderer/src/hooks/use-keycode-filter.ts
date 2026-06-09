@@ -1,7 +1,11 @@
 // Pattern check: no GoF pattern (-) — rejected — derive active tab instead of set-state-in-effect, single-hook refactor
 import { useMemo, useState } from 'react'
 import { CATALOG_PAGES } from '@firmware/catalog/pages'
-import type { CatalogEntry, CatalogPage } from '@firmware/catalog/types'
+import type {
+    CatalogEntry,
+    CatalogPage,
+    KeyCatalog,
+} from '@firmware/catalog/types'
 import type { FirmwareBehaviorFlags } from '@firmware/service'
 import useConnectionStore from '@/stores/connectionStore'
 import useDynamicCatalogStore from '@/stores/dynamicCatalogStore'
@@ -129,10 +133,14 @@ interface UseKeycodeFilterResult {
     pagesWithMatches: { index: number; hasMatches: boolean }[]
 }
 
-export function useKeycodeFilter(): UseKeycodeFilterResult {
+// pattern-check: skip additive optional catalog-override param on existing hook
+export function useKeycodeFilter(
+    catalogOverride?: KeyCatalog,
+): UseKeycodeFilterResult {
     const [searchQuery, setSearchQuery] = useState('')
     const [userTab, setUserTab] = useState('0')
-    const keyCatalog = useConnectionStore((s) => s.keyCatalog)
+    const storeCatalog = useConnectionStore((s) => s.keyCatalog)
+    const keyCatalog = catalogOverride ?? storeCatalog
     const behaviorFlags = useConnectionStore(
         (s) => s.service?.capabilities.behaviors,
     )

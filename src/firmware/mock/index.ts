@@ -7,10 +7,16 @@ registerAdapter(mockAdapter)
 export {
     mockAdapter,
     connectMock,
+    connectMockWithConfig,
     createMockTransport,
     MOCK_TRANSPORT_LABEL,
 } from './adapter'
 export { MockKeyboardService } from './service'
+export {
+    lowerConfigToMock,
+    raiseMockToConfig,
+    type LowerResult,
+} from './configBridge'
 export {
     MOCK_KIND_KEYPRESS,
     MOCK_KIND_TRANSPARENT,

@@ -9,9 +9,25 @@ import {
     MISC_SUB,
     RGB_SUB,
     factoryResetCmd,
+    getDebounceCmd,
     getDefaultLayerCmd,
     getFirmwareVersionCmd,
     getLedCountCmd,
+    getLedIndexCmd,
+    LED_IDX_BATCH_MAX,
+    parseLedIndexMap,
+    buildIndicatorsPayload,
+    indicatorMask,
+    parseIndicatorsConfig,
+    getReportRateCmd,
+    getSnapClickCmd,
+    parseDebounce,
+    parseReportRate,
+    parseSnapClick,
+    setDebounceCmd,
+    setReportRateCmd,
+    setSnapClickCmd,
+    snapClickSaveCmd,
     getMiscProtocolVersionCmd,
     getNkroCmd,
     getProtocolVersionCmd,
@@ -37,6 +53,76 @@ function frame(bytes: number[]): Uint8Array {
     out.set(bytes.slice(0, KEYCHRON_PAYLOAD_SIZE))
     return out
 }
+
+describe('keychron/protocol — indicators (0xA8/0x03-0x04)', () => {
+    it('decodes the confirmed K5 V2 GET response', () => {
+        // [id, sub, unused, supportedMask, disableMask, h, s, v]
+        const cfg = parseIndicatorsConfig(
+            frame([
+                0xa8,
+                RGB_SUB.GET_INDICATORS_CONFIG,
+                0x00,
+                0x01,
+                0x00,
+                0xff,
+                0x00,
+                0xff,
+            ]),
+        )
+        expect(cfg.supported).toMatchObject({ numLock: true, capsLock: false })
+        expect(cfg.disabled.numLock).toBe(false)
+        expect(cfg.color).toEqual({ h: 0xff, s: 0x00, v: 0xff })
+    })
+
+    it('reads a disable bitmask across indicators', () => {
+        // disableMask 0b10110 = bit1 caps + bit2 scroll + bit4 kana off;
+        // supported = all 5.
+        const cfg = parseIndicatorsConfig(
+            frame([
+                0xa8,
+                RGB_SUB.GET_INDICATORS_CONFIG,
+                0x00,
+                0x1f,
+                0b10110,
+                10,
+                20,
+                200,
+            ]),
+        )
+        expect(cfg.disabled).toEqual({
+            numLock: false,
+            capsLock: true,
+            scrollLock: true,
+            compose: false,
+            kana: true,
+        })
+    })
+
+    it('round-trips a mask through indicatorMask', () => {
+        const flags = {
+            numLock: true,
+            capsLock: false,
+            scrollLock: true,
+            compose: false,
+            kana: true,
+        }
+        expect(indicatorMask(flags)).toBe(0b10101)
+    })
+
+    it('builds the 4-byte SET payload [disableMask, h, s, v]', () => {
+        const payload = buildIndicatorsPayload(
+            {
+                numLock: false,
+                capsLock: true,
+                scrollLock: false,
+                compose: false,
+                kana: false,
+            },
+            { h: 30, s: 40, v: 200 },
+        )
+        expect([...payload]).toEqual([0b10, 30, 40, 200])
+    })
+})
 
 describe('keychron/protocol — framing', () => {
     it('makeFrame yields fixed 32-byte payload with id at byte 0', () => {
@@ -257,5 +343,57 @@ describe('keychron/protocol — RGB (0xA8)', () => {
         expect(getLedCountCmd()[1]).toBe(RGB_SUB.GET_LED_COUNT)
         const resp = frame([0xa8, RGB_SUB.GET_LED_COUNT, 0x69])
         expect(parseLedCount(resp)).toBe(0x69)
+    })
+
+    it('led-idx get builds (sub, start, count) and parses data at offset 4', () => {
+        const cmd = getLedIndexCmd(3, 4)
+        expect([cmd[0], cmd[1], cmd[2], cmd[3]]).toEqual([
+            0xa8,
+            RGB_SUB.GET_LED_IDX,
+            3,
+            4,
+        ])
+        // [0xA8, 0x06, start, count, led0..led3]
+        const resp = frame([0xa8, RGB_SUB.GET_LED_IDX, 3, 4, 10, 11, 12, 13])
+        expect(parseLedIndexMap(resp, 4)).toEqual([10, 11, 12, 13])
+    })
+
+    it('led-idx get rejects out-of-range count', () => {
+        expect(() => getLedIndexCmd(0, 0)).toThrow(ProtocolError)
+        expect(() => getLedIndexCmd(0, LED_IDX_BATCH_MAX + 1)).toThrow(
+            ProtocolError,
+        )
+    })
+})
+
+describe('keychron/protocol — advanced (0xA7 debounce/report-rate/snap-click)', () => {
+    it('debounce round-trips mode + responseMs', () => {
+        const cmd = getDebounceCmd()
+        expect(cmd[0]).toBe(KC_ID.MISC_CMD_GROUP)
+        expect(cmd[1]).toBe(MISC_SUB.DEBOUNCE_GET)
+        const resp = frame([0xa7, MISC_SUB.DEBOUNCE_GET, 0x01, 0x1e])
+        expect(parseDebounce(resp)).toEqual({ mode: 0x01, responseMs: 0x1e })
+        const set = setDebounceCmd({ mode: 2, responseMs: 40 })
+        expect([set[1], set[2], set[3]]).toEqual([MISC_SUB.DEBOUNCE_SET, 2, 40])
+    })
+
+    it('report-rate reads byte 3 and round-trips set', () => {
+        expect(getReportRateCmd()[1]).toBe(MISC_SUB.REPORT_RATE_GET)
+        const resp = frame([0xa7, MISC_SUB.REPORT_RATE_GET, 0x00, 0x04])
+        expect(parseReportRate(resp)).toBe(0x04)
+        const set = setReportRateCmd(8)
+        expect([set[1], set[2]]).toEqual([MISC_SUB.REPORT_RATE_SET, 8])
+    })
+
+    it('snap-click round-trips + has a dedicated save', () => {
+        expect(getSnapClickCmd()[1]).toBe(MISC_SUB.SNAP_CLICK_GET)
+        expect(
+            parseSnapClick(frame([0xa7, MISC_SUB.SNAP_CLICK_GET, 0x01])),
+        ).toBe(true)
+        expect(
+            parseSnapClick(frame([0xa7, MISC_SUB.SNAP_CLICK_GET, 0x00])),
+        ).toBe(false)
+        expect(setSnapClickCmd(true)[2]).toBe(1)
+        expect(snapClickSaveCmd()[1]).toBe(MISC_SUB.SNAP_CLICK_SAVE)
     })
 })

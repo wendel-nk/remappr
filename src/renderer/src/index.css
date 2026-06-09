@@ -55,7 +55,7 @@
     --card-foreground: oklch(0.145 0 0);
     --popover: oklch(1 0 0);
     --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.48 0.2184 285.9454);
+    --primary: oklch(0.48 0.2184 262);
     --primary-foreground: oklch(0.985 0 0);
     --secondary: oklch(0.97 0 0);
     --secondary-foreground: oklch(0.205 0 0);
@@ -123,7 +123,7 @@
     --card-foreground: oklch(0.985 0 0);
     --popover: oklch(0.269 0 0);
     --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.48 0.2184 285.9454);
+    --primary: oklch(0.48 0.2184 262);
     --primary-foreground: oklch(1 0 0);
     --secondary: oklch(0.269 0 0);
     --secondary-foreground: oklch(0.985 0 0);
@@ -287,5 +287,130 @@
             transparent 80%
         );
         pointer-events: none;
+    }
+
+    /* Soft entrance for start-page / builder sections (design prototype). */
+    .fade-in {
+        animation: fade-in 0.4s ease both;
+    }
+
+    @keyframes fade-in {
+        from {
+            opacity: 0;
+            transform: translateY(8px);
+        }
+        to {
+            opacity: 1;
+            transform: none;
+        }
+    }
+}
+
+/* Custom scrollbar + selection (design prototype remappr.css). Thin, token-tinted
+   thumb that darkens on hover; applied globally so panels, docks and the JSON
+   editor share one look instead of the OS default. */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklch, var(--foreground) 16%, transparent)
+        transparent;
+}
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: color-mix(in oklch, var(--foreground) 16%, transparent);
+    border-radius: 99px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in oklch, var(--foreground) 28%, transparent);
+}
+::selection {
+    background: color-mix(in oklch, var(--primary) 40%, transparent);
+}
+
+/* Design-prototype modal overlay blur. Keyed on Radix/shadcn's stable
+   data-slot attribute rather than editing the generated ui/dialog.tsx, so a
+   `shadcn add dialog` regen can't wipe it. */
+[data-slot='dialog-overlay'],
+[data-slot='alert-dialog-overlay'] {
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+}
+
+/* RGB lighting simulation (lib/lighting) — keyframes for the per-key glow layer,
+   ported from the design prototype's app/Lighting.jsx. The reduced-motion guard
+   freezes the animation; .kl-reactive brightens when its keycap (.group) is
+   hovered (the 'reactive' effect). */
+@keyframes klBreathe {
+    0%,
+    100% {
+        opacity: 0.28;
+    }
+    50% {
+        opacity: 1;
+    }
+}
+
+@keyframes klHue {
+    to {
+        filter: hue-rotate(360deg);
+    }
+}
+
+@keyframes klWave {
+    0%,
+    100% {
+        opacity: 0.22;
+    }
+    50% {
+        opacity: 1;
+    }
+}
+
+@keyframes klTwinkle {
+    0% {
+        opacity: 0.08;
+    }
+    42% {
+        opacity: 1;
+    }
+    64% {
+        opacity: 0.25;
+    }
+    100% {
+        opacity: 0.08;
+    }
+}
+
+/* will-change is scoped to glows that actually animate (.kl-anim, set by KeyLight
+   only when the engine assigns an animation) — so static solid/gradient/idle-reactive
+   glows are NOT each promoted to their own compositor layer (100 keys = 100 layers). */
+.kl-anim {
+    will-change: opacity, filter;
+}
+
+.group:hover .kl-reactive {
+    opacity: 1 !important;
+    will-change: opacity;
+}
+
+/* Pause every glow animation while the window/tab is hidden — the compositor stops
+   re-filtering N hue-rotate layers when nothing is visible. Toggled on <body> by a
+   global visibilitychange listener (App). */
+body.kl-paused .kl-glow {
+    animation-play-state: paused !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .kl-glow {
+        animation: none !important;
+        filter: none !important;
+        opacity: 1 !important;
     }
 }

@@ -1,0 +1,52 @@
+name: Docs (Cloudflare Pages)
+
+on:
+    push:
+        branches: [main]
+        paths:
+            - 'docs/**'
+            - 'package.json'
+            - 'pnpm-lock.yaml'
+            - '.github/workflows/docs.yml'
+    workflow_dispatch:
+
+# One docs deploy at a time; newer pushes cancel in-flight builds.
+concurrency:
+    group: docs
+    cancel-in-progress: true
+
+permissions:
+    contents: read
+    deployments: write
+
+jobs:
+    deploy:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+
+            - name: Set up pnpm
+              uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+
+            - name: Set up Node
+              uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+              with:
+                  node-version-file: '.nvmrc'
+                  cache: 'pnpm'
+
+            - name: Install dependencies
+              # --ignore-scripts skips the electron-builder install-app-deps
+              # postinstall (native modules need system libs the runner lacks);
+              # the docs build doesn't use them.
+              run: pnpm install --frozen-lockfile --ignore-scripts
+
+            - name: Build docs
+              run: pnpm docs:build
+
+            - name: Deploy to Cloudflare Pages
+              uses: cloudflare/wrangler-action@9acf94ace14e7dc412b076f2c5c20b8ce93c79cd # v3.15.0
+              with:
+                  apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+                  accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+                  command: pages deploy docs/.vitepress/dist --project-name=remappr-docs --branch=main

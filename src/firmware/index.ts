@@ -54,6 +54,7 @@ export type {
 } from './adapter'
 
 export type { Transport } from './transport'
+export { parseVidPidFromLabel, readTransportIds } from './transport'
 
 export {
     FirmwareError,
@@ -80,4 +81,8 @@ export { getAdapters, pickAdapter, registerAdapter } from './registry'
 // Mock / demo entry point. The adapter is registered (id 'mock') but only
 // matches a sentinel transport label; `connectMock()` bypasses pickAdapter so
 // the Try Demo flow is independent of probe ordering.
-export { connectMock, MOCK_TRANSPORT_LABEL } from './mock/adapter'
+export {
+    connectMock,
+    connectMockWithConfig,
+    MOCK_TRANSPORT_LABEL,
+} from './mock/adapter'

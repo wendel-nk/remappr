@@ -41,7 +41,6 @@ export const DYNAMIC_OP = {
     ALT_REPEAT_KEY_SET: 0x08,
 } as const
 
-export const BUFFER_FETCH_CHUNK = 28
 export const SUPPORTED_VIAL_PROTOCOLS = [0, 1, 2, 3, 4, 5, 6] as const
 
 export const VIAL_FEATURE = {

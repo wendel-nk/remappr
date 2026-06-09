@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { ChevronLeft } from 'lucide-react'
 import {
     Dialog,
     DialogClose,
@@ -50,6 +51,8 @@ export interface ModernModalProps {
     headerIcon?: JSX.Element
     /** Muted one-line caption under the title in the header. */
     subtitle?: string
+    /** When set, a back chevron is shown at the header's left edge. */
+    onBack?: () => void
     description?: string
     /** Custom footer content. Overrides the default Cancel/OK footer when provided. */
     footer?: React.ReactNode
@@ -74,6 +77,7 @@ export function Modal({
     title,
     headerIcon,
     subtitle,
+    onBack,
     description,
     footer,
     children,
@@ -135,7 +139,13 @@ export function Modal({
                 </DialogTrigger>
             )}
             <DialogContent
-                className={customModalBoxClass}
+                // Design-prototype modal chrome: top-aligned (not vertically
+                // centered), 16px radius, soft drop shadow, body scrolls when tall.
+                // twMerge lets these override the shadcn Dialog base classes.
+                className={cn(
+                    'top-[7vh] max-h-[86vh] translate-y-0 overflow-y-auto rounded-2xl shadow-[0_30px_70px_-20px_rgba(0,0,0,0.7)]',
+                    customModalBoxClass,
+                )}
                 showCloseButton={xButton}
                 {...(isDismissable
                     ? {
@@ -152,6 +162,18 @@ export function Modal({
                             : 'sr-only',
                     )}
                 >
+                    {onBack && (
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            aria-label="Back"
+                            onClick={onBack}
+                            className="-ml-1 size-8 shrink-0"
+                        >
+                            <ChevronLeft className="size-5" />
+                        </Button>
+                    )}
                     {headerIcon && (
                         <span className="grid size-9 shrink-0 place-items-center rounded-[10px] bg-primary/15 text-primary [&_svg]:size-[18px]">
                             {headerIcon}

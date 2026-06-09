@@ -3,6 +3,7 @@
 // Spec: https://www.caniusevia.com/docs/specification (v12).
 
 import { ProtocolError } from '@firmware/errors'
+import type { HidClient } from '@firmware/hid/rawHidClient'
 
 export const VIA_PAYLOAD_SIZE = 32
 export const VIA_USAGE_PAGE = 0xff60
@@ -17,9 +18,30 @@ export const VIA_ID = {
     DYNAMIC_KEYMAP_RESET: 0x06,
     EEPROM_RESET: 0x0a,
     BOOTLOADER_JUMP: 0x0b,
+    CUSTOM_SET_VALUE: 0x07,
+    CUSTOM_GET_VALUE: 0x08,
+    CUSTOM_SAVE: 0x09,
     DYNAMIC_KEYMAP_GET_LAYER_COUNT: 0x11,
     DYNAMIC_KEYMAP_GET_BUFFER: 0x12,
     DYNAMIC_KEYMAP_SET_BUFFER: 0x13,
+} as const
+
+// VIA custom-channel ids (per the public VIA protocol spec, via_channel_id).
+export const VIA_CHANNEL = {
+    CUSTOM: 0,
+    BACKLIGHT: 1,
+    RGBLIGHT: 2,
+    RGB_MATRIX: 3,
+    AUDIO: 4,
+    LED_MATRIX: 5,
+} as const
+
+// RGB-matrix value ids (via_qmk_rgb_matrix_value). The index into the channel.
+export const VIA_RGB_MATRIX_VALUE = {
+    BRIGHTNESS: 0x01,
+    EFFECT: 0x02,
+    EFFECT_SPEED: 0x03,
+    COLOR: 0x04, // 2 data bytes: hue, sat (0..255)
 } as const
 
 export const VIA_KBV = {
@@ -175,6 +197,68 @@ export function parseBuffer(resp: Uint8Array): BufferResponse {
     const offset = readU16BE(resp, 1)
     const size = resp[3] & 0xff
     return { offset, size, data: resp.slice(4, 4 + size) }
+}
+
+// pattern-check: skip mechanical dedupe of identical fetch loop from qmk + qmk-vial services
+/** Max payload bytes per get-buffer round trip (4-byte VIA frame header). */
+export const BUFFER_FETCH_CHUNK = VIA_PAYLOAD_SIZE - 4
+
+/** Bulk-read the whole dynamic keymap as one byte stream (rows*cols*2 per layer). */
+export async function fetchKeymapBuffer(
+    client: HidClient,
+    layerCount: number,
+    rows: number,
+    cols: number,
+): Promise<Uint8Array> {
+    const total = layerCount * rows * cols * 2
+    const out = new Uint8Array(total)
+    let offset = 0
+    while (offset < total) {
+        const size = Math.min(total - offset, BUFFER_FETCH_CHUNK)
+        const resp = await client.send(getBufferCmd(offset, size))
+        const { data } = parseBuffer(resp)
+        out.set(data.subarray(0, size), offset)
+        offset += size
+    }
+    return out
+}
+
+// ---------- VIA custom-channel (lighting etc.) ----------
+// Frame: [cmd, channel, value_id, ...data]. Get echoes the same header + data.
+
+export function customGetCmd(
+    channel: number,
+    valueId: number,
+    extra: number[] = [],
+): Uint8Array {
+    return makeFrame(VIA_ID.CUSTOM_GET_VALUE, [channel, valueId, ...extra])
+}
+
+/** Returns the data bytes after the [cmd, channel, value_id] header. */
+export function parseCustomGet(
+    resp: Uint8Array,
+    channel: number,
+    valueId: number,
+): Uint8Array {
+    expectId(resp, VIA_ID.CUSTOM_GET_VALUE, 'custom-get')
+    if (resp[1] !== channel || resp[2] !== valueId) {
+        throw new ProtocolError(
+            `VIA custom-get: channel/value mismatch (got ${resp[1]}/${resp[2]}, want ${channel}/${valueId})`,
+        )
+    }
+    return resp.slice(3)
+}
+
+export function customSetCmd(
+    channel: number,
+    valueId: number,
+    data: number[] = [],
+): Uint8Array {
+    return makeFrame(VIA_ID.CUSTOM_SET_VALUE, [channel, valueId, ...data])
+}
+
+export function customSaveCmd(channel: number): Uint8Array {
+    return makeFrame(VIA_ID.CUSTOM_SAVE, [channel])
 }
 
 export function setBufferCmd(offset: number, data: Uint8Array): Uint8Array {

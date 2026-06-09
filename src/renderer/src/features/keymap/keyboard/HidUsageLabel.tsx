@@ -3,10 +3,15 @@ import {
     hidUsagePageAndIdFromUsage,
     usageGlyph,
 } from '@/lib/actions/hidUsages'
+import { glyphNode } from './keyGlyph'
 
+// pattern-check: skip — additive optional render flag on existing props interface
 export interface HidUsageLabelProps {
     hid_usage: number
     header?: string
+    /** Suppress the inline modifier line (e.g. "CS") — used when the cap renders
+     *  the chord modifiers as chips instead (KeyButton `mods`). */
+    hideMods?: boolean
 }
 
 function remove_prefix(s?: string): string | undefined {
@@ -35,6 +40,7 @@ function activeMods(usage: number): Array<{ short: string; long: string }> {
 
 export const HidUsageLabel = ({
     hid_usage,
+    hideMods = false,
 }: HidUsageLabelProps): JSX.Element => {
     const [pageMut, id] = hidUsagePageAndIdFromUsage(hid_usage)
 
@@ -54,14 +60,18 @@ export const HidUsageLabel = ({
             aria-label={longTitle}
             title={longTitle}
         >
-            {mods.length > 0 && (
+            {!hideMods && mods.length > 0 && (
                 <span className="flex gap-px justify-center text-[0.45em] font-bold opacity-80 leading-none tracking-tight">
                     {mods.map((m, i) => (
                         <span key={i}>{m.short}</span>
                     ))}
                 </span>
             )}
-            {abbreviated && <span className="font-bold">{abbreviated}</span>}
+            {abbreviated && (
+                <span className="font-bold inline-flex items-center">
+                    {glyphNode(abbreviated)}
+                </span>
+            )}
         </span>
     )
 }

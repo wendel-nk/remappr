@@ -1,8 +1,10 @@
 // Pattern check: no GoF pattern (-) — rejected — slot dispatcher routes on activeSlotIndex; no abstraction warranted.
 import type { ActionSlot } from '@firmware/types'
+import type { KeycodeCodec } from '@firmware/codec'
+import type { KeyCatalog } from '@firmware/catalog/types'
 import { SlotValuePicker } from './SlotValuePicker'
 
-// pattern-check: skip optional onActionChosen pass-through prop — mechanical prop forwarding to SlotValuePicker
+// pattern-check: skip optional onActionChosen/codec pass-through props — mechanical prop forwarding to SlotValuePicker
 export interface ActionSlotsPickerProps {
     slots: ActionSlot[]
     values: number[]
@@ -12,6 +14,8 @@ export interface ActionSlotsPickerProps {
     onActionChosen?: (kind: string) => void
     highlightedKeys?: number[]
     holdInvalidHint?: string
+    codec?: KeycodeCodec
+    catalog?: KeyCatalog
 }
 
 export const ActionSlotsPicker = ({
@@ -23,6 +27,8 @@ export const ActionSlotsPicker = ({
     onActionChosen,
     highlightedKeys,
     holdInvalidHint,
+    codec,
+    catalog,
 }: ActionSlotsPickerProps): JSX.Element | null => {
     if (slots.length === 0) return null
 
@@ -41,6 +47,8 @@ export const ActionSlotsPicker = ({
                     highlightedKeys={highlightedKeys}
                     onChange={(v) => onSlotChanged(safeIndex, v)}
                     onActionChosen={onActionChosen}
+                    codec={codec}
+                    catalog={catalog}
                 />
             </div>
         )
@@ -62,6 +70,8 @@ export const ActionSlotsPicker = ({
                     highlightedKeys={highlightedKeys}
                     onChange={(v) => onSlotChanged(safeIndex, v)}
                     onActionChosen={onActionChosen}
+                    codec={codec}
+                    catalog={catalog}
                 />
             </div>
         </div>

@@ -112,7 +112,7 @@ describe('mock macros bundle', () => {
             { kind: 'delay' as const, ms: 100 },
             { kind: 'text' as const, text: 'hi' },
         ]
-        await svc.macros.setMacro(0, actions)
+        await svc.macros.setMacro!(0, actions)
         expect(await svc.macros.getMacro(0)).toEqual(actions)
     })
 })

@@ -5,14 +5,13 @@ import type { KeyCatalog } from '@firmware/catalog/types'
 import { ProtocolError, UnsupportedError } from '@firmware/errors'
 import type { HidClient } from '@firmware/qmk/hidClient'
 import {
-    getBufferCmd,
+    fetchKeymapBuffer,
     getKeycodeCmd,
-    parseBuffer,
     parseKeycode,
     parseSetKeycodeEcho,
+    readU16BE,
     resetKeymapCmd,
     setKeycodeCmd,
-    VIA_PAYLOAD_SIZE,
 } from '@firmware/qmk/protocol'
 import type {
     Capabilities,
@@ -75,8 +74,6 @@ import {
 } from './macros'
 import { lockDevice, readUnlockStatus, runUnlockFlow } from './unlock'
 
-const BUFFER_FETCH_CHUNK = VIA_PAYLOAD_SIZE - 4
-
 const VIAL_CAPABILITIES_BASE: Omit<Capabilities, 'maxLayers'> = {
     lock: true,
     rename: false,
@@ -107,29 +104,6 @@ export interface VialServiceConfig {
     layerNames?: string[]
 }
 
-function readU16BEAt(buf: Uint8Array, off: number): number {
-    return ((buf[off] << 8) | buf[off + 1]) & 0xffff
-}
-
-async function fetchKeymapBuffer(
-    client: HidClient,
-    layerCount: number,
-    rows: number,
-    cols: number,
-): Promise<Uint8Array> {
-    const total = layerCount * rows * cols * 2
-    const out = new Uint8Array(total)
-    let offset = 0
-    while (offset < total) {
-        const size = Math.min(total - offset, BUFFER_FETCH_CHUNK)
-        const resp = await client.send(getBufferCmd(offset, size))
-        const { data } = parseBuffer(resp)
-        out.set(data.subarray(0, size), offset)
-        offset += size
-    }
-    return out
-}
-
 function bufferOffsetFor(
     layer: number,
     row: number,
@@ -157,7 +131,7 @@ async function loadLayers(
     for (let l = 0; l < layerCount; l++) {
         const keys: KeyAction[] = def.rowColMap.map(({ row, col }) => {
             const off = bufferOffsetFor(l, row, col, def.rows, def.cols)
-            const kc = readU16BEAt(buffer, off)
+            const kc = readU16BE(buffer, off)
             return decodeVialAsKeyAction(kc, layerNames, customNames)
         })
         const encoders: EncoderAction[] = []

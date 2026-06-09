@@ -6,6 +6,18 @@ import type { KeyCatalog } from '@firmware/catalog/types'
 import type { KeyboardService } from '@firmware/service'
 import type { LockState } from '@firmware/types'
 import useDynamicCatalogStore from '@/stores/dynamicCatalogStore'
+import useConfigStore from '@/stores/configStore'
+import useLayerSelectionStore from '@/stores/layerSelectionStore'
+import useKeymapStore from '@/stores/keymapStore'
+import useLightingCatalogStore from '@/stores/lightingCatalogStore'
+import { createOsBackedKeyTest } from '@/features/keymap/keyboard/stage/osBackedKeyTest'
+import { cacheKey, loadCached } from '@firmware/qmk/layoutSideload'
+import { parseLightingMenu } from '@firmware/via/lightingMenu'
+
+// Teardown for the connected keyboard's default-layer subscription (Feature 1).
+// Module-scoped: the store is a singleton, and this keeps the internal handle off
+// the public ConnectionState surface.
+let defaultLayerUnsub: (() => void) | null = null
 
 interface ConnectionState {
     service: KeyboardService | null
@@ -59,14 +71,90 @@ const useConnectionStore = create<ConnectionState>()(
             connectionAbort: new AbortController(),
             lastConnectedDevice: null,
             setService: (service, communication) => {
+                // The deviceless mock has no switch matrix, so give it an
+                // OS-event-backed keyTest facade — Key Test then works in demo
+                // through the same path real hardware would, and the Header gate
+                // (service.keyTest) shows the button only here, not on firmwares
+                // that lack a matrix channel.
+                if (
+                    service &&
+                    service.deviceInfo.firmware === 'mock' &&
+                    !service.keyTest
+                ) {
+                    service.keyTest = createOsBackedKeyTest(() => {
+                        const keymap = useKeymapStore.getState().keymap
+                        if (!keymap) return null
+                        return {
+                            layouts: keymap.layouts,
+                            keymap,
+                            selectedLayerIndex:
+                                useLayerSelectionStore.getState()
+                                    .selectedLayerIndex,
+                            selectedPhysicalLayoutIndex: keymap.activeLayoutId,
+                        }
+                    })
+                }
                 set({ service, communication: communication ?? null })
+                // Guard against stale async writes: if the user disconnects or
+                // connects a different device before any of the awaited reads
+                // below resolve, the resolved value belongs to the PREVIOUS
+                // service and must not overwrite the current store (e.g. the old
+                // device's keyCatalog/config clobbering the new one, or undoing a
+                // reset). Every async callback re-checks the live service first.
+                const isCurrent = (): boolean => get().service === service
+                // Diagnostics: which adapter connected + which facades attached.
+                if (service)
+                    console.info('[connect] service', {
+                        firmware: service.deviceInfo.firmware,
+                        firmwareVersion: service.deviceInfo.firmwareVersion,
+                        rgb: !!service.rgb,
+                        wireless: !!service.wireless,
+                        advanced: !!service.advanced,
+                        layerControl: !!service.layerControl,
+                    })
+                // Feature 1: auto-select the keyboard's hardware default layer
+                // (e.g. Keychron Mac/Win DIP) and follow live toggles. Adapters
+                // without a `layers` facade leave the editor's selection alone.
+                defaultLayerUnsub?.()
+                defaultLayerUnsub = null
+                // Seed the RGB effect list from a previously imported/cached board
+                // definition's lighting menu (real per-board effect names).
+                useLightingCatalogStore.getState().setCatalog(null)
+                if (service) {
+                    try {
+                        const k = cacheKey(service.deviceInfo)
+                        const def = k ? loadCached(k) : null
+                        if (def)
+                            useLightingCatalogStore
+                                .getState()
+                                .setCatalog(parseLightingMenu(def.raw.menus))
+                    } catch (err) {
+                        console.warn('lighting-menu seed failed', err)
+                    }
+                }
+                if (service?.layerControl) {
+                    const setLayer =
+                        useLayerSelectionStore.getState().setSelectedLayerIndex
+                    service.layerControl
+                        .getDefaultLayer()
+                        .then((n) => {
+                            if (isCurrent()) setLayer(n)
+                        })
+                        .catch((err) =>
+                            console.warn('getDefaultLayer failed', err),
+                        )
+                    defaultLayerUnsub =
+                        service.layerControl.onDefaultLayerChanged(setLayer)
+                }
                 if (service?.listKeyCatalog) {
                     service
                         .listKeyCatalog()
-                        .then((catalog) => set({ keyCatalog: catalog }))
+                        .then((catalog) => {
+                            if (isCurrent()) set({ keyCatalog: catalog })
+                        })
                         .catch((err) => {
                             console.warn('listKeyCatalog failed', err)
-                            set({ keyCatalog: null })
+                            if (isCurrent()) set({ keyCatalog: null })
                         })
                 } else {
                     set({ keyCatalog: null })
@@ -77,6 +165,23 @@ const useConnectionStore = create<ConnectionState>()(
                     .catch((err) =>
                         console.warn('dynamicCatalog refresh failed', err),
                     )
+                // Seed the config source-of-truth from the device, if it ships one.
+                if (service?.getConfigSource) {
+                    service
+                        .getConfigSource()
+                        .then((src) => {
+                            if (!isCurrent()) return
+                            if (src)
+                                useConfigStore.getState().loadFromSource(src)
+                            else useConfigStore.getState().reset()
+                        })
+                        .catch((err) => {
+                            console.warn('getConfigSource failed', err)
+                            if (isCurrent()) useConfigStore.getState().reset()
+                        })
+                } else {
+                    useConfigStore.getState().reset()
+                }
             },
             setLastConnectedDevice: (device) =>
                 set({ lastConnectedDevice: device }),
@@ -85,14 +190,22 @@ const useConnectionStore = create<ConnectionState>()(
             setKeyCatalog: (catalog) => set({ keyCatalog: catalog }),
             setConnectionAbort: (abort) => set({ connectionAbort: abort }),
             resetConnection: () => {
+                defaultLayerUnsub?.()
+                defaultLayerUnsub = null
+                useLightingCatalogStore.getState().setCatalog(null)
                 set({
                     service: null,
                     communication: null,
                     deviceName: null,
                     lockState: 'locked' as LockState,
                     keyCatalog: null,
+                    // Clear the connect→preview-capture bridge so a stale id from
+                    // the prior device can't key the next session's snapshot
+                    // (e.g. demo mode overwriting a real keyboard's preview).
+                    lastConnectedDevice: null,
                 })
                 useDynamicCatalogStore.getState().reset()
+                useConfigStore.getState().reset()
             },
             showConnectionModal: false,
             setShowConnectionModal: (visible) =>

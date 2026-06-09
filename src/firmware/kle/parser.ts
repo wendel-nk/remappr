@@ -1,5 +1,8 @@
-// Pattern check: no GoF pattern (-) — rejected — pure functions ported from kle_serial.py; mechanical move from qmk-vial/keyboardDef.ts.
+// Pattern check: no GoF pattern (-) — rejected — pure functions implementing the public KLE (keyboard-layout-editor) serial JSON format; mechanical move from qmk-vial/keyboardDef.ts.
 // Shared KLE deserializer used by Vial (protocol-fetched defs) and QMK/VIA (sideload + GitHub registry).
+//
+// The LABEL_MAP table and the deserialize cluster-walk derive from kle-serial
+// (https://github.com/ijprest/kle-serial) — MIT License, Copyright (c) Ian Prest.
 
 import { ProtocolError } from '@firmware/errors'
 import type { EncoderSlot, PhysicalLayoutKey } from '@firmware/types'

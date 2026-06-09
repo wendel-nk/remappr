@@ -1,9 +1,7 @@
 // Pattern check: no GoF pattern (-) — rejected — settings panel composing existing
 // KeyButton previews bound to a store field; presentational only.
 import { cn } from '@/lib/cn'
-import { Label } from '@/ui/label'
 import { KeyButton } from '@/features/keymap/keyboard/KeyButton'
-import { ColorCodingPicker } from '@/components/ColorCodingPicker'
 import useUserSettingsStore, { type CapStyle } from '@/stores/userSettingsStore'
 
 const STYLES: { value: CapStyle; label: string; blurb: string }[] = [
@@ -140,18 +138,6 @@ export function KeycapsSection(): JSX.Element {
                             </div>
                         )
                     })}
-                </div>
-            </div>
-
-            <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <Label>Colour coding</Label>
-                        <p className="text-sm text-muted-foreground">
-                            Tint keys by function (modifiers, layers, nav…).
-                        </p>
-                    </div>
-                    <ColorCodingPicker />
                 </div>
             </div>
         </div>

@@ -4,12 +4,15 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
     BarChart3,
+    Blocks,
     BookOpen,
     Flame,
+    Gauge,
     Keyboard,
     Lightbulb,
     Redo2,
     Save,
+    ScanLine,
     Sliders,
     Sparkles,
     Trash2,
@@ -18,17 +21,20 @@ import {
     Zap,
 } from 'lucide-react'
 import { LoadStatsModal } from '@/features/keymap/keyboard/LoadStatsModal'
-import { DynamicEntriesModal } from '@/features/dynamic/DynamicEntriesModal'
-import { MacroEditorModal } from '@/features/dynamic/MacroEditorModal'
 import { WirelessSettingsModal } from '@/features/firmware/WirelessSettingsModal'
-import { RgbSettingsModal } from '@/features/firmware/RgbSettingsModal'
+import { AdvancedSettingsModal } from '@/features/firmware/AdvancedSettingsModal'
+import useRgbSheetStore from '@/stores/rgbSheetStore'
+import useAdvancedSheetStore from '@/stores/advancedSheetStore'
+import useConfigStore from '@/stores/configStore'
+import useBuilderStore from '@/stores/builderStore'
 import { GitHubIcon } from '@/components/GitHubIcon'
 import { DiscordIcon } from '@/components/DiscordIcon'
-import { DISCORD_URL, REPO_URL } from '@/lib/constants'
+import { DISCORD_URL, DOCS_URL, REPO_URL } from '@/lib/constants'
 import useConnectionStore from '@/stores/connectionStore'
 import undoRedoStore from '@/stores/undoRedoStore'
 import useHeatmapStore from '@/stores/heatmapStore'
 import useLiveViewStore from '@/stores/liveViewStore'
+import useKeyTestStore from '@/stores/keyTestStore'
 import useLoadStatsStore from '@/stores/loadStatsStore'
 import { Settings } from '../components/modals/Settings.tsx'
 import { Download as DownloadModal } from '../components/modals/Download.tsx'
@@ -38,6 +44,7 @@ import { Separator } from '@/ui/separator'
 import { toast } from 'sonner'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/ui/tooltip'
 import { FeatureGate } from '@/features/firmware/FeatureGate'
+import { useFeatureAvailable } from '@/features/firmware/useFeatureAvailable'
 import { LayoutSideloadAction } from '@/features/firmware/LayoutSideloadAction'
 import { WindowControls } from '@/layout/WindowControls'
 
@@ -53,14 +60,58 @@ export function Header(): JSX.Element {
     const toggleHeatmap = useHeatmapStore((s) => s.toggle)
     const liveOn = useLiveViewStore((s) => s.enabled)
     const toggleLive = useLiveViewStore((s) => s.toggle)
+    const keyTestOn = useKeyTestStore((s) => s.active)
+    const toggleKeyTest = useKeyTestStore((s) => s.toggle)
+    const setKeyTestActive = useKeyTestStore((s) => s.setActive)
+    // Key test is gated on the hardware switch-matrix facade; if it vanishes
+    // (e.g. reconnecting to a firmware without it) force the mode off, since the
+    // toggle button is hidden and the overlay would otherwise stick on.
+    const keyTestAvailable = useFeatureAvailable('keyTest')
+    useEffect(() => {
+        if (!keyTestAvailable && keyTestOn) setKeyTestActive(false)
+    }, [keyTestAvailable, keyTestOn, setKeyTestActive])
     const loadOpen = useLoadStatsStore((s) => s.open)
     const setLoadOpen = useLoadStatsStore((s) => s.setOpen)
 
     const [unsaved, setUnsaved] = useState<boolean>(false)
-    const [dynOpen, setDynOpen] = useState(false)
-    const [macroOpen, setMacroOpen] = useState(false)
     const [wirelessOpen, setWirelessOpen] = useState(false)
-    const [rgbOpen, setRgbOpen] = useState(false)
+    const [advancedOpen, setAdvancedOpen] = useState(false)
+    const rgbSheetOpen = useRgbSheetStore((s) => s.open)
+    const toggleRgbSheet = useRgbSheetStore((s) => s.toggle)
+    const setRgbSheetOpen = useRgbSheetStore((s) => s.setOpen)
+
+    // ZMK has no runtime RGB-settings protocol — underglow/backlight are
+    // compile-time only. Gate the toolbar trigger (and force the sheet shut)
+    // when the active firmware target is ZMK. Other targets keep the button.
+    const rgbUnsupported = useConfigStore(
+        (s) => s.config?.meta.target === 'zmk',
+    )
+
+    // Only when the editor was reached via the builder's "Editor" handoff do we
+    // offer a way back. A directly-connected device never shows this.
+    const cameFromBuilder = useBuilderStore((s) => s.cameFromBuilder)
+    const returnToBuilder = useBuilderStore((s) => s.returnToBuilder)
+    useEffect((): void => {
+        if (rgbUnsupported && rgbSheetOpen) setRgbSheetOpen(false)
+    }, [rgbUnsupported, rgbSheetOpen, setRgbSheetOpen])
+
+    // Dynamic entries + macros share one bottom-dock sheet (advancedSheetStore),
+    // mutually exclusive with the RGB sheet. The two triggers open it at their
+    // section: Sliders → dynamic (Tap Dance first), Sparkles → Macros.
+    const advSheetOpen = useAdvancedSheetStore((s) => s.open)
+    const advSection = useAdvancedSheetStore((s) => s.section)
+    const openAdvSheet = useAdvancedSheetStore((s) => s.openAt)
+    const setAdvSheetOpen = useAdvancedSheetStore((s) => s.setOpen)
+    const openDynamicSheet = (): void => {
+        setRgbSheetOpen(false)
+        openAdvSheet('td')
+    }
+    const openMacroSheet = (): void => {
+        setRgbSheetOpen(false)
+        openAdvSheet('macros')
+    }
+    const dynActive = advSheetOpen && advSection !== 'macros'
+    const macroActive = advSheetOpen && advSection === 'macros'
 
     useEffect(() => {
         if (!service) {
@@ -136,6 +187,23 @@ export function Header(): JSX.Element {
                         <p>Back to devices</p>
                     </TooltipContent>
                 </Tooltip>
+                {cameFromBuilder && (
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <button
+                                type="button"
+                                onClick={returnToBuilder}
+                                className="flex items-center gap-1.5 rounded-lg border border-border px-2 py-1 text-[13px] font-semibold text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                            >
+                                <Blocks className="size-4" />
+                                Builder
+                            </button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>Back to Builder</p>
+                        </TooltipContent>
+                    </Tooltip>
+                )}
             </div>
 
             {/* draggable spacer */}
@@ -180,6 +248,27 @@ export function Header(): JSX.Element {
                         <p>Live view</p>
                     </TooltipContent>
                 </Tooltip>
+                {/* Key test reads the hardware switch matrix (service.keyTest);
+                    without that facade it'd silently fall back to OS events and
+                    duplicate Live view, so gate it on the capability. */}
+                <FeatureGate feature="keyTest">
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                data-active={keyTestOn}
+                                className="data-[active=true]:bg-primary/20 data-[active=true]:text-primary"
+                                onClick={toggleKeyTest}
+                            >
+                                <ScanLine aria-label="Key test" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>Key test</p>
+                        </TooltipContent>
+                    </Tooltip>
+                </FeatureGate>
                 <Tooltip>
                     <TooltipTrigger asChild>
                         <Button
@@ -219,10 +308,10 @@ export function Header(): JSX.Element {
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <Button
-                                variant="ghost"
+                                variant={dynActive ? 'secondary' : 'ghost'}
                                 size="icon"
                                 disabled={!service}
-                                onClick={(): void => setDynOpen(true)}
+                                onClick={openDynamicSheet}
                             >
                                 <Sliders aria-label="Dynamic entries" />
                             </Button>
@@ -232,19 +321,14 @@ export function Header(): JSX.Element {
                         </TooltipContent>
                     </Tooltip>
                 </FeatureGate>
-                <DynamicEntriesModal
-                    service={service}
-                    opened={dynOpen}
-                    onClose={(): void => setDynOpen(false)}
-                />
                 <FeatureGate feature="macros">
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <Button
-                                variant="ghost"
+                                variant={macroActive ? 'secondary' : 'ghost'}
                                 size="icon"
                                 disabled={!service}
-                                onClick={(): void => setMacroOpen(true)}
+                                onClick={openMacroSheet}
                             >
                                 <Sparkles aria-label="Macros" />
                             </Button>
@@ -254,11 +338,6 @@ export function Header(): JSX.Element {
                         </TooltipContent>
                     </Tooltip>
                 </FeatureGate>
-                <MacroEditorModal
-                    service={service}
-                    opened={macroOpen}
-                    onClose={(): void => setMacroOpen(false)}
-                />
                 <FeatureGate feature="wireless">
                     <Tooltip>
                         <TooltipTrigger asChild>
@@ -280,27 +359,53 @@ export function Header(): JSX.Element {
                     opened={wirelessOpen}
                     onClose={(): void => setWirelessOpen(false)}
                 />
-                <FeatureGate feature="rgb">
+                <FeatureGate feature="advanced">
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <Button
                                 variant="ghost"
                                 size="icon"
                                 disabled={!service}
-                                onClick={(): void => setRgbOpen(true)}
+                                onClick={(): void => setAdvancedOpen(true)}
                             >
-                                <Lightbulb aria-label="RGB settings" />
+                                <Gauge aria-label="Advanced settings" />
                             </Button>
                         </TooltipTrigger>
                         <TooltipContent>
-                            <p>RGB lighting</p>
+                            <p>Advanced Mode</p>
                         </TooltipContent>
                     </Tooltip>
                 </FeatureGate>
-                <RgbSettingsModal
-                    opened={rgbOpen}
-                    onClose={(): void => setRgbOpen(false)}
+                <AdvancedSettingsModal
+                    opened={advancedOpen}
+                    onClose={(): void => setAdvancedOpen(false)}
                 />
+                {/* RGB lighting — opens the board-visible bottom sheet (device
+                    controls when an RGB keyboard is connected, else the on-screen
+                    simulation editor). Disabled when the target is ZMK (no runtime
+                    RGB protocol). The sheet itself renders in KeymapEditor. */}
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button
+                            variant={rgbSheetOpen ? 'secondary' : 'ghost'}
+                            size="icon"
+                            disabled={!service || rgbUnsupported}
+                            onClick={(): void => {
+                                setAdvSheetOpen(false)
+                                toggleRgbSheet()
+                            }}
+                        >
+                            <Lightbulb aria-label="RGB lighting" />
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        <p>
+                            {rgbUnsupported
+                                ? 'RGB lighting not supported on ZMK'
+                                : 'RGB lighting'}
+                        </p>
+                    </TooltipContent>
+                </Tooltip>
                 <FeatureGate feature="layoutSideloadable">
                     <LayoutSideloadAction />
                 </FeatureGate>
@@ -350,19 +455,19 @@ export function Header(): JSX.Element {
                 </Tooltip>
                 <Tooltip>
                     <TooltipTrigger asChild>
-                        <div>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                disabled
-                                aria-label="Documentation (coming soon)"
+                        <Button variant="ghost" size="icon" asChild>
+                            <a
+                                href={DOCS_URL}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                aria-label="Open the documentation"
                             >
                                 <BookOpen className="h-4 w-4" />
-                            </Button>
-                        </div>
+                            </a>
+                        </Button>
                     </TooltipTrigger>
                     <TooltipContent>
-                        <p>Documentation — coming soon</p>
+                        <p>Documentation</p>
                     </TooltipContent>
                 </Tooltip>
 

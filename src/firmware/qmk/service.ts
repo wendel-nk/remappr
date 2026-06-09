@@ -4,8 +4,10 @@ import { filterCatalogByCodec } from '@firmware/catalog/filter'
 import type { KeyCatalog } from '@firmware/catalog/types'
 import type { KeycodeCodec } from '@firmware/codec'
 import type {
+    AdvancedApi,
     Capabilities,
     KeyboardService,
+    LayersApi,
     RgbApi,
     WirelessApi,
 } from '@firmware/service'
@@ -28,7 +30,6 @@ import {
     buildQmkKeyAction,
     decodeAsKeyAction,
     encodeKeycode,
-    QMK_KIND,
     relabelQmkLayer,
 } from './actions'
 import { qmkCodec } from './codec'
@@ -36,16 +37,15 @@ import { QMK_ACTION_TYPES } from './actionTypes'
 import { exportKeymap } from './export'
 import type { HidClient } from './hidClient'
 import {
-    getBufferCmd,
+    fetchKeymapBuffer,
     getKeycodeCmd,
     getLayerCountCmd,
-    parseBuffer,
     parseKeycode,
     parseLayerCount,
     parseSetKeycodeEcho,
+    readU16BE,
     resetKeymapCmd,
     setKeycodeCmd,
-    VIA_PAYLOAD_SIZE,
 } from './protocol'
 
 export const QMK_CAPABILITIES_BASE: Omit<Capabilities, 'maxLayers'> = {
@@ -79,6 +79,8 @@ export interface QmkServiceConfig {
     capabilitiesOverride?: Partial<Capabilities>
     wireless?: WirelessApi
     rgb?: RgbApi
+    advanced?: AdvancedApi
+    layerControl?: LayersApi
     /**
      * Optional per-keycode decoder. Returns non-null to override stock QMK
      * decode (e.g. Keychron BT_HST1 at 0x7E0C). Returns null to fall through
@@ -155,32 +157,6 @@ async function readLayerKeycodes(
     return out
 }
 
-const BUFFER_FETCH_CHUNK = VIA_PAYLOAD_SIZE - 4
-
-// pattern-check: skip — bulk-buffer fetch port from qmk-vial/service.ts
-async function fetchKeymapBuffer(
-    client: HidClient,
-    layerCount: number,
-    rows: number,
-    cols: number,
-): Promise<Uint8Array> {
-    const total = layerCount * rows * cols * 2
-    const out = new Uint8Array(total)
-    let offset = 0
-    while (offset < total) {
-        const size = Math.min(total - offset, BUFFER_FETCH_CHUNK)
-        const resp = await client.send(getBufferCmd(offset, size))
-        const { data } = parseBuffer(resp)
-        out.set(data.subarray(0, size), offset)
-        offset += size
-    }
-    return out
-}
-
-function readU16BEAt(buf: Uint8Array, off: number): number {
-    return ((buf[off] << 8) | buf[off + 1]) & 0xffff
-}
-
 // pattern-check: skip — function signature refactor (rows/cols → rowColMap) to support sparse VIA defs
 export async function loadInitialKeymap(
     client: HidClient,
@@ -237,7 +213,7 @@ async function loadKeymapBulk(
         const base = l * stride
         const keys: KeyAction[] = rowColMap.map(({ row, col }) => {
             const off = base + row * matrix.cols * 2 + col * 2
-            const kc = readU16BEAt(buffer, off)
+            const kc = readU16BE(buffer, off)
             const overridden = decodeOverride?.(kc) ?? null
             return overridden ?? decodeAsKeyAction(kc, undefined, codec)
         })
@@ -251,6 +227,8 @@ export class QmkKeyboardService implements KeyboardService {
     public readonly deviceInfo: DeviceInfo
     public readonly wireless?: WirelessApi
     public readonly rgb?: RgbApi
+    public readonly advanced?: AdvancedApi
+    public readonly layerControl?: LayersApi
     public readonly codec: KeycodeCodec
 
     protected readonly client: HidClient
@@ -288,6 +266,8 @@ export class QmkKeyboardService implements KeyboardService {
         }
         this.wireless = cfg.wireless
         this.rgb = cfg.rgb
+        this.advanced = cfg.advanced
+        this.layerControl = cfg.layerControl
         this.codec = cfg.codec ?? qmkCodec
         cfg.client.onClosed((reason) => this.handleClientClosed(reason))
     }
@@ -563,10 +543,4 @@ export class QmkKeyboardService implements KeyboardService {
         await this.client.close({ abortTransport: true })
         this.handleClientClosed('disconnect')
     }
-}
-
-// Helper exposed for the contract test + tests that need to bypass the
-// async create() — useful when seeding a fake transport/keymap.
-export function buildBasicAction(code: number): KeyAction {
-    return buildQmkKeyAction(QMK_KIND.BASIC, [code])
 }

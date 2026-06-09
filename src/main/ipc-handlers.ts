@@ -32,6 +32,8 @@ import {
     listHidDevices,
     writeHid,
 } from './hid'
+import { registerSecretHandlers } from './secret-store'
+import { registerGithubArtifactHandler } from './github-artifact'
 
 const log = createLogger('ipc')
 
@@ -91,6 +93,12 @@ function sendToAllWindows(
  * @param getWindows - Function that returns current BrowserWindow instances for event broadcasting
  */
 export function registerIpcHandlers(getWindows: () => BrowserWindow[]): void {
+    // pattern-check: skip — add one registration call, no logic change
+    // --- Secret storage (safeStorage-backed) ---
+    registerSecretHandlers()
+    // --- GitHub artifact download proxy (dodges renderer CORS) ---
+    registerGithubArtifactHandler()
+
     // --- Serial Device Handlers ---
 
     ipcMain.handle(IpcChannels.SERIAL_LIST_DEVICES, async () => {

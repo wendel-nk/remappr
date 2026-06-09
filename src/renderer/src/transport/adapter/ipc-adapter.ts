@@ -1,6 +1,4 @@
 // Pattern check: Template Method (Tier 1) — applied — connect() owns lifecycle, defers connectIpc() to subclasses; PlatformIpc is Strategy
-import { invoke } from '@tauri-apps/api/core'
-import { listen } from '@tauri-apps/api/event'
 import type { Transport } from '@firmware'
 import { IpcChannels, IpcEvents } from '../../../../shared/ipc-types'
 import { TransportAdapter } from './base'
@@ -10,8 +8,8 @@ export type Unlisten = () => void
 /**
  * Per-platform IPC primitives. Strategy injected into
  * {@link IpcTransportAdapter}. `onConnectionData` / `onConnectionDisconnected`
- * always return `Promise<Unlisten>` so Electron (sync) and Tauri (async)
- * subscriptions share a signature.
+ * always return `Promise<Unlisten>` so a sync (Electron) or async subscription
+ * source can share one signature.
  */
 export interface PlatformIpc {
     sendData(data: Uint8Array): Promise<void>
@@ -118,28 +116,5 @@ export const electronIpc: PlatformIpc = {
     },
     async onConnectionDisconnected(cb) {
         return window.api.on(IpcEvents.CONNECTION_DISCONNECTED, cb)
-    },
-}
-
-/**
- * Tauri PlatformIpc strategy. listen() is async and returns an UnlistenFn.
- */
-export const tauriIpc: PlatformIpc = {
-    async sendData(data) {
-        await invoke('transport_send_data', data)
-    },
-    async close() {
-        await invoke('transport_close')
-    },
-    async onConnectionData(cb) {
-        return await listen(
-            'connection_data',
-            (event: { payload: number[] }) => {
-                cb(new Uint8Array(event.payload))
-            },
-        )
-    },
-    async onConnectionDisconnected(cb) {
-        return await listen('connection_disconnected', () => cb())
     },
 }

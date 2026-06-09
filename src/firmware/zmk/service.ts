@@ -38,6 +38,8 @@ import {
 import { zmkCodec } from './codec'
 import { behaviorsToActionTypes } from './actionTypes'
 import { zmkKeymapToNeutral } from './keymap'
+import { zmkNeutralToConfig } from './raise'
+import { serializeKeymap } from '@firmware/config'
 import { generateZMKConfigFile, generateZMKKeymapFile } from './export'
 
 const ZMK_CAPABILITIES: Capabilities = {
@@ -48,6 +50,14 @@ const ZMK_CAPABILITIES: Capabilities = {
     variableLayerCount: true,
     exportFormats: ['devicetree'],
     behaviors: { capsWord: true },
+    // No `macros`: ZMK macros are compile-time devicetree nodes, and the Studio
+    // protocol exposes only keymap *bindings* (`&macro_name`), not the macro step
+    // sequences — so they can't be read or edited live. The Header gates the macro
+    // editor on `service.macros` (see useFeatureAvailable), so omitting the facade
+    // hides the feature entirely. When a config source that carries macro
+    // definitions becomes available (e.g. a builder-seeded board), expose `macros`
+    // with `readonly: true` and no `setMacro`; the Advanced sheet's MacrosTab already
+    // renders that view-only with a banner. Never fabricate macros the device can't read.
 }
 
 function mapLockState(state: ZmkLockState): LockState {
@@ -512,6 +522,30 @@ export class ZmkKeyboardService implements KeyboardService {
                 content: conf,
             },
         ]
+    }
+
+    // Raise the live keymap into the remappr config (source of truth) so the
+    // download modal can compile it per firmware (.keymap + .overlay) instead of
+    // falling back to the native exporter. Bindings the inverse can't model yet
+    // degrade to transparent and are logged — see ./raise.
+    async getConfigSource(): Promise<string | null> {
+        try {
+            const km = await this.getKeymap()
+            const { config, diagnostics } = zmkNeutralToConfig(
+                km,
+                this.deviceInfo,
+            )
+            if (diagnostics.length) {
+                console.warn(
+                    `[zmk] device→config raise: ${diagnostics.length} binding(s) not fully modeled`,
+                    diagnostics,
+                )
+            }
+            return serializeKeymap(config)
+        } catch (err) {
+            console.warn('[zmk] getConfigSource failed', err)
+            return null
+        }
     }
 
     async disconnect(): Promise<void> {

@@ -2,9 +2,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import type { ActionSlot, ActionType, KeyAction } from '@firmware/types'
+import type { KeycodeCodec } from '@firmware/codec'
+import type { KeyCatalog } from '@firmware/catalog/types'
 import { ActionTypeSelector } from './ActionTypeSelector'
 import { ActionSlotsPicker } from './ActionSlotsPicker'
-import { SlotBar, type SlotDescriptor, type SlotKind } from './SlotBar'
+import { SlotBar, type SlotDescriptor } from './SlotBar'
+import {
+    isSlotValid,
+    paramsForSlots,
+    slotBarKind,
+} from './keyActionPickerUtils'
 import { isMacroOrCombo } from '@/lib/keymap/behaviorClassify'
 
 export interface KeyActionDraft {
@@ -12,74 +19,28 @@ export interface KeyActionDraft {
     params: number[]
 }
 
+// pattern-check: skip additive optional codec-injection prop on existing props interface
 export interface KeyActionPickerProps {
     action: KeyAction
     actionTypes: ActionType[]
     layers: { id: number; name: string }[]
     onChange: (draft: KeyActionDraft) => void
+    /** Optional codec override forwarded to the keycode grid; the deviceless
+     *  builder injects the HID-usage mockCodec so the grid works with no
+     *  connection. The editor omits it (grid reads the device codec). */
+    codec?: KeycodeCodec
+    /** Optional firmware-filtered catalog forwarded to the keycode grid. */
+    catalog?: KeyCatalog
 }
 
-function slotBarKind(slot: ActionSlot | undefined): SlotKind {
-    if (!slot) return 'plain'
-    if (slot.kind === 'hid') return 'hid'
-    if (slot.kind === 'layer') return 'layer'
-    return 'plain'
-}
-
-function defaultForSlot(slot: ActionSlot): number {
-    // Modifier / enum slots with an explicit value list — 0 is rarely a
-    // member (e.g. mod-tap MODIFIER_VALUES start at 0x01 = LCTL), so
-    // pre-select the first listed value to spare the user one click.
-    if (
-        (slot.kind === 'modifier' || slot.kind === 'enum') &&
-        slot.values &&
-        slot.values.length > 0
-    ) {
-        return slot.values[0].value
-    }
-    return 0
-}
-
-function paramsForSlots(source: number[], slots: ActionSlot[]): number[] {
-    const next: number[] = []
-    for (let i = 0; i < slots.length; i++) {
-        next.push(source[i] ?? defaultForSlot(slots[i]))
-    }
-    return next
-}
-
-function isSlotValid(
-    slot: ActionSlot,
-    value: number | undefined,
-    layerIds: number[],
-): boolean {
-    if (value === undefined) return false
-    if (slot.kind === 'hid') {
-        // ZMK encodes (page<<16)|usage; QMK emits raw 16-bit (page implicit).
-        // Accept any non-zero numeric value; per-firmware codec already
-        // verified encodability when picker built `valueByEntryId`.
-        return value !== 0
-    }
-    if (slot.kind === 'layer') return layerIds.includes(value)
-    if (slot.kind === 'number' && slot.range) {
-        return value >= slot.range.min && value <= slot.range.max
-    }
-    if (
-        (slot.kind === 'enum' || slot.kind === 'modifier') &&
-        slot.values &&
-        slot.values.length > 0
-    ) {
-        return slot.values.some((v) => v.value === value)
-    }
-    if (slot.kind === 'action') return true
-    return false
-}
-
+// pattern-check: skip mechanical move of pure slot helpers to sibling utils
 export const KeyActionPicker = ({
     action,
     actionTypes,
     layers,
     onChange,
+    codec,
+    catalog,
 }: KeyActionPickerProps): JSX.Element => {
     const [kind, setKind] = useState<string>(action.kind)
     const [params, setParams] = useState<number[]>([...action.params])
@@ -242,6 +203,8 @@ export const KeyActionPicker = ({
                         onSlotChanged={handleSlotChanged}
                         onActionChosen={handleTypeSelected}
                         highlightedKeys={highlightedKeys}
+                        codec={codec}
+                        catalog={catalog}
                     />
                 </div>
             )}

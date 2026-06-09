@@ -1,0 +1,487 @@
+// Pattern check: no GoF pattern (-) — rejected — three presentational "build from"
+// modals (preset / grid / KLE import) that each replace the board geometry through
+// builderStore.commit; thin UI over replaceGeometry + parsers, no abstraction.
+//
+// The "Build from" entry points for the left panel, ported from the prototype's
+// preset / grid / KLE flows. Each one swaps the whole physical layout via
+// geometryEditor.replaceGeometry (keeps layer names, resets bindings) and resets
+// the builder's transient selection/view so the new board fits cleanly.
+import { useRef, useState } from 'react'
+import {
+    Code2,
+    FileJson,
+    FileX2,
+    Grid3x3,
+    Keyboard,
+    LayoutGrid,
+    Library,
+    Plus,
+    Split,
+    Sparkles,
+    Upload,
+} from 'lucide-react'
+import { Modal } from '@/ui/modal'
+import { Button } from '@/ui/button'
+import { Input } from '@/ui/input'
+import useBuilderStore from '@/stores/builderStore'
+import useConfigStore from '@/stores/configStore'
+import type { CanonGeometry } from '@firmware/config'
+import { clampDim, gridKeys } from './geometryEditor'
+import {
+    PRESETS,
+    applyPresetGeometry,
+    parseKleGeometry,
+    type ApplyPresetOpts,
+    type BuilderPreset,
+} from './builderPresets'
+
+const PRESET_ICON: Record<BuilderPreset['icon'], JSX.Element> = {
+    split: <Split size={18} />,
+    grid: <Grid3x3 size={18} />,
+    keyboard: <Keyboard size={18} />,
+    plus: <Plus size={18} />,
+}
+
+// pattern-check: skip — hoist static start-chooser data array out of render to module-scope factory, no abstraction
+type StartChoice = {
+    icon: JSX.Element
+    title: string
+    sub: string
+    onClick: () => void
+}
+
+// Hoisted out of StartModal's render: the start-chooser entries are static aside
+// from their callbacks, so build them once per call from the wired handlers.
+function startChoices(opts: {
+    apply: (keys: CanonGeometry[], opts?: ApplyPresetOpts) => void
+    onClose: () => void
+    onPreset: () => void
+    onKle: () => void
+    onImport: () => void
+    onLibrary: () => void
+}): StartChoice[] {
+    const { apply, onClose, onPreset, onKle, onImport, onLibrary } = opts
+    return [
+        {
+            icon: <Sparkles size={18} />,
+            title: 'Start from a preset',
+            sub: 'Corne, ortho, 60%, numpad, macropad…',
+            onClick: () => {
+                onClose()
+                onPreset()
+            },
+        },
+        {
+            icon: <Code2 size={18} />,
+            title: 'Import from KLE',
+            sub: 'Paste keyboard-layout-editor raw data',
+            onClick: () => {
+                onClose()
+                onKle()
+            },
+        },
+        {
+            icon: <FileX2 size={18} />,
+            title: 'Start blank',
+            sub: 'One key — build up from nothing',
+            onClick: () => {
+                apply([{ x: 0, y: 0, w: 1, h: 1, r: 0 }])
+                onClose()
+            },
+        },
+        {
+            icon: <FileJson size={18} />,
+            title: 'Import config',
+            sub: 'Load a remappr .json — file or paste',
+            onClick: () => {
+                onClose()
+                onImport()
+            },
+        },
+        {
+            icon: <Library size={18} />,
+            title: 'Load from saved builds',
+            sub: 'Reopen a board saved on this machine',
+            onClick: () => {
+                onClose()
+                onLibrary()
+            },
+        },
+    ]
+}
+
+// pattern-check: skip presentational apply-geometry hook with token→binding seeding, no abstraction
+/** Shared: apply a fresh geometry to the board + reset the transient view.
+ *  `opts.firmware` preselects the firmware targets; `opts.tokens` (index-aligned
+ *  to `keys`) seeds the base-layer legend; `opts.split` sets the two-piece flag;
+ *  `opts.controller` seeds a well-known board/shield. Presets carry these; grid/KLE
+ *  pass nothing (current firmware/split kept, keys land transparent). */
+// pattern-check: skip refactor to shared applyPresetGeometry helper, net deletion no abstraction
+function useApplyGeometry(): (
+    keys: CanonGeometry[],
+    opts?: ApplyPresetOpts,
+) => void {
+    const commit = useBuilderStore((s) => s.commit)
+    const clearSelection = useBuilderStore((s) => s.clearSelection)
+    const setActiveLayer = useBuilderStore((s) => s.setActiveLayer)
+    const resetView = useBuilderStore((s) => s.resetView)
+    return (keys, opts) => {
+        const config = useConfigStore.getState().config
+        if (!config) return
+        commit(applyPresetGeometry(config, keys, opts))
+        clearSelection()
+        setActiveLayer(0)
+        resetView()
+    }
+}
+
+export function PresetModal({
+    open,
+    onClose,
+    onBack,
+}: {
+    open: boolean
+    onClose: () => void
+    onBack?: () => void
+}): JSX.Element {
+    const apply = useApplyGeometry()
+    return (
+        <Modal
+            opened={open}
+            onClose={onClose}
+            onBack={onBack}
+            title="Start from a preset"
+            subtitle="Replaces the current board layout"
+            headerIcon={<LayoutGrid />}
+            showFooter={false}
+            customModalBoxClass="sm:max-w-[600px]"
+        >
+            <div className="grid grid-cols-2 gap-2.5 py-1">
+                {PRESETS.map((p) => (
+                    <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => {
+                            const b = p.build()
+                            apply(b.keys, {
+                                firmware: p.firmware,
+                                tokens: b.tokens,
+                                split: p.split,
+                                controller: p.controller,
+                            })
+                            onClose()
+                        }}
+                        className="flex items-center gap-3 rounded-xl border border-border bg-background p-3.5 text-left transition-colors hover:border-primary"
+                    >
+                        <span className="grid size-10 shrink-0 place-items-center rounded-[10px] bg-primary/15 text-primary">
+                            {PRESET_ICON[p.icon]}
+                        </span>
+                        <div className="min-w-0">
+                            <div className="truncate text-[13.5px] font-bold">
+                                {p.name}
+                            </div>
+                            <div className="truncate text-[11.5px] text-muted-foreground">
+                                {p.sub}
+                            </div>
+                        </div>
+                    </button>
+                ))}
+            </div>
+        </Modal>
+    )
+}
+
+export function GridModal({
+    open,
+    onClose,
+}: {
+    open: boolean
+    onClose: () => void
+}): JSX.Element {
+    const apply = useApplyGeometry()
+    const [rows, setRows] = useState('4')
+    const [cols, setCols] = useState('12')
+    const r = clampDim(Number(rows))
+    const c = clampDim(Number(cols))
+    const make = (): void => {
+        apply(gridKeys(r, c))
+        onClose()
+    }
+    return (
+        <Modal
+            opened={open}
+            onClose={onClose}
+            title="Make a grid"
+            subtitle="Ortholinear rows × columns"
+            headerIcon={<Grid3x3 />}
+            footer={
+                <Button onClick={make}>
+                    Create {r}×{c} grid
+                </Button>
+            }
+        >
+            <div className="grid grid-cols-2 gap-3 py-1">
+                <div>
+                    <div className="mb-1 text-[11px] font-semibold text-muted-foreground">
+                        Rows
+                    </div>
+                    <Input
+                        type="number"
+                        min={1}
+                        max={24}
+                        value={rows}
+                        onChange={(e) => setRows(e.target.value)}
+                    />
+                </div>
+                <div>
+                    <div className="mb-1 text-[11px] font-semibold text-muted-foreground">
+                        Columns
+                    </div>
+                    <Input
+                        type="number"
+                        min={1}
+                        max={24}
+                        value={cols}
+                        onChange={(e) => setCols(e.target.value)}
+                    />
+                </div>
+            </div>
+            <p className="text-[11.5px] leading-relaxed text-muted-foreground">
+                Creates {r * c} keys in a {r}×{c} grid. Resets bindings to
+                pass-thru; layer names are kept.
+            </p>
+        </Modal>
+    )
+}
+
+// pattern-check: skip forward optional onBack prop to shared Modal, no abstraction
+export function KleModal({
+    open,
+    onClose,
+    onBack,
+}: {
+    open: boolean
+    onClose: () => void
+    onBack?: () => void
+}): JSX.Element {
+    const apply = useApplyGeometry()
+    const [text, setText] = useState('')
+    const [error, setError] = useState<string | null>(null)
+    const doImport = (): void => {
+        const res = parseKleGeometry(text)
+        if (res.error || !res.keys) {
+            setError(res.error ?? 'No keys found.')
+            return
+        }
+        apply(res.keys)
+        setText('')
+        setError(null)
+        onClose()
+    }
+    return (
+        <Modal
+            opened={open}
+            onClose={() => {
+                setError(null)
+                onClose()
+            }}
+            onBack={onBack}
+            title="Import from KLE"
+            subtitle="keyboard-layout-editor.com raw data"
+            headerIcon={<LayoutGrid />}
+            customModalBoxClass="sm:max-w-[600px]"
+            footer={
+                <Button onClick={doImport} disabled={!text.trim()}>
+                    Import layout
+                </Button>
+            }
+        >
+            <textarea
+                value={text}
+                onChange={(e) => {
+                    setText(e.target.value)
+                    setError(null)
+                }}
+                placeholder={'Paste the "Raw data" from the KLE Download menu…'}
+                spellCheck={false}
+                className="h-44 w-full resize-none rounded-lg border border-input bg-background p-3 font-mono text-[12px] text-foreground outline-none focus:border-primary"
+            />
+            {error && (
+                <p className="mt-2 text-[12px] font-medium text-destructive">
+                    {error}
+                </p>
+            )}
+            <p className="mt-2 text-[11.5px] leading-relaxed text-muted-foreground">
+                Imports key positions &amp; sizes only — legends and matrix
+                wiring are assigned in the builder.
+            </p>
+        </Modal>
+    )
+}
+
+// pattern-check: skip presentational import modal over configStore.loadFromSource, no abstraction
+/** Load a remappr keymap .json into the builder — by file upload or paste.
+ *  Routes through configStore.loadFromSource (parse+validate in one place); the
+ *  builder canvas reads configStore directly, so a successful load refreshes it. */
+// pattern-check: skip forward optional onBack prop to shared Modal, no abstraction
+export function ImportModal({
+    open,
+    onClose,
+    onBack,
+}: {
+    open: boolean
+    onClose: () => void
+    onBack?: () => void
+}): JSX.Element {
+    const loadFromSource = useConfigStore((s) => s.loadFromSource)
+    const clearSelection = useBuilderStore((s) => s.clearSelection)
+    const setActiveLayer = useBuilderStore((s) => s.setActiveLayer)
+    const resetView = useBuilderStore((s) => s.resetView)
+    const fileRef = useRef<HTMLInputElement>(null)
+    const [text, setText] = useState('')
+    const [error, setError] = useState<string | null>(null)
+
+    const doImport = (raw: string): void => {
+        if (!raw.trim()) return
+        if (!loadFromSource(raw)) {
+            setError(useConfigStore.getState().error ?? 'Invalid config.')
+            return
+        }
+        clearSelection()
+        setActiveLayer(0)
+        resetView()
+        setText('')
+        setError(null)
+        onClose()
+    }
+
+    const onFile = async (
+        e: React.ChangeEvent<HTMLInputElement>,
+    ): Promise<void> => {
+        const file = e.target.files?.[0]
+        e.target.value = '' // allow re-importing the same file
+        if (!file) return
+        doImport(await file.text())
+    }
+
+    return (
+        <Modal
+            opened={open}
+            onClose={() => {
+                setError(null)
+                onClose()
+            }}
+            onBack={onBack}
+            title="Import config"
+            subtitle="Load a remappr keymap .json"
+            headerIcon={<FileJson />}
+            showFooter={false}
+            customModalBoxClass="sm:max-w-[520px]"
+        >
+            <div className="space-y-3 py-1">
+                <Button
+                    variant="outline"
+                    onClick={() => fileRef.current?.click()}
+                    className="flex w-full items-center justify-center gap-2"
+                >
+                    <Upload className="size-4" /> Upload .json file
+                </Button>
+                <input
+                    ref={fileRef}
+                    type="file"
+                    accept=".json,.txt"
+                    className="hidden"
+                    onChange={onFile}
+                />
+                <div className="text-center text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    or paste
+                </div>
+                <textarea
+                    value={text}
+                    onChange={(e) => {
+                        setText(e.target.value)
+                        setError(null)
+                    }}
+                    placeholder={'Paste a remappr keymap .json…'}
+                    spellCheck={false}
+                    className="h-44 w-full resize-none rounded-lg border border-input bg-background p-3 font-mono text-[12px] text-foreground outline-none focus:border-primary"
+                />
+                {error && (
+                    <p className="text-[12px] font-medium text-destructive">
+                        {error}
+                    </p>
+                )}
+                <Button
+                    onClick={() => doImport(text)}
+                    disabled={!text.trim()}
+                    className="w-full"
+                >
+                    Import config
+                </Button>
+            </div>
+        </Modal>
+    )
+}
+
+/** Shown each time the builder opens: choose a starting point (preset / KLE /
+ *  blank / import / saved) or dismiss to keep the current board. */
+export function StartModal({
+    open,
+    onClose,
+    onPreset,
+    onKle,
+    onImport,
+    onLibrary,
+}: {
+    open: boolean
+    onClose: () => void
+    onPreset: () => void
+    onKle: () => void
+    onImport: () => void
+    onLibrary: () => void
+}): JSX.Element {
+    // pattern-check: skip — swap inline render-built array for hoisted startChoices factory, no abstraction
+    const apply = useApplyGeometry()
+    const choices = startChoices({
+        apply,
+        onClose,
+        onPreset,
+        onKle,
+        onImport,
+        onLibrary,
+    })
+    return (
+        <Modal
+            opened={open}
+            onClose={onClose}
+            title="Design a keyboard"
+            subtitle="Pick a starting point — or close to keep the current board"
+            headerIcon={<LayoutGrid />}
+            showFooter={false}
+            customModalBoxClass="sm:max-w-[460px] builder-start-modal top-1/2 -translate-y-1/2"
+        >
+            <div className="flex flex-col gap-2.5 py-1">
+                {choices.map((c) => (
+                    <button
+                        key={c.title}
+                        type="button"
+                        onClick={c.onClick}
+                        className="flex items-center gap-3 rounded-xl border border-border bg-background p-3.5 text-left transition-colors hover:border-primary"
+                    >
+                        <span className="grid size-10 shrink-0 place-items-center rounded-[10px] bg-primary/15 text-primary">
+                            {c.icon}
+                        </span>
+                        <div className="min-w-0">
+                            <div className="truncate text-[13.5px] font-bold">
+                                {c.title}
+                            </div>
+                            <div className="truncate text-[11.5px] text-muted-foreground">
+                                {c.sub}
+                            </div>
+                        </div>
+                    </button>
+                ))}
+            </div>
+        </Modal>
+    )
+}
