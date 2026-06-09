@@ -1,4 +1,4 @@
-// pattern-check: skip presentational chrome components extracted verbatim from FullScreenBuilder.tsx (readability split)
+// pattern-check: skip presentational chrome components extracted verbatim from Builder.tsx (readability split)
 // Leaf presentational pieces for the full-screen builder shell: the brand badge,
 // toolbar icon button, snap/free segmented toggle, zoom cluster, section title,
 // and "Build from" button. No state of their own beyond ZoomGroup's view reads.

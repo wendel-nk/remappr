@@ -15,7 +15,6 @@ import useAdvancedSheetStore, {
 import { cn } from '@/lib/cn'
 import { Button } from '@/ui/button'
 import { Card, CardContent } from '@/ui/card'
-import { ScrollArea } from '@/ui/scroll-area'
 
 import { TapDanceTab } from './tabs/TapDanceTab'
 import { ComboTab } from './tabs/ComboTab'
@@ -105,7 +104,10 @@ export function AdvancedSheet({ onClose }: Props): JSX.Element | null {
                         </div>
                     </div>
 
-                    <ScrollArea className="max-h-[40vh] pr-2">
+                    {/* Native overflow (not radix ScrollArea): a max-height-only
+                        radix Root has no definite height for its h-full viewport,
+                        so tall content was clipped with no scrollbar. */}
+                    <div className="max-h-[40vh] overflow-y-auto pr-2">
                         {activeSection === 'td' && counts && (
                             <TapDanceTab
                                 service={service}
@@ -133,7 +135,7 @@ export function AdvancedSheet({ onClose }: Props): JSX.Element | null {
                         {activeSection === 'macros' && (
                             <MacrosTab service={service} opened={true} />
                         )}
-                    </ScrollArea>
+                    </div>
                 </CardContent>
             </Card>
         </div>

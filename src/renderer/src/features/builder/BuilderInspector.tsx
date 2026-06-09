@@ -12,27 +12,18 @@ import { useState } from 'react'
 import {
     AlignStartVertical,
     Copy,
-    Keyboard as KeyboardIcon,
     Pencil,
     RotateCcw,
-    RotateCw,
     Ruler,
     Scan,
-    SlidersHorizontal,
     Trash2,
     Wand2,
     X,
 } from 'lucide-react'
 import { KeyButton } from '@/features/keymap/keyboard/KeyButton'
-import { Switch } from '@/ui/switch'
 import useBuilderStore from '@/stores/builderStore'
 import useConfigStore from '@/stores/configStore'
-import type {
-    CanonAction,
-    CanonGeometry,
-    ConfigKeymap,
-    SliderMap,
-} from '@firmware/config'
+import type { CanonGeometry } from '@firmware/config'
 import { matrixDims } from '@firmware/config'
 import { duplicateKeys, removeKeys, snap as snapStep } from './geometryEditor'
 import {
@@ -41,7 +32,6 @@ import {
     bulkNumberCols,
     bulkSetRow,
     clearMatrix,
-    clearSliderBinding,
     type EncoderSlot,
     isAutoAssign,
     keyMatrix,
@@ -50,144 +40,17 @@ import {
     setEncoderBinding,
     setKeyMatrix,
     setKeyVariant,
-    setSliderBinding,
-    SLIDER_MAPS,
 } from './builderInspectorOps'
 import { MiniLabel } from './MiniLabel'
 import { builderBindingCode, builderCapProps } from './builderCapProps'
 import { colPins, rowPins } from './builderPins'
+import { Field, NumInput, ToggleRow } from './builderFormControls'
+import { ElementTabs } from './BuilderInspectorElementTabs'
+import { BulkBtn } from './BuilderInspectorBulkBtn'
+import { BindingSlotRow } from './BuilderInspectorBindingSlotRow'
+import { SliderPanel } from './BuilderInspectorSliderPanel'
 
 const WIDTH_PRESETS = [1, 1.25, 1.5, 1.75, 2, 2.25, 2.75, 6.25]
-
-/** Numeric field that commits a number immediately (geometry is discrete). */
-function NumInput({
-    value,
-    onChange,
-    step = 0.25,
-}: {
-    value: number
-    onChange: (v: number) => void
-    step?: number
-}): JSX.Element {
-    return (
-        <input
-            type="number"
-            step={step}
-            value={value}
-            onChange={(e) =>
-                onChange(e.target.value === '' ? 0 : Number(e.target.value))
-            }
-            className="w-full rounded-lg border border-input bg-background px-2 py-1.5 font-mono text-[12.5px] font-semibold text-foreground outline-none focus:border-primary"
-        />
-    )
-}
-
-function Field({
-    label,
-    children,
-}: {
-    label: string
-    children: React.ReactNode
-}): JSX.Element {
-    return (
-        <div>
-            <div className="mb-1 text-[11px] text-muted-foreground">
-                {label}
-            </div>
-            {children}
-        </div>
-    )
-}
-
-// pattern-check: skip presentational helper components (element switcher + note), no logic
-/** Element-type switcher (key / encoder / slider) at the top of the inspector. */
-function ElementTabs({
-    element,
-    onSelect,
-}: {
-    element: 'key' | 'encoder' | 'slider'
-    onSelect: (el: 'key' | 'encoder' | 'slider') => void
-}): JSX.Element {
-    const tabs: Array<['key' | 'encoder' | 'slider', string, React.ReactNode]> =
-        [
-            ['key', 'Key', <KeyboardIcon key="k" size={14} />],
-            ['encoder', 'Encoder', <RotateCw key="e" size={14} />],
-            ['slider', 'Slider', <SlidersHorizontal key="s" size={14} />],
-        ]
-    return (
-        <div>
-            <MiniLabel>Element</MiniLabel>
-            <div className="grid grid-cols-3 gap-1.5">
-                {tabs.map(([el, lbl, icon]) => {
-                    const on = element === el
-                    return (
-                        <button
-                            key={el}
-                            type="button"
-                            onClick={() => onSelect(el)}
-                            className="inline-flex items-center justify-center gap-1.5 rounded-lg border px-2 py-2 text-[12px] font-semibold text-foreground transition-colors"
-                            style={{
-                                background: on
-                                    ? 'color-mix(in oklch, var(--primary) 16%, var(--background))'
-                                    : 'var(--background)',
-                                borderColor: on
-                                    ? 'var(--primary)'
-                                    : 'var(--border)',
-                            }}
-                        >
-                            {icon} {lbl}
-                        </button>
-                    )
-                })}
-            </div>
-        </div>
-    )
-}
-
-/** A label + Switch row (matches the meta-form toggles). */
-function ToggleRow({
-    on,
-    onToggle,
-    label,
-}: {
-    on: boolean
-    onToggle: (v: boolean) => void
-    label: string
-}): JSX.Element {
-    return (
-        <label className="flex w-full cursor-pointer items-center justify-between rounded-lg border border-border bg-background px-2.5 py-2">
-            <span className="text-[12.5px] font-medium">{label}</span>
-            <Switch checked={on} onCheckedChange={onToggle} />
-        </label>
-    )
-}
-
-/** A bulk-action button (icon + label). */
-function BulkBtn({
-    icon,
-    label,
-    onClick,
-    destructive,
-}: {
-    icon: React.ReactNode
-    label: string
-    onClick: () => void
-    destructive?: boolean
-}): JSX.Element {
-    return (
-        <button
-            type="button"
-            onClick={onClick}
-            className={`inline-flex items-center justify-center gap-2 rounded-lg border px-2.5 py-2 text-[12px] font-semibold transition-colors ${
-                destructive
-                    ? 'border-destructive/40 bg-destructive/10 text-destructive hover:bg-destructive/15'
-                    : 'border-border bg-background text-foreground hover:border-primary'
-            }`}
-        >
-            {icon} {label}
-        </button>
-    )
-}
 
 /** The three rotary slots of an encoder, in display order. */
 const ENCODER_SLOTS: { slot: EncoderSlot; label: string }[] = [
@@ -195,186 +58,6 @@ const ENCODER_SLOTS: { slot: EncoderSlot; label: string }[] = [
     { slot: 'ccw', label: 'Rotate ↺ (CCW)' },
     { slot: 'press', label: 'Press' },
 ]
-
-// pattern-check: skip presentational cap-preview + edit/clear row, reuses capProps, no logic
-/** One compact binding row: a cap preview + slot label + edit / clear. Shared by
- *  the encoder rotary slots (cw / ccw / press); opening edits route through the
- *  same firmware-aware picker as a key binding. */
-function BindingSlotRow({
-    action,
-    label,
-    firmware,
-    onEdit,
-    onClear,
-}: {
-    action: CanonAction | undefined
-    label: string
-    firmware?: string[]
-    onEdit: () => void
-    onClear: () => void
-}): JSX.Element {
-    const cap = builderCapProps(action)
-    const code = builderBindingCode(action, firmware)
-    return (
-        <div className="flex items-center gap-2.5 rounded-lg border border-border bg-background p-2">
-            <button
-                type="button"
-                onClick={onEdit}
-                aria-label={`Edit ${label}`}
-                className="relative shrink-0"
-                style={{ width: 38, height: 38 }}
-            >
-                <KeyButton
-                    oneU={38}
-                    width={1}
-                    height={1}
-                    hoverZoom={false}
-                    tapText={cap?.tapText}
-                    header={cap?.header}
-                    actionLabel={code}
-                    category={cap?.category}
-                    accentCategory={cap?.accentCategory}
-                    holdTap={cap?.holdTap}
-                    mods={cap?.mods}
-                    showHeaderTag={!!(cap?.header || code)}
-                >
-                    {cap && !cap.holdTap ? cap.tapText : undefined}
-                </KeyButton>
-            </button>
-            <div className="min-w-0 flex-1">
-                <div className="text-[10.5px] font-bold uppercase tracking-[0.06em] text-muted-foreground">
-                    {label}
-                </div>
-                <div className="truncate text-[12.5px] font-bold">
-                    {cap?.tapText ?? '▽'}
-                </div>
-            </div>
-            <button
-                type="button"
-                onClick={onEdit}
-                aria-label={`Edit ${label} binding`}
-                className="grid size-8 place-items-center rounded-lg border text-foreground transition-colors"
-                style={{
-                    background:
-                        'color-mix(in oklch, var(--primary) 16%, var(--background))',
-                    borderColor:
-                        'color-mix(in oklch, var(--primary) 45%, transparent)',
-                }}
-            >
-                <Pencil size={13} />
-            </button>
-            <button
-                type="button"
-                onClick={onClear}
-                aria-label={`Clear ${label} binding`}
-                className="grid size-8 place-items-center rounded-lg border border-border text-muted-foreground hover:text-foreground"
-            >
-                <X size={14} />
-            </button>
-        </div>
-    )
-}
-
-// pattern-check: skip presentational slider value-map panel, reuses ops + BindingSlotRow, no logic
-/** Optional-number input for a slider output bound: empty clears it (firmware
- *  defaults the range). */
-function RangeInput({
-    value,
-    onChange,
-}: {
-    value: number | undefined
-    onChange: (v: number | undefined) => void
-}): JSX.Element {
-    return (
-        <input
-            type="number"
-            value={value ?? ''}
-            placeholder="auto"
-            onChange={(e) =>
-                onChange(
-                    e.target.value === '' ? undefined : Number(e.target.value),
-                )
-            }
-            className="w-full rounded-lg border border-input bg-background px-2 py-1.5 font-mono text-[12.5px] font-semibold text-foreground outline-none focus:border-primary"
-        />
-    )
-}
-
-/** Slider element panel: a value-map picker (volume / brightness / wheel /
- *  custom) + an output range; custom maps open the shared binding picker. */
-function SliderPanel({
-    config,
-    index,
-    activeLayer,
-    layerName,
-    onEditAction,
-}: {
-    config: ConfigKeymap
-    index: number
-    activeLayer: number
-    layerName: string
-    onEditAction: () => void
-}): JSX.Element {
-    const commit = useBuilderStore((s) => s.commit)
-    const slider = config.layers[activeLayer]?.sliderBindings?.[index]
-    const set = (patch: Parameters<typeof setSliderBinding>[3]): void =>
-        commit(setSliderBinding(config, activeLayer, index, patch))
-
-    return (
-        <div className="flex flex-col gap-2">
-            <MiniLabel>Slider value-map · {layerName}</MiniLabel>
-            <select
-                value={slider?.map ?? ''}
-                onChange={(e) =>
-                    e.target.value === ''
-                        ? commit(clearSliderBinding(config, activeLayer, index))
-                        : set({ map: e.target.value as SliderMap })
-                }
-                className="w-full rounded-lg border border-input bg-background px-2.5 py-2 text-[13px] font-semibold text-foreground outline-none focus:border-primary"
-            >
-                <option value="">— No mapping —</option>
-                {SLIDER_MAPS.map((m) => (
-                    <option key={m.value} value={m.value}>
-                        {m.label}
-                    </option>
-                ))}
-            </select>
-            {slider && (
-                <>
-                    <div className="grid grid-cols-2 gap-2">
-                        <Field label="Min (out)">
-                            <RangeInput
-                                value={slider.min}
-                                onChange={(v) => set({ min: v })}
-                            />
-                        </Field>
-                        <Field label="Max (out)">
-                            <RangeInput
-                                value={slider.max}
-                                onChange={(v) => set({ max: v })}
-                            />
-                        </Field>
-                    </div>
-                    {slider.map === 'custom' && (
-                        <BindingSlotRow
-                            label="Custom action"
-                            firmware={config.keyboard.firmware}
-                            action={slider.action}
-                            onEdit={onEditAction}
-                            onClear={() =>
-                                set({ action: { type: 'transparent' } })
-                            }
-                        />
-                    )}
-                    <p className="rounded-lg border border-border bg-background px-2.5 py-2 text-[11.5px] leading-relaxed text-muted-foreground">
-                        Analog input is exported as firmware guidance — the
-                        board-side ADC wiring is added in your overlay/keymap.c.
-                    </p>
-                </>
-            )}
-        </div>
-    )
-}
 
 export function BuilderInspector(): JSX.Element {
     const config = useConfigStore((s) => s.config)
@@ -939,6 +622,7 @@ export function BuilderInspector(): JSX.Element {
                 </div>
                 <div className="mt-2">
                     <ToggleRow
+                        dense
                         label="Auto-assign row/col from position"
                         on={isAutoAssign(config)}
                         onToggle={(v) =>
@@ -952,6 +636,7 @@ export function BuilderInspector(): JSX.Element {
                 </div>
                 <div className="mt-1.5">
                     <ToggleRow
+                        dense
                         label="Snap to grid on row/col change"
                         on={snapOnWire}
                         onToggle={toggleSnapOnWire}

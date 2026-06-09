@@ -5,7 +5,7 @@
 // General settings, matched to the design prototype's SettingsDialog "General"
 // pane: an Appearance group (theme select + 8-theme swatch grid + segmented
 // light/dark/system) and a Keymap Display group (key header + colour-coding).
-import { cn } from '@/lib/cn'
+import { Segmented } from '@/ui/segmented'
 import { ThemePicker } from '@/components/ThemePicker'
 import { KeyDisplayModePicker } from '@/components/KeyDisplayModePicker'
 import { ColorCodingPicker } from '@/components/ColorCodingPicker'
@@ -69,40 +69,6 @@ const DARK_MODES: { value: Theme; label: string }[] = [
     { value: 'dark', label: 'Dark' },
     { value: 'system', label: 'System' },
 ]
-
-/** Inline segmented control (matches the prototype's Segmented). */
-function Segmented<T extends string>({
-    value,
-    options,
-    onChange,
-}: {
-    value: T
-    options: { value: T; label: string }[]
-    onChange: (v: T) => void
-}): JSX.Element {
-    return (
-        <div className="inline-flex gap-0.5 rounded-lg border border-border bg-secondary p-0.5">
-            {options.map((o) => {
-                const active = o.value === value
-                return (
-                    <button
-                        key={o.value}
-                        type="button"
-                        onClick={() => onChange(o.value)}
-                        className={cn(
-                            'rounded-md px-3 py-1.5 text-[12.5px] font-semibold transition-colors',
-                            active
-                                ? 'bg-background text-foreground shadow-sm'
-                                : 'text-muted-foreground hover:text-foreground',
-                        )}
-                    >
-                        {o.label}
-                    </button>
-                )
-            })}
-        </div>
-    )
-}
 
 /** A label + description on the left, control on the right, bottom border. */
 function Row({

@@ -50,6 +50,69 @@ export function boardBounds(keys: CanonGeometry[]): BoardBounds {
     }
 }
 
+// pattern-check: skip — moved geometry helpers (keyCenter/buildRuns) from MatrixOverlay, no new abstraction
+/** Pixel center of a key (in the canvas's `oneU`-scaled coordinate space). */
+export function keyCenter(
+    k: CanonGeometry,
+    oneU: number,
+): { x: number; y: number } {
+    return {
+        x: (k.x + k.w / 2) * oneU,
+        y: (k.y + k.h / 2) * oneU,
+    }
+}
+
+/** A single matrix run: a dashed path connecting every cap wired to one row/col,
+ *  with an anchor point for its GPIO pin chip. */
+export interface MatrixRun {
+    key: string
+    id: number
+    anchor: { x: number; y: number }
+    d: string
+}
+
+/** Group keys by their picked matrix id (row or col) and build a sorted dashed
+ *  run + anchor for each. `horizontal` sorts/anchors along x (rows) vs y (cols). */
+export function buildRuns(
+    keys: CanonGeometry[],
+    pick: (rc: [number, number]) => number,
+    map: [number, number][],
+    oneU: number,
+    horizontal: boolean,
+): MatrixRun[] {
+    const groups = new Map<number, CanonGeometry[]>()
+    keys.forEach((k, i) => {
+        const rc = map[i]
+        if (!rc) return
+        const id = pick(rc)
+        const list = groups.get(id) ?? []
+        list.push(k)
+        groups.set(id, list)
+    })
+    const GAP = oneU * 1.05
+    return [...groups.entries()].map(([id, arr]) => {
+        const sorted = [...arr].sort((a, b) =>
+            horizontal ? a.x - b.x : a.y - b.y,
+        )
+        const c0 = keyCenter(sorted[0], oneU)
+        const anchor = horizontal
+            ? { x: c0.x - GAP, y: c0.y }
+            : { x: c0.x, y: c0.y - GAP }
+        const line = sorted
+            .map((k) => {
+                const c = keyCenter(k, oneU)
+                return `L${c.x.toFixed(1)} ${c.y.toFixed(1)}`
+            })
+            .join(' ')
+        return {
+            key: (horizontal ? 'r' : 'c') + id,
+            id,
+            anchor,
+            d: `M${anchor.x.toFixed(1)} ${anchor.y.toFixed(1)} ${line}`,
+        }
+    })
+}
+
 /** Shift a key set so its top-left bound sits at the origin (pivots too). */
 export function normalizeBoard(keys: CanonGeometry[]): CanonGeometry[] {
     const b = boardBounds(keys)

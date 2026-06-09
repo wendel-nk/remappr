@@ -8,7 +8,7 @@
 // monetization (account sign-in) lands at GA, once it's fully working across every
 // firmware. At GA, access falls back to the premium entitlement and this toasts
 // the locked state instead. Opening flips builderStore.open; App swaps the start
-// page for the full-screen <FullScreenBuilder/>.
+// page for the full-screen <Builder/>.
 import { ArrowRight, Lock, Ruler, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { useBuilderAccess, useBuilderStage } from '@/hooks/use-premium'

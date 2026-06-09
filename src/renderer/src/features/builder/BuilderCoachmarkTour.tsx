@@ -4,7 +4,7 @@
 //
 // The Keyboard Builder's guided first-run tour. It mirrors the editor's
 // onboarding/CoachmarkTour spotlight technique (box-shadow scrim + primary ring)
-// but is mounted inside FullScreenBuilder so its data-coach targets are guaranteed
+// but is mounted inside Builder so its data-coach targets are guaranteed
 // to exist, persists "seen" in userSettingsStore instead of a bare localStorage
 // key, and waits for the start chooser to close before it begins. The "?" toolbar
 // button replays it by bumping `replayNonce`.

@@ -14,6 +14,7 @@ export function LayerPill({
     layerName: string
     liveView: boolean
 }): JSX.Element {
+    const accent = layerAccent(displayLayerIndex)
     return (
         <div className="absolute top-3.5 left-4 z-10 flex items-center gap-2.5">
             <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-[13px] font-bold shadow-sm">
@@ -21,8 +22,8 @@ export function LayerPill({
                     aria-hidden
                     className="size-[9px] rounded-[3px]"
                     style={{
-                        background: layerAccent(displayLayerIndex),
-                        boxShadow: `0 0 8px ${layerAccent(displayLayerIndex)}`,
+                        background: accent,
+                        boxShadow: `0 0 8px ${accent}`,
                     }}
                 />
                 {layerName}
@@ -51,12 +52,13 @@ export function PeekBanner({
     displayLayerIndex: number
     layerName: string
 }): JSX.Element {
+    const accent = layerAccent(displayLayerIndex)
     return (
         <div
             className="absolute top-3.5 left-1/2 z-[16] inline-flex -translate-x-1/2 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold text-foreground"
             style={{
-                background: `color-mix(in oklch, ${layerAccent(displayLayerIndex)} 20%, var(--card))`,
-                borderColor: layerAccent(displayLayerIndex),
+                background: `color-mix(in oklch, ${accent} 20%, var(--card))`,
+                borderColor: accent,
             }}
         >
             <Eye className="size-3.5" /> Previewing {layerName}

@@ -4,7 +4,7 @@
 // Data substrate for the Keyboard Builder's first-run coachmark tour. Steps are
 // kept as plain data (and the index math as pure functions) so the sequencing is
 // unit-testable without rendering the React overlay. Each `selector` targets a
-// `data-coach="…"` anchor in FullScreenBuilder; `selector: null` renders a
+// `data-coach="…"` anchor in Builder; `selector: null` renders a
 // centred card with a full-screen scrim (no spotlight).
 
 export interface TourStep {

@@ -1,189 +1,19 @@
 // pattern-check: skip — form tab composing primitives, mirrors sibling *Tab.tsx
-import { ArrowDown, ArrowUp, Circle, Plus, Trash2 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { Circle, Plus } from 'lucide-react'
+import { useState } from 'react'
 
 import type { KeyboardService, MacroAction } from '@firmware'
-import { assertNever } from '@/lib/assertNever'
-import { clampInt, parseIntSafe } from '@/lib/clampInt'
-import { DOM_KEY_TO_HID } from '@/lib/keypress/domKeyToHidMap'
 import { saveWithToast } from '@/lib/saveWithToast'
 import { Button } from '@/ui/button'
-import { Input } from '@/ui/input'
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/ui/select'
 
 import { IndexInput } from '../_shared/IndexInput'
-import { NumField } from '../_shared/NumField'
 import { useDynamicEntry } from '../_shared/useDynamicEntry'
+import { MacroActionRow } from './macros/MacroActionRow'
+import { useKeyboardRecorder } from './macros/useKeyboardRecorder'
 
 interface Props {
     service: KeyboardService
     opened: boolean
-}
-
-const ACTION_KINDS: ReadonlyArray<{
-    value: MacroAction['kind']
-    label: string
-}> = [
-    { value: 'tap', label: 'Tap' },
-    { value: 'down', label: 'Down' },
-    { value: 'up', label: 'Up' },
-    { value: 'delay', label: 'Delay' },
-    { value: 'text', label: 'Text' },
-]
-
-function defaultActionFor(kind: MacroAction['kind']): MacroAction {
-    switch (kind) {
-        case 'tap':
-        case 'down':
-        case 'up':
-            return { kind, keycode: 0 }
-        case 'delay':
-            return { kind: 'delay', ms: 100 }
-        case 'text':
-            return { kind: 'text', text: '' }
-        default:
-            return assertNever(kind)
-    }
-}
-
-// pattern-check: skip — thread readOnly flag to disable inputs, no abstraction
-function ActionFields({
-    action,
-    onChange,
-    readOnly = false,
-}: {
-    action: MacroAction
-    onChange: (next: MacroAction) => void
-    readOnly?: boolean
-}): JSX.Element | null {
-    switch (action.kind) {
-        case 'tap':
-        case 'down':
-        case 'up':
-            return (
-                <NumField
-                    label="Keycode"
-                    value={action.keycode}
-                    onChange={(v) => onChange({ ...action, keycode: v })}
-                    disabled={readOnly}
-                />
-            )
-        case 'delay':
-            return (
-                <Input
-                    type="number"
-                    min={0}
-                    max={0xffff}
-                    value={action.ms}
-                    disabled={readOnly}
-                    onChange={(e) =>
-                        onChange({
-                            kind: 'delay',
-                            ms: clampInt(
-                                parseIntSafe(e.target.value),
-                                0,
-                                0xffff,
-                            ),
-                        })
-                    }
-                    className="w-32 text-xs"
-                    placeholder="ms"
-                />
-            )
-        case 'text':
-            return (
-                <Input
-                    value={action.text}
-                    disabled={readOnly}
-                    onChange={(e) =>
-                        onChange({ kind: 'text', text: e.target.value })
-                    }
-                    className="flex-1 text-xs"
-                    placeholder="ASCII text"
-                />
-            )
-        default:
-            return assertNever(action)
-    }
-}
-
-// pattern-check: skip — readOnly flag hides edit controls, no abstraction
-function ActionRow({
-    action,
-    onChange,
-    onRemove,
-    onMoveUp,
-    onMoveDown,
-    readOnly = false,
-}: {
-    action: MacroAction
-    onChange: (next: MacroAction) => void
-    onRemove: () => void
-    onMoveUp: () => void
-    onMoveDown: () => void
-    readOnly?: boolean
-}): JSX.Element {
-    return (
-        <div className="flex items-center gap-2 border rounded p-2">
-            <Select
-                value={action.kind}
-                disabled={readOnly}
-                onValueChange={(k) =>
-                    onChange(defaultActionFor(k as MacroAction['kind']))
-                }
-            >
-                <SelectTrigger className="w-24">
-                    <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                    {ACTION_KINDS.map((k) => (
-                        <SelectItem key={k.value} value={k.value}>
-                            {k.label}
-                        </SelectItem>
-                    ))}
-                </SelectContent>
-            </Select>
-            <ActionFields
-                action={action}
-                onChange={onChange}
-                readOnly={readOnly}
-            />
-            {!readOnly && (
-                <>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        aria-label="Move action up"
-                        onClick={onMoveUp}
-                    >
-                        <ArrowUp className="h-3 w-3" />
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        aria-label="Move action down"
-                        onClick={onMoveDown}
-                    >
-                        <ArrowDown className="h-3 w-3" />
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        aria-label="Remove action"
-                        onClick={onRemove}
-                    >
-                        <Trash2 className="h-3 w-3" />
-                    </Button>
-                </>
-            )}
-        </div>
-    )
 }
 
 // pattern-check: skip — macro sequence editor body, extracted from MacroEditorModal
@@ -212,26 +42,8 @@ export function MacrosTab({ service, opened }: Props): JSX.Element | null {
         'macro',
     )
 
-    // Record mode: while on, OS keydowns append `tap` actions (reusing the same
-    // DOM-code → HID-usage map the live-view detector uses). preventDefault stops
-    // the captured keys from typing elsewhere. Editing-only.
     const [recording, setRecording] = useState(false)
-    useEffect(() => {
-        if (!recording || !editable || !opened) return
-        const onKeyDown = (e: KeyboardEvent): void => {
-            if (
-                e.target instanceof HTMLInputElement ||
-                e.target instanceof HTMLTextAreaElement
-            )
-                return
-            const keycode = DOM_KEY_TO_HID[e.code]
-            if (keycode === undefined) return
-            e.preventDefault()
-            setActions((prev) => [...(prev ?? []), { kind: 'tap', keycode }])
-        }
-        window.addEventListener('keydown', onKeyDown)
-        return () => window.removeEventListener('keydown', onKeyDown)
-    }, [recording, editable, opened, setActions])
+    useKeyboardRecorder(recording, editable, opened, setActions)
 
     const handleSetIdx = (n: number): void => {
         setRecording(false)
@@ -293,7 +105,7 @@ export function MacrosTab({ service, opened }: Props): JSX.Element | null {
             {actions && (
                 <div className="space-y-2">
                     {actions.map((a, i) => (
-                        <ActionRow
+                        <MacroActionRow
                             key={i}
                             action={a}
                             onChange={(na) => update(i, na)}

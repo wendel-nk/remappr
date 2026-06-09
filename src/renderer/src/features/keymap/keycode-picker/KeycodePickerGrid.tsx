@@ -15,6 +15,7 @@ import useUserSettingsStore from '@/stores/userSettingsStore'
 import type { CatalogEntry, KeyCatalog } from '@firmware/catalog/types'
 import type { KeycodeCodec } from '@firmware/codec'
 import KeycodeButton from './KeycodeButton.tsx'
+import { emitFromState, idToModBit, isModifierKey } from './keycodePickerUtils'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/ui/tabs'
 import { Input } from '@/ui/input'
 
@@ -42,34 +43,7 @@ interface KeycodePickerGridProps {
 
 const CONTAINER_MAX_HEIGHT = 350
 
-const KEYBOARD_PAGE = 7
-const MOD_ID_LOW = 0xe0
-const MOD_ID_HIGH = 0xe7
-
-function isModifierKey(page: number, id: number): boolean {
-    return page === KEYBOARD_PAGE && id >= MOD_ID_LOW && id <= MOD_ID_HIGH
-}
-
-function idToModBit(id: number): number {
-    return 1 << (id - MOD_ID_LOW)
-}
-
-function emitFromState(
-    base: number | undefined,
-    flags: number,
-): number | undefined {
-    if (base !== undefined) return base | (flags << 24)
-    if (flags === 0) return undefined
-    for (let i = 0; i < 8; i++) {
-        const bit = 1 << i
-        if (flags & bit) {
-            const baseHid = (KEYBOARD_PAGE << 16) | (MOD_ID_LOW + i)
-            return baseHid | ((flags & ~bit) << 24)
-        }
-    }
-    return undefined
-}
-
+// pattern-check: skip mechanical move of pure mod-bit helpers to sibling utils
 export function KeycodePickerGrid({
     value,
     onValueChanged,

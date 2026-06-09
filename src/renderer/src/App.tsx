@@ -18,7 +18,7 @@ import { DevicePreviewCapture } from '@/features/connection/DevicePreviewCapture
 import { ErrorBoundary } from '@/ui/ErrorBoundary'
 import { toast } from 'sonner'
 import { StartPage } from '@/features/connection/start-page/StartPage'
-import { FullScreenBuilder } from '@/features/builder'
+import { Builder } from '@/features/builder'
 import useBuilderStore from '@/stores/builderStore'
 import { CoachmarkTour } from '@/features/onboarding/CoachmarkTour'
 import { UpdateNotification } from '@/components/UpdateNotification'
@@ -179,7 +179,7 @@ function App(): JSX.Element {
                 <div className="flex-1 min-h-0 overflow-hidden">
                     {builderOpen ? (
                         <ErrorBoundary>
-                            <FullScreenBuilder />
+                            <Builder />
                         </ErrorBoundary>
                     ) : service ? (
                         service.capabilities.lock && !isUnlocked(lockState) ? (

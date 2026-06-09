@@ -43,60 +43,17 @@ import {
     setRowPin,
 } from './builderPins'
 import { MatrixOverlay } from './MatrixOverlay'
+import { boardBounds, computeCanvas, fullBounds } from './builderCanvasGeom'
+import { Handle } from './BuilderCanvasHandle'
 import type { CanonGeometry } from '@firmware/config'
 
-// pattern-check: skip shared zoom bounds promoted to module exports (dedupe with FullScreenBuilder)
+// pattern-check: skip shared zoom bounds promoted to module exports (dedupe with Builder)
 export const Z_MIN = 0.25
 export const Z_MAX = 4
 const GRID_U = 0.125
 const FIT_PAD = 70
 const MIN_U = 26
 const MAX_U = 110
-
-interface Bounds {
-    maxX: number
-    maxY: number
-}
-function boardBounds(keys: CanonGeometry[]): Bounds {
-    let maxX = 0
-    let maxY = 0
-    for (const k of keys) {
-        maxX = Math.max(maxX, k.x + k.w)
-        maxY = Math.max(maxY, k.y + k.h)
-    }
-    return { maxX, maxY }
-}
-
-// pattern-check: skip pure full-extent bounds helper for centering, no abstraction
-/** Full board extent (incl. min corner) — for centring the board in the canvas. */
-function fullBounds(keys: CanonGeometry[]): {
-    minX: number
-    minY: number
-    maxX: number
-    maxY: number
-} {
-    if (!keys.length) return { minX: 0, minY: 0, maxX: 0, maxY: 0 }
-    let minX = Infinity
-    let minY = Infinity
-    let maxX = -Infinity
-    let maxY = -Infinity
-    for (const k of keys) {
-        minX = Math.min(minX, k.x)
-        minY = Math.min(minY, k.y)
-        maxX = Math.max(maxX, k.x + k.w)
-        maxY = Math.max(maxY, k.y + k.h)
-    }
-    return { minX, minY, maxX, maxY }
-}
-
-/** Padded canvas extent in key-units (min 4×4 board + 1u margin). */
-function computeCanvas(keys: CanonGeometry[]): {
-    canvasW: number
-    canvasH: number
-} {
-    const { maxX, maxY } = boardBounds(keys)
-    return { canvasW: Math.max(maxX, 4) + 1, canvasH: Math.max(maxY, 4) + 1 }
-}
 
 type HandleKind = 'se' | 'e' | 's' | 'rotate'
 
@@ -895,31 +852,3 @@ function BuilderCanvasImpl(): JSX.Element {
 
 // pattern-check: skip — memo wrapper around the existing canvas component, no abstraction
 export const BuilderCanvas = memo(BuilderCanvasImpl)
-
-/** A small square resize handle. */
-function Handle({
-    cursor,
-    style,
-    onDown,
-}: {
-    kind: string
-    cursor: string
-    style: React.CSSProperties
-    onDown: (e: React.MouseEvent) => void
-}): JSX.Element {
-    return (
-        <div
-            onMouseDown={onDown}
-            className="absolute rounded-[3px]"
-            style={{
-                width: 11,
-                height: 11,
-                background: 'var(--background)',
-                border: '2px solid var(--primary)',
-                cursor,
-                zIndex: 6,
-                ...style,
-            }}
-        />
-    )
-}

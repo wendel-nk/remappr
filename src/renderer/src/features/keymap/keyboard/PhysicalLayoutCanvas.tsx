@@ -106,11 +106,17 @@ interface PhysicalLayoutCanvasProps {
         position: number,
         coords: { x: number; y: number },
     ) => void
-    pressedKeys?: Set<number>
+    pressedKeys?: ReadonlySet<number>
     /** Key Test: positions seen pressed at least once this sweep — rendered with a
      *  persistent "tested" ring, distinct from the transient pressed flash. */
-    seenKeys?: Set<number>
+    seenKeys?: ReadonlySet<number>
 }
+
+// pattern-check: skip — shared frozen empty Set for stable prop defaults, no abstraction
+// Stable default for `pressedKeys`/`seenKeys` so an omitted prop doesn't create a fresh
+// Set every render and break the `keysPositions` memo. Only ever read (`.has`), never
+// mutated, so a single shared instance is safe.
+const EMPTY_SET: ReadonlySet<number> = new Set<number>()
 
 const MIN_ZOOM = 0.4
 const MAX_ZOOM = 3.2
@@ -157,8 +163,8 @@ const PhysicalLayoutCanvasImpl = ({
     onPositionClicked,
     onEncoderClicked,
     onPositionContextMenu,
-    pressedKeys = new Set(),
-    seenKeys = new Set(),
+    pressedKeys = EMPTY_SET,
+    seenKeys = EMPTY_SET,
     ...props
 }: PhysicalLayoutCanvasProps): JSX.Element => {
     const ref = useRef<HTMLDivElement>(null)
@@ -189,20 +195,31 @@ const PhysicalLayoutCanvasImpl = ({
         'displayName'
 
     // TODO: Add a bit of padding for rotation when supported
-    const { rightMost, bottomMost } = positions.reduce(
-        (
-            acc: { rightMost: number; bottomMost: number },
-            {
-                x,
-                y,
-                width,
-                height,
-            }: { x: number; y: number; width: number; height: number },
-        ): { rightMost: number; bottomMost: number } => ({
-            rightMost: Math.max(acc.rightMost, x + width),
-            bottomMost: Math.max(acc.bottomMost, y + height),
-        }),
-        { rightMost: 0, bottomMost: 0 },
+    // Board bounds depend only on `positions`; memoized so the reduce doesn't run on
+    // every render (selection/pan/paint re-renders don't touch the geometry).
+    const { rightMost, bottomMost } = useMemo(
+        () =>
+            positions.reduce(
+                (
+                    acc: { rightMost: number; bottomMost: number },
+                    {
+                        x,
+                        y,
+                        width,
+                        height,
+                    }: {
+                        x: number
+                        y: number
+                        width: number
+                        height: number
+                    },
+                ): { rightMost: number; bottomMost: number } => ({
+                    rightMost: Math.max(acc.rightMost, x + width),
+                    bottomMost: Math.max(acc.bottomMost, y + height),
+                }),
+                { rightMost: 0, bottomMost: 0 },
+            ),
+        [positions],
     )
 
     useLayoutEffect((): (() => void) | void => {
@@ -255,8 +272,13 @@ const PhysicalLayoutCanvasImpl = ({
 
     // Pannable caps render at the fitted oneU; previews use the fixed prop.
     const effOneU = pannable ? fitU : oneU
-    const boardW = rightMost * effOneU
-    const boardH = bottomMost * effOneU
+    // Board pixel dims depend only on the bounds + fitted unit; memoized to keep the
+    // value referentially stable across unrelated re-renders (clampPan/applyTransform
+    // deps stay quiet when geometry is unchanged).
+    const { boardW, boardH } = useMemo(
+        () => ({ boardW: rightMost * effOneU, boardH: bottomMost * effOneU }),
+        [rightMost, bottomMost, effOneU],
+    )
 
     // For the pannable stage the board is already at its fitted size, so the
     // transform is just the relative zoom (1 = fitted, crisp). Previews still

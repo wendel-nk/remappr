@@ -15,35 +15,20 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Editor, { type OnMount } from '@monaco-editor/react'
 import type { editor as MonacoEditor } from 'monaco-editor'
-import { Check, Code2, Flame, Layers, RotateCcw, Search, X } from 'lucide-react'
+import { Check, Code2, Flame, Layers, RotateCcw, X } from 'lucide-react'
 import {
     buildConfigJsonSchema,
     safeParseSurface,
     serializeKeymap,
 } from '@firmware/config'
 import useConfigStore from '@/stores/configStore'
+import { useIsDark } from '@/hooks/use-dark-mode'
 import { monaco } from './monacoSetup'
+import { flattenSchema } from './jsonSchemaFlatten'
+import { SchemaReferenceTab } from './SchemaReferenceTab'
 
 const DEBOUNCE_MS = 400
 const SCHEMA_URI = 'inmemory://remappr/keymap-schema.json'
-
-/** Track the app's resolved dark/light so Monaco's theme follows it. */
-function useIsDark(): boolean {
-    const [dark, setDark] = useState(
-        () =>
-            typeof document !== 'undefined' &&
-            document.documentElement.classList.contains('dark'),
-    )
-    useEffect(() => {
-        const root = document.documentElement
-        const obs = new MutationObserver(() =>
-            setDark(root.classList.contains('dark')),
-        )
-        obs.observe(root, { attributes: true, attributeFilter: ['class'] })
-        return () => obs.disconnect()
-    }, [])
-    return dark
-}
 
 // pattern-check: skip — local typed shim over monaco 0.55's deprecated-typed
 // json defaults; runtime path unchanged, no abstraction.
@@ -80,100 +65,7 @@ function installSchema(): void {
     })
 }
 
-interface FieldRow {
-    path: string
-    depth: number
-    type: string
-    enumVals: string[] | null
-    description: string
-}
-
-type SchemaNode = Record<string, unknown>
-
-/** Derive a demo-parity type label + any enum values for a schema node:
- *  const → its literal, enum → "enum", a union → "binding" (collecting the
- *  branch discriminants), an array → "array<item>". Mirrors the prototype's
- *  schemaTypeLabel so the reference reads the same. */
-function typeOf(ps: SchemaNode): { type: string; enumVals: string[] | null } {
-    if ('const' in ps) return { type: JSON.stringify(ps.const), enumVals: null }
-    if (Array.isArray(ps.enum))
-        return { type: 'enum', enumVals: (ps.enum as unknown[]).map(String) }
-    const union = (ps.anyOf ?? ps.oneOf) as SchemaNode[] | undefined
-    if (union?.length) {
-        const branches = union.filter((b) => b.type !== 'null')
-        const enumBranch = branches.find((b) => Array.isArray(b.enum))
-        if (enumBranch && branches.length === 1)
-            return {
-                type: 'enum',
-                enumVals: (enumBranch.enum as unknown[]).map(String),
-            }
-        // A typed-action union: collect each branch's discriminant (a string
-        // branch = a bare keycode; an object branch = its `type` const).
-        const consts = branches
-            .map((b) =>
-                b.type === 'string'
-                    ? 'keycode'
-                    : (
-                          (b.properties as SchemaNode | undefined)?.type as
-                              | SchemaNode
-                              | undefined
-                      )?.const,
-            )
-            .filter(Boolean)
-            .map(String)
-        return { type: 'binding', enumVals: consts.length ? consts : null }
-    }
-    if (ps.type === 'array') {
-        const items = ps.items as SchemaNode | undefined
-        const it = items?.type as string | undefined
-        return { type: `array${it ? `<${it}>` : ''}`, enumVals: null }
-    }
-    return { type: (ps.type as string) ?? '', enumVals: null }
-}
-
-/** Flatten the JSON Schema into demo-shaped reference rows (depth-capped). Walks
- *  object properties, array-of-object items, and array-of-union (binding) items. */
-function flattenSchema(
-    node: SchemaNode,
-    prefix = '',
-    depth = 0,
-    out: FieldRow[] = [],
-): FieldRow[] {
-    if (depth > 4) return out
-    const props = node.properties as Record<string, SchemaNode> | undefined
-    if (!props) return out
-    for (const [key, ps] of Object.entries(props)) {
-        const path = prefix ? `${prefix}.${key}` : key
-        const { type, enumVals } = typeOf(ps)
-        out.push({
-            path,
-            depth,
-            type,
-            enumVals,
-            description: (ps.description as string) ?? '',
-        })
-        if (ps.properties) {
-            flattenSchema(ps, path, depth + 1, out)
-        } else if (ps.type === 'array') {
-            const items = ps.items as SchemaNode | undefined
-            if (items?.properties) {
-                flattenSchema(items, `${path}[]`, depth + 1, out)
-            } else if (items && (items.anyOf || items.oneOf)) {
-                const { type: t, enumVals: e } = typeOf(items)
-                out.push({
-                    path: `${path}[]`,
-                    depth: depth + 1,
-                    type: t,
-                    enumVals: e,
-                    description:
-                        'A keycode string, or a typed action object ({ "type": … }).',
-                })
-            }
-        }
-    }
-    return out
-}
-
+// pattern-check: skip — mechanical removal of schema walkers now in jsonSchemaFlatten.ts
 interface JsonConfigPanelProps {
     onClose: () => void
 }
@@ -440,80 +332,13 @@ export function JsonConfigPanel({
                     </div>
                 </>
             ) : (
-                <>
-                    {/* pattern-check: skip — presentational searchable options list, no logic */}
-                    <div className="border-b border-border px-3.5 py-2.5">
-                        <div className="relative">
-                            <Search
-                                size={14}
-                                className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
-                            />
-                            <input
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                                placeholder="Search config options…"
-                                className="w-full rounded-lg border border-input bg-background py-1.5 pl-8 pr-2.5 text-[12.5px] text-foreground outline-none placeholder:text-muted-foreground focus:border-primary"
-                            />
-                        </div>
-                    </div>
-                    <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3.5 pt-1.5">
-                        {fields.map((f) => {
-                            const seg =
-                                f.path.split(/[.[]/).filter(Boolean).pop() ??
-                                f.path
-                            return (
-                                <button
-                                    key={f.path}
-                                    type="button"
-                                    onClick={() => insertField(f.path)}
-                                    title={`Insert "${seg}" at cursor`}
-                                    style={{ paddingLeft: 8 + f.depth * 13 }}
-                                    className="block w-full cursor-pointer rounded-md border-b border-border/50 py-1.5 pr-2 text-left transition-colors hover:bg-accent"
-                                >
-                                    <div className="flex flex-wrap items-center gap-2">
-                                        <span className="font-mono text-[12.5px] font-bold text-foreground">
-                                            {seg}
-                                        </span>
-                                        {f.type && (
-                                            <span
-                                                className="rounded px-1.5 py-px font-mono text-[10px] font-bold"
-                                                style={{
-                                                    background:
-                                                        'color-mix(in oklch, var(--primary) 14%, var(--background))',
-                                                    color: 'var(--primary)',
-                                                }}
-                                            >
-                                                {f.type}
-                                            </span>
-                                        )}
-                                    </div>
-                                    {f.enumVals && (
-                                        <div className="mt-1 flex flex-wrap gap-1">
-                                            {f.enumVals.map((v) => (
-                                                <span
-                                                    key={v}
-                                                    className="rounded border border-border bg-secondary px-1.5 py-px font-mono text-[10.5px] text-muted-foreground"
-                                                >
-                                                    {v}
-                                                </span>
-                                            ))}
-                                        </div>
-                                    )}
-                                    {f.description && (
-                                        <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
-                                            {f.description}
-                                        </p>
-                                    )}
-                                </button>
-                            )
-                        })}
-                        {!fields.length && (
-                            <div className="px-1 py-6 text-center text-[12.5px] text-muted-foreground">
-                                No options match “{search}”.
-                            </div>
-                        )}
-                    </div>
-                </>
+                // pattern-check: skip — inline JSX swapped for extracted SchemaReferenceTab child
+                <SchemaReferenceTab
+                    search={search}
+                    setSearch={setSearch}
+                    fields={fields}
+                    insertField={insertField}
+                />
             )}
         </div>
     )

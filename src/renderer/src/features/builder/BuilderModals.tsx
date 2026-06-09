@@ -42,6 +42,74 @@ const PRESET_ICON: Record<BuilderPreset['icon'], JSX.Element> = {
     plus: <Plus size={18} />,
 }
 
+// pattern-check: skip — hoist static start-chooser data array out of render to module-scope factory, no abstraction
+type StartChoice = {
+    icon: JSX.Element
+    title: string
+    sub: string
+    onClick: () => void
+}
+
+// Hoisted out of StartModal's render: the start-chooser entries are static aside
+// from their callbacks, so build them once per call from the wired handlers.
+function startChoices(opts: {
+    apply: (keys: CanonGeometry[], opts?: ApplyPresetOpts) => void
+    onClose: () => void
+    onPreset: () => void
+    onKle: () => void
+    onImport: () => void
+    onLibrary: () => void
+}): StartChoice[] {
+    const { apply, onClose, onPreset, onKle, onImport, onLibrary } = opts
+    return [
+        {
+            icon: <Sparkles size={18} />,
+            title: 'Start from a preset',
+            sub: 'Corne, ortho, 60%, numpad, macropad…',
+            onClick: () => {
+                onClose()
+                onPreset()
+            },
+        },
+        {
+            icon: <Code2 size={18} />,
+            title: 'Import from KLE',
+            sub: 'Paste keyboard-layout-editor raw data',
+            onClick: () => {
+                onClose()
+                onKle()
+            },
+        },
+        {
+            icon: <FileX2 size={18} />,
+            title: 'Start blank',
+            sub: 'One key — build up from nothing',
+            onClick: () => {
+                apply([{ x: 0, y: 0, w: 1, h: 1, r: 0 }])
+                onClose()
+            },
+        },
+        {
+            icon: <FileJson size={18} />,
+            title: 'Import config',
+            sub: 'Load a remappr .json — file or paste',
+            onClick: () => {
+                onClose()
+                onImport()
+            },
+        },
+        {
+            icon: <Library size={18} />,
+            title: 'Load from saved builds',
+            sub: 'Reopen a board saved on this machine',
+            onClick: () => {
+                onClose()
+                onLibrary()
+            },
+        },
+    ]
+}
+
 // pattern-check: skip presentational apply-geometry hook with token→binding seeding, no abstraction
 /** Shared: apply a fresh geometry to the board + reset the transient view.
  *  `opts.firmware` preselects the firmware targets; `opts.tokens` (index-aligned
@@ -372,59 +440,16 @@ export function StartModal({
     onImport: () => void
     onLibrary: () => void
 }): JSX.Element {
+    // pattern-check: skip — swap inline render-built array for hoisted startChoices factory, no abstraction
     const apply = useApplyGeometry()
-    const choices: Array<{
-        icon: JSX.Element
-        title: string
-        sub: string
-        onClick: () => void
-    }> = [
-        {
-            icon: <Sparkles size={18} />,
-            title: 'Start from a preset',
-            sub: 'Corne, ortho, 60%, numpad, macropad…',
-            onClick: () => {
-                onClose()
-                onPreset()
-            },
-        },
-        {
-            icon: <Code2 size={18} />,
-            title: 'Import from KLE',
-            sub: 'Paste keyboard-layout-editor raw data',
-            onClick: () => {
-                onClose()
-                onKle()
-            },
-        },
-        {
-            icon: <FileX2 size={18} />,
-            title: 'Start blank',
-            sub: 'One key — build up from nothing',
-            onClick: () => {
-                apply([{ x: 0, y: 0, w: 1, h: 1, r: 0 }])
-                onClose()
-            },
-        },
-        {
-            icon: <FileJson size={18} />,
-            title: 'Import config',
-            sub: 'Load a remappr .json — file or paste',
-            onClick: () => {
-                onClose()
-                onImport()
-            },
-        },
-        {
-            icon: <Library size={18} />,
-            title: 'Load from saved builds',
-            sub: 'Reopen a board saved on this machine',
-            onClick: () => {
-                onClose()
-                onLibrary()
-            },
-        },
-    ]
+    const choices = startChoices({
+        apply,
+        onClose,
+        onPreset,
+        onKle,
+        onImport,
+        onLibrary,
+    })
     return (
         <Modal
             opened={open}

@@ -4,62 +4,12 @@
 // (SimulationPanel) and the connected-device binding (DeviceRgbControls). It only
 // knows a normalized view model (effect list + index, 0–100 sliders, 0–360 hue) —
 // never firmware bytes — so any source (sim store or device) drives the same UI.
-import {
-    Activity,
-    Ban,
-    Binary,
-    Blend,
-    Circle,
-    CloudRain,
-    Disc,
-    Disc3,
-    Droplets,
-    Fan,
-    Flame,
-    Grid3x3,
-    Layers,
-    type LucideIcon,
-    MoveHorizontal,
-    Rainbow,
-    RefreshCw,
-    Sparkles,
-    Square,
-    Tornado,
-    Waves,
-    Zap,
-} from 'lucide-react'
+import { iconFor } from './effectIcons'
+import { RgbSlider } from './RgbSlider'
+import { RgbToggle } from './RgbToggle'
 
 // hues for the swatch row (base hues; multi-hue effects ignore them).
 const HUE_SWATCHES: number[] = [25, 90, 152, 250, 286, 320]
-
-// pattern-check: skip — keyword→icon resolver, presentational helper, no abstraction
-// Resolve an effect glyph by keyword — covers every subsystem's effect names
-// (ported from the old BacklightPanel). Ordered: more specific patterns first.
-const ICON_RULES: [RegExp, LucideIcon][] = [
-    [/none|^off$/i, Ban],
-    [/per[\s-]?key/i, Grid3x3],
-    [/^mix/i, Layers],
-    [/rainbow|spectrum/i, Rainbow],
-    [/spiral|swirl/i, Tornado],
-    [/pinwheel/i, Fan],
-    [/heatmap/i, Flame],
-    [/reactive/i, Zap],
-    [/splash/i, Droplets],
-    [/rain/i, CloudRain],
-    [/beacon/i, Disc],
-    [/band/i, Disc3],
-    [/twinkle|starlight|pixel|christmas|jellybean/i, Sparkles],
-    [/digital|test/i, Binary],
-    [/wave|snake|river|flow/i, Waves],
-    [/gradient/i, Blend],
-    [/knight|alternating/i, MoveHorizontal],
-    [/cycle/i, RefreshCw],
-    [/breath/i, Activity],
-    [/solid|static|color|alphas/i, Square],
-]
-
-const iconFor = (name: string): LucideIcon =>
-    ICON_RULES.find(([re]) => re.test(name))?.[1] ?? Circle
 
 export interface RgbControlsModel {
     /** Selectable effect names in display order. */
@@ -98,64 +48,6 @@ interface Props {
     /** Optional presentation toggles (demo mode). Omit for device mode. */
     toggles?: RgbControlsToggles
     note?: string
-}
-
-function Slider({
-    label,
-    value,
-    onChange,
-    suffix = '%',
-    min = 0,
-    max = 100,
-}: {
-    label: string
-    value: number
-    onChange: (v: number) => void
-    suffix?: string
-    min?: number
-    max?: number
-}): JSX.Element {
-    return (
-        <label className="flex flex-col gap-1.5">
-            <span className="flex items-center justify-between text-[13px] font-semibold">
-                {label}
-                <span className="font-mono text-xs text-muted-foreground">
-                    {value}
-                    {suffix}
-                </span>
-            </span>
-            <input
-                type="range"
-                min={min}
-                max={max}
-                value={value}
-                onChange={(e) => onChange(Number(e.currentTarget.value))}
-                className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-secondary accent-primary"
-            />
-        </label>
-    )
-}
-
-function ToggleRow({
-    on,
-    onToggle,
-    label,
-}: {
-    on: boolean
-    onToggle: (v: boolean) => void
-    label: string
-}): JSX.Element {
-    return (
-        <label className="flex w-full cursor-pointer items-center justify-between rounded-lg border border-border bg-background px-2.5 py-2">
-            <span className="text-[13px] font-medium">{label}</span>
-            <input
-                type="checkbox"
-                checked={on}
-                onChange={(e) => onToggle(e.currentTarget.checked)}
-                className="size-4 accent-primary"
-            />
-        </label>
-    )
 }
 
 export function RgbControls({
@@ -223,7 +115,7 @@ export function RgbControls({
                         })}
                     </div>
                     <div className="mt-2">
-                        <Slider
+                        <RgbSlider
                             label="Hue"
                             value={model.hue}
                             onChange={(v) => onChange({ hue: v })}
@@ -236,20 +128,20 @@ export function RgbControls({
 
             {/* Sliders */}
             <div className="flex flex-col gap-3">
-                <Slider
+                <RgbSlider
                     label="Brightness"
                     value={model.brightness}
                     onChange={(v) => onChange({ brightness: v })}
                 />
                 {showColor && (
-                    <Slider
+                    <RgbSlider
                         label="Saturation"
                         value={model.saturation}
                         onChange={(v) => onChange({ saturation: v })}
                     />
                 )}
                 {hasSpeed && (
-                    <Slider
+                    <RgbSlider
                         label="Speed"
                         value={model.speed}
                         onChange={(v) => onChange({ speed: v })}
@@ -260,17 +152,17 @@ export function RgbControls({
             {/* Toggles (demo only) */}
             {toggles && (
                 <div className="flex flex-col gap-1.5">
-                    <ToggleRow
+                    <RgbToggle
                         on={toggles.underglow}
                         onToggle={(v) => toggles.onToggle({ underglow: v })}
                         label="RGB underglow"
                     />
-                    <ToggleRow
+                    <RgbToggle
                         on={toggles.backlight}
                         onToggle={(v) => toggles.onToggle({ backlight: v })}
                         label="Per-key backlight"
                     />
-                    <ToggleRow
+                    <RgbToggle
                         on={toggles.perKey}
                         onToggle={(v) => toggles.onToggle({ perKey: v })}
                         label="Per-key colour"
