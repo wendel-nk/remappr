@@ -9,24 +9,53 @@
 import { useMemo, useState } from 'react'
 import { Layers, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { parseKeymap } from '@firmware/config'
 import { Modal } from '@/ui/modal'
 import { Button } from '@/ui/button'
+import { MiniKeyboardPreview } from '@/features/connection/start-page/MiniKeyboardPreview'
+import type { PreviewKey } from '@/stores/devicePreviewStore'
 import useConfigStore from '@/stores/configStore'
 import {
     type BoardEntry,
     deleteBoard,
+    geometryToPreviewKeys,
     loadBoards,
     saveBoard,
 } from './builderLibrary'
 
+// pattern-check: skip presentational thumbnail; reuses MiniKeyboardPreview, no abstraction
+/** A saved board's layout silhouette for the list. Prefers the stored preview;
+ *  falls back to parsing the source for entries saved before previews existed. */
+function BuildThumb({ entry }: { entry: BoardEntry }): JSX.Element | null {
+    const keys = useMemo<PreviewKey[] | undefined>(() => {
+        if (entry.preview?.length) return entry.preview
+        try {
+            return geometryToPreviewKeys(
+                parseKeymap(entry.source).keyboard.keys,
+            )
+        } catch {
+            return undefined
+        }
+    }, [entry])
+    if (!keys?.length) return null
+    return (
+        <div className="grid h-14 w-28 shrink-0 place-items-center overflow-hidden rounded-lg border border-border bg-muted/30">
+            <MiniKeyboardPreview keys={keys} oneU={7} />
+        </div>
+    )
+}
+
 interface LibraryModalProps {
     open: boolean
     onClose: () => void
+    onBack?: () => void
 }
 
+// pattern-check: skip forward optional onBack prop to shared Modal, no abstraction
 export function LibraryModal({
     open,
     onClose,
+    onBack,
 }: LibraryModalProps): JSX.Element {
     const config = useConfigStore((s) => s.config)
     const loadFromSource = useConfigStore((s) => s.loadFromSource)
@@ -73,6 +102,7 @@ export function LibraryModal({
         <Modal
             opened={open}
             onClose={onClose}
+            onBack={onBack}
             title="Keyboard library"
             subtitle="Saved boards on this machine"
             headerIcon={<Layers />}
@@ -100,6 +130,7 @@ export function LibraryModal({
                                 key={b.id}
                                 className="flex items-center gap-3 rounded-xl border border-border bg-background p-3"
                             >
+                                <BuildThumb entry={b} />
                                 <div className="min-w-0 flex-1">
                                     <div className="truncate text-[13px] font-semibold">
                                         {b.name}

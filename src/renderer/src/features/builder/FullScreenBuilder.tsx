@@ -62,7 +62,13 @@ import {
     setSliderBinding,
 } from './builderInspectorOps'
 import { VariantBar } from './VariantBar'
-import { GridModal, KleModal, PresetModal, StartModal } from './BuilderModals'
+import {
+    GridModal,
+    ImportModal,
+    KleModal,
+    PresetModal,
+    StartModal,
+} from './BuilderModals'
 import { BuilderExportModal } from './BuilderExportModal'
 import { LibraryModal } from './LibraryModal'
 import { saveBoard } from './builderLibrary'
@@ -104,10 +110,13 @@ export function FullScreenBuilder(): JSX.Element {
     const closeBinding = useBuilderStore((s) => s.closeBinding)
     const activeLayer = useBuilderStore((s) => s.activeLayer)
     const [buildModal, setBuildModal] = useState<
-        'preset' | 'grid' | 'kle' | null
+        'preset' | 'grid' | 'kle' | 'import' | null
     >(null)
     const [exportOpen, setExportOpen] = useState(false)
     const [libraryOpen, setLibraryOpen] = useState(false)
+    // Tracks whether a build-from / library modal was reached via the start
+    // chooser — only then do those modals show a "back to start" chevron.
+    const [fromStart, setFromStart] = useState(false)
     const [settingsOpen, setSettingsOpen] = useState(false)
     // Starting-point chooser: only on a genuinely fresh open (no board yet).
     // Returning from the editor — or any reopen with a config already loaded —
@@ -115,6 +124,19 @@ export function FullScreenBuilder(): JSX.Element {
     const [startOpen, setStartOpen] = useState(
         () => !useConfigStore.getState().config,
     )
+    // Return from a secondary modal to the start chooser (back chevron).
+    const backToStart = (): void => {
+        setBuildModal(null)
+        setLibraryOpen(false)
+        setFromStart(false)
+        setStartOpen(true)
+    }
+    // Open a secondary modal from the start chooser, remembering the origin so
+    // it shows a back chevron (toolbar/panel opens won't).
+    const openFromStart = (modal: 'preset' | 'kle' | 'import'): void => {
+        setFromStart(true)
+        setBuildModal(modal)
+    }
     // First-run tour: bumping the nonce replays it from the "?" toolbar button.
     const [tourNonce, setTourNonce] = useState(0)
 
@@ -523,7 +545,11 @@ export function FullScreenBuilder(): JSX.Element {
             {/* build-from modals */}
             <PresetModal
                 open={buildModal === 'preset'}
-                onClose={() => setBuildModal(null)}
+                onClose={() => {
+                    setBuildModal(null)
+                    setFromStart(false)
+                }}
+                onBack={fromStart ? backToStart : undefined}
             />
             <GridModal
                 open={buildModal === 'grid'}
@@ -531,7 +557,19 @@ export function FullScreenBuilder(): JSX.Element {
             />
             <KleModal
                 open={buildModal === 'kle'}
-                onClose={() => setBuildModal(null)}
+                onClose={() => {
+                    setBuildModal(null)
+                    setFromStart(false)
+                }}
+                onBack={fromStart ? backToStart : undefined}
+            />
+            <ImportModal
+                open={buildModal === 'import'}
+                onClose={() => {
+                    setBuildModal(null)
+                    setFromStart(false)
+                }}
+                onBack={fromStart ? backToStart : undefined}
             />
 
             {/* export & build + library */}
@@ -541,7 +579,11 @@ export function FullScreenBuilder(): JSX.Element {
             />
             <LibraryModal
                 open={libraryOpen}
-                onClose={() => setLibraryOpen(false)}
+                onClose={() => {
+                    setLibraryOpen(false)
+                    setFromStart(false)
+                }}
+                onBack={fromStart ? backToStart : undefined}
             />
             {settingsOpen && (
                 <Settings
@@ -553,8 +595,13 @@ export function FullScreenBuilder(): JSX.Element {
             <StartModal
                 open={startOpen}
                 onClose={() => setStartOpen(false)}
-                onPreset={() => setBuildModal('preset')}
-                onKle={() => setBuildModal('kle')}
+                onPreset={() => openFromStart('preset')}
+                onKle={() => openFromStart('kle')}
+                onImport={() => openFromStart('import')}
+                onLibrary={() => {
+                    setFromStart(true)
+                    setLibraryOpen(true)
+                }}
             />
             {/* First-run guided tour — starts on the start chooser, then drives it. */}
             <BuilderCoachmarkTour

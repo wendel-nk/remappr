@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { ChevronLeft } from 'lucide-react'
 import {
     Dialog,
     DialogClose,
@@ -50,6 +51,8 @@ export interface ModernModalProps {
     headerIcon?: JSX.Element
     /** Muted one-line caption under the title in the header. */
     subtitle?: string
+    /** When set, a back chevron is shown at the header's left edge. */
+    onBack?: () => void
     description?: string
     /** Custom footer content. Overrides the default Cancel/OK footer when provided. */
     footer?: React.ReactNode
@@ -74,6 +77,7 @@ export function Modal({
     title,
     headerIcon,
     subtitle,
+    onBack,
     description,
     footer,
     children,
@@ -158,6 +162,18 @@ export function Modal({
                             : 'sr-only',
                     )}
                 >
+                    {onBack && (
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            aria-label="Back"
+                            onClick={onBack}
+                            className="-ml-1 size-8 shrink-0"
+                        >
+                            <ChevronLeft className="size-5" />
+                        </Button>
+                    )}
                     {headerIcon && (
                         <span className="grid size-9 shrink-0 place-items-center rounded-[10px] bg-primary/15 text-primary [&_svg]:size-[18px]">
                             {headerIcon}

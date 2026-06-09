@@ -6,16 +6,19 @@
 // preset / grid / KLE flows. Each one swaps the whole physical layout via
 // geometryEditor.replaceGeometry (keeps layer names, resets bindings) and resets
 // the builder's transient selection/view so the new board fits cleanly.
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import {
     Code2,
+    FileJson,
     FileX2,
     Grid3x3,
     Keyboard,
     LayoutGrid,
+    Library,
     Plus,
     Split,
     Sparkles,
+    Upload,
 } from 'lucide-react'
 import { Modal } from '@/ui/modal'
 import { Button } from '@/ui/button'
@@ -67,15 +70,18 @@ function useApplyGeometry(): (
 export function PresetModal({
     open,
     onClose,
+    onBack,
 }: {
     open: boolean
     onClose: () => void
+    onBack?: () => void
 }): JSX.Element {
     const apply = useApplyGeometry()
     return (
         <Modal
             opened={open}
             onClose={onClose}
+            onBack={onBack}
             title="Start from a preset"
             subtitle="Replaces the current board layout"
             headerIcon={<LayoutGrid />}
@@ -180,12 +186,15 @@ export function GridModal({
     )
 }
 
+// pattern-check: skip forward optional onBack prop to shared Modal, no abstraction
 export function KleModal({
     open,
     onClose,
+    onBack,
 }: {
     open: boolean
     onClose: () => void
+    onBack?: () => void
 }): JSX.Element {
     const apply = useApplyGeometry()
     const [text, setText] = useState('')
@@ -208,9 +217,11 @@ export function KleModal({
                 setError(null)
                 onClose()
             }}
+            onBack={onBack}
             title="Import from KLE"
             subtitle="keyboard-layout-editor.com raw data"
             headerIcon={<LayoutGrid />}
+            customModalBoxClass="sm:max-w-[600px]"
             footer={
                 <Button onClick={doImport} disabled={!text.trim()}>
                     Import layout
@@ -240,18 +251,126 @@ export function KleModal({
     )
 }
 
+// pattern-check: skip presentational import modal over configStore.loadFromSource, no abstraction
+/** Load a remappr keymap .json into the builder — by file upload or paste.
+ *  Routes through configStore.loadFromSource (parse+validate in one place); the
+ *  builder canvas reads configStore directly, so a successful load refreshes it. */
+// pattern-check: skip forward optional onBack prop to shared Modal, no abstraction
+export function ImportModal({
+    open,
+    onClose,
+    onBack,
+}: {
+    open: boolean
+    onClose: () => void
+    onBack?: () => void
+}): JSX.Element {
+    const loadFromSource = useConfigStore((s) => s.loadFromSource)
+    const clearSelection = useBuilderStore((s) => s.clearSelection)
+    const setActiveLayer = useBuilderStore((s) => s.setActiveLayer)
+    const resetView = useBuilderStore((s) => s.resetView)
+    const fileRef = useRef<HTMLInputElement>(null)
+    const [text, setText] = useState('')
+    const [error, setError] = useState<string | null>(null)
+
+    const doImport = (raw: string): void => {
+        if (!raw.trim()) return
+        if (!loadFromSource(raw)) {
+            setError(useConfigStore.getState().error ?? 'Invalid config.')
+            return
+        }
+        clearSelection()
+        setActiveLayer(0)
+        resetView()
+        setText('')
+        setError(null)
+        onClose()
+    }
+
+    const onFile = async (
+        e: React.ChangeEvent<HTMLInputElement>,
+    ): Promise<void> => {
+        const file = e.target.files?.[0]
+        e.target.value = '' // allow re-importing the same file
+        if (!file) return
+        doImport(await file.text())
+    }
+
+    return (
+        <Modal
+            opened={open}
+            onClose={() => {
+                setError(null)
+                onClose()
+            }}
+            onBack={onBack}
+            title="Import config"
+            subtitle="Load a remappr keymap .json"
+            headerIcon={<FileJson />}
+            showFooter={false}
+            customModalBoxClass="sm:max-w-[520px]"
+        >
+            <div className="space-y-3 py-1">
+                <Button
+                    variant="outline"
+                    onClick={() => fileRef.current?.click()}
+                    className="flex w-full items-center justify-center gap-2"
+                >
+                    <Upload className="size-4" /> Upload .json file
+                </Button>
+                <input
+                    ref={fileRef}
+                    type="file"
+                    accept=".json,.txt"
+                    className="hidden"
+                    onChange={onFile}
+                />
+                <div className="text-center text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    or paste
+                </div>
+                <textarea
+                    value={text}
+                    onChange={(e) => {
+                        setText(e.target.value)
+                        setError(null)
+                    }}
+                    placeholder={'Paste a remappr keymap .json…'}
+                    spellCheck={false}
+                    className="h-44 w-full resize-none rounded-lg border border-input bg-background p-3 font-mono text-[12px] text-foreground outline-none focus:border-primary"
+                />
+                {error && (
+                    <p className="text-[12px] font-medium text-destructive">
+                        {error}
+                    </p>
+                )}
+                <Button
+                    onClick={() => doImport(text)}
+                    disabled={!text.trim()}
+                    className="w-full"
+                >
+                    Import config
+                </Button>
+            </div>
+        </Modal>
+    )
+}
+
 /** Shown each time the builder opens: choose a starting point (preset / KLE /
- *  blank) or dismiss to keep the current board. */
+ *  blank / import / saved) or dismiss to keep the current board. */
 export function StartModal({
     open,
     onClose,
     onPreset,
     onKle,
+    onImport,
+    onLibrary,
 }: {
     open: boolean
     onClose: () => void
     onPreset: () => void
     onKle: () => void
+    onImport: () => void
+    onLibrary: () => void
 }): JSX.Element {
     const apply = useApplyGeometry()
     const choices: Array<{
@@ -285,6 +404,24 @@ export function StartModal({
             onClick: () => {
                 apply([{ x: 0, y: 0, w: 1, h: 1, r: 0 }])
                 onClose()
+            },
+        },
+        {
+            icon: <FileJson size={18} />,
+            title: 'Import config',
+            sub: 'Load a remappr .json — file or paste',
+            onClick: () => {
+                onClose()
+                onImport()
+            },
+        },
+        {
+            icon: <Library size={18} />,
+            title: 'Load from saved builds',
+            sub: 'Reopen a board saved on this machine',
+            onClick: () => {
+                onClose()
+                onLibrary()
             },
         },
     ]
