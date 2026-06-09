@@ -16,6 +16,14 @@ import { IpcChannels } from '@shared/ipc-types'
 
 const API = 'https://api.github.com'
 
+// Encode a single path identifier (owner / repo / name) before interpolating it
+// into a request path, so a value with a URL-special char can't malform the path.
+const seg = (s: string): string => encodeURIComponent(s)
+// Encode a git branch as a ref path: each slash-separated piece is encoded but the
+// slashes are kept, since GitHub's ref API treats `heads/feature/x` as a
+// multi-segment ref — so `feature/x` resolves correctly and odd chars still escape.
+const refPath = (branch: string): string => branch.split('/').map(seg).join('/')
+
 export interface BundleFile {
     /** Path within the repo, e.g. "config/board.keymap". */
     path: string
@@ -131,7 +139,7 @@ export function createGithubBuildClient(
 
     const ensureRepo: GithubBuildClient['ensureRepo'] = async (name, opts) => {
         const { login } = await getUser()
-        const res = await fetchImpl(`${API}/repos/${login}/${name}`, {
+        const res = await fetchImpl(`${API}/repos/${seg(login)}/${seg(name)}`, {
             headers,
         })
         if (res.ok) {
@@ -167,16 +175,16 @@ export function createGithubBuildClient(
     ) => {
         const ref = await req<{ object: { sha: string } }>(
             'GET',
-            `/repos/${owner}/${repo}/git/ref/heads/${branch}`,
+            `/repos/${seg(owner)}/${seg(repo)}/git/ref/heads/${refPath(branch)}`,
         )
         const baseSha = ref.object.sha
         const baseCommit = await req<{ tree: { sha: string } }>(
             'GET',
-            `/repos/${owner}/${repo}/git/commits/${baseSha}`,
+            `/repos/${seg(owner)}/${seg(repo)}/git/commits/${seg(baseSha)}`,
         )
         const tree = await req<{ sha: string }>(
             'POST',
-            `/repos/${owner}/${repo}/git/trees`,
+            `/repos/${seg(owner)}/${seg(repo)}/git/trees`,
             {
                 base_tree: baseCommit.tree.sha,
                 tree: files.map((f) => ({
@@ -189,12 +197,14 @@ export function createGithubBuildClient(
         )
         const commit = await req<{ sha: string }>(
             'POST',
-            `/repos/${owner}/${repo}/git/commits`,
+            `/repos/${seg(owner)}/${seg(repo)}/git/commits`,
             { message, tree: tree.sha, parents: [baseSha] },
         )
-        await req('PATCH', `/repos/${owner}/${repo}/git/refs/heads/${branch}`, {
-            sha: commit.sha,
-        })
+        await req(
+            'PATCH',
+            `/repos/${seg(owner)}/${seg(repo)}/git/refs/heads/${refPath(branch)}`,
+            { sha: commit.sha },
+        )
         return { commitSha: commit.sha }
     }
 
@@ -216,7 +226,7 @@ export function createGithubBuildClient(
                 conclusion: string | null
                 html_url: string
             }[]
-        }>('GET', `/repos/${owner}/${repo}/actions/runs${query}`)
+        }>('GET', `/repos/${seg(owner)}/${seg(repo)}/actions/runs${query}`)
         const run = res.workflow_runs[0]
         if (!run) return null
         return {
@@ -238,7 +248,10 @@ export function createGithubBuildClient(
                 name: string
                 archive_download_url: string
             }[]
-        }>('GET', `/repos/${owner}/${repo}/actions/runs/${runId}/artifacts`)
+        }>(
+            'GET',
+            `/repos/${seg(owner)}/${seg(repo)}/actions/runs/${runId}/artifacts`,
+        )
         return res.artifacts.map((a) => ({
             id: a.id,
             name: a.name,

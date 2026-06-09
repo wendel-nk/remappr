@@ -16,6 +16,7 @@ import {
     zmkSplitShields,
     type ZmkSplitShields,
 } from './controller'
+import { dtsString } from './compilers/zmk/maps'
 import { buildQmkKeyboardJson } from './compilers/qmkKeyboardJson'
 import { buildViaJson } from './compilers/viaJson'
 import { buildVialJson } from './compilers/vialJson'
@@ -91,7 +92,7 @@ const kconfigDefconfig = (SHIELD: string, name: string): string =>
         `if SHIELD_${SHIELD}`,
         ``,
         `config ZMK_KEYBOARD_NAME`,
-        `\tdefault "${name.slice(0, 16)}"`,
+        `\tdefault "${dtsString(name.slice(0, 16))}"`,
         ``,
         `endif # SHIELD_${SHIELD}`,
         ``,
@@ -202,7 +203,7 @@ const kconfigDefconfigSplit = (s: ZmkSplitShields, name: string): string =>
         `if SHIELD_${s.left.toUpperCase()}`,
         ``,
         `config ZMK_KEYBOARD_NAME`,
-        `\tdefault "${name.slice(0, 16)}"`,
+        `\tdefault "${dtsString(name.slice(0, 16))}"`,
         ``,
         `config ZMK_SPLIT_ROLE_CENTRAL`,
         `\tdefault y`,

@@ -59,6 +59,17 @@ export const SCRL: Record<string, string> = {
 export const sanitize = (id: string): string =>
     id.replace(/[^a-zA-Z0-9_]/g, '_')
 
+// Escape a string for safe interpolation inside a double-quoted devicetree /
+// Kconfig value (display-name, ZMK_KEYBOARD_NAME, …). Devicetree string literals
+// have no escape for a raw `"`, so an un-escaped quote (e.g. a layer named
+// `My "Fn"`) produces malformed DTS that fails the firmware build. Strip control
+// chars, then escape backslash before quote.
+export const dtsString = (s: string): string =>
+    Array.from(s, (ch) => (ch.charCodeAt(0) < 0x20 ? ' ' : ch))
+        .join('')
+        .replace(/\\/g, '\\\\')
+        .replace(/"/g, '\\"')
+
 // ZMK modifier bitmask flags (dt-bindings/zmk/modifiers.h) for mod-morph `mods`.
 const MOD_FLAG: Record<Modifier, string> = {
     LEFT_CTRL: 'MOD_LCTL',

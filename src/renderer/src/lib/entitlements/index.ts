@@ -14,6 +14,7 @@ export {
     getBuilderStage,
     isBuilderFree,
     hasBuilderAccess,
+    LICENSE_CHANGE_EVENT,
 } from './entitlements'
 // `usePremium` is a React hook — it lives in hooks/use-premium.ts (lib/ is
 // pure-logic only). Import it from '@/hooks/use-premium'.

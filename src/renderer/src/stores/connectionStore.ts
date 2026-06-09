@@ -95,6 +95,13 @@ const useConnectionStore = create<ConnectionState>()(
                     })
                 }
                 set({ service, communication: communication ?? null })
+                // Guard against stale async writes: if the user disconnects or
+                // connects a different device before any of the awaited reads
+                // below resolve, the resolved value belongs to the PREVIOUS
+                // service and must not overwrite the current store (e.g. the old
+                // device's keyCatalog/config clobbering the new one, or undoing a
+                // reset). Every async callback re-checks the live service first.
+                const isCurrent = (): boolean => get().service === service
                 // Diagnostics: which adapter connected + which facades attached.
                 if (service)
                     console.info('[connect] service', {
@@ -130,7 +137,9 @@ const useConnectionStore = create<ConnectionState>()(
                         useLayerSelectionStore.getState().setSelectedLayerIndex
                     service.layerControl
                         .getDefaultLayer()
-                        .then((n) => setLayer(n))
+                        .then((n) => {
+                            if (isCurrent()) setLayer(n)
+                        })
                         .catch((err) =>
                             console.warn('getDefaultLayer failed', err),
                         )
@@ -140,10 +149,12 @@ const useConnectionStore = create<ConnectionState>()(
                 if (service?.listKeyCatalog) {
                     service
                         .listKeyCatalog()
-                        .then((catalog) => set({ keyCatalog: catalog }))
+                        .then((catalog) => {
+                            if (isCurrent()) set({ keyCatalog: catalog })
+                        })
                         .catch((err) => {
                             console.warn('listKeyCatalog failed', err)
-                            set({ keyCatalog: null })
+                            if (isCurrent()) set({ keyCatalog: null })
                         })
                 } else {
                     set({ keyCatalog: null })
@@ -159,13 +170,14 @@ const useConnectionStore = create<ConnectionState>()(
                     service
                         .getConfigSource()
                         .then((src) => {
+                            if (!isCurrent()) return
                             if (src)
                                 useConfigStore.getState().loadFromSource(src)
                             else useConfigStore.getState().reset()
                         })
                         .catch((err) => {
                             console.warn('getConfigSource failed', err)
-                            useConfigStore.getState().reset()
+                            if (isCurrent()) useConfigStore.getState().reset()
                         })
                 } else {
                     useConfigStore.getState().reset()

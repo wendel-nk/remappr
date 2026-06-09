@@ -11,7 +11,7 @@ import type { DiagnosticBag } from '../../diagnostics'
 import { resolveController, zmkSplitShields } from '../../controller'
 import { deriveMatrix, matrixSplit } from '../../matrix'
 import type { ConfigKeymap } from '../../types'
-import { sanitize } from './maps'
+import { dtsString, sanitize } from './maps'
 import {
     emitBacklightPwm,
     emitChosen,
@@ -210,7 +210,7 @@ export function emitOverlay(
         ...(chosen.length ? [...chosen, ``] : []),
         `    physical_layout_default: physical_layout_default {`,
         `        compatible = "zmk,physical-layout";`,
-        `        display-name = "${config.keyboard.name}";`,
+        `        display-name = "${dtsString(config.keyboard.name)}";`,
         `        transform = <&${transform.label}>;`,
         `        keys`,
         ...keyLines,
@@ -251,6 +251,15 @@ export function emitSplitOverlay(
     const L = left.columns
     const hw = config.keyboard.hardware
     const board = resolveController(config).board
+
+    // Honor the builder's diode direction on the split path too (the unibody
+    // emitKscan already does). Forcing col2row on a row2col board emits a wrong
+    // kscan that won't register keys. The pin roles flip with the direction:
+    // col2row → rows are inputs / cols outputs; row2col → rows outputs / cols inputs.
+    const diodeDirection =
+        hw?.kscan?.type === 'matrix' ? hw.kscan.diodeDirection : 'col2row'
+    const rowRole = diodeDirection === 'col2row' ? 'input' : 'output'
+    const colRole = diodeDirection === 'col2row' ? 'output' : 'input'
 
     // Unified transform from the SAME derivation as the split groups, so the
     // right half's col-offset (= left column count) lines up with the map.
@@ -301,9 +310,9 @@ export function emitSplitOverlay(
         `    kscan0: kscan {`,
         `        compatible = "zmk,kscan-gpio-matrix";`,
         `        wakeup-source;`,
-        `        /* diode-direction assumed "col2row" — verify against your wiring. */`,
-        `        diode-direction = "col2row";`,
-        ...resolvedGpioListProp('row-gpios', rowLabels, board, 'input', diag),
+        `        /* diode-direction from the builder — verify against your wiring. */`,
+        `        diode-direction = "${diodeDirection}";`,
+        ...resolvedGpioListProp('row-gpios', rowLabels, board, rowRole, diag),
         `        /* col-gpios set per half in ${split.left}.overlay / ${split.right}.overlay */`,
         `    };`,
     ]
@@ -347,7 +356,7 @@ export function emitSplitOverlay(
         ...(chosen.length ? [...chosen, ``] : []),
         `    physical_layout_default: physical_layout_default {`,
         `        compatible = "zmk,physical-layout";`,
-        `        display-name = "${config.keyboard.name}";`,
+        `        display-name = "${dtsString(config.keyboard.name)}";`,
         `        transform = <&${transformLabel}>;`,
         `        keys`,
         ...keyLines,
@@ -379,7 +388,7 @@ export function emitSplitOverlay(
         `#include "${split.base}.dtsi"`,
         ``,
         `&kscan0 {`,
-        ...resolvedGpioListProp('col-gpios', leftCols, board, 'output', diag),
+        ...resolvedGpioListProp('col-gpios', leftCols, board, colRole, diag),
         `};`,
         ``,
     ]
@@ -393,7 +402,7 @@ export function emitSplitOverlay(
         `};`,
         ``,
         `&kscan0 {`,
-        ...resolvedGpioListProp('col-gpios', rightCols, board, 'output', diag),
+        ...resolvedGpioListProp('col-gpios', rightCols, board, colRole, diag),
         `};`,
         ``,
     ]

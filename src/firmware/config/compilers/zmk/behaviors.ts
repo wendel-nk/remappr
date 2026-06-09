@@ -291,9 +291,25 @@ export function emitTapDances(tds: CanonTapDance[], ctx: Ctx): string[] {
                 ['tapDances'],
             )
         }
-        const bindings = [...td.taps]
-            .sort((a, b) => a.count - b.count)
-            .map((t) => `<${emitBinding(t.action, ctx, ['tapDances'])}>`)
+        // ZMK reads tap-dance bindings POSITIONALLY (1st = 1 tap, 2nd = 2 taps,
+        // …). A gap in the tap counts (e.g. [1, 3] with no 2) silently shifts the
+        // higher action down a tap — the 3-tap binding would fire on 2 taps. Warn
+        // when the counts aren't the contiguous 1..N ZMK assumes.
+        const sortedTaps = [...td.taps].sort((a, b) => a.count - b.count)
+        if (sortedTaps.some((t, i) => t.count !== i + 1)) {
+            ctx.diag.warn(
+                `tap-dance "${td.id}" tap counts [${sortedTaps
+                    .map((t) => t.count)
+                    .join(
+                        ', ',
+                    )}] are not contiguous from 1 — ZMK indexes bindings ` +
+                    `by position, so a gap shifts the later actions to a lower tap count`,
+                ['tapDances'],
+            )
+        }
+        const bindings = sortedTaps.map(
+            (t) => `<${emitBinding(t.action, ctx, ['tapDances'])}>`,
+        )
         out.push(`        ${sanitize(td.id)}: ${sanitize(td.id)} {`)
         out.push(`            compatible = "zmk,behavior-tap-dance";`)
         out.push(`            #binding-cells = <0>;`)

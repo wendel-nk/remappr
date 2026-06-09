@@ -25,7 +25,7 @@ import {
     emitTapDances,
 } from './behaviors'
 import { emitOverlay, emitSplitOverlay } from './overlay'
-import { sanitize } from './maps'
+import { dtsString, sanitize } from './maps'
 
 function emitKeymap(config: ConfigKeymap, diag: DiagnosticBag): ExportedFile[] {
     const ctx: Ctx = {
@@ -128,7 +128,7 @@ function emitKeymap(config: ConfigKeymap, diag: DiagnosticBag): ExportedFile[] {
             wrapped.push('                ' + cells.slice(i, i + 6).join(' '))
         }
         lines.push(`        layer_${sanitize(layer.name)} {`)
-        lines.push(`            display-name = "${layer.name}";`)
+        lines.push(`            display-name = "${dtsString(layer.name)}";`)
         lines.push(`            bindings = <`)
         lines.push(wrapped.join('\n'))
         lines.push(`            >;`)

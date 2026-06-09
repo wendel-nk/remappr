@@ -10,6 +10,10 @@
 
 const LICENSE_STORAGE_KEY = 'remappr.licenseKey'
 
+/** Dispatched on the window when the local license key changes, so hooks in the
+ *  SAME tab re-evaluate (the `storage` event only fires in OTHER tabs). */
+export const LICENSE_CHANGE_EVENT = 'remappr:license-change'
+
 // Pattern check: no GoF pattern (-) — rejected — string-literal stage flag plus
 // pure predicates over the existing entitlement stub; no abstraction warranted.
 
@@ -79,6 +83,7 @@ export function getLicenseKey(): string | null {
     }
 }
 
+// pattern-check: skip — add same-tab change notification to existing setter
 /** Persist (or clear, when `null`) the local license key. */
 export function setLicenseKey(key: string | null): void {
     try {
@@ -87,6 +92,10 @@ export function setLicenseKey(key: string | null): void {
     } catch {
         /* storage unavailable — non-fatal, stays locked */
     }
+    // localStorage's `storage` event only fires in OTHER tabs, so the tab that
+    // called this would not re-evaluate until remount. Notify same-tab listeners.
+    if (typeof window !== 'undefined')
+        window.dispatchEvent(new Event(LICENSE_CHANGE_EVENT))
 }
 
 /** Whether a key matches the accepted fingerprint. */

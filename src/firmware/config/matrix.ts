@@ -180,8 +180,23 @@ export function matrixDims(config: ConfigKeymap): {
  *  falls back to the kscan's, then `col2row`; mode defaults to `matrix`. */
 export function materializeMatrix(config: ConfigKeymap): ConfigKeymap {
     const resolved = resolveKeyMatrix(config)
-    let rows = 0
-    let cols = 0
+    // Floor the stamped dimensions to the same sources matrixDims() uses — the
+    // board descriptor, a legacy transform, and the friendly pin-label counts —
+    // not just per-key usage. A board can declare unused rows/cols (added via the
+    // overlay "+" before any key is wired to them); stamping usage-only would make
+    // keyboard.matrix under-count relative to the pin arrays the VIA/QMK emitters
+    // also read, so VIA's matrix would disagree with the firmware's MATRIX_ROWS/COLS.
+    const kb = config.keyboard
+    let rows = Math.max(
+        kb.matrix?.rows ?? 0,
+        kb.hardware?.transform?.rows ?? 0,
+        kb.pins?.rows?.length ?? 0,
+    )
+    let cols = Math.max(
+        kb.matrix?.cols ?? 0,
+        kb.hardware?.transform?.columns ?? 0,
+        kb.pins?.cols?.length ?? 0,
+    )
     for (const [r, c] of resolved) {
         rows = Math.max(rows, r + 1)
         cols = Math.max(cols, c + 1)
