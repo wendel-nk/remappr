@@ -78,8 +78,8 @@ export function SnapSeg({
     onChange: (v: SnapMode) => void
 }): JSX.Element {
     const opts: Array<{ v: SnapMode; label: string; icon: React.ReactNode }> = [
-        { v: 'grid', label: 'Snap grid', icon: <Magnet size={14} /> },
-        { v: 'free', label: 'Free form', icon: <Move size={14} /> },
+        { v: 'grid', label: 'Snap to grid', icon: <Magnet size={16} /> },
+        { v: 'free', label: 'Free form', icon: <Move size={16} /> },
     ]
     return (
         <div
@@ -87,19 +87,24 @@ export function SnapSeg({
             style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
         >
             {opts.map((o) => (
-                <button
-                    key={o.v}
-                    type="button"
-                    onClick={() => onChange(o.v)}
-                    className={`inline-flex h-7 items-center gap-1.5 rounded-md px-[11px] text-[12.5px] font-bold transition-colors ${
-                        o.v === value
-                            ? 'bg-primary text-primary-foreground'
-                            : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                >
-                    {o.icon}
-                    {o.label}
-                </button>
+                <Tooltip key={o.v}>
+                    <TooltipTrigger asChild>
+                        <button
+                            type="button"
+                            onClick={() => onChange(o.v)}
+                            aria-label={o.label}
+                            aria-pressed={o.v === value}
+                            className={`inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors ${
+                                o.v === value
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'text-muted-foreground hover:text-foreground'
+                            }`}
+                        >
+                            {o.icon}
+                        </button>
+                    </TooltipTrigger>
+                    <TooltipContent>{o.label}</TooltipContent>
+                </Tooltip>
             ))}
         </div>
     )

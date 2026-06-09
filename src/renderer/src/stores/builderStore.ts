@@ -70,8 +70,15 @@ interface BuilderState {
     pending: ConfigKeymap | null
     /** The key/slot the binding picker is editing, or null when it's closed. */
     binding: BindingTarget | null
+    /** True while the editor was reached via the builder's "Editor" handoff, so
+     *  the editor can offer a "back to Builder" affordance. Cleared on return,
+     *  on a fresh builder open, and on disconnect. */
+    cameFromBuilder: boolean
 
     setOpen: (open: boolean) => void
+    /** Re-open the builder from the editor (the back-to-Builder button). */
+    returnToBuilder: () => void
+    setCameFromBuilder: (value: boolean) => void
     openBinding: (target: BindingTarget) => void
     closeBinding: () => void
     setSelection: (selection: Set<number>) => void
@@ -127,13 +134,18 @@ const useBuilderStore = create<BuilderState>()(
         future: [],
         pending: null,
         binding: null,
+        cameFromBuilder: false,
 
+        // Reset the ephemeral workspace (selection / view / history) on OPEN, not
+        // close — so the builder→editor→builder round-trip (openInEditor closes
+        // without reset, returnToBuilder reopens directly) keeps the prior view,
+        // while a fresh open from the start page still starts clean.
         setOpen: (open) =>
             set(
                 open
-                    ? { open }
-                    : {
+                    ? {
                           open,
+                          cameFromBuilder: false,
                           selection: new Set<number>(),
                           activeLayer: 0,
                           activeVariant: '',
@@ -144,8 +156,11 @@ const useBuilderStore = create<BuilderState>()(
                           future: [],
                           pending: null,
                           binding: null,
-                      },
+                      }
+                    : { open },
             ),
+        returnToBuilder: () => set({ open: true, cameFromBuilder: false }),
+        setCameFromBuilder: (cameFromBuilder) => set({ cameFromBuilder }),
         openBinding: (binding) => set({ binding }),
         closeBinding: () => set({ binding: null }),
         setSelection: (selection) => set({ selection }),
@@ -226,7 +241,11 @@ const useBuilderStore = create<BuilderState>()(
             })
             conn.setDeviceName(service.deviceInfo.name)
             conn.setService(service)
-            get().setOpen(false)
+            // Close the builder WITHOUT resetting its workspace (selection / view /
+            // history survive in the store) so returnToBuilder restores it. Only
+            // drop the open binding-picker. cameFromBuilder gates the editor's
+            // "back to Builder" button.
+            set({ open: false, cameFromBuilder: true, binding: null })
         },
     })),
 )

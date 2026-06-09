@@ -8,6 +8,7 @@ export const FEATURE_PROBES = {
     encoders: (s) => s.encoders,
     dynamic: (s) => s.dynamic,
     macros: (s) => s.macros,
+    keyTest: (s) => s.keyTest,
     wireless: (s) => s.wireless,
     rgb: (s) => s.rgb,
     advanced: (s) => s.advanced,

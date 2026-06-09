@@ -45,3 +45,7 @@ package-lock.json
 
 .trae
 .claude/
+
+# VitePress docs build + cache
+docs/.vitepress/dist/
+docs/.vitepress/cache/

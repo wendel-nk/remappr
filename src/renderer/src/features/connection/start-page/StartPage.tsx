@@ -8,10 +8,14 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/ui/tooltip'
 import { GitHubIcon } from '@/components/GitHubIcon'
 import { DiscordIcon } from '@/components/DiscordIcon'
 import { DownloadLatestButton } from '@/components/DownloadLatestButton'
-import { APP_VERSION, DISCORD_URL, REPO_URL } from '@/lib/constants'
+import { APP_VERSION, DISCORD_URL, DOCS_URL, REPO_URL } from '@/lib/constants'
 import { LicenseNoticeModal } from '@/components/modals/LicenseNoticeModal'
 import { Settings } from '@/components/modals/Settings'
+import { WindowControls } from '@/layout/WindowControls'
 import { useConnection } from '@/hooks/use-connection'
+
+const DRAG_REGION = { WebkitAppRegion: 'drag' } as React.CSSProperties
+const NO_DRAG = { WebkitAppRegion: 'no-drag' } as React.CSSProperties
 
 import { ConnectionStatusBanner } from './ConnectionStatusBanner'
 import { ConfigReadyBanner } from './ConfigReadyBanner'
@@ -61,8 +65,11 @@ export function StartPage({
             />
 
             {/* header */}
-            <header className="relative z-[2] flex items-center justify-between px-7 py-5">
-                <div className="flex items-center gap-3">
+            <header
+                className="relative z-[2] flex select-none items-center justify-between py-5 pl-7 pr-2"
+                style={DRAG_REGION}
+            >
+                <div className="flex items-center gap-3" style={NO_DRAG}>
                     <span
                         className="grid size-[38px] place-items-center rounded-xl text-white"
                         style={{
@@ -81,7 +88,7 @@ export function StartPage({
                         </span>
                     </div>
                 </div>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1" style={NO_DRAG}>
                     <Settings />
                     <a
                         href={REPO_URL}
@@ -103,14 +110,25 @@ export function StartPage({
                     </a>
                     <Tooltip>
                         <TooltipTrigger asChild>
-                            <span className="inline-flex h-9 w-9 cursor-not-allowed items-center justify-center rounded-md text-muted-foreground/50">
+                            <a
+                                href={DOCS_URL}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                aria-label="Open the documentation"
+                                className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+                            >
                                 <BookOpen className="h-5 w-5" />
-                            </span>
+                            </a>
                         </TooltipTrigger>
                         <TooltipContent>
-                            <p>Documentation — coming soon</p>
+                            <p>Documentation</p>
                         </TooltipContent>
                     </Tooltip>
+                    {/* native window controls (Electron, non-mac) merged into
+                        the bar so the start page is a single top bar. */}
+                    <div className="ml-1 flex h-9 items-stretch">
+                        <WindowControls />
+                    </div>
                 </div>
             </header>
 

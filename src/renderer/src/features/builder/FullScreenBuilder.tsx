@@ -33,6 +33,7 @@ import { toast } from 'sonner'
 import useBuilderStore from '@/stores/builderStore'
 import { useBuilderStage } from '@/hooks/use-premium'
 import useConfigStore from '@/stores/configStore'
+import useConnectionStore from '@/stores/connectionStore'
 import {
     addKey,
     duplicateKeys,
@@ -68,6 +69,7 @@ import { saveBoard } from './builderLibrary'
 import { JsonConfigPanel } from './JsonConfigPanel'
 import { BuilderCoachmarkTour } from './BuilderCoachmarkTour'
 import { Settings } from '@/components/modals/Settings'
+import { WindowControls } from '@/layout/WindowControls'
 
 // Hoisted: stable refs for the Electron title-bar drag regions (an inline object would
 // be a fresh ref each render).
@@ -107,8 +109,12 @@ export function FullScreenBuilder(): JSX.Element {
     const [exportOpen, setExportOpen] = useState(false)
     const [libraryOpen, setLibraryOpen] = useState(false)
     const [settingsOpen, setSettingsOpen] = useState(false)
-    // Starting-point chooser, shown once each time the builder is opened.
-    const [startOpen, setStartOpen] = useState(true)
+    // Starting-point chooser: only on a genuinely fresh open (no board yet).
+    // Returning from the editor — or any reopen with a config already loaded —
+    // skips it so the user lands back on their existing board.
+    const [startOpen, setStartOpen] = useState(
+        () => !useConfigStore.getState().config,
+    )
     // First-run tour: bumping the nonce replays it from the "?" toolbar button.
     const [tourNonce, setTourNonce] = useState(0)
 
@@ -116,6 +122,22 @@ export function FullScreenBuilder(): JSX.Element {
         if (!config) return
         saveBoard(config)
         toast.success(`Saved "${config.meta.name}" to your library`)
+    }
+
+    // Exit (top-left Back) → start page. If a demo service is still attached from
+    // an earlier "Open in editor" handoff, tear it down first; otherwise App would
+    // fall through to the editor (builderOpen=false + service) instead.
+    const handleExitBuilder = (): void => {
+        const conn = useConnectionStore.getState()
+        const svc = conn.service
+        if (svc?.deviceInfo.firmware === 'mock') {
+            // Clear the store synchronously (so App lands on the start page this
+            // render, no editor flash), then best-effort close the mock.
+            conn.setService(null)
+            conn.setDeviceName(null)
+            void svc.disconnect()
+        }
+        setOpen(false)
     }
 
     // Seed a complete default board (the showcase preset) the first time the
@@ -219,11 +241,11 @@ export function FullScreenBuilder(): JSX.Element {
         <div className="flex h-full flex-col bg-background">
             {/* ===== toolbar ===== */}
             <header
-                className="relative z-30 flex h-[52px] shrink-0 items-center justify-between border-b border-border bg-card px-3"
+                className="relative z-30 flex h-[52px] shrink-0 items-center border-b border-border bg-card pl-3"
                 style={DRAG_REGION}
             >
                 <div className="flex items-center gap-2">
-                    <ToolButton label="Back" onClick={() => setOpen(false)}>
+                    <ToolButton label="Back" onClick={handleExitBuilder}>
                         <ArrowLeft size={17} />
                     </ToolButton>
                     <ToolButton
@@ -261,7 +283,10 @@ export function FullScreenBuilder(): JSX.Element {
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                {/* draggable spacer */}
+                <div className="h-full flex-1" />
+
+                <div className="flex items-center gap-2 pr-2">
                     <SnapSeg value={snapMode} onChange={setSnapMode} />
                     <ToolButton
                         label={snapping ? 'Snapping on' : 'Snapping off'}
@@ -312,15 +337,13 @@ export function FullScreenBuilder(): JSX.Element {
                     >
                         <Settings2 size={18} />
                     </ToolButton>
-                    <button
-                        type="button"
+                    <ToolButton
+                        label="Save to library"
                         onClick={handleSave}
                         disabled={!config}
-                        className="inline-flex h-[34px] items-center gap-1.5 rounded-lg border border-border bg-secondary px-3 text-[13px] font-semibold text-secondary-foreground transition-colors hover:border-primary disabled:opacity-40"
-                        style={NO_DRAG_REGION}
                     >
-                        <Save size={14} /> Save
-                    </button>
+                        <Save size={18} />
+                    </ToolButton>
                     <button
                         type="button"
                         onClick={openInEditor}
@@ -341,6 +364,9 @@ export function FullScreenBuilder(): JSX.Element {
                         <Rocket size={15} /> Export &amp; build
                     </button>
                 </div>
+
+                {/* native window controls (Electron, non-mac) merged into the bar */}
+                <WindowControls />
             </header>
 
             {/* ===== body ===== */}

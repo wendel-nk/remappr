@@ -8,7 +8,9 @@ import type { LockState } from '@firmware/types'
 import useDynamicCatalogStore from '@/stores/dynamicCatalogStore'
 import useConfigStore from '@/stores/configStore'
 import useLayerSelectionStore from '@/stores/layerSelectionStore'
+import useKeymapStore from '@/stores/keymapStore'
 import useLightingCatalogStore from '@/stores/lightingCatalogStore'
+import { createOsBackedKeyTest } from '@/features/keymap/keyboard/stage/osBackedKeyTest'
 import { cacheKey, loadCached } from '@firmware/qmk/layoutSideload'
 import { parseLightingMenu } from '@firmware/via/lightingMenu'
 
@@ -69,6 +71,29 @@ const useConnectionStore = create<ConnectionState>()(
             connectionAbort: new AbortController(),
             lastConnectedDevice: null,
             setService: (service, communication) => {
+                // The deviceless mock has no switch matrix, so give it an
+                // OS-event-backed keyTest facade — Key Test then works in demo
+                // through the same path real hardware would, and the Header gate
+                // (service.keyTest) shows the button only here, not on firmwares
+                // that lack a matrix channel.
+                if (
+                    service &&
+                    service.deviceInfo.firmware === 'mock' &&
+                    !service.keyTest
+                ) {
+                    service.keyTest = createOsBackedKeyTest(() => {
+                        const keymap = useKeymapStore.getState().keymap
+                        if (!keymap) return null
+                        return {
+                            layouts: keymap.layouts,
+                            keymap,
+                            selectedLayerIndex:
+                                useLayerSelectionStore.getState()
+                                    .selectedLayerIndex,
+                            selectedPhysicalLayoutIndex: keymap.activeLayoutId,
+                        }
+                    })
+                }
                 set({ service, communication: communication ?? null })
                 // Diagnostics: which adapter connected + which facades attached.
                 if (service)

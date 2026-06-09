@@ -17,6 +17,7 @@ import useConnectionStore from '@/stores/connectionStore'
 import useConfigStore from '@/stores/configStore'
 import { downloadExports, exportedContentToString } from '@/lib/blob'
 import { type Target, resolveAllowedTargets } from '@firmware/config'
+import { connectMockWithConfig } from '@firmware'
 import { createLogger } from '@shared/logger'
 import { ExportPanel } from './ExportPanel'
 
@@ -81,8 +82,27 @@ export function Download({ opened, onClose }: DownloadProps): JSX.Element {
         e.target.value = '' // allow re-importing the same file
         if (!file) return
         const text = await file.text()
-        if (loadFromSource(text)) toast.success(`Imported ${file.name}`)
-        else toast.error('Invalid config — see error below')
+        if (!loadFromSource(text)) {
+            toast.error('Invalid config — see error below')
+            return
+        }
+        toast.success(`Imported ${file.name}`)
+        // In demo mode the displayed keyboard comes from the mock service, not
+        // configStore — so a bare import wouldn't change what's on screen. Rebuild
+        // the mock from the imported config (mirrors the demo-connect lifecycle)
+        // so the user sees the board they just loaded, no disconnect needed.
+        const conn = useConnectionStore.getState()
+        const cfg = useConfigStore.getState().config
+        if (cfg && conn.service?.deviceInfo.firmware === 'mock') {
+            const next = connectMockWithConfig(cfg)
+            next.onClosed((): void => {
+                useConnectionStore.getState().setDeviceName(null)
+                useConnectionStore.getState().setService(null)
+            })
+            conn.setDeviceName(next.deviceInfo.name)
+            conn.setService(next)
+            onClose?.()
+        }
     }
 
     const triggerImport = (): void => fileInputRef.current?.click()

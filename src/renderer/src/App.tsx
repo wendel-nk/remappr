@@ -62,6 +62,9 @@ function App(): JSX.Element {
         if (!service) {
             reset()
             setLockState('locked')
+            // Disconnecting (or closing the demo) ends any builder→editor session,
+            // so a subsequently connected real device shows no "back to Builder".
+            useBuilderStore.getState().setCameFromBuilder(false)
             return
         }
         updateLockState()
@@ -168,10 +171,11 @@ function App(): JSX.Element {
     return (
         <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
             <div className="flex h-screen flex-col overflow-hidden">
-                {/* The editor and the full-screen builder both own a 52px header
-                    with their own drag region; elsewhere (start page / locked
-                    overlay) we still need a standalone drag bar. */}
-                {!showEditor && !builderOpen && <TitleBar />}
+                {/* The editor, the full-screen builder, and the start page each
+                    own a header with an inline drag region + window controls;
+                    only the locked overlay (service present but locked) still
+                    needs the standalone drag bar. */}
+                {!showEditor && !builderOpen && !!service && <TitleBar />}
                 <div className="flex-1 min-h-0 overflow-hidden">
                     {builderOpen ? (
                         <ErrorBoundary>
