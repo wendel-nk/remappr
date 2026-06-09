@@ -108,6 +108,59 @@ export function Download({ opened, onClose }: DownloadProps): JSX.Element {
     const triggerImport = (): void => fileInputRef.current?.click()
     const firmwareLabel = (fw ?? '').toUpperCase() || 'firmware'
 
+    // pattern-check: skip presentational reorder into header/topActions slots
+    // Keyboard name + details — rendered at the top of the export body.
+    const statusBlock = (
+        <div className="flex items-center gap-3 rounded-xl border bg-background p-4">
+            <span
+                data-ready={!!config || !!service}
+                className="size-2 shrink-0 rounded-full bg-muted-foreground data-[ready=true]:bg-emerald-500 data-[ready=true]:shadow-[0_0_8px] data-[ready=true]:shadow-emerald-500/60"
+            />
+            <div className="flex-1">
+                <div className="text-[13px] font-semibold">
+                    {config
+                        ? config.meta.name
+                        : service
+                          ? service.deviceInfo.name
+                          : 'No config loaded'}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                    {config
+                        ? `${config.layers.length} layer${
+                              config.layers.length === 1 ? '' : 's'
+                          } · source of truth`
+                        : service
+                          ? `${firmwareLabel} device · native export`
+                          : 'Connect a keyboard or import a .json config'}
+                </div>
+            </div>
+            {(config || service) && (
+                <FileText className="size-4 text-emerald-500" />
+            )}
+        </div>
+    )
+
+    // Import button (+ hidden file input) — shared by both branches.
+    const importButton = (
+        <>
+            <Button
+                onClick={triggerImport}
+                variant="outline"
+                className="flex items-center gap-2"
+            >
+                <Upload className="h-4 w-4" />
+                Import .json
+            </Button>
+            <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json,.txt"
+                className="hidden"
+                onChange={handleImportSource}
+            />
+        </>
+    )
+
     return (
         <Modal
             opened={opened}
@@ -115,95 +168,58 @@ export function Download({ opened, onClose }: DownloadProps): JSX.Element {
             title="Configuration Export"
             subtitle="Compile your keymap to firmware config"
             headerIcon={<DownloadIcon />}
-            customModalBoxClass="w-11/14 max-w-2xl"
+            customModalBoxClass="w-11/14 max-w-3xl"
             type="icon"
             icon={<DownloadIcon />}
             variant="ghost"
             showFooter={false}
         >
-            <div className="space-y-6">
-                {/* status */}
-                <div className="flex items-center gap-3 rounded-xl border bg-background p-4">
-                    <span
-                        data-ready={!!config || !!service}
-                        className="size-2 shrink-0 rounded-full bg-muted-foreground data-[ready=true]:bg-emerald-500 data-[ready=true]:shadow-[0_0_8px] data-[ready=true]:shadow-emerald-500/60"
-                    />
-                    <div className="flex-1">
-                        <div className="text-[13px] font-semibold">
-                            {config
-                                ? config.meta.name
-                                : service
-                                  ? service.deviceInfo.name
-                                  : 'No config loaded'}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                            {config
-                                ? `${config.layers.length} layer${
-                                      config.layers.length === 1 ? '' : 's'
-                                  } · source of truth`
-                                : service
-                                  ? `${firmwareLabel} device · native export`
-                                  : 'Connect a keyboard or import a .json config'}
-                        </div>
-                    </div>
-                    {(config || service) && (
-                        <FileText className="size-4 text-emerald-500" />
-                    )}
-                </div>
-
-                {config && (
+            <div className="min-w-0 space-y-6">
+                {config ? (
                     <ExportPanel
                         config={config}
                         source={source}
                         targets={allowed}
+                        header={statusBlock}
+                        topActions={importButton}
                     />
-                )}
+                ) : (
+                    <div className="space-y-6">
+                        {statusBlock}
 
-                {!config && service && (
-                    <div>
-                        <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                            Export
-                        </p>
-                        <div className="flex flex-wrap gap-2">
-                            <Button
-                                onClick={handleNativeExport}
-                                className="flex items-center gap-2"
-                            >
-                                <DownloadIcon className="h-4 w-4" />
-                                Download {firmwareLabel} config
-                            </Button>
-                            <Button
-                                onClick={handleNativeCopy}
-                                variant="outline"
-                                className="flex items-center gap-2"
-                            >
-                                <Copy className="h-4 w-4" />
-                                Copy
-                            </Button>
+                        {service && (
+                            <div>
+                                <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                                    Export
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                    <Button
+                                        onClick={handleNativeExport}
+                                        className="flex items-center gap-2"
+                                    >
+                                        <DownloadIcon className="h-4 w-4" />
+                                        Download {firmwareLabel} config
+                                    </Button>
+                                    <Button
+                                        onClick={handleNativeCopy}
+                                        variant="outline"
+                                        className="flex items-center gap-2"
+                                    >
+                                        <Copy className="h-4 w-4" />
+                                        Copy
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
+
+                        <div>
+                            <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                                Import
+                            </p>
+                            {importButton}
                         </div>
                     </div>
                 )}
-
-                <div>
-                    <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                        Import
-                    </p>
-                    <Button
-                        onClick={triggerImport}
-                        variant="outline"
-                        className="flex items-center gap-2"
-                    >
-                        <Upload className="h-4 w-4" />
-                        Import .json
-                    </Button>
-                    <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept=".json,.txt"
-                        className="hidden"
-                        onChange={handleImportSource}
-                    />
-                </div>
 
                 {error && (
                     <div className="flex gap-2 rounded-lg border border-red-500/40 bg-red-500/5 p-2 text-xs">

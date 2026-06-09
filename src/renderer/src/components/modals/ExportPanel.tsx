@@ -46,18 +46,25 @@ function alsoCovers(config: ConfigKeymap, target: Target): string[] {
 const configId = (config: ConfigKeymap): string =>
     config.keyboard.id || 'remappr'
 
+// pattern-check: skip presentational prop-slot reorder, no abstraction
 interface ExportPanelProps {
     config: ConfigKeymap
     /** Raw JSON the config was parsed from, for verbatim "Remappr config" export. */
     source: string | null
     /** Compiler targets to offer project downloads for (defaults to ZMK). */
     targets: Target[]
+    /** Keyboard name + details block, rendered at the very top. */
+    header?: JSX.Element | null
+    /** Wrapper-specific buttons (e.g. Import) shown in the top action row. */
+    topActions?: JSX.Element | null
 }
 
 export function ExportPanel({
     config,
     source,
     targets,
+    header,
+    topActions,
 }: ExportPanelProps): JSX.Element {
     const id = configId(config)
     const code = preferredSourceJson(config, source)
@@ -107,22 +114,15 @@ export function ExportPanel({
         }
     }
 
+    // pattern-check: skip presentational layout reorder, no logic change
     return (
-        <div className="space-y-4">
-            {/* Source-of-truth remappr config */}
-            <div className="flex items-center gap-2 text-[12.5px] text-muted-foreground">
-                <FileJson className="size-3.5 shrink-0" />
-                <span>
-                    The source-of-truth remappr config. Firmware projects build
-                    from it — download each as a ready-to-push .zip below.
-                </span>
-            </div>
+        <div className="min-w-0 space-y-5">
+            {/* Keyboard name + details */}
+            {header}
 
-            <pre className="m-0 max-h-[34vh] overflow-auto rounded-xl border border-border bg-[oklch(0.16_0_0)] p-3.5 font-mono text-[12px] leading-relaxed text-[oklch(0.9_0_0)]">
-                <code>{code || '— empty —'}</code>
-            </pre>
-
+            {/* Top action row — all the buttons live up here */}
             <div className="flex flex-wrap items-center gap-2">
+                {topActions}
                 <Button
                     onClick={handleDownloadConfig}
                     disabled={!code}
@@ -138,6 +138,38 @@ export function ExportPanel({
                 >
                     <Copy className="size-4" /> Copy
                 </Button>
+            </div>
+
+            {/* Per-target project downloads — compact button row */}
+            <div className="space-y-2">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Build projects
+                </p>
+                <div className="flex flex-wrap gap-2">
+                    {targets.map((t) => {
+                        const covers = alsoCovers(config, t)
+                        return (
+                            <Button
+                                key={t}
+                                variant="secondary"
+                                onClick={() => handleDownloadProject(t)}
+                                className="flex items-center gap-2"
+                                title={`Buildable ${TARGET_LABELS[t]} project (.zip) with a GitHub Actions workflow`}
+                            >
+                                <Package className="size-4" />
+                                {TARGET_LABELS[t]}
+                                <span className="text-muted-foreground">
+                                    .zip
+                                </span>
+                                {covers.length > 0 && (
+                                    <span className="text-[11px] font-normal text-muted-foreground">
+                                        · covers {covers.join(' · ')}
+                                    </span>
+                                )}
+                            </Button>
+                        )
+                    })}
+                </div>
             </div>
 
             {/* Per-firmware readiness checklist */}
@@ -181,44 +213,19 @@ export function ExportPanel({
                 </ul>
             </div>
 
-            {/* Per-target project downloads */}
-            <div className="space-y-2">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                    Build projects
-                </p>
-                <div className="flex flex-col gap-2">
-                    {targets.map((t) => {
-                        const covers = alsoCovers(config, t)
-                        return (
-                            <div
-                                key={t}
-                                className="flex items-center gap-2 rounded-lg border border-border p-2.5"
-                            >
-                                <div className="flex-1">
-                                    <div className="text-[13px] font-semibold">
-                                        {TARGET_LABELS[t]}
-                                        {covers.length > 0 && (
-                                            <span className="text-[11px] font-normal text-muted-foreground">
-                                                {' '}
-                                                · covers {covers.join(' · ')}
-                                            </span>
-                                        )}
-                                    </div>
-                                    <div className="text-[11px] text-muted-foreground">
-                                        Buildable project (.zip) with a GitHub
-                                        Actions workflow.
-                                    </div>
-                                </div>
-                                <Button
-                                    onClick={() => handleDownloadProject(t)}
-                                    className="flex items-center gap-2"
-                                >
-                                    <Package className="size-4" /> .zip
-                                </Button>
-                            </div>
-                        )
-                    })}
+            {/* Source-of-truth remappr config — full-width JSON preview */}
+            <div className="min-w-0 space-y-2">
+                <div className="flex items-center gap-2 text-[12.5px] text-muted-foreground">
+                    <FileJson className="size-3.5 shrink-0" />
+                    <span>
+                        The source-of-truth remappr config. Firmware projects
+                        build from it — download each as a ready-to-push .zip
+                        above.
+                    </span>
                 </div>
+                <pre className="m-0 max-h-[34vh] w-full overflow-auto rounded-xl border border-border bg-[oklch(0.16_0_0)] p-3.5 font-mono text-[12px] leading-relaxed text-[oklch(0.9_0_0)]">
+                    <code>{code || '— empty —'}</code>
+                </pre>
             </div>
         </div>
     )

@@ -55,10 +55,10 @@ export function BuilderExportModal({
             title="Export & build"
             subtitle={cfg.meta.name}
             headerIcon={<Download />}
-            customModalBoxClass="w-11/14 max-w-2xl"
+            customModalBoxClass="w-11/14 max-w-3xl"
             showFooter={false}
         >
-            <div className="space-y-5">
+            <div className="min-w-0 space-y-5">
                 <ExportPanel config={cfg} source={source} targets={targets} />
 
                 {/* footer — builder-specific hand-off to the editor */}
