@@ -10,7 +10,7 @@ export default defineConfig({
         define: versionDefine,
         build: {
             rollupOptions: {
-                external: ['serialport', 'dbus-next'],
+                external: ['serialport', 'dbus-next', 'node-hid'],
             },
         },
     },
