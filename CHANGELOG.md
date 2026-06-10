@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.11](https://github.com/Wolffyx/remappr/compare/v0.0.10...v0.0.11) (2026-06-10)
+
+
+### Bug Fixes
+
+* **build:** package full Electron runtime deps (fix "Cannot find module 'ms'") ([#143](https://github.com/Wolffyx/remappr/issues/143)) ([0860633](https://github.com/Wolffyx/remappr/commit/08606331a590324eedd0eb48221d77a103cf4087))
+
 ## [0.0.10](https://github.com/Wolffyx/remappr/compare/v0.0.9...v0.0.10) (2026-06-10)
 
 
