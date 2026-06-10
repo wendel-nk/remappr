@@ -35,7 +35,7 @@ jobs:
               if: matrix.os == 'ubuntu-latest'
               run: |
                   sudo apt-get update
-                  sudo apt-get install -y libudev-dev libusb-1.0-0-dev
+                  sudo apt-get install -y libudev-dev libusb-1.0-0-dev rpm
 
             - name: Install dependencies
               run: pnpm install --frozen-lockfile
@@ -66,7 +66,7 @@ jobs:
                   TAG="${{ github.event.release.tag_name }}"
                   shopt -s nullglob
                   ASSETS=()
-                  for f in dist/*.AppImage dist/*.deb dist/*.snap dist/*.exe dist/*.msi dist/*.dmg dist/*.zip; do
+                  for f in dist/*.AppImage dist/*.deb dist/*.rpm dist/*.pacman dist/*.tar.gz dist/*.snap dist/*.exe dist/*.msi dist/*.dmg dist/*.zip; do
                     ASSETS+=("$f")
                   done
                   if [ ${#ASSETS[@]} -gt 0 ]; then

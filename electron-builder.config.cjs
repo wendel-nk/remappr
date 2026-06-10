@@ -74,14 +74,20 @@ module.exports = {
         artifactName: '${name}-electron-${version}.${ext}',
     },
     linux: {
-        target: ['AppImage', 'deb'],
-        maintainer: 'electronjs.org',
+        target: ['AppImage', 'deb', 'rpm', 'pacman', 'tar.gz'],
+        maintainer: 'Wolffyx <wolffyx-claude@wolffyx.com>',
         category: 'Utility',
     },
     appImage: {
         artifactName: '${name}-electron-${version}.${ext}',
     },
     deb: {
+        artifactName: '${name}-electron-${version}.${ext}',
+    },
+    rpm: {
+        artifactName: '${name}-electron-${version}.${ext}',
+    },
+    pacman: {
         artifactName: '${name}-electron-${version}.${ext}',
     },
     npmRebuild: true,
