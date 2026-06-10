@@ -154,9 +154,7 @@
             "@swc/core",
             "@serialport/bindings-cpp",
             "node-hid",
-            "usocket",
-            "protobufjs",
-            "@zmkfirmware/zmk-studio-ts-client"
+            "protobufjs"
         ]
     },
     "lint-staged": {
