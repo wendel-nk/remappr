@@ -17,9 +17,16 @@
  * GattCharacteristic1.WriteValue.
  */
 
-import dbus from 'dbus-next'
+// dbus-next is a Linux-only optional dependency (it drags in the unix-only
+// native module `usocket`, which cannot compile on Windows). Import it as a
+// type only so it is fully erased at build time, and load the runtime module
+// lazily — exclusively on Linux, behind the platform guards below.
+import { createRequire } from 'node:module'
+import type dbus from 'dbus-next'
 import type { AvailableDevice } from '../shared/ipc-types'
 import { createLogger } from '../shared/logger'
+
+const requireDbus = createRequire(import.meta.url)
 
 const log = createLogger('bluez')
 
@@ -58,7 +65,12 @@ let knownDevicePaths = new Set<string>()
 let sharedBus: dbus.MessageBus | null = null
 
 function getBus(): dbus.MessageBus {
-    if (!sharedBus) sharedBus = dbus.systemBus()
+    if (!sharedBus) {
+        const dbusLib = requireDbus('dbus-next') as {
+            systemBus: () => dbus.MessageBus
+        }
+        sharedBus = dbusLib.systemBus()
+    }
     return sharedBus
 }
 
