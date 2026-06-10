@@ -35,7 +35,7 @@ jobs:
               if: matrix.os == 'ubuntu-latest'
               run: |
                   sudo apt-get update
-                  sudo apt-get install -y libudev-dev libusb-1.0-0-dev rpm
+                  sudo apt-get install -y libudev-dev libusb-1.0-0-dev rpm libarchive-tools
 
             # usocket (Linux-only native, pulled by dbus-next) is patched to
             # declare os:[linux,darwin], so pnpm skips it on Windows as a
