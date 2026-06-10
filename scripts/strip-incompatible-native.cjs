@@ -9,10 +9,12 @@
 // manifest) nor by @electron/rebuild, so usocket still lands in node_modules on
 // Windows and electron-builder's native rebuild fails compiling it.
 //
-// Since dbus-next is never used on Windows, strip usocket from the install tree
-// on win32 BEFORE any electron rebuild runs (this script is the first half of
-// the root `postinstall`). No-op on Linux/macOS, where usocket builds fine and
-// dbus-next needs it.
+// Since dbus-next is never used on Windows (src/main/bluez.ts loads it lazily
+// and returns early on non-Linux), strip usocket from the install tree on win32
+// BEFORE any electron rebuild runs (this script is the first half of the root
+// `postinstall`). No-op on Linux/macOS, where usocket builds fine and dbus-next
+// needs it. Handles both pnpm layouts: hoisted (node-linker=hoisted, real dir
+// at node_modules/usocket) and isolated (.pnpm store + symlinks).
 
 const fs = require('fs')
 const path = require('path')
@@ -21,10 +23,11 @@ if (process.platform !== 'win32') {
     process.exit(0)
 }
 
-const pnpmDir = path.join(__dirname, '..', 'node_modules', '.pnpm')
+const nodeModulesDir = path.join(__dirname, '..', 'node_modules')
 
 function rm(target) {
     try {
+        if (!fs.existsSync(target)) return
         fs.rmSync(target, { recursive: true, force: true })
         console.log(
             `strip-incompatible-native: removed ${path.relative(process.cwd(), target)}`,
@@ -36,19 +39,23 @@ function rm(target) {
     }
 }
 
-if (!fs.existsSync(pnpmDir)) {
+if (!fs.existsSync(nodeModulesDir)) {
     process.exit(0)
 }
 
-for (const entry of fs.readdirSync(pnpmDir)) {
-    // The real package store dir, e.g. usocket@0.3.0_patch_hash=...
-    if (entry.startsWith('usocket@')) {
-        rm(path.join(pnpmDir, entry))
-        continue
-    }
-    // The symlink dbus-next@x/node_modules/usocket pointing into the store.
-    const linked = path.join(pnpmDir, entry, 'node_modules', 'usocket')
-    if (fs.existsSync(linked)) {
-        rm(linked)
+// Hoisted layout: real dir / symlink at the top level.
+rm(path.join(nodeModulesDir, 'usocket'))
+
+// Isolated (.pnpm) layout: the real store dir + per-package symlinks.
+const pnpmDir = path.join(nodeModulesDir, '.pnpm')
+if (fs.existsSync(pnpmDir)) {
+    for (const entry of fs.readdirSync(pnpmDir)) {
+        // The real package store dir, e.g. usocket@0.3.0_patch_hash=...
+        if (entry.startsWith('usocket@')) {
+            rm(path.join(pnpmDir, entry))
+            continue
+        }
+        // A symlink like dbus-next@x/node_modules/usocket into the store.
+        rm(path.join(pnpmDir, entry, 'node_modules', 'usocket'))
     }
 }
