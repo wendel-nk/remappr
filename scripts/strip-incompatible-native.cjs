@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
+/* eslint-disable @typescript-eslint/explicit-function-return-type */ // plain CJS — no TS annotations
 // pattern-check: skip — mechanical fs cleanup script, no abstraction/new logic
 //
 // usocket is a Unix-only native addon (uses sys/ioctl.h + unix sockets) pulled
@@ -25,9 +26,13 @@ const pnpmDir = path.join(__dirname, '..', 'node_modules', '.pnpm')
 function rm(target) {
     try {
         fs.rmSync(target, { recursive: true, force: true })
-        console.log(`strip-incompatible-native: removed ${path.relative(process.cwd(), target)}`)
+        console.log(
+            `strip-incompatible-native: removed ${path.relative(process.cwd(), target)}`,
+        )
     } catch (err) {
-        console.warn(`strip-incompatible-native: could not remove ${target}: ${err.message}`)
+        console.warn(
+            `strip-incompatible-native: could not remove ${target}: ${err.message}`,
+        )
     }
 }
 
