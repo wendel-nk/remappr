@@ -37,14 +37,11 @@ jobs:
                   sudo apt-get update
                   sudo apt-get install -y libudev-dev libusb-1.0-0-dev rpm
 
-            # Windows skips optional deps: dbus-next (Linux-only) pulls the
-            # unix-only native module usocket, which cannot compile on MSVC.
-            - name: Install dependencies (Windows — no unix-only optionals)
-              if: matrix.os == 'windows-latest'
-              run: pnpm install --frozen-lockfile --no-optional
-
+            # usocket (Linux-only native, pulled by dbus-next) is patched to
+            # declare os:[linux,darwin], so pnpm skips it on Windows as a
+            # platform-mismatched optional dep — no need to drop ALL optionals
+            # (which would also skip rollup/swc/lightningcss platform binaries).
             - name: Install dependencies
-              if: matrix.os != 'windows-latest'
               run: pnpm install --frozen-lockfile
 
             - name: Build (Linux)
