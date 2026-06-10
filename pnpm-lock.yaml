@@ -16,9 +16,34 @@ importers:
 
   .:
     dependencies:
+      node-hid:
+        specifier: ^3.3.0
+        version: 3.3.0
+      serialport:
+        specifier: ^13.0.0
+        version: 13.0.0
+    devDependencies:
+      '@chromatic-com/storybook':
+        specifier: ^5.0.0
+        version: 5.1.2(storybook@10.3.5(@testing-library/dom@10.4.1)(prettier@3.8.3)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))
+      '@commitlint/cli':
+        specifier: ^19.6.1
+        version: 19.8.1(@types/node@25.6.0)(typescript@5.9.3)
+      '@commitlint/config-conventional':
+        specifier: ^19.6.0
+        version: 19.8.1
+      '@electron-toolkit/eslint-config-prettier':
+        specifier: ^3.0.0
+        version: 3.0.0(eslint@9.39.4(jiti@2.6.1))(prettier@3.8.3)
+      '@electron-toolkit/eslint-config-ts':
+        specifier: ^3.1.0
+        version: 3.1.0(eslint@9.39.4(jiti@2.6.1))(typescript@5.9.3)
       '@electron-toolkit/preload':
         specifier: ^3.0.2
         version: 3.0.2(electron@39.8.9)
+      '@electron-toolkit/tsconfig':
+        specifier: ^2.0.0
+        version: 2.0.0(@types/node@25.6.0)
       '@electron-toolkit/utils':
         specifier: ^4.0.0
         version: 4.0.0(electron@39.8.9)
@@ -64,97 +89,6 @@ importers:
       '@radix-ui/react-tooltip':
         specifier: ^1.2.8
         version: 1.2.8(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
-      '@tailwindcss/container-queries':
-        specifier: ^0.1.1
-        version: 0.1.1(tailwindcss@4.2.4)
-      '@tailwindcss/forms':
-        specifier: ^0.5.11
-        version: 0.5.11(tailwindcss@4.2.4)
-      '@tailwindcss/postcss':
-        specifier: ^4.1.18
-        version: 4.2.4
-      '@tailwindcss/vite':
-        specifier: ^4.1.18
-        version: 4.2.4(vite@7.3.2(@types/node@25.6.0)(jiti@2.6.1)(lightningcss@1.32.0)(yaml@2.8.3))
-      '@zmkfirmware/zmk-studio-ts-client':
-        specifier: ^0.0.18
-        version: 0.0.18
-      class-variance-authority:
-        specifier: ^0.7.1
-        version: 0.7.1
-      clsx:
-        specifier: ^2.1.1
-        version: 2.1.1
-      cmdk:
-        specifier: ^1.1.1
-        version: 1.1.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
-      dbus-next:
-        specifier: ^0.10.2
-        version: 0.10.2
-      immer:
-        specifier: ^11.1.3
-        version: 11.1.4
-      lucide-react:
-        specifier: ^1.11.0
-        version: 1.11.0(react@19.2.5)
-      lzma1:
-        specifier: ^0.3.0
-        version: 0.3.0
-      monaco-editor:
-        specifier: ^0.55.1
-        version: 0.55.1
-      next-themes:
-        specifier: ^0.4.6
-        version: 0.4.6(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
-      node-hid:
-        specifier: ^3.3.0
-        version: 3.3.0
-      react-aria-components:
-        specifier: ^1.14.0
-        version: 1.17.0(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
-      react-dom:
-        specifier: ^19.2.4
-        version: 19.2.5(react@19.2.5)
-      serialport:
-        specifier: ^13.0.0
-        version: 13.0.0
-      sonner:
-        specifier: ^2.0.7
-        version: 2.0.7(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
-      tailwind-merge:
-        specifier: ^3.4.0
-        version: 3.5.0
-      tailwindcss-react-aria-components:
-        specifier: ^2.0.1
-        version: 2.1.0(tailwindcss@4.2.4)
-      vaul:
-        specifier: ^1.1.2
-        version: 1.1.2(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
-      zod:
-        specifier: ^4.4.3
-        version: 4.4.3
-      zustand:
-        specifier: ^5.0.11
-        version: 5.0.12(@types/react@19.2.14)(immer@11.1.4)(react@19.2.5)(use-sync-external-store@1.6.0(react@19.2.5))
-    devDependencies:
-      '@chromatic-com/storybook':
-        specifier: ^5.0.0
-        version: 5.1.2(storybook@10.3.5(@testing-library/dom@10.4.1)(prettier@3.8.3)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))
-      '@commitlint/cli':
-        specifier: ^19.6.1
-        version: 19.8.1(@types/node@25.6.0)(typescript@5.9.3)
-      '@commitlint/config-conventional':
-        specifier: ^19.6.0
-        version: 19.8.1
-      '@electron-toolkit/eslint-config-prettier':
-        specifier: ^3.0.0
-        version: 3.0.0(eslint@9.39.4(jiti@2.6.1))(prettier@3.8.3)
-      '@electron-toolkit/eslint-config-ts':
-        specifier: ^3.1.0
-        version: 3.1.0(eslint@9.39.4(jiti@2.6.1))(typescript@5.9.3)
-      '@electron-toolkit/tsconfig':
-        specifier: ^2.0.0
-        version: 2.0.0(@types/node@25.6.0)
       '@storybook/addon-links':
         specifier: ^10.2.3
         version: 10.3.5(react@19.2.5)(storybook@10.3.5(@testing-library/dom@10.4.1)(prettier@3.8.3)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))
@@ -167,6 +101,18 @@ importers:
       '@storybook/react-vite':
         specifier: ^10.2.3
         version: 10.3.5(esbuild@0.27.7)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(rollup@4.60.2)(storybook@10.3.5(@testing-library/dom@10.4.1)(prettier@3.8.3)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(typescript@5.9.3)(vite@7.3.2(@types/node@25.6.0)(jiti@2.6.1)(lightningcss@1.32.0)(yaml@2.8.3))
+      '@tailwindcss/container-queries':
+        specifier: ^0.1.1
+        version: 0.1.1(tailwindcss@4.2.4)
+      '@tailwindcss/forms':
+        specifier: ^0.5.11
+        version: 0.5.11(tailwindcss@4.2.4)
+      '@tailwindcss/postcss':
+        specifier: ^4.1.18
+        version: 4.2.4
+      '@tailwindcss/vite':
+        specifier: ^4.1.18
+        version: 4.2.4(vite@7.3.2(@types/node@25.6.0)(jiti@2.6.1)(lightningcss@1.32.0)(yaml@2.8.3))
       '@types/node':
         specifier: ^25.2.0
         version: 25.6.0
@@ -197,9 +143,21 @@ importers:
       '@vitejs/plugin-react-swc':
         specifier: ^4.2.2
         version: 4.3.0(@swc/helpers@0.5.21)(vite@7.3.2(@types/node@25.6.0)(jiti@2.6.1)(lightningcss@1.32.0)(yaml@2.8.3))
+      '@zmkfirmware/zmk-studio-ts-client':
+        specifier: ^0.0.18
+        version: 0.0.18
       autoprefixer:
         specifier: ^10.4.24
         version: 10.5.0(postcss@8.5.10)
+      class-variance-authority:
+        specifier: ^0.7.1
+        version: 0.7.1
+      clsx:
+        specifier: ^2.1.1
+        version: 2.1.1
+      cmdk:
+        specifier: ^1.1.1
+        version: 1.1.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       electron:
         specifier: ^39.2.6
         version: 39.8.9
@@ -230,9 +188,24 @@ importers:
       husky:
         specifier: ^9.1.7
         version: 9.1.7
+      immer:
+        specifier: ^11.1.3
+        version: 11.1.4
       lint-staged:
         specifier: ^16.1.0
         version: 16.4.0
+      lucide-react:
+        specifier: ^1.11.0
+        version: 1.11.0(react@19.2.5)
+      lzma1:
+        specifier: ^0.3.0
+        version: 0.3.0
+      monaco-editor:
+        specifier: ^0.55.1
+        version: 0.55.1
+      next-themes:
+        specifier: ^0.4.6
+        version: 0.4.6(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       postcss:
         specifier: ^8.5.6
         version: 8.5.10
@@ -242,21 +215,39 @@ importers:
       react:
         specifier: ^19.2.1
         version: 19.2.5
+      react-aria-components:
+        specifier: ^1.14.0
+        version: 1.17.0(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+      react-dom:
+        specifier: ^19.2.4
+        version: 19.2.5(react@19.2.5)
       run-script-os:
         specifier: ^1.1.6
         version: 1.1.6
+      sonner:
+        specifier: ^2.0.7
+        version: 2.0.7(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       storybook:
         specifier: ^10.2.3
         version: 10.3.5(@testing-library/dom@10.4.1)(prettier@3.8.3)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+      tailwind-merge:
+        specifier: ^3.4.0
+        version: 3.5.0
       tailwindcss:
         specifier: ^4.1.18
         version: 4.2.4
+      tailwindcss-react-aria-components:
+        specifier: ^2.0.1
+        version: 2.1.0(tailwindcss@4.2.4)
       tw-animate-css:
         specifier: ^1.4.0
         version: 1.4.0
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
+      vaul:
+        specifier: ^1.1.2
+        version: 1.1.2(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       vite:
         specifier: ^7.2.6
         version: 7.3.2(@types/node@25.6.0)(jiti@2.6.1)(lightningcss@1.32.0)(yaml@2.8.3)
@@ -266,6 +257,16 @@ importers:
       vitest:
         specifier: ^3.2.4
         version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(jiti@2.6.1)(lightningcss@1.32.0)(yaml@2.8.3)
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
+      zustand:
+        specifier: ^5.0.11
+        version: 5.0.12(@types/react@19.2.14)(immer@11.1.4)(react@19.2.5)(use-sync-external-store@1.6.0(react@19.2.5))
+    optionalDependencies:
+      dbus-next:
+        specifier: ^0.10.2
+        version: 0.10.2
 
 packages:
 
@@ -6628,7 +6629,8 @@ snapshots:
 
   '@neoconfetti/react@1.0.0': {}
 
-  '@nornagon/put@0.0.8': {}
+  '@nornagon/put@0.0.8':
+    optional: true
 
   '@pkgr/core@0.2.9': {}
 
@@ -8542,6 +8544,7 @@ snapshots:
       xml2js: 0.6.2
     optionalDependencies:
       usocket: 0.3.0
+    optional: true
 
   debug@4.4.0:
     dependencies:
@@ -8662,7 +8665,8 @@ snapshots:
       es-errors: 1.3.0
       gopd: 1.2.0
 
-  duplexer@0.1.2: {}
+  duplexer@0.1.2:
+    optional: true
 
   ecc-jsbn@0.1.2:
     dependencies:
@@ -9138,6 +9142,7 @@ snapshots:
       split: 0.3.3
       stream-combiner: 0.0.4
       through: 2.3.8
+    optional: true
 
   eventemitter3@5.0.4: {}
 
@@ -9235,7 +9240,8 @@ snapshots:
 
   fraction.js@5.3.4: {}
 
-  from@0.1.7: {}
+  from@0.1.7:
+    optional: true
 
   fs-extra@10.1.0:
     dependencies:
@@ -9465,7 +9471,8 @@ snapshots:
     dependencies:
       hermes-estree: 0.25.1
 
-  hexy@0.2.11: {}
+  hexy@0.2.11:
+    optional: true
 
   hookable@5.5.3: {}
 
@@ -9733,7 +9740,8 @@ snapshots:
     dependencies:
       argparse: 2.0.1
 
-  jsbi@2.0.5: {}
+  jsbi@2.0.5:
+    optional: true
 
   jsbn@0.1.1:
     optional: true
@@ -9907,7 +9915,8 @@ snapshots:
       strip-ansi: 7.2.0
       wrap-ansi: 9.0.2
 
-  long@4.0.0: {}
+  long@4.0.0:
+    optional: true
 
   long@5.3.2: {}
 
@@ -9941,7 +9950,8 @@ snapshots:
     dependencies:
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  map-stream@0.1.0: {}
+  map-stream@0.1.0:
+    optional: true
 
   mark.js@8.11.1: {}
 
@@ -10257,6 +10267,7 @@ snapshots:
   pause-stream@0.0.11:
     dependencies:
       through: 2.3.8
+    optional: true
 
   pe-library@0.4.1: {}
 
@@ -10856,6 +10867,7 @@ snapshots:
   split@0.3.3:
     dependencies:
       through: 2.3.8
+    optional: true
 
   sprintf-js@1.1.3:
     optional: true
@@ -10913,6 +10925,7 @@ snapshots:
   stream-combiner@0.0.4:
     dependencies:
       duplexer: 0.1.2
+    optional: true
 
   string-argv@0.3.2: {}
 
@@ -11574,8 +11587,10 @@ snapshots:
     dependencies:
       sax: 1.6.0
       xmlbuilder: 11.0.1
+    optional: true
 
-  xmlbuilder@11.0.1: {}
+  xmlbuilder@11.0.1:
+    optional: true
 
   xmlbuilder@15.1.1: {}
 

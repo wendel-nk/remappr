@@ -28,16 +28,23 @@ jobs:
             - name: Setup Node.js
               uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
               with:
-                  node-version: '20'
+                  node-version-file: '.nvmrc'
                   cache: 'pnpm'
 
             - name: Install Linux build deps
               if: matrix.os == 'ubuntu-latest'
               run: |
                   sudo apt-get update
-                  sudo apt-get install -y libudev-dev libusb-1.0-0-dev
+                  sudo apt-get install -y libudev-dev libusb-1.0-0-dev rpm
+
+            # Windows skips optional deps: dbus-next (Linux-only) pulls the
+            # unix-only native module usocket, which cannot compile on MSVC.
+            - name: Install dependencies (Windows — no unix-only optionals)
+              if: matrix.os == 'windows-latest'
+              run: pnpm install --frozen-lockfile --no-optional
 
             - name: Install dependencies
+              if: matrix.os != 'windows-latest'
               run: pnpm install --frozen-lockfile
 
             - name: Build (Linux)
@@ -66,7 +73,7 @@ jobs:
                   TAG="${{ github.event.release.tag_name }}"
                   shopt -s nullglob
                   ASSETS=()
-                  for f in dist/*.AppImage dist/*.deb dist/*.snap dist/*.exe dist/*.msi dist/*.dmg dist/*.zip; do
+                  for f in dist/*.AppImage dist/*.deb dist/*.rpm dist/*.pacman dist/*.tar.gz dist/*.snap dist/*.exe dist/*.msi dist/*.dmg dist/*.zip; do
                     ASSETS+=("$f")
                   done
                   if [ ${#ASSETS[@]} -gt 0 ]; then

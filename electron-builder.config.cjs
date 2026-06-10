@@ -27,7 +27,12 @@ module.exports = {
     },
     files: [
         '!**/.vscode/*',
-        '!src/*',
+        '!src/**',
+        '!.claude/**',
+        '!.flowpatch/**',
+        '!**/.flowpatch/**',
+        '!docs/**',
+        '!build/**/*.{ts,map}',
         '!scripts/**/*',
         '!.storybook/**/*',
         '!stories/**/*',
@@ -51,6 +56,16 @@ module.exports = {
         '!release.config.json',
         '!.release-manifest.json',
         '!build/electron-languages.json',
+        // Size trimming — none of these are needed at runtime.
+        '!**/*.{md,markdown,mkd}',
+        '!**/*.d.ts',
+        '!**/*.{ts,tsx,flow}',
+        '!**/*.{h,hpp,c,cc,cpp,gyp,gypi,o,obj}',
+        '!**/{LICENSE,LICENSE.txt,LICENCE,NOTICE,AUTHORS,CHANGELOG,HISTORY}*',
+        '!**/{test,tests,__tests__,spec,powered-test,example,examples,demo,doc,docs}/**',
+        '!**/{.editorconfig,.eslintrc*,.prettierrc*,.npmignore,.travis.yml,.gitattributes,tsconfig*.json,.nycrc,karma.conf.js}',
+        '!**/{.github,.idea,.vscode}/**',
+        '!**/*.{ts.map,js.map,css.map}',
     ],
     asarUnpack: ['resources/**'],
     win: {
@@ -74,8 +89,8 @@ module.exports = {
         artifactName: '${name}-electron-${version}.${ext}',
     },
     linux: {
-        target: ['AppImage', 'deb'],
-        maintainer: 'electronjs.org',
+        target: ['AppImage', 'deb', 'rpm', 'pacman', 'tar.gz'],
+        maintainer: 'Wolffyx <wolffyx@wolffyx.com>',
         category: 'Utility',
     },
     appImage: {
@@ -84,7 +99,14 @@ module.exports = {
     deb: {
         artifactName: '${name}-electron-${version}.${ext}',
     },
+    rpm: {
+        artifactName: '${name}-electron-${version}.${ext}',
+    },
+    pacman: {
+        artifactName: '${name}-electron-${version}.${ext}',
+    },
     npmRebuild: true,
+    afterPack: path.join(__dirname, 'build', 'afterPack.cjs'),
     publish: {
         provider: 'generic',
         url: 'https://example.com/auto-updates',
