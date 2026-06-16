@@ -40,6 +40,10 @@ jobs:
               # (else it falls back to a stub). Fork PRs without the secret -> stub.
               run: node scripts/link-remappr.cjs
               env:
+                  # URLs are configurable via GitHub repo/org Variables; empty -> script defaults.
+                  REMAPPR_FIRMWARE_URL: ${{ vars.REMAPPR_FIRMWARE_URL }}
+                  REMAPPR_UI_URL: ${{ vars.REMAPPR_UI_URL }}
+                  REMAPPR_BUILDER_URL: ${{ vars.REMAPPR_BUILDER_URL }}
                   REMAPPR_GIT_TOKEN: ${{ secrets.REMAPPR_GIT_TOKEN }}
 
             - name: Guard against daisyUI re-introduction
