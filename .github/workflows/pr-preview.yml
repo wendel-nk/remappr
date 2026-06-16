@@ -38,6 +38,11 @@ jobs:
               # doesn't have. Web build doesn't use those modules anyway.
               run: pnpm install --frozen-lockfile --ignore-scripts
 
+            - name: Fetch @remappr projects
+              run: node scripts/link-remappr.cjs
+              env:
+                  REMAPPR_GIT_TOKEN: ${{ secrets.REMAPPR_GIT_TOKEN }}
+
             - name: Build
               run: pnpm build
 

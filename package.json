@@ -24,7 +24,7 @@
         "typecheck:web": "tsc --noEmit -p tsconfig.web.json --composite false",
         "typecheck": "pnpm typecheck:node && pnpm typecheck:web",
         "prepare": "husky",
-        "postinstall": "node scripts/strip-incompatible-native.cjs && electron-builder install-app-deps",
+        "postinstall": "node scripts/strip-incompatible-native.cjs && electron-builder install-app-deps && node scripts/link-remappr.cjs",
         "build:unpack": "electron-vite build && electron-builder --dir --config electron-builder.config.cjs",
         "build:win": "electron-vite build && electron-builder --win --publish never --config electron-builder.config.cjs",
         "build:mac": "electron-vite build && electron-builder --mac --publish never --config electron-builder.config.cjs",

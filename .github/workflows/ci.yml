@@ -33,6 +33,15 @@ jobs:
               # native modules.
               run: pnpm install --frozen-lockfile --ignore-scripts
 
+            # --ignore-scripts skips the postinstall that wires the @remappr/*
+            # projects, so fetch + link them explicitly before typecheck/build.
+            - name: Fetch @remappr projects
+              # Public projects clone anonymously; private builder needs the token
+              # (else it falls back to a stub). Fork PRs without the secret -> stub.
+              run: node scripts/link-remappr.cjs
+              env:
+                  REMAPPR_GIT_TOKEN: ${{ secrets.REMAPPR_GIT_TOKEN }}
+
             - name: Guard against daisyUI re-introduction
               run: |
                   if grep -rEn 'btn-|bg-base-|text-base-content|primary-content|\bnavbar\b|rounded-box|badge-' src/; then
