@@ -21,11 +21,14 @@ concurrency:
     cancel-in-progress: true
 
 jobs:
-    # Single deploy job since we're just deploying
-    deploy:
-        environment:
-            name: github-pages
-            url: ${{ steps.deployment.outputs.page_url }}
+    # Build runs in the `remappr` environment so the Fetch step can read
+    # REMAPPR_GIT_TOKEN (an environment secret there) and clone the private
+    # builder. The deploy job must use the `github-pages` environment, and a job
+    # can only declare ONE environment — hence build + deploy are split (the
+    # GitHub-recommended Pages pattern). Without this, a single github-pages job
+    # sees no token and the builder falls back to the stub on remappr.com.
+    build:
+        environment: remappr
         runs-on: ubuntu-latest
         steps:
             - name: Checkout
@@ -59,6 +62,14 @@ jobs:
               with:
                   # Upload dist folder
                   path: './dist'
+
+    deploy:
+        needs: build
+        environment:
+            name: github-pages
+            url: ${{ steps.deployment.outputs.page_url }}
+        runs-on: ubuntu-latest
+        steps:
             - name: Deploy to GitHub Pages
               id: deployment
               uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5
