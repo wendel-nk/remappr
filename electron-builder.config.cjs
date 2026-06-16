@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-require-imports */
 // pattern-check: skip — build config script loading JSON language list, no abstraction
 const path = require('path')
 const fs = require('fs')
