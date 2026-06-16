@@ -41,10 +41,10 @@ const targets = [
     {
         name: 'ui',
         link: 'src/renderer/src/ui',
-        repoDir: 'remappUI', // remote: github.com/Wolffyx/remappUI
+        repoDir: 'remapprUI', // remote: github.com/Wolffyx/remapprUI
         umbrellaDir: 'remappr-ui', // local umbrella folder name
         srcSub: 'src/ui',
-        url: 'https://github.com/Wolffyx/remappUI.git',
+        url: 'https://github.com/Wolffyx/remapprUI.git',
     },
     {
         name: 'builder',
