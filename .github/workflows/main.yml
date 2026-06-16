@@ -43,6 +43,13 @@ jobs:
               # noble, etc.) that need system libs (libudev) the runner
               # doesn't have. Web build doesn't use those modules anyway.
               run: pnpm install --frozen-lockfile --ignore-scripts
+            - name: Fetch @remappr projects
+              run: node scripts/link-remappr.cjs
+              env:
+                  REMAPPR_FIRMWARE_URL: ${{ vars.REMAPPR_FIRMWARE_URL }}
+                  REMAPPR_UI_URL: ${{ vars.REMAPPR_UI_URL }}
+                  REMAPPR_BUILDER_URL: ${{ vars.REMAPPR_BUILDER_URL }}
+                  REMAPPR_GIT_TOKEN: ${{ secrets.REMAPPR_GIT_TOKEN }}
             - name: Build
               run: pnpm build
             - name: Setup Pages

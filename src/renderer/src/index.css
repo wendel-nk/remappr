@@ -1,5 +1,13 @@
 @import 'tailwindcss';
 
+/* The `ui` and `features/builder` dirs are symlinks to the sibling @remappr/*
+   repos and are git-ignored. Tailwind v4 auto-detection is gitignore-aware, so
+   it SKIPS those paths — utility classes used ONLY there (e.g. the dialog/modal
+   positioning utils left-[50%]/top-[7vh]/w-11/14) never get generated, leaving
+   those components unstyled. Register them explicitly to force scanning. */
+@source './ui';
+@source './features/builder';
+
 @import '../../../node_modules/tw-animate-css/dist/tw-animate.css';
 @import './themes.css';
 

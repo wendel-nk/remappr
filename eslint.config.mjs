@@ -15,6 +15,16 @@ export default defineConfig(
             '**/out',
             '**/out-types',
             '**/build',
+            // Consumed @remappr/* sibling repos: symlinked into the app (firmware/
+            // ui/builder) and the CI clone cache (.remappr). They are separate
+            // repos with their own lint/CI — don't re-lint vendored source here.
+            '**/.remappr',
+            'src/firmware',
+            'src/renderer/src/ui',
+            'src/renderer/src/features/builder',
+            // Build caches / local tooling artifacts.
+            '**/.vitepress/cache',
+            '.claude',
         ],
     },
     tseslint.configs.recommended,
@@ -67,6 +77,14 @@ export default defineConfig(
                     ],
                 },
             ],
+        },
+    },
+    {
+        // App CommonJS scripts (postinstall helpers) legitimately use require().
+        files: ['**/*.cjs'],
+        rules: {
+            '@typescript-eslint/no-require-imports': 'off',
+            '@typescript-eslint/explicit-function-return-type': 'off',
         },
     },
     eslintConfigPrettier,

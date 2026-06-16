@@ -13,6 +13,9 @@ concurrency:
 jobs:
     check:
         runs-on: ubuntu-latest
+        # Use the 'remappr' environment so the Fetch step can read its
+        # REMAPPR_GIT_TOKEN secret + REMAPPR_*_URL variables.
+        environment: remappr
         steps:
             - name: Checkout
               uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
@@ -32,6 +35,19 @@ jobs:
               # runner doesn't have. Web typecheck/lint/test don't use
               # native modules.
               run: pnpm install --frozen-lockfile --ignore-scripts
+
+            # --ignore-scripts skips the postinstall that wires the @remappr/*
+            # projects, so fetch + link them explicitly before typecheck/build.
+            - name: Fetch @remappr projects
+              # Public projects clone anonymously; private builder needs the token
+              # (else it falls back to a stub). Fork PRs without the secret -> stub.
+              run: node scripts/link-remappr.cjs
+              env:
+                  # URLs are configurable via GitHub repo/org Variables; empty -> script defaults.
+                  REMAPPR_FIRMWARE_URL: ${{ vars.REMAPPR_FIRMWARE_URL }}
+                  REMAPPR_UI_URL: ${{ vars.REMAPPR_UI_URL }}
+                  REMAPPR_BUILDER_URL: ${{ vars.REMAPPR_BUILDER_URL }}
+                  REMAPPR_GIT_TOKEN: ${{ secrets.REMAPPR_GIT_TOKEN }}
 
             - name: Guard against daisyUI re-introduction
               run: |

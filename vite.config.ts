@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react-swc'
 import tailwindcss from '@tailwindcss/vite'
 import path from 'path'
 import pkg from './package.json' with { type: 'json' }
+import { remapprDedupe } from './scripts/remappr-dedupe'
 // https://vitejs.dev/config/
 export default defineConfig({
     base: '/', //todo remove it after finishing refactoring
@@ -13,6 +14,10 @@ export default defineConfig({
         __APP_VERSION__: JSON.stringify(pkg.version),
     },
     resolve: {
+        // Symlinked @remappr/* sibling repos carry their own node_modules.
+        // Force a single copy of context/store-bearing deps so React context
+        // and zustand stores share identity across the app + symlinked code.
+        dedupe: remapprDedupe,
         alias: {
             '@': path.resolve(__dirname, './src/renderer/src'),
             '@firmware': path.resolve(__dirname, './src/firmware'),

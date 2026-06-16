@@ -49,3 +49,11 @@ package-lock.json
 # VitePress docs build + cache
 docs/.vitepress/dist/
 docs/.vitepress/cache/
+
+# Extracted @remappr/* projects wired in by scripts/link-remappr.cjs (postinstall).
+# These live in their own repos (firmware/ui/builder); not stored in this repo.
+/src/firmware
+/src/renderer/src/ui
+/src/renderer/src/features/builder
+# Clone cache used when the Remappr/ umbrella is absent (fresh download / CI).
+/.remappr/

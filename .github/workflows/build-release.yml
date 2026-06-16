@@ -19,6 +19,7 @@ jobs:
             matrix:
                 os: [ubuntu-latest, windows-latest, macos-latest]
         runs-on: ${{ matrix.os }}
+        environment: remappr
         steps:
             - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
@@ -43,6 +44,16 @@ jobs:
             # (which would also skip rollup/swc/lightningcss platform binaries).
             - name: Install dependencies
               run: pnpm install --frozen-lockfile
+
+            # Ensure the @remappr/* projects are fetched + linked before packaging
+            # (postinstall also does this, but be explicit for the release build).
+            - name: Fetch @remappr projects
+              run: node scripts/link-remappr.cjs
+              env:
+                  REMAPPR_FIRMWARE_URL: ${{ vars.REMAPPR_FIRMWARE_URL }}
+                  REMAPPR_UI_URL: ${{ vars.REMAPPR_UI_URL }}
+                  REMAPPR_BUILDER_URL: ${{ vars.REMAPPR_BUILDER_URL }}
+                  REMAPPR_GIT_TOKEN: ${{ secrets.REMAPPR_GIT_TOKEN }}
 
             - name: Build (Linux)
               if: matrix.os == 'ubuntu-latest'
