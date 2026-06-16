@@ -19,7 +19,7 @@ export default defineConfig({
     renderer: {
         define: versionDefine,
         resolve: {
-            // See scripts/remappr-dedupe.mjs — single copy of context/store deps
+            // See scripts/remappr-dedupe.ts — single copy of context/store deps
             // across the app + symlinked @remappr/* sibling repos.
             dedupe: remapprDedupe,
             alias: {
