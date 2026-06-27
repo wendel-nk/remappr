@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import type { FirmwareAdapter } from '@firmware/adapter'
 import { getAdapters, registerAdapter } from '@firmware/registry'
 import { discoverableClientDirs } from './firmwareClients'
-import { hidDiscovery } from './discovery'
+import { hidDiscovery, hidDiscoveryAll } from './discovery'
 
 // NOTE: these tests deliberately avoid the '@firmware' barrel and never execute
 // the client barrels — importing real ZMK/QMK adapters pulls transport-client
@@ -48,5 +48,14 @@ describe('discovery priority (load-order independence)', () => {
         registerAdapter(fakeHidAdapter('remappr', 0xff00))
         expect(getAdapters().map((a) => a.id)).toEqual(['zmk', 'remappr'])
         expect(hidDiscovery()?.usagePage).toBe(0xff00)
+    })
+
+    it('hidDiscoveryAll surfaces every adapter filter, primary first', () => {
+        // Reuses zmk(0xff01) + remappr(0xff00) from the test above, plus one more
+        // non-primary family — the Electron path matches against ALL of them.
+        registerAdapter(fakeHidAdapter('keychron', 0xff60))
+        const pages = hidDiscoveryAll().map((f) => f.usagePage)
+        expect(pages[0]).toBe(0xff00) // Remappr stays pinned first
+        expect(pages).toEqual(expect.arrayContaining([0xff00, 0xff01, 0xff60]))
     })
 })

@@ -58,6 +58,26 @@ export function hidDiscovery(): HidDiscovery | null {
     return null
 }
 
+// pattern-check: skip — thin aggregator over the adapter registry, sibling of
+// hidDiscovery/hidFilters; no GoF abstraction (the file's Strategy already covers it).
+// Every registered adapter's HID filter, highest-priority first. The Electron
+// HID path enumerates against ALL of them (match-any) so non-primary firmwares
+// (QMK/VIA, Keychron) still surface — distinct usage pages (Remappr 0xFF00, VIA
+// 0xFF60, …) can't collapse into one filter, so they travel as a list.
+export function hidDiscoveryAll(): HidDiscovery[] {
+    const out: HidDiscovery[] = []
+    for (const adapter of adaptersByPriority()) {
+        const hid = adapter.discovery.hid
+        if (!hid) continue
+        out.push({
+            vendorIds: hid.vendorIds,
+            usagePage: hid.usagePage,
+            usage: hid.usage,
+        })
+    }
+    return out
+}
+
 // WebHID requestDevice() takes a filters array — emit one filter per
 // registered adapter so all firmware variants surface in the chooser.
 export function hidFilters(): HidFilter[] {
