@@ -7,6 +7,12 @@ import { silenceConsoleInProduction } from '@shared/logger.ts'
 // registered adapter's filter) targets the Remappr vendor interface
 // (0x1209 / usage page 0xFF00). Without this import the adapter was never
 // registered, so getAdapters() had no Remappr entry and every connect failed.
+import '@firmware/remappr'
+import '@firmware/qmk-vial'
+import '@firmware/keychron'
+import '@firmware/qmk'
+import '@firmware/zmk'
+import '@firmware/mock'
 import './index.css'
 
 silenceConsoleInProduction()
