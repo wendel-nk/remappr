@@ -1,5 +1,22 @@
 // Pattern check: Strategy (Tier 1) — applied — pluggable discovery providers per communication kind
-import { getAdapters } from '@firmware'
+// Import from the narrow registry/adapter modules rather than the '@firmware'
+// barrel: the barrel re-exports transport-client symbols that pull heavy deps,
+// and this file only needs the adapter list + type.
+import { getAdapters } from '@firmware/registry'
+import type { FirmwareAdapter } from '@firmware/adapter'
+
+// Single-filter discovery (the Electron HID path) uses the FIRST adapter that
+// declares a filter. With lazy/parallel client loading the registration order
+// is nondeterministic, so we can't rely on "import Remappr first" anymore — pin
+// the winner by priority instead. Remappr is this app's primary firmware and
+// must own the HID vendor filter (0x1209 / usage page 0xFF00).
+const ADAPTER_PRIORITY: Record<string, number> = { remappr: 100 }
+
+function adaptersByPriority(): readonly FirmwareAdapter[] {
+    return [...getAdapters()].sort(
+        (a, b) => (ADAPTER_PRIORITY[b.id] ?? 0) - (ADAPTER_PRIORITY[a.id] ?? 0),
+    )
+}
 
 export interface BleDiscovery {
     serviceUuid: string
@@ -20,7 +37,7 @@ export interface HidFilter {
 }
 
 export function bleDiscovery(): BleDiscovery | null {
-    for (const adapter of getAdapters()) {
+    for (const adapter of adaptersByPriority()) {
         const ble = adapter.discovery.ble
         if (ble) return { serviceUuid: ble.serviceUuid, charUuid: ble.charUuid }
     }
@@ -28,7 +45,7 @@ export function bleDiscovery(): BleDiscovery | null {
 }
 
 export function hidDiscovery(): HidDiscovery | null {
-    for (const adapter of getAdapters()) {
+    for (const adapter of adaptersByPriority()) {
         const hid = adapter.discovery.hid
         if (hid) {
             return {
@@ -45,7 +62,7 @@ export function hidDiscovery(): HidDiscovery | null {
 // registered adapter so all firmware variants surface in the chooser.
 export function hidFilters(): HidFilter[] {
     const out: HidFilter[] = []
-    for (const adapter of getAdapters()) {
+    for (const adapter of adaptersByPriority()) {
         const hid = adapter.discovery.hid
         if (!hid) continue
         const vids =
