@@ -7,7 +7,7 @@
 // Clicking an online node opens a (read-only) view of it via the store's
 // openNode, which swaps the active service to the relayed node.
 import { JSX, useCallback, useEffect, useState } from 'react'
-import { Cpu, Power, Radio, RefreshCw } from 'lucide-react'
+import { Cpu, Plus, Power, Radio, RefreshCw, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import useConnectionStore from '@/stores/connectionStore'
 import { Button } from '@/ui/button'
@@ -18,6 +18,7 @@ export function DongleLanding(): JSX.Element {
         useConnectionStore()
     const [nodes, setNodes] = useState<NodeView[]>([])
     const [loading, setLoading] = useState(true)
+    const [pairing, setPairing] = useState(false)
 
     const nodesApi = service?.nodes
 
@@ -64,6 +65,49 @@ export function DongleLanding(): JSX.Element {
         [openNode],
     )
 
+    // Remote pairing button (DONGLE.OPEN_PAIR_WINDOW): the node still has to bond
+    // on-air, so this just opens the window — the user puts a node in pairing mode
+    // and Refreshes once it appears.
+    const handlePair = useCallback(async (): Promise<void> => {
+        if (!nodesApi) return
+        setPairing(true)
+        try {
+            const open = await nodesApi.openPairWindow(true)
+            toast.success(
+                open ? 'Pairing window open' : 'Pairing window closed',
+                {
+                    description: open
+                        ? 'Put a node in pairing mode, then Refresh.'
+                        : undefined,
+                },
+            )
+        } catch (e) {
+            toast.error('Failed to open pairing window', {
+                description: e instanceof Error ? e.message : String(e),
+            })
+        } finally {
+            setPairing(false)
+        }
+    }, [nodesApi])
+
+    // Forget a node (DONGLE.FORGET_NODE) — works on offline/stale bonds too, then
+    // re-lists so the freed pipe disappears from the roster.
+    const handleForget = useCallback(
+        async (id: number, label: string): Promise<void> => {
+            if (!nodesApi) return
+            try {
+                await nodesApi.forgetNode(id)
+                toast.success(`Forgot ${label}`)
+                void fetchNodes()
+            } catch (e) {
+                toast.error('Failed to forget node', {
+                    description: e instanceof Error ? e.message : String(e),
+                })
+            }
+        },
+        [nodesApi, fetchNodes],
+    )
+
     const dongleName = service?.deviceInfo.name?.trim() || 'Remappr Dongle'
     const connLabel = communication === 'ble' ? 'BLE' : 'USB'
 
@@ -80,6 +124,15 @@ export function DongleLanding(): JSX.Element {
                         Dongle · Connected · {connLabel}
                     </div>
                 </div>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void handlePair()}
+                    disabled={pairing}
+                >
+                    <Plus className="mr-1.5 size-3.5" />
+                    Pair
+                </Button>
                 <Button
                     variant="outline"
                     size="sm"
@@ -113,38 +166,65 @@ export function DongleLanding(): JSX.Element {
                         <Cpu className="mx-auto mb-2 size-6 text-muted-foreground" />
                         <p className="text-sm font-medium">No paired nodes</p>
                         <p className="mt-1 text-xs text-muted-foreground">
-                            Put a node in pairing mode, press the pairing button
-                            on the dongle, then refresh.
+                            Open the pairing window, put a node in pairing mode,
+                            then Refresh.
                         </p>
+                        <Button
+                            className="mt-3"
+                            size="sm"
+                            onClick={() => void handlePair()}
+                            disabled={pairing}
+                        >
+                            <Plus className="mr-1.5 size-3.5" />
+                            Open pairing window
+                        </Button>
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+                        {/* pattern-check: skip — presentational JSX restructure
+                            of the node row (open-button + forget-button); no
+                            new logic or abstraction. */}
                         {nodes.map((n) => (
-                            <button
+                            <div
                                 key={n.id}
-                                type="button"
-                                disabled={!n.online}
-                                onClick={() => void handleOpen(n.id)}
-                                className="flex items-center gap-3 rounded-[10px] border border-border bg-card px-3.5 py-3 text-left transition-colors hover:border-foreground/30 hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+                                className="flex items-center gap-1 rounded-[10px] border border-border bg-card pr-1.5 transition-colors hover:border-foreground/30"
                             >
-                                <Cpu className="size-5 shrink-0 text-muted-foreground" />
-                                <div className="min-w-0 flex-1">
-                                    <div className="truncate text-sm font-semibold">
-                                        {n.label}
+                                <button
+                                    type="button"
+                                    disabled={!n.online}
+                                    onClick={() => void handleOpen(n.id)}
+                                    className="flex min-w-0 flex-1 items-center gap-3 rounded-l-[10px] px-3.5 py-3 text-left transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    <Cpu className="size-5 shrink-0 text-muted-foreground" />
+                                    <div className="min-w-0 flex-1">
+                                        <div className="truncate text-sm font-semibold">
+                                            {n.label}
+                                        </div>
+                                        <div className="text-[11px] text-muted-foreground">
+                                            {n.online ? 'Online' : 'Offline'}
+                                            {n.online && n.rssi
+                                                ? ` · ${n.rssi} dBm`
+                                                : ''}
+                                            {n.hopCount
+                                                ? ` · ${n.hopCount} hop${
+                                                      n.hopCount > 1 ? 's' : ''
+                                                  }`
+                                                : ''}
+                                        </div>
                                     </div>
-                                    <div className="text-[11px] text-muted-foreground">
-                                        {n.online ? 'Online' : 'Offline'}
-                                        {n.online && n.rssi
-                                            ? ` · ${n.rssi} dBm`
-                                            : ''}
-                                        {n.hopCount
-                                            ? ` · ${n.hopCount} hop${
-                                                  n.hopCount > 1 ? 's' : ''
-                                              }`
-                                            : ''}
-                                    </div>
-                                </div>
-                            </button>
+                                </button>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="size-8 shrink-0 text-muted-foreground hover:text-destructive"
+                                    title="Forget node"
+                                    onClick={() =>
+                                        void handleForget(n.id, n.label)
+                                    }
+                                >
+                                    <Trash2 className="size-4" />
+                                </Button>
+                            </div>
                         ))}
                     </div>
                 )}
