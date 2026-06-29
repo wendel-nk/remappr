@@ -1,24 +1,28 @@
-name: PR preview (Cloudflare Pages)
+name: Dev site (Cloudflare Pages)
 
+# Staging deploy. Every push to `dev` (i.e. every PR merged into dev) rebuilds
+# the web app and ships it to dev.remappr.com. Production (remappr.com) stays
+# on main via main.yml — promote dev -> main when you're happy with staging.
 on:
-    pull_request:
-        branches: [main, dev]
-        types: [opened, synchronize, reopened]
+    push:
+        branches: [dev]
+    workflow_dispatch:
+
+# One dev deploy at a time; newer pushes cancel in-flight builds.
+concurrency:
+    group: dev-deploy
+    cancel-in-progress: true
 
 permissions:
     contents: read
-    pull-requests: write
     deployments: write
 
-# One concurrent preview per PR — newer pushes cancel in-flight builds.
-concurrency:
-    group: pr-preview-${{ github.event.pull_request.number }}
-    cancel-in-progress: true
-
 jobs:
-    preview:
-        runs-on: ubuntu-latest
+    deploy:
+        # `remappr` environment holds REMAPPR_GIT_TOKEN + REMAPPR_*_URL vars and
+        # the CLOUDFLARE_* secrets, same as main.yml / pr-preview.yml.
         environment: remappr
+        runs-on: ubuntu-latest
         steps:
             - name: Checkout
               uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
@@ -34,9 +38,8 @@ jobs:
 
             - name: Install dependencies
               # --ignore-scripts skips the electron-builder install-app-deps
-              # postinstall, which tries to rebuild native modules (usb,
-              # noble, etc.) that need system libs (libudev) the runner
-              # doesn't have. Web build doesn't use those modules anyway.
+              # postinstall (native modules need system libs the runner lacks);
+              # the web build doesn't use them.
               run: pnpm install --frozen-lockfile --ignore-scripts
 
             - name: Fetch @remappr projects
@@ -50,23 +53,13 @@ jobs:
             - name: Build
               run: pnpm build
 
-            - name: Deploy to Cloudflare Pages (preview)
+            - name: Deploy to Cloudflare Pages (dev)
               id: cf
               uses: cloudflare/wrangler-action@9acf94ace14e7dc412b076f2c5c20b8ce93c79cd # v3.15.0
               with:
                   apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
                   accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-                  command: pages deploy dist --project-name=remappr-preview --branch=pr-${{ github.event.pull_request.number }}
-
-            - name: Comment preview URL on PR
-              uses: marocchino/sticky-pull-request-comment@773744901bac0e8cbb5a0dc842800d45e9b2b405 # v2.9.4
-              with:
-                  header: cloudflare-preview
-                  message: |
-                      ### Cloudflare Pages preview
-
-                      **Latest deploy:** ${{ steps.cf.outputs.deployment-url }}
-
-                      **Stable alias:** https://pr-${{ github.event.pull_request.number }}.remappr-preview.pages.dev
-
-                      _Updates on every push to this PR._
+                  # --branch=dev must match the remappr-dev project's "Production
+                  # branch" in the Cloudflare dashboard, otherwise this lands as a
+                  # preview deploy and dev.remappr.com won't update.
+                  command: pages deploy dist --project-name=remappr-dev --branch=dev
