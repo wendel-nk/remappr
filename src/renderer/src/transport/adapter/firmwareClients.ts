@@ -17,6 +17,8 @@
 // here would be wrong — config would eagerly register every compiler at connect
 // time. They are the only two such dirs; everything else matched below is a
 // client. A new non-adapter dir with an index.ts must be added here.
+import { initRemapprIdentity } from '@/lib/remapprIdentity'
+
 const NON_CLIENT_DIRS = new Set(['catalog', 'config'])
 
 const clientModules = import.meta.glob('@firmware/*/index.ts')
@@ -55,8 +57,13 @@ let loadOnce: Promise<void> | null = null
  */
 export function ensureFirmwareClientsLoaded(): Promise<void> {
     if (loadOnce) return loadOnce
-    loadOnce = Promise.all(clientEntries().map(([, load]) => load())).then(
-        () => undefined,
-    )
+    // Inject the durable Remappr control-auth identity store alongside the client
+    // chunk loads: every connect path awaits this gate, so the identity is warm
+    // before the first loadOrCreateIdentity() (else the §19 handshake regenerates
+    // it each launch → ERR_AUTH on a bonded node). See lib/remapprIdentity.ts.
+    loadOnce = Promise.all([
+        ...clientEntries().map(([, load]) => load()),
+        initRemapprIdentity(),
+    ]).then(() => undefined)
     return loadOnce
 }
