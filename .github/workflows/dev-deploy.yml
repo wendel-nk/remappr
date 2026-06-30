@@ -62,4 +62,4 @@ jobs:
                   # --branch=dev must match the remappr-dev project's "Production
                   # branch" in the Cloudflare dashboard, otherwise this lands as a
                   # preview deploy and dev.remappr.com won't update.
-                  command: pages deploy dist --project-name=remappr-dev --branch=dev
+                  command: pages deploy dist --project-name=remappr-dev --branch=main
