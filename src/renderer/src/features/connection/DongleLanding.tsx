@@ -7,7 +7,16 @@
 // Clicking an online node opens a (read-only) view of it via the store's
 // openNode, which swaps the active service to the relayed node.
 import { JSX, useCallback, useEffect, useState } from 'react'
-import { Cpu, Plus, Power, Radio, RefreshCw, Trash2 } from 'lucide-react'
+import {
+    Cpu,
+    Eraser,
+    Plus,
+    Power,
+    Radio,
+    RefreshCw,
+    Trash2,
+    Unplug,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import useConnectionStore from '@/stores/connectionStore'
 import { Button } from '@/ui/button'
@@ -108,6 +117,53 @@ export function DongleLanding(): JSX.Element {
         [nodesApi, fetchNodes],
     )
 
+    // pattern-check: skip — UI event handler mirroring handleForget; thin facade
+    // call + toast/refresh, no new logic or abstraction.
+    // Unpair a node (COMMON.UNPAIR_RADIO, owner-sealed): the node forgets its
+    // dongle bond and re-arms, then re-pairs onto its same pipe (no leak). Needs
+    // the node online for the §19 handshake; re-lists after.
+    const handleUnpair = useCallback(
+        async (id: number, label: string): Promise<void> => {
+            if (!nodesApi) return
+            try {
+                await nodesApi.unpairRadio(id)
+                toast.success(`Unpaired ${label}`, {
+                    description: 'Node will re-arm and re-pair.',
+                })
+                void fetchNodes()
+            } catch (e) {
+                toast.error('Failed to unpair node', {
+                    description: e instanceof Error ? e.message : String(e),
+                })
+            }
+        },
+        [nodesApi, fetchNodes],
+    )
+
+    // pattern-check: skip — UI event handler; thin facade call + confirm/toast,
+    // no new logic or abstraction.
+    // Wipe every dongle bond (DONGLE.CLEAR_ALL_BONDS) — recovery for a table full
+    // of stale bonds that forget can't reach. Destructive (all nodes must
+    // re-pair), so confirm first; re-lists after.
+    const handleClearAllBonds = useCallback(async (): Promise<void> => {
+        if (!nodesApi) return
+        if (
+            !window.confirm(
+                'Clear ALL dongle bonds? Every paired node is forgotten and must re-pair.',
+            )
+        )
+            return
+        try {
+            const cleared = await nodesApi.clearAllBonds()
+            toast.success(`Cleared ${cleared} bond${cleared === 1 ? '' : 's'}`)
+            void fetchNodes()
+        } catch (e) {
+            toast.error('Failed to clear bonds', {
+                description: e instanceof Error ? e.message : String(e),
+            })
+        }
+    }, [nodesApi, fetchNodes])
+
     const dongleName = service?.deviceInfo.name?.trim() || 'Remappr Dongle'
     const connLabel = communication === 'ble' ? 'BLE' : 'USB'
 
@@ -141,6 +197,15 @@ export function DongleLanding(): JSX.Element {
                 >
                     <RefreshCw className="mr-1.5 size-3.5" />
                     Refresh
+                </Button>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    title="Wipe all dongle bonds (recovery for stale bonds)"
+                    onClick={() => void handleClearAllBonds()}
+                >
+                    <Eraser className="mr-1.5 size-3.5" />
+                    Clear bonds
                 </Button>
                 <Button
                     variant="destructive"
@@ -182,7 +247,7 @@ export function DongleLanding(): JSX.Element {
                 ) : (
                     <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
                         {/* pattern-check: skip — presentational JSX restructure
-                            of the node row (open-button + forget-button); no
+                            of the node row (open + unpair + forget buttons); no
                             new logic or abstraction. */}
                         {nodes.map((n) => (
                             <div
@@ -213,6 +278,22 @@ export function DongleLanding(): JSX.Element {
                                         </div>
                                     </div>
                                 </button>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    disabled={!n.online}
+                                    className="size-8 shrink-0 text-muted-foreground hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                                    title={
+                                        n.online
+                                            ? 'Unpair radio (node forgets the dongle and re-pairs)'
+                                            : 'Unpair needs the node online'
+                                    }
+                                    onClick={() =>
+                                        void handleUnpair(n.id, n.label)
+                                    }
+                                >
+                                    <Unplug className="size-4" />
+                                </Button>
                                 <Button
                                     variant="ghost"
                                     size="icon"
