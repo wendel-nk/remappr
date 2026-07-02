@@ -79,6 +79,8 @@ const ROSTER: NodeView[] = [
         bonded: true,
         rssi: -40,
         hopCount: 0,
+        isMaster: true,
+        nodeRole: 0x01,
     },
     {
         id: 0x0009,
@@ -88,6 +90,8 @@ const ROSTER: NodeView[] = [
         bonded: true,
         rssi: -72,
         hopCount: 1,
+        isMaster: false,
+        nodeRole: 0,
     },
 ]
 

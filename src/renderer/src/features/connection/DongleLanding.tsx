@@ -9,6 +9,7 @@
 import { JSX, useCallback, useEffect, useState } from 'react'
 import {
     Cpu,
+    Crown,
     Eraser,
     Plus,
     Power,
@@ -262,8 +263,19 @@ export function DongleLanding(): JSX.Element {
                                 >
                                     <Cpu className="size-5 shrink-0 text-muted-foreground" />
                                     <div className="min-w-0 flex-1">
-                                        <div className="truncate text-sm font-semibold">
-                                            {n.label}
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="truncate text-sm font-semibold">
+                                                {n.label}
+                                            </span>
+                                            {n.isMaster && (
+                                                <span
+                                                    title="Topology master (§5 election)"
+                                                    className="inline-flex shrink-0 items-center gap-0.5 rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400"
+                                                >
+                                                    <Crown className="size-2.5" />
+                                                    Master
+                                                </span>
+                                            )}
                                         </div>
                                         <div className="text-[11px] text-muted-foreground">
                                             {n.online ? 'Online' : 'Offline'}
