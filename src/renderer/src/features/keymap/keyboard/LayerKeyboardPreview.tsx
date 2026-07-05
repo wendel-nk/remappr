@@ -71,6 +71,13 @@ export function LayerKeyboardPreview({
                 ry: p.ry,
                 children: p.outOfRange ? (
                     <span />
+                ) : p.bindingParam1 == null && p.paramText ? (
+                    <span
+                        className="font-bold inline-flex items-center justify-center w-full leading-tight"
+                        title={p.paramTitle}
+                    >
+                        {p.paramText}
+                    </span>
                 ) : (
                     <HidUsageLabel
                         hid_usage={p.bindingParam1!}

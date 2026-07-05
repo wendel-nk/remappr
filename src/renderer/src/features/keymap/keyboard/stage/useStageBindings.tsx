@@ -44,8 +44,14 @@ export function useStageBindings({
             header: p.header,
             // Tap glyph text (e.g. "Q", "Vol+") for legend sizing — mirrors what
             // HidUsageLabel renders, so KeyButton sizes the legend off the glyph
-            // length (design rule), not the action-type tag in `header`.
-            tapText: p.outOfRange ? '' : usageGlyph(p.bindingParam1!),
+            // length (design rule), not the action-type tag in `header`. For
+            // non-HID params (layer / enum / number) fall back to the firmware-
+            // resolved short text (e.g. "FN1", "BT 0", "Hue+").
+            tapText: p.outOfRange
+                ? ''
+                : p.bindingParam1 != null
+                  ? usageGlyph(p.bindingParam1)
+                  : (p.paramText ?? ''),
             actionLabel: p.actionLabel,
             holdTap: p.holdTap ? holdTapToLabels(p.holdTap) : undefined,
             // Chord modifiers (Ctrl/Shift/…) packed in the tap usage's high byte
@@ -84,6 +90,15 @@ export function useStageBindings({
             ry: p.ry,
             children: p.outOfRange ? (
                 <span></span>
+            ) : p.bindingParam1 == null && p.paramText ? (
+                // Non-HID param (layer / enum / number) — render the firmware's
+                // short text; there is no HID usage to draw a glyph from.
+                <span
+                    className="font-bold inline-flex items-center justify-center w-full leading-tight"
+                    title={p.paramTitle}
+                >
+                    {p.paramText}
+                </span>
             ) : (
                 <HidUsageLabel
                     hid_usage={p.bindingParam1!}
@@ -101,28 +116,32 @@ export function useStageBindings({
         encoderSlots.forEach((slot, i) => {
             const action = encoderActions[i]
             if (!action) return
-            // Two half-unit buttons side by side: ccw left, cw right.
+            // Two half-unit buttons side by side: ccw left, cw right. Prefer the
+            // short param text (e.g. "FN1", "BT 0") over the action-type name.
+            const ccwText =
+                action.ccw.label.paramText ?? action.ccw.label.primary
+            const cwText = action.cw.label.paramText ?? action.cw.label.primary
             encoderPositions.push({
                 id: `enc-${i}-ccw`,
                 header: 'CCW',
-                actionLabel: action.ccw.label.primary,
+                actionLabel: ccwText,
                 x: slot.x,
                 y: slot.y,
                 width: 0.5,
                 height: 1,
                 encoder: { slot: i, dir: 'ccw' },
-                children: <span>{action.ccw.label.primary}</span>,
+                children: <span>{ccwText}</span>,
             })
             encoderPositions.push({
                 id: `enc-${i}-cw`,
                 header: 'CW',
-                actionLabel: action.cw.label.primary,
+                actionLabel: cwText,
                 x: slot.x + 0.5,
                 y: slot.y,
                 width: 0.5,
                 height: 1,
                 encoder: { slot: i, dir: 'cw' },
-                children: <span>{action.cw.label.primary}</span>,
+                children: <span>{cwText}</span>,
             })
         })
         return [...keyPositions, ...encoderPositions]
