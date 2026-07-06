@@ -2,7 +2,12 @@
 import { useMemo } from 'react'
 import type { Keymap } from '@firmware/types'
 import { resolveBindingLabels } from '@firmware'
-import { usageGlyph, usageModifierNames } from '@/lib/actions/hidUsages'
+import {
+    hid_usage_get_labels,
+    hidUsagePageAndIdFromUsage,
+    usageGlyph,
+    usageModifierNames,
+} from '@/lib/actions/hidUsages'
 import {
     categoryForBinding,
     faceCategoryForBinding,
@@ -11,6 +16,15 @@ import { HidUsageLabel } from '../HidUsageLabel'
 import type { KeyPosition } from '../PhysicalLayoutCanvas'
 import type { KeypressDetectionConfig } from '@/lib/keypress/keypressDetector'
 import { holdTapToLabels } from './helpers'
+
+/** Full, human-readable HID key name for the hover tooltip (usageGlyph gives an
+ *  abbreviated cap glyph; this keeps the whole name, e.g. "ErrorUndefined"). */
+function fullUsageLabel(usage: number): string | undefined {
+    const [pageMut, id] = hidUsagePageAndIdFromUsage(usage)
+    const labels = hid_usage_get_labels(pageMut & 0xff, id)
+    const long = labels.long || labels.med || labels.short
+    return long ? long.replace(/^Keyboard /, '') : undefined
+}
 
 interface Inputs {
     layouts: KeypressDetectionConfig['layouts'] | undefined
@@ -52,6 +66,12 @@ export function useStageBindings({
                 : p.bindingParam1 != null
                   ? usageGlyph(p.bindingParam1)
                   : (p.paramText ?? ''),
+            // Full value for the tooltip when the cap glyph is abbreviated
+            // (HID keys). Param legends already carry their full text in tapText.
+            valueTitle:
+                !p.outOfRange && p.bindingParam1 != null
+                    ? fullUsageLabel(p.bindingParam1)
+                    : undefined,
             actionLabel: p.actionLabel,
             holdTap: p.holdTap ? holdTapToLabels(p.holdTap) : undefined,
             // Chord modifiers (Ctrl/Shift/…) packed in the tap usage's high byte

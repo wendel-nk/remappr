@@ -308,6 +308,7 @@ const KeyButtonViewImpl = ({
     seen = false,
     header,
     tapText,
+    valueTitle,
     actionLabel,
     oneU,
     hoverZoom = true,
@@ -395,8 +396,11 @@ const KeyButtonViewImpl = ({
         // "Macro"); tapText is its value glyph/legend (e.g. "L4", "BT 0",
         // "m_hello", "Q"). Both together read as the full key.
         if (header) tipRows.push(['Action', header])
-        if (tapText && tapText !== header && tapText !== '▽')
-            tipRows.push(['Value', tapText])
+        // Prefer the full, untruncated value (valueTitle) — the cap legend may be
+        // an abbreviated glyph (e.g. "Erro…") while the tooltip shows it whole.
+        const valueText = valueTitle ?? tapText
+        if (valueText && valueText !== header && valueText !== '▽')
+            tipRows.push(['Value', valueText])
         if (actionLabel) tipRows.push(['Binding', actionLabel])
     }
     const typeLabel = CATEGORY_META[category]?.label
