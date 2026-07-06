@@ -3,6 +3,7 @@ import { useMemo } from 'react'
 import { resolveBindingLabels, type ResolvedHoldTapDescriptor } from '@firmware'
 import { PhysicalLayoutCanvas, type KeyPosition } from './PhysicalLayoutCanvas'
 import { HidUsageLabel } from './HidUsageLabel'
+import { ParamLegend } from './ParamLegend'
 import type { HoldTapLabels } from './KeyButton'
 import { categoryForBinding } from '@/lib/keymap/keyCategory'
 import { useLayout } from '@/hooks/use-layouts'
@@ -72,12 +73,7 @@ export function LayerKeyboardPreview({
                 children: p.outOfRange ? (
                     <span />
                 ) : p.bindingParam1 == null && p.paramText ? (
-                    <span
-                        className="font-bold block w-full text-center leading-tight overflow-hidden text-ellipsis whitespace-nowrap"
-                        title={p.paramTitle}
-                    >
-                        {p.paramText}
-                    </span>
+                    <ParamLegend text={p.paramText} title={p.paramTitle} />
                 ) : (
                     <HidUsageLabel
                         hid_usage={p.bindingParam1!}

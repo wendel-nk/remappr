@@ -3,8 +3,7 @@ import { useMemo } from 'react'
 import type { Keymap } from '@firmware/types'
 import { resolveBindingLabels } from '@firmware'
 import {
-    hid_usage_get_labels,
-    hidUsagePageAndIdFromUsage,
+    hidUsageLongLabel,
     usageGlyph,
     usageModifierNames,
 } from '@/lib/actions/hidUsages'
@@ -15,16 +14,8 @@ import {
 import { HidUsageLabel } from '../HidUsageLabel'
 import type { KeyPosition } from '../PhysicalLayoutCanvas'
 import type { KeypressDetectionConfig } from '@/lib/keypress/keypressDetector'
+import { ParamLegend } from '../ParamLegend'
 import { holdTapToLabels } from './helpers'
-
-/** Full, human-readable HID key name for the hover tooltip (usageGlyph gives an
- *  abbreviated cap glyph; this keeps the whole name, e.g. "ErrorUndefined"). */
-function fullUsageLabel(usage: number): string | undefined {
-    const [pageMut, id] = hidUsagePageAndIdFromUsage(usage)
-    const labels = hid_usage_get_labels(pageMut & 0xff, id)
-    const long = labels.long || labels.med || labels.short
-    return long ? long.replace(/^Keyboard /, '') : undefined
-}
 
 interface Inputs {
     layouts: KeypressDetectionConfig['layouts'] | undefined
@@ -70,7 +61,7 @@ export function useStageBindings({
             // (HID keys). Param legends already carry their full text in tapText.
             valueTitle:
                 !p.outOfRange && p.bindingParam1 != null
-                    ? fullUsageLabel(p.bindingParam1)
+                    ? hidUsageLongLabel(p.bindingParam1)
                     : undefined,
             actionLabel: p.actionLabel,
             holdTap: p.holdTap ? holdTapToLabels(p.holdTap) : undefined,
@@ -111,15 +102,7 @@ export function useStageBindings({
             children: p.outOfRange ? (
                 <span></span>
             ) : p.bindingParam1 == null && p.paramText ? (
-                // Non-HID param (layer / enum / number / macro name) — render the
-                // firmware's short text; there is no HID usage to draw a glyph
-                // from. Clip an over-long name to an ellipsis like the other caps.
-                <span
-                    className="font-bold block w-full text-center leading-tight overflow-hidden text-ellipsis whitespace-nowrap"
-                    title={p.paramTitle}
-                >
-                    {p.paramText}
-                </span>
+                <ParamLegend text={p.paramText} title={p.paramTitle} />
             ) : (
                 <HidUsageLabel
                     hid_usage={p.bindingParam1!}
