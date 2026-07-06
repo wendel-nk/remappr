@@ -91,10 +91,11 @@ export function useStageBindings({
             children: p.outOfRange ? (
                 <span></span>
             ) : p.bindingParam1 == null && p.paramText ? (
-                // Non-HID param (layer / enum / number) — render the firmware's
-                // short text; there is no HID usage to draw a glyph from.
+                // Non-HID param (layer / enum / number / macro name) — render the
+                // firmware's short text; there is no HID usage to draw a glyph
+                // from. Clip an over-long name to an ellipsis like the other caps.
                 <span
-                    className="font-bold inline-flex items-center justify-center w-full leading-tight"
+                    className="font-bold block w-full text-center leading-tight overflow-hidden text-ellipsis whitespace-nowrap"
                     title={p.paramTitle}
                 >
                     {p.paramText}

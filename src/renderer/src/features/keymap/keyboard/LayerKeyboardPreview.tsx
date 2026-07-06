@@ -73,7 +73,7 @@ export function LayerKeyboardPreview({
                     <span />
                 ) : p.bindingParam1 == null && p.paramText ? (
                     <span
-                        className="font-bold inline-flex items-center justify-center w-full leading-tight"
+                        className="font-bold block w-full text-center leading-tight overflow-hidden text-ellipsis whitespace-nowrap"
                         title={p.paramTitle}
                     >
                         {p.paramText}
