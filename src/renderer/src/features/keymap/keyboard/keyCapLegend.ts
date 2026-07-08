@@ -20,6 +20,9 @@ export interface KeyCapLegend {
     /** The tap glyph text (e.g. "Q", "Vol+") — also sizes the main legend
      * (≤1 char → 0.46U, ≤3 → 0.34U, else 0.24U). Distinct from {@link header}. */
     tapText?: string
+    /** Full, untruncated value for the hover tooltip (e.g. "ErrorUndefined"
+     *  when {@link tapText} is the abbreviated glyph). Falls back to tapText. */
+    valueTitle?: string
     /** Firmware binding code (e.g. "&kp" / "KC") shown as the header in
      *  "Binding code" display mode. */
     actionLabel?: string
