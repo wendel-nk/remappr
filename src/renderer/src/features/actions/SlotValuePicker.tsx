@@ -61,7 +61,15 @@ export const SlotValuePicker = ({
                         id="slotValuePickerLayer"
                         className="w-[180px]"
                     >
-                        <SelectValue placeholder="Layer" />
+                        {/* Explicit children: Radix only fills the trigger from a
+                            mounted selected item, so a programmatically-set value
+                            on a never-opened Select (and value 0 in particular)
+                            renders blank. Render the label ourselves. */}
+                        <SelectValue placeholder="Layer">
+                            {value !== undefined
+                                ? layers.find((l) => l.id === value)?.name
+                                : undefined}
+                        </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                         {layers.map(({ id, name }) => (
@@ -97,7 +105,12 @@ export const SlotValuePicker = ({
                             id="slotValuePickerRange"
                             className="w-[180px]"
                         >
-                            <SelectValue placeholder={slot.label} />
+                            {/* Explicit children: without them Radix leaves the
+                                trigger blank for a seeded, never-opened value —
+                                notably profile 0 (a valid BT_SEL/BT_DISC index). */}
+                            <SelectValue placeholder={slot.label}>
+                                {value !== undefined ? value : undefined}
+                            </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
                             {options.map((n) => (
@@ -136,7 +149,13 @@ export const SlotValuePicker = ({
                 value={value?.toString()}
             >
                 <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder={slot.label} />
+                    {/* Explicit children: render the chosen label ourselves so a
+                        seeded, never-opened command (incl. value 0) isn't blank. */}
+                    <SelectValue placeholder={slot.label}>
+                        {value !== undefined
+                            ? slot.values.find((v) => v.value === value)?.label
+                            : undefined}
+                    </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                     {slot.values.map((v) => (
