@@ -77,6 +77,11 @@ module.exports = {
         createDesktopShortcut: 'always',
     },
     mac: {
+        // Canonical icon source is the 1024x1024 resources/icon.png;
+        // electron-builder generates the full multi-size .icns from it at build
+        // time. (The committed build/icon.icns only held a single 512px slice,
+        // which macOS renders as a generic icon.)
+        icon: 'resources/icon.png',
         // Ship a single universal (x64 + arm64) build so the DMG runs on both
         // Intel and Apple Silicon Macs. Release CI runs on one `macos-latest`
         // (Apple Silicon) runner, so without an explicit arch electron-builder
