@@ -38,6 +38,8 @@ export type KeyPosition = PropsWithChildren<{
     id?: string
     header?: string
     tapText?: string
+    /** Full value for the hover tooltip when tapText is an abbreviated glyph. */
+    valueTitle?: string
     actionLabel?: string
     holdTap?: HoldTapLabels
     /** Chord modifier names (e.g. ["Ctrl","Shift"]) → chips above the legend. */

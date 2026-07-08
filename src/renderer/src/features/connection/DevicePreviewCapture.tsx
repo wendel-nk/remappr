@@ -40,7 +40,7 @@ export function DevicePreviewCapture(): null {
                     ? usageGlyph(p.holdTap!.tapParam)
                     : p.bindingParam1 != null
                       ? usageGlyph(p.bindingParam1)
-                      : (p.header ?? '')
+                      : (p.paramText ?? p.header ?? '')
                 const hold = p.holdTap
                     ? p.holdTap.holdNodeKind === 'layer'
                         ? (p.holdTap.holdLayerMomentary ?? '')

@@ -308,6 +308,7 @@ const KeyButtonViewImpl = ({
     seen = false,
     header,
     tapText,
+    valueTitle,
     actionLabel,
     oneU,
     hoverZoom = true,
@@ -379,11 +380,29 @@ const KeyButtonViewImpl = ({
     ].filter(Boolean)
     const tooltip = tooltipParts.join(' — ')
 
-    // Rich-tooltip rows (label → value); only non-empty rows render.
+    // Rich-tooltip rows (label → value); only non-empty rows render. Show the
+    // full breakdown of the binding rather than a single mislabelled line.
     const tipRows: Array<[string, string]> = []
-    if (header) tipRows.push(['Tap', header])
-    if (actionLabel) tipRows.push(['Action', actionLabel])
-    if (holdTap?.tooltip) tipRows.push(['Hold', holdTap.tooltip])
+    if (holdTap?.tooltip) {
+        // A tap-hold's tooltip already reads "<Action>\nTap: ..\nHold: ..";
+        // split it into labelled rows (first line = the action-type name).
+        holdTap.tooltip.split('\n').forEach((line, i) => {
+            const sep = line.indexOf(': ')
+            if (sep > 0) tipRows.push([line.slice(0, sep), line.slice(sep + 2)])
+            else if (i === 0 && line) tipRows.push(['Action', line])
+        })
+    } else {
+        // Header is the behaviour/action name (e.g. "To Layer", "Bluetooth",
+        // "Macro"); tapText is its value glyph/legend (e.g. "L4", "BT 0",
+        // "m_hello", "Q"). Both together read as the full key.
+        if (header) tipRows.push(['Action', header])
+        // Prefer the full, untruncated value (valueTitle) — the cap legend may be
+        // an abbreviated glyph (e.g. "Erro…") while the tooltip shows it whole.
+        const valueText = valueTitle ?? tapText
+        if (valueText && valueText !== header && valueText !== '▽')
+            tipRows.push(['Value', valueText])
+        if (actionLabel) tipRows.push(['Binding', actionLabel])
+    }
     const typeLabel = CATEGORY_META[category]?.label
     if (typeLabel) tipRows.push(['Type', typeLabel])
     if (pressCount != null) tipRows.push(['Presses', String(pressCount)])
