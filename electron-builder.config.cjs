@@ -103,6 +103,23 @@ module.exports = {
         // broken single-arch merge of the real runtime binary.
         x64ArchFiles:
             '**/node_modules/{node-hid,@serialport/bindings-cpp}/**/*.node',
+        // Ad-hoc code signature ('-'). We have no Apple Developer ID (this is an
+        // open-source project), but macOS 15's TCC subsystem SIGABRTs an
+        // *unsigned* app the moment it touches Bluetooth (CoreBluetooth) — the
+        // renderer auto-scans BLE ~0.5s after load, so an unsigned build crashes
+        // ~6s into every launch despite the NSBluetooth* usage strings. An
+        // ad-hoc signature gives the app a stable cdhash so TCC can attribute the
+        // Bluetooth grant; verified to stop the crash. It does NOT satisfy
+        // Gatekeeper on download (users still right-click → Open once, or run
+        // `xattr -dr com.apple.quarantine`), which only Developer ID +
+        // notarization removes.
+        identity: '-',
+        // hardenedRuntime is only needed for notarization (which requires a
+        // Developer ID we don't have). With ad-hoc signing it forces library
+        // validation, which would reject our own non-Apple-signed native modules
+        // and fail launch unless further entitlements are added — so keep it off.
+        hardenedRuntime: false,
+        entitlements: 'build/entitlements.mac.plist',
         entitlementsInherit: 'build/entitlements.mac.plist',
         extendInfo: {
             NSBluetoothAlwaysUsageDescription:
