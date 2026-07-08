@@ -77,6 +77,27 @@ module.exports = {
         createDesktopShortcut: 'always',
     },
     mac: {
+        // Ship a single universal (x64 + arm64) build so the DMG runs on both
+        // Intel and Apple Silicon Macs. Release CI runs on one `macos-latest`
+        // (Apple Silicon) runner, so without an explicit arch electron-builder
+        // defaults to an arm64-only app that Intel Macs reject with
+        // "not supported on this Mac". `zip` is kept alongside `dmg` for
+        // Squirrel.Mac auto-update artifacts.
+        target: [
+            { target: 'dmg', arch: ['universal'] },
+            { target: 'zip', arch: ['universal'] },
+        ],
+        // node-hid bundles prebuilt single-arch darwin binaries
+        // (prebuilds/HID-darwin-{x64,arm64}/*.node) that are byte-identical in
+        // the x64 and arm64 single-arch builds. @electron/universal refuses to
+        // merge a Mach-O file that is identical in both unless it is declared
+        // here — they are correct as-is (the arch-appropriate prebuild loads at
+        // runtime). Files that genuinely differ per arch (node-hid's rebuilt
+        // build/Release/HID.node) are still lipo-merged into a fat binary; this
+        // rule only whitelists the identical-in-both case, so it can't mask a
+        // broken single-arch merge of the real runtime binary.
+        x64ArchFiles:
+            '**/node_modules/{node-hid,@serialport/bindings-cpp}/**/*.node',
         entitlementsInherit: 'build/entitlements.mac.plist',
         extendInfo: {
             NSBluetoothAlwaysUsageDescription:
