@@ -1,6 +1,6 @@
 // Pattern check: no GoF pattern (-) — rejected — presentational selector over neutral ActionType list.
 import { useMemo, useState } from 'react'
-import { Check, ChevronsUpDown } from 'lucide-react'
+import { ChevronsUpDown } from 'lucide-react'
 import type { ActionType } from '@firmware/types'
 import { Button } from '@/ui/button'
 import {
@@ -89,19 +89,17 @@ export const ActionTypeSelector = ({
                                     value={t.displayName}
                                     onSelect={() => handleSelect(t.id)}
                                 >
-                                    <Check
-                                        className={cn(
-                                            'mr-2 h-4 w-4',
-                                            selectedId === t.id
-                                                ? 'opacity-100'
-                                                : 'opacity-0',
-                                        )}
-                                    />
-                                    <LegendGlyph
-                                        id={t.icon}
-                                        className="mr-1.5 h-4 w-4 shrink-0"
-                                    />
-                                    {t.displayName}
+                                    {/* Fixed icon slot: reserved whether or not
+                                        the behavior resolves an icon, so icon-
+                                        less rows (Key Press…) align their text
+                                        with icon'd rows — a two-column table. */}
+                                    <span className="flex w-4 shrink-0 items-center justify-center">
+                                        <LegendGlyph
+                                            id={t.icon}
+                                            className="h-4 w-4"
+                                        />
+                                    </span>
+                                    <span>{t.displayName}</span>
                                 </CommandItem>
                             ))}
                         </CommandGroup>

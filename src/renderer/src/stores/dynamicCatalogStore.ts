@@ -192,6 +192,7 @@ async function fetchBehaviorEntries(svc: KeyboardService): Promise<{
                 description: at.description,
                 kinds: ['hid'],
                 behaviorRef: { kind: at.id },
+                ...(at.icon ? { icon: at.icon } : {}),
             }
             if (cls === 'macro') macros.push(entry)
             else combos.push(entry)

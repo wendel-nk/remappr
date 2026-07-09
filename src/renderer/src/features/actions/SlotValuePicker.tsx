@@ -21,8 +21,10 @@ import {
     selectConfigForSlot,
 } from './selectConfigForSlot'
 
-// A dropdown row / trigger face: behavior icon + option icon + label text. Icons
-// resolve against the renderer registry; an unknown id simply shows the text.
+// The closed trigger face: behavior icon + selected command icon + label, inline.
+// Both icons resolve against the renderer registry; an unknown id shows nothing.
+// The command icon is dropped when it duplicates the behavior icon (e.g. &bt
+// "Select Profile" is itself bluetooth) so the trigger never shows two of it.
 function OptionFace({
     typeIcon,
     icon,
@@ -32,11 +34,34 @@ function OptionFace({
     icon?: string
     label: React.ReactNode
 }): JSX.Element {
+    const cmdIcon = icon !== typeIcon ? icon : undefined
     return (
         <span className="inline-flex items-center gap-1.5">
             <LegendGlyph id={typeIcon} className="h-4 w-4 shrink-0" />
-            <LegendGlyph id={icon} className="h-4 w-4 shrink-0" />
+            <LegendGlyph id={cmdIcon} className="h-4 w-4 shrink-0" />
             <span>{label}</span>
+        </span>
+    )
+}
+
+// A dropdown list row, laid out as a two-column table: a narrow fixed icon
+// gutter and an auto-width text column. The gutter shows the option's own
+// command icon, falling back to the behavior icon so icon-less commands still
+// read and every row's text left-edge aligns (issue #147). The column is
+// `auto`, not `1fr` — Radix wraps the row in an inline `ItemText`, so a `1fr`
+// track collapses to min-content and truncates the text to nothing; sizing to
+// content lets the popover grow to the widest label instead.
+function OptionRow({
+    icon,
+    label,
+}: {
+    icon?: string
+    label: React.ReactNode
+}): JSX.Element {
+    return (
+        <span className="inline-grid grid-cols-[1.1rem_auto] items-center gap-2">
+            <LegendGlyph id={icon} className="h-4 w-4 shrink-0" />
+            <span className="whitespace-nowrap">{label}</span>
         </span>
     )
 }
@@ -79,12 +104,12 @@ function ValueSelect({
             </SelectTrigger>
             <SelectContent>
                 {options.map((o: SelectOption) => (
-                    <SelectItem key={o.value} value={o.value.toString()}>
-                        <OptionFace
-                            typeIcon={typeIcon}
-                            icon={o.icon}
-                            label={o.label}
-                        />
+                    <SelectItem
+                        key={o.value}
+                        value={o.value.toString()}
+                        hideIndicator
+                    >
+                        <OptionRow icon={o.icon ?? typeIcon} label={o.label} />
                     </SelectItem>
                 ))}
             </SelectContent>
