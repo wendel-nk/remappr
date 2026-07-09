@@ -13,6 +13,7 @@ import {
 } from '@/ui/command'
 import { Popover, PopoverContent, PopoverTrigger } from '@/ui/popover'
 import { cn } from '@/lib/cn'
+import { LegendGlyph } from '@/features/keymap/keyboard/LegendGlyph'
 
 // pattern-check: skip optional hideIds dropdown filter — mechanical filter, sortedVisible split from selected lookup
 export interface ActionTypeSelectorProps {
@@ -66,7 +67,13 @@ export const ActionTypeSelector = ({
                     aria-expanded={open}
                     className={cn('w-64 justify-between', className)}
                 >
-                    {selected ? selected.displayName : placeholder}
+                    <span className="inline-flex items-center gap-1.5 truncate">
+                        <LegendGlyph
+                            id={selected?.icon}
+                            className="h-4 w-4 shrink-0"
+                        />
+                        {selected ? selected.displayName : placeholder}
+                    </span>
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
             </PopoverTrigger>
@@ -89,6 +96,10 @@ export const ActionTypeSelector = ({
                                                 ? 'opacity-100'
                                                 : 'opacity-0',
                                         )}
+                                    />
+                                    <LegendGlyph
+                                        id={t.icon}
+                                        className="mr-1.5 h-4 w-4 shrink-0"
                                     />
                                     {t.displayName}
                                 </CommandItem>

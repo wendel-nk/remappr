@@ -268,6 +268,7 @@ export const KeyActionPicker = ({
                         highlightedKeys={highlightedKeys}
                         codec={codec}
                         catalog={catalog}
+                        typeIcon={actionType?.icon}
                     />
                 </div>
             ) : (
