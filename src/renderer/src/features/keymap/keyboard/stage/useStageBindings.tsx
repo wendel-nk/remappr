@@ -15,7 +15,17 @@ import { HidUsageLabel } from '../HidUsageLabel'
 import type { KeyPosition } from '../PhysicalLayoutCanvas'
 import type { KeypressDetectionConfig } from '@/lib/keypress/keypressDetector'
 import { ParamLegend } from '../ParamLegend'
+import { LegendParts } from '../LegendParts'
+import { hasResolvableIcon } from '../legendIcons'
 import { holdTapToLabels } from './helpers'
+
+/** Readable text join of legend parts (skips empty parts) — used as the sizing
+ *  proxy + tooltip fallback when a cap renders composite icon parts. */
+const partsText = (parts: { text: string }[]): string =>
+    parts
+        .map((p) => p.text)
+        .filter(Boolean)
+        .join(' ')
 
 interface Inputs {
     layouts: KeypressDetectionConfig['layouts'] | undefined
@@ -56,7 +66,8 @@ export function useStageBindings({
                 ? ''
                 : p.bindingParam1 != null
                   ? usageGlyph(p.bindingParam1)
-                  : (p.paramText ?? ''),
+                  : (p.paramText ??
+                    (p.paramParts ? partsText(p.paramParts) : '')),
             // Full value for the tooltip when the cap glyph is abbreviated
             // (HID keys). Param legends already carry their full text in tapText.
             valueTitle:
@@ -101,6 +112,8 @@ export function useStageBindings({
             ry: p.ry,
             children: p.outOfRange ? (
                 <span></span>
+            ) : hasResolvableIcon(p.paramParts) ? (
+                <LegendParts parts={p.paramParts!} title={p.paramTitle} />
             ) : p.bindingParam1 == null && p.paramText ? (
                 <ParamLegend text={p.paramText} title={p.paramTitle} />
             ) : (
