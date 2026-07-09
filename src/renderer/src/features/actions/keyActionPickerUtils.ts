@@ -86,6 +86,7 @@ export function isSlotValid(
 export function subsumedBehaviorIds(actionTypes: ActionType[]): Set<string> {
     const out = new Set<string>()
     for (const t of actionTypes) {
+        for (const id of t.subsumes ?? []) out.add(id)
         for (const slot of t.slots) {
             for (const v of slot.values ?? []) {
                 if (v.behaviorRef) out.add(v.behaviorRef.kind)
@@ -152,17 +153,24 @@ export function resolveSelection(
             }
         }
     }
-    // Fallback: a subsumed behavior whose params match no command still selects the
-    // composite (first command) rather than surfacing the hidden raw type.
+    // Fallback: a behavior this composite represents — folded (params match no
+    // command) or suppressed with no command (e.g. an unsettable &mmv key loaded
+    // from a keymap file) — still selects the composite's first command rather than
+    // surfacing the hidden raw type.
     for (const t of actionTypes) {
-        const i = t.slots.findIndex((s) =>
-            s.values?.some((v) => v.behaviorRef?.kind === action.kind),
+        const represents =
+            (t.subsumes ?? []).includes(action.kind) ||
+            t.slots.some((s) =>
+                s.values?.some((v) => v.behaviorRef?.kind === action.kind),
+            )
+        if (!represents) continue
+        const found = t.slots.findIndex(
+            (s) => s.kind === 'enum' && (s.values?.length ?? 0) > 0,
         )
-        if (i >= 0) {
-            const params = Array<number>(i).fill(0)
-            params[i] = t.slots[i].values?.[0]?.value ?? 0
-            return { kind: t.id, params }
-        }
+        const i = found >= 0 ? found : 0
+        const params = Array<number>(i).fill(0)
+        params[i] = t.slots[i]?.values?.[0]?.value ?? 0
+        return { kind: t.id, params }
     }
     return { kind: action.kind, params: [...action.params] }
 }

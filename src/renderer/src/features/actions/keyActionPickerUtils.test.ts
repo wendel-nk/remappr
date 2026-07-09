@@ -83,6 +83,8 @@ const mouseType: ActionType = {
             ],
         },
     ],
+    // &mmv (2) / &msc (3) are subsumed without a command (unsettable on Studio).
+    subsumes: ['2', '3'],
 }
 const normalType: ActionType = {
     id: '9',
@@ -92,9 +94,9 @@ const normalType: ActionType = {
 const actionTypes = [mouseType, normalType]
 
 describe('subsumedBehaviorIds', () => {
-    it('collects every behaviorRef kind across composite slot values', () => {
+    it('unions behaviorRef kinds and the subsumes list', () => {
         expect(subsumedBehaviorIds(actionTypes)).toEqual(
-            new Set(['5', '6', '8']),
+            new Set(['5', '6', '8', '2', '3']),
         )
     })
     it('is empty when no type carries a behaviorRef', () => {
@@ -148,6 +150,13 @@ describe('resolveSelection', () => {
             resolveSelection(actionTypes, { kind: '6', params: [0x11110000] }),
         ).toEqual({ kind: 'mouse', params: [0] })
     })
+    it('maps a subsumed behavior with no command to the composite first command', () => {
+        // an unsettable &mmv (id 2) key loaded from a keymap → Mouse + first command
+        expect(
+            resolveSelection(actionTypes, { kind: '2', params: [64936] }),
+        ).toEqual({ kind: 'mouse', params: [0] })
+    })
+
     it('passes a normal behavior through unchanged', () => {
         expect(
             resolveSelection(actionTypes, { kind: '9', params: [4] }),
