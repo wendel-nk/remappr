@@ -6,6 +6,7 @@ import type { KeycodeCodec } from '@firmware/codec'
 import type { KeyCatalog } from '@firmware/catalog/types'
 import { ActionTypeSelector } from './ActionTypeSelector'
 import { ActionSlotsPicker } from './ActionSlotsPicker'
+import { KeycodePickerGrid } from '@/features/keymap/keycode-picker/KeycodePickerGrid'
 import { SlotBar, type SlotDescriptor } from './SlotBar'
 import {
     defaultForSlot,
@@ -122,6 +123,30 @@ export const KeyActionPicker = ({
         dispatch(selectedId, nextParams)
     }
 
+    // The single-HID-slot "Key Press" behavior (mirrors KeyboardView's lookup).
+    // Used to rebind a zero-slot key (transparent / soft_off / macro) straight
+    // to a keycode picked from the fallback grid below.
+    const keyPressType = useMemo(
+        (): ActionType | undefined =>
+            actionTypes.find(
+                (t) => t.slots.length === 1 && t.slots[0].kind === 'hid',
+            ),
+        [actionTypes],
+    )
+
+    // Clicking a plain keycode in the fallback grid (shown when the current
+    // behavior has no editable slot) reassigns the key as a Key Press.
+    const assignAsKeyPress = useCallback(
+        (value?: number): void => {
+            if (value === undefined || value === 0 || !keyPressType) return
+            setKind(keyPressType.id)
+            setParams([value])
+            setActiveSlotIndex(0)
+            dispatch(keyPressType.id, [value])
+        },
+        [keyPressType, dispatch],
+    )
+
     // pattern-check: skip — gating an existing slot handler, no new abstraction
     const handleSlotChanged = (slotIndex: number, value?: number): void => {
         const nextParams = [...params]
@@ -231,7 +256,7 @@ export const KeyActionPicker = ({
                     />
                 )}
             </div>
-            {visible.length > 0 && (
+            {visible.length > 0 ? (
                 <div className="flex-1">
                     <ActionSlotsPicker
                         slots={visible}
@@ -241,6 +266,21 @@ export const KeyActionPicker = ({
                         onSlotChanged={handleSlotChanged}
                         onActionChosen={handleTypeSelected}
                         highlightedKeys={highlightedKeys}
+                        codec={codec}
+                        catalog={catalog}
+                    />
+                </div>
+            ) : (
+                // The chosen behavior has no editable slot (Transparent, Soft
+                // Off, a macro, …). Still show the keycode grid so its
+                // behaviorRef tiles (Macros / Combos / Device) stay reachable
+                // and a plain keycode rebinds the key as a Key Press — otherwise
+                // a key currently holding a zero-arg behavior is a dead end
+                // (issue #149).
+                <div className="flex-1">
+                    <KeycodePickerGrid
+                        onValueChanged={assignAsKeyPress}
+                        onActionChosen={handleTypeSelected}
                         codec={codec}
                         catalog={catalog}
                     />
