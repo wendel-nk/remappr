@@ -21,6 +21,8 @@ import {
 import { toast } from 'sonner'
 import useConnectionStore from '@/stores/connectionStore'
 import { Button } from '@/ui/button'
+import { Label } from '@/ui/label'
+import { Switch } from '@/ui/switch'
 import type { NodeView } from '@firmware/service'
 
 export function DongleLanding(): JSX.Element {
@@ -29,6 +31,8 @@ export function DongleLanding(): JSX.Element {
     const [nodes, setNodes] = useState<NodeView[]>([])
     const [loading, setLoading] = useState(true)
     const [pairing, setPairing] = useState(false)
+    // null = state not read yet (query in flight / unsupported firmware).
+    const [nkro, setNkro] = useState<boolean | null>(null)
 
     const nodesApi = service?.nodes
 
@@ -56,6 +60,34 @@ export function DongleLanding(): JSX.Element {
         // eslint-disable-next-line react-hooks/set-state-in-effect
         void fetchNodes()
     }, [fetchNodes])
+
+    useEffect(() => {
+        // One-shot NKRO-state query (DONGLE.SET_NKRO, no arg = read-only). An
+        // older firmware answers ERR_CMD — leave the toggle hidden (null).
+        if (!nodesApi) return
+        nodesApi
+            .setNkro()
+            .then(setNkro)
+            .catch(() => setNkro(null))
+    }, [nodesApi])
+
+    // Flip the dongle's USB keystroke routing (NKRO interface vs the BIOS-safe
+    // boot 6KRO default). Optimistic UI; revert to the device's answer/old state.
+    const handleNkro = useCallback(
+        async (enabled: boolean): Promise<void> => {
+            if (!nodesApi) return
+            setNkro(enabled)
+            try {
+                setNkro(await nodesApi.setNkro(enabled))
+            } catch (e) {
+                setNkro(!enabled)
+                toast.error('Failed to change NKRO mode', {
+                    description: e instanceof Error ? e.message : String(e),
+                })
+            }
+        },
+        [nodesApi],
+    )
 
     const refresh = useCallback((): void => {
         setLoading(true)
@@ -181,6 +213,24 @@ export function DongleLanding(): JSX.Element {
                         Dongle · Connected · {connLabel}
                     </div>
                 </div>
+                {nkro !== null && (
+                    <div
+                        className="flex items-center gap-2 pr-1"
+                        title="Route keystrokes over the NKRO interface (off = BIOS-safe 6KRO). Persists on the dongle."
+                    >
+                        <Switch
+                            id="dongle-nkro"
+                            checked={nkro}
+                            onCheckedChange={(v) => void handleNkro(v)}
+                        />
+                        <Label
+                            htmlFor="dongle-nkro"
+                            className="text-xs text-muted-foreground"
+                        >
+                            NKRO
+                        </Label>
+                    </div>
+                )}
                 <Button
                     variant="outline"
                     size="sm"
