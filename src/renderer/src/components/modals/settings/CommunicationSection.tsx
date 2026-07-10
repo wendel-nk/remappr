@@ -19,6 +19,7 @@ import useUserSettingsStore, {
     type AdapterCategory,
 } from '@/stores/userSettingsStore'
 import { getAdapters } from '@firmware'
+import { useFirmwareClientsReady } from '@/hooks/use-firmware-clients-ready'
 
 const CATEGORY_LABEL: Record<AdapterCategory, string> = {
     zmk: 'ZMK',
@@ -48,7 +49,9 @@ export function CommunicationSection(): JSX.Element {
     const setAutoLoadLayout = useUserSettingsStore((s) => s.setAutoLoadLayout)
     const autosave = useUserSettingsStore((s) => s.autosave)
     const setAutosave = useUserSettingsStore((s) => s.setAutosave)
-    const adapters = adaptersInCategory(category)
+    // Adapters register lazily; recompute once they're loaded so the picker fills.
+    const ready = useFirmwareClientsReady()
+    const adapters = ready ? adaptersInCategory(category) : []
 
     return (
         <div className="space-y-6">
