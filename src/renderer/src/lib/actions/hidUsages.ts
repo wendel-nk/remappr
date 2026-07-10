@@ -51,6 +51,19 @@ export const hid_usage_get_labels = (
     }
 
 /**
+ * Full, human-readable label for a HID usage (e.g. "ErrorUndefined", "Volume
+ * Up") with the leading "Keyboard " noun stripped. Unlike {@link usageGlyph} it
+ * never abbreviates — used for hover tooltips where the whole name should show.
+ * Shared by `HidUsageLabel` and the editor stage so both resolve names the same.
+ */
+export const hidUsageLongLabel = (usage: number): string | undefined => {
+    const [page, id] = hidUsagePageAndIdFromUsage(usage)
+    const labels = hid_usage_get_labels(page & 0xff, id)
+    const long = labels.long || labels.med || labels.short
+    return long ? long.replace(/^Keyboard /, '') : undefined
+}
+
+/**
  * Resolve a HID usage to its short display glyph (e.g. "Q", "Tab", "Esc").
  * The single source of truth shared by `HidUsageLabel` (live caps) and the
  * device-preview snapshot (serializable cached legends) so both stay in sync.
