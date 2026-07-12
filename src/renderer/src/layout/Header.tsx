@@ -9,6 +9,7 @@ import {
     Flame,
     Gauge,
     Keyboard,
+    Layers,
     Lightbulb,
     Redo2,
     Save,
@@ -28,6 +29,7 @@ import { WirelessSettingsModal } from '@/features/firmware/WirelessSettingsModal
 import { AdvancedSettingsModal } from '@/features/firmware/AdvancedSettingsModal'
 import { TimingDefaultsModal } from '@/features/firmware/TimingDefaultsModal'
 import { BehaviorDefsModal } from '@/features/firmware/BehaviorDefsModal'
+import { ConditionalLayersModal } from '@/features/firmware/ConditionalLayersModal'
 import useRgbSheetStore from '@/stores/rgbSheetStore'
 import useAdvancedSheetStore from '@/stores/advancedSheetStore'
 import useConfigStore from '@/stores/configStore'
@@ -98,6 +100,7 @@ export function Header(): JSX.Element {
     const [advancedOpen, setAdvancedOpen] = useState(false)
     const [timingOpen, setTimingOpen] = useState(false)
     const [behaviorsOpen, setBehaviorsOpen] = useState(false)
+    const [condLayersOpen, setCondLayersOpen] = useState(false)
     const rgbSheetOpen = useRgbSheetStore((s) => s.open)
     const toggleRgbSheet = useRgbSheetStore((s) => s.toggle)
     const setRgbSheetOpen = useRgbSheetStore((s) => s.setOpen)
@@ -478,6 +481,27 @@ export function Header(): JSX.Element {
                 <BehaviorDefsModal
                     opened={behaviorsOpen}
                     onClose={(): void => setBehaviorsOpen(false)}
+                />
+                <FeatureGate feature="limits">
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                disabled={!service}
+                                onClick={(): void => setCondLayersOpen(true)}
+                            >
+                                <Layers aria-label="Conditional layers" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>Conditional Layers</p>
+                        </TooltipContent>
+                    </Tooltip>
+                </FeatureGate>
+                <ConditionalLayersModal
+                    opened={condLayersOpen}
+                    onClose={(): void => setCondLayersOpen(false)}
                 />
                 {/* RGB lighting — opens the board-visible bottom sheet (device
                     controls when an RGB keyboard is connected, else the on-screen
