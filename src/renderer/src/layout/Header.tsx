@@ -14,6 +14,7 @@ import {
     Save,
     ScanLine,
     Sliders,
+    SlidersHorizontal,
     Sparkles,
     Timer,
     Trash2,
@@ -26,6 +27,7 @@ import { LoadStatsModal } from '@/features/keymap/keyboard/LoadStatsModal'
 import { WirelessSettingsModal } from '@/features/firmware/WirelessSettingsModal'
 import { AdvancedSettingsModal } from '@/features/firmware/AdvancedSettingsModal'
 import { TimingDefaultsModal } from '@/features/firmware/TimingDefaultsModal'
+import { BehaviorDefsModal } from '@/features/firmware/BehaviorDefsModal'
 import useRgbSheetStore from '@/stores/rgbSheetStore'
 import useAdvancedSheetStore from '@/stores/advancedSheetStore'
 import useConfigStore from '@/stores/configStore'
@@ -95,6 +97,7 @@ export function Header(): JSX.Element {
     const [wirelessOpen, setWirelessOpen] = useState(false)
     const [advancedOpen, setAdvancedOpen] = useState(false)
     const [timingOpen, setTimingOpen] = useState(false)
+    const [behaviorsOpen, setBehaviorsOpen] = useState(false)
     const rgbSheetOpen = useRgbSheetStore((s) => s.open)
     const toggleRgbSheet = useRgbSheetStore((s) => s.toggle)
     const setRgbSheetOpen = useRgbSheetStore((s) => s.setOpen)
@@ -454,6 +457,27 @@ export function Header(): JSX.Element {
                 <TimingDefaultsModal
                     opened={timingOpen}
                     onClose={(): void => setTimingOpen(false)}
+                />
+                <FeatureGate feature="limits">
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                disabled={!service}
+                                onClick={(): void => setBehaviorsOpen(true)}
+                            >
+                                <SlidersHorizontal aria-label="Behaviors" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>Behaviors</p>
+                        </TooltipContent>
+                    </Tooltip>
+                </FeatureGate>
+                <BehaviorDefsModal
+                    opened={behaviorsOpen}
+                    onClose={(): void => setBehaviorsOpen(false)}
                 />
                 {/* RGB lighting — opens the board-visible bottom sheet (device
                     controls when an RGB keyboard is connected, else the on-screen
