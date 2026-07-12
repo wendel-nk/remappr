@@ -9,7 +9,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Layers, Plus, Trash2 } from 'lucide-react'
 
 import type { CanonConditionalLayer } from '@firmware/config'
-import { RemapprKeyboardService } from '@firmware/remappr/service'
+import { supportsConfigEditing } from '@firmware/remappr/configEditing'
 
 import useConnectionStore from '@/stores/connectionStore'
 import useKeymapStore from '@/stores/keymapStore'
@@ -42,7 +42,7 @@ export function ConditionalLayersModal({
     onClose,
 }: Props): JSX.Element {
     const service = useConnectionStore((s) => s.service)
-    const remappr = service instanceof RemapprKeyboardService ? service : null
+    const remappr = supportsConfigEditing(service) ? service : null
     // Live layer names for the if/then pickers — the keymap buffer commit() raises
     // from, so a pending rename is reflected before it is saved.
     const keymap = useKeymapStore((s) => s.keymap)

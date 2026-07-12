@@ -11,7 +11,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Timer } from 'lucide-react'
 
 import type { ConfigDefaults } from '@firmware/config'
-import { RemapprKeyboardService } from '@firmware/remappr/service'
+import { supportsConfigEditing } from '@firmware/remappr/configEditing'
 
 import useConnectionStore from '@/stores/connectionStore'
 import { saveWithToast } from '@/lib/saveWithToast'
@@ -41,7 +41,7 @@ function zeroSeed(): Record<TimingFieldKey, number> {
 
 export function TimingDefaultsModal({ opened, onClose }: Props): JSX.Element {
     const service = useConnectionStore((s) => s.service)
-    const remappr = service instanceof RemapprKeyboardService ? service : null
+    const remappr = supportsConfigEditing(service) ? service : null
     const featureBitmask = service?.limits?.featureBitmask ?? 0
 
     const [values, setValues] =
