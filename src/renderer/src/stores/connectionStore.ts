@@ -19,6 +19,36 @@ import { parseLightingMenu } from '@firmware/via/lightingMenu'
 // the public ConnectionState surface.
 let defaultLayerUnsub: (() => void) | null = null
 
+// Teardown for the config-store re-seed subscription. Module-scoped like
+// defaultLayerUnsub, for the same reason.
+let configReseedUnsub: (() => void) | null = null
+
+// Seed (and later re-seed) the config store's source-of-truth from the device.
+// getConfigSource returns COMMITTED truth (staged edits excluded), so running this
+// after a commit mirrors the just-pushed blob into the export/builder views (which
+// read useConfigStore.config); the isCurrent guard drops a resolution that lands
+// after a service swap. No getConfigSource (QMK/VIA) → clear to null.
+function seedConfigFromService(
+    service: KeyboardService,
+    isCurrent: () => boolean,
+): void {
+    if (!service.getConfigSource) {
+        useConfigStore.getState().reset()
+        return
+    }
+    service
+        .getConfigSource()
+        .then((src) => {
+            if (!isCurrent()) return
+            if (src) useConfigStore.getState().loadFromSource(src)
+            else useConfigStore.getState().reset()
+        })
+        .catch((err) => {
+            console.warn('getConfigSource failed', err)
+            if (isCurrent()) useConfigStore.getState().reset()
+        })
+}
+
 interface ConnectionState {
     service: KeyboardService | null
     /** When viewing a behind-dongle node, the dongle's own service — stashed so
@@ -185,20 +215,24 @@ const useConnectionStore = create<ConnectionState>()(
                     .catch((err) =>
                         console.warn('dynamicCatalog refresh failed', err),
                     )
-                // Seed the config source-of-truth from the device, if it ships one.
-                if (service?.getConfigSource) {
-                    service
-                        .getConfigSource()
-                        .then((src) => {
-                            if (!isCurrent()) return
-                            if (src)
-                                useConfigStore.getState().loadFromSource(src)
-                            else useConfigStore.getState().reset()
-                        })
-                        .catch((err) => {
-                            console.warn('getConfigSource failed', err)
-                            if (isCurrent()) useConfigStore.getState().reset()
-                        })
+                // Seed the config source-of-truth from the device, then re-seed
+                // after every commit / discard so the export & builder views never
+                // drift from the last-pushed blob. Every commit path — Header save,
+                // the debounced autosave, and the config-blob editor modals — lands
+                // a pending-changes true→false edge on the concrete service, so a
+                // single subscription here is the cross-cutting choke point.
+                configReseedUnsub?.()
+                configReseedUnsub = null
+                if (service) {
+                    seedConfigFromService(service, isCurrent)
+                    if (service.getConfigSource) {
+                        configReseedUnsub = service.onPendingChangesChanged(
+                            (pending) => {
+                                if (!pending && isCurrent())
+                                    seedConfigFromService(service, isCurrent)
+                            },
+                        )
+                    }
                 } else {
                     useConfigStore.getState().reset()
                 }
@@ -240,6 +274,8 @@ const useConnectionStore = create<ConnectionState>()(
             resetConnection: () => {
                 defaultLayerUnsub?.()
                 defaultLayerUnsub = null
+                configReseedUnsub?.()
+                configReseedUnsub = null
                 useLightingCatalogStore.getState().setCatalog(null)
                 set({
                     service: null,

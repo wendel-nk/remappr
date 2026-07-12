@@ -1,6 +1,7 @@
 // pattern-check: skip — store unit test, no production logic
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import useConnectionStore from './connectionStore'
+import useConfigStore from './configStore'
 import type { KeyboardService, NodeView } from '@firmware/service'
 
 /* A behind-dongle node view: read-only, shares the dongle RPC, so its own
@@ -192,5 +193,100 @@ describe('connectionStore node views', () => {
         const s = useConnectionStore.getState()
         expect(s.parentService).toBeNull()
         expect(s.activeNodeId).toBeNull()
+    })
+})
+
+/* A minimal valid v2 keymap whose single layer name is the distinguishing value —
+ * lets the re-seed tests tell one committed blob from the next. */
+const KM = (layerName: string): string =>
+    JSON.stringify({
+        version: 2,
+        kind: 'remappr.keymap',
+        meta: { name: 'Cfg' },
+        keyboard: { id: 'x', name: 'Cfg', keys: [{ x: 0, y: 0 }] },
+        layers: [{ name: layerName, keys: ['A'] }],
+    })
+
+/* A service that ships a config source (like remappr) and lets the test drive its
+ * committed truth + the pending-changes edge, standing in for a real commit. */
+function makeConfigService(initial: string): {
+    service: KeyboardService
+    setCommitted: (src: string) => void
+    firePending: (pending: boolean) => void
+    unsub: ReturnType<typeof vi.fn>
+} {
+    let committed = initial
+    let cb: ((pending: boolean) => void) | null = null
+    const unsub = vi.fn(() => {
+        cb = null
+    })
+    const service = {
+        deviceInfo: {
+            name: 'Cfg KB',
+            firmware: 'remappr',
+            firmwareVersion: '1.0.0',
+        },
+        capabilities: { lock: false },
+        listActionTypes: async () => [],
+        disconnect: async () => undefined,
+        getConfigSource: async () => committed,
+        onPendingChangesChanged: (fn: (pending: boolean) => void) => {
+            cb = fn
+            return unsub
+        },
+    } as unknown as KeyboardService
+    return {
+        service,
+        setCommitted: (src) => {
+            committed = src
+        },
+        firePending: (pending) => cb?.(pending),
+        unsub,
+    }
+}
+
+const currentLayerName = (): string | undefined =>
+    useConfigStore.getState().config?.layers?.[0]?.name
+
+describe('connectionStore config re-seed', () => {
+    beforeEach(() => {
+        useConnectionStore.getState().resetConnection()
+    })
+
+    it('seeds config on connect, then re-seeds on the commit (pending → false) edge', async () => {
+        const h = makeConfigService(KM('base'))
+        useConnectionStore.getState().setService(h.service)
+        await vi.waitFor(() => expect(currentLayerName()).toBe('base'))
+
+        // A commit advances committed truth then flips pending false.
+        h.setCommitted(KM('raise'))
+        h.firePending(false)
+        await vi.waitFor(() => expect(currentLayerName()).toBe('raise'))
+    })
+
+    it('ignores the pending → true edge (mid-edit, committed truth unchanged)', async () => {
+        const h = makeConfigService(KM('base'))
+        useConnectionStore.getState().setService(h.service)
+        await vi.waitFor(() => expect(currentLayerName()).toBe('base'))
+
+        h.setCommitted(KM('raise'))
+        h.firePending(true) // an edit began; nothing pushed yet
+        await Promise.resolve()
+        expect(currentLayerName()).toBe('base')
+    })
+
+    it('unsubscribes the re-seed on disconnect; a late edge cannot resurrect config', async () => {
+        const h = makeConfigService(KM('base'))
+        useConnectionStore.getState().setService(h.service)
+        await vi.waitFor(() => expect(currentLayerName()).toBe('base'))
+
+        useConnectionStore.getState().resetConnection()
+        expect(h.unsub).toHaveBeenCalledTimes(1)
+        expect(useConfigStore.getState().config).toBeNull()
+
+        h.setCommitted(KM('raise'))
+        h.firePending(false)
+        await Promise.resolve()
+        expect(useConfigStore.getState().config).toBeNull()
     })
 })
