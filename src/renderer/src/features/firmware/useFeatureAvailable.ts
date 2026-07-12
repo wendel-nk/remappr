@@ -12,6 +12,8 @@ export const FEATURE_PROBES = {
     wireless: (s) => s.wireless,
     rgb: (s) => s.rgb,
     advanced: (s) => s.advanced,
+    // remappr-only: GET_LIMITS answered → config-blob timing/defaults editable.
+    limits: (s) => s.limits,
     lock: (s) => s.capabilities.lock,
     rename: (s) => s.capabilities.rename,
     reorderLayers: (s) => s.capabilities.reorderLayers,

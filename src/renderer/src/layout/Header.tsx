@@ -15,6 +15,7 @@ import {
     ScanLine,
     Sliders,
     Sparkles,
+    Timer,
     Trash2,
     Undo2,
     Wifi,
@@ -24,6 +25,7 @@ import { applySaveMode, isSaveModeManaged } from '@/lib/saveMode'
 import { LoadStatsModal } from '@/features/keymap/keyboard/LoadStatsModal'
 import { WirelessSettingsModal } from '@/features/firmware/WirelessSettingsModal'
 import { AdvancedSettingsModal } from '@/features/firmware/AdvancedSettingsModal'
+import { TimingDefaultsModal } from '@/features/firmware/TimingDefaultsModal'
 import useRgbSheetStore from '@/stores/rgbSheetStore'
 import useAdvancedSheetStore from '@/stores/advancedSheetStore'
 import useConfigStore from '@/stores/configStore'
@@ -92,6 +94,7 @@ export function Header(): JSX.Element {
     const autoSaveActive = saveManaged && autosave
     const [wirelessOpen, setWirelessOpen] = useState(false)
     const [advancedOpen, setAdvancedOpen] = useState(false)
+    const [timingOpen, setTimingOpen] = useState(false)
     const rgbSheetOpen = useRgbSheetStore((s) => s.open)
     const toggleRgbSheet = useRgbSheetStore((s) => s.toggle)
     const setRgbSheetOpen = useRgbSheetStore((s) => s.setOpen)
@@ -430,6 +433,27 @@ export function Header(): JSX.Element {
                 <AdvancedSettingsModal
                     opened={advancedOpen}
                     onClose={(): void => setAdvancedOpen(false)}
+                />
+                <FeatureGate feature="limits">
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                disabled={!service}
+                                onClick={(): void => setTimingOpen(true)}
+                            >
+                                <Timer aria-label="Timing & defaults" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>Timing &amp; Defaults</p>
+                        </TooltipContent>
+                    </Tooltip>
+                </FeatureGate>
+                <TimingDefaultsModal
+                    opened={timingOpen}
+                    onClose={(): void => setTimingOpen(false)}
                 />
                 {/* RGB lighting — opens the board-visible bottom sheet (device
                     controls when an RGB keyboard is connected, else the on-screen
