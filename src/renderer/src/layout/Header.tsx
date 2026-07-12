@@ -44,6 +44,7 @@ import { SidebarTrigger } from '@/ui/sidebar'
 import { Button } from '@/ui/button'
 import { Separator } from '@/ui/separator'
 import { toast } from 'sonner'
+import { capabilityWarnings } from '@firmware/config'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/ui/tooltip'
 import { FeatureGate } from '@/features/firmware/FeatureGate'
 import { useFeatureAvailable } from '@/features/firmware/useFeatureAvailable'
@@ -156,6 +157,21 @@ export function Header(): JSX.Element {
         if (!service) return
         try {
             await service.commit()
+            // The push succeeded, but a remappr device silently ignores config
+            // fields its firmware is too old to honor (§7.4.1 feature bitmask).
+            // Warn so the user knows to update the firmware instead of chasing a
+            // "setting had no effect" ghost. `limits` is remappr-only + present
+            // only once GET_LIMITS answered, so other firmwares never warn.
+            const config = useConfigStore.getState().config
+            const featureBitmask = service.limits?.featureBitmask
+            if (config && featureBitmask !== undefined) {
+                const warnings = capabilityWarnings(config, featureBitmask)
+                if (warnings.length === 1) toast.warning(warnings[0].message)
+                else if (warnings.length > 1)
+                    toast.warning(
+                        `Saved — but this firmware ignores ${warnings.length} settings you configured. Update the firmware to use them.`,
+                    )
+            }
         } catch (e) {
             console.error('Failed to save changes', e)
             // Adapters throw a descriptive reason (e.g. ZMK maps its
