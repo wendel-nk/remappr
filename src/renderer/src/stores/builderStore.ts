@@ -23,10 +23,27 @@ export type SnapMode = 'grid' | 'free'
  *  clockwise / counter-clockwise / press slot, or a slider's custom action. */
 export type BindingSlot = 'key' | 'cw' | 'ccw' | 'press' | 'slider'
 
-/** The key (and slot) the binding picker is currently editing. */
-export interface BindingTarget {
+/** The key (and slot) the binding picker edits when it targets a layer. */
+export interface KeyBindingTarget {
     keyIndex: number
     slot: BindingSlot
+}
+
+/** The binding picker editing one side of a config-blob mod-morph def
+ *  (`modMorphs[defIdx].bindings[bindingIndex]`) rather than a layer key. */
+export interface DefBindingTarget {
+    defKind: 'modMorph'
+    defIdx: number
+    bindingIndex: 0 | 1
+}
+
+/** What the binding picker is currently editing: a layer key/slot or a
+ *  config-blob def binding. */
+export type BindingTarget = KeyBindingTarget | DefBindingTarget
+
+/** Narrow a picker target to the config-blob def-binding case. */
+export function isDefBindingTarget(t: BindingTarget): t is DefBindingTarget {
+    return 'defKind' in t
 }
 
 /** Pan/zoom view, ported from the prototype: zoom is relative to the fitted
