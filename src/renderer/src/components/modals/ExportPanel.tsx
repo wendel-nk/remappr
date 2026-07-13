@@ -32,6 +32,7 @@ const TARGET_LABELS: Record<Target, string> = {
     zmk: 'ZMK',
     qmk: 'QMK',
     keychron: 'Keychron',
+    'remappr-board': 'Remappr',
 }
 
 /** Firmwares (other than the obvious one) a compiler target also covers, for a

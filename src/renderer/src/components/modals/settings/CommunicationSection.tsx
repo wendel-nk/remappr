@@ -24,6 +24,7 @@ import { useFirmwareClientsReady } from '@/hooks/use-firmware-clients-ready'
 const CATEGORY_LABEL: Record<AdapterCategory, string> = {
     zmk: 'ZMK',
     qmk: 'QMK',
+    remappr: 'Remappr',
 }
 
 function adaptersInCategory(
@@ -33,6 +34,11 @@ function adaptersInCategory(
     if (category === 'zmk') {
         return all
             .filter((a) => a.id === 'zmk')
+            .map((a) => ({ id: a.id, displayName: a.displayName }))
+    }
+    if (category === 'remappr') {
+        return all
+            .filter((a) => a.id === 'remappr')
             .map((a) => ({ id: a.id, displayName: a.displayName }))
     }
     return all
@@ -80,6 +86,9 @@ export function CommunicationSection(): JSX.Element {
                             </SelectItem>
                             <SelectItem value="qmk">
                                 {CATEGORY_LABEL.qmk}
+                            </SelectItem>
+                            <SelectItem value="remappr">
+                                {CATEGORY_LABEL.remappr}
                             </SelectItem>
                         </SelectContent>
                     </Select>
@@ -149,7 +158,7 @@ export function CommunicationSection(): JSX.Element {
                     </FieldGroup>
                 ) : (
                     <p className="text-sm text-muted-foreground">
-                        No ZMK-specific settings yet.
+                        No {CATEGORY_LABEL[category]}-specific settings yet.
                     </p>
                 )}
             </div>
