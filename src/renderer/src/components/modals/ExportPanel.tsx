@@ -32,6 +32,7 @@ const TARGET_LABELS: Record<Target, string> = {
     zmk: 'ZMK',
     qmk: 'QMK',
     keychron: 'Keychron',
+    remappr: 'Remappr',
     'remappr-board': 'Remappr',
 }
 
