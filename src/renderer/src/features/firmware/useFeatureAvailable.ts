@@ -12,6 +12,9 @@ export const FEATURE_PROBES = {
     wireless: (s) => s.wireless,
     rgb: (s) => s.rgb,
     advanced: (s) => s.advanced,
+    // §N4b-3: cluster-diag + role-event facade — present only on a node whose
+    // firmware wired a cluster-diag source (Cap.CLUSTER_DIAG).
+    cluster: (s) => s.cluster,
     // remappr-only: GET_LIMITS answered → config-blob timing/defaults editable.
     limits: (s) => s.limits,
     lock: (s) => s.capabilities.lock,

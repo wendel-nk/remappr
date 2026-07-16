@@ -11,6 +11,7 @@ import {
     Keyboard,
     Layers,
     Lightbulb,
+    Network,
     Redo2,
     Save,
     ScanLine,
@@ -26,6 +27,7 @@ import {
 import { applySaveMode, isSaveModeManaged } from '@/lib/saveMode'
 import { LoadStatsModal } from '@/features/keymap/keyboard/LoadStatsModal'
 import { WirelessSettingsModal } from '@/features/firmware/WirelessSettingsModal'
+import { ClusterDiagnosticsModal } from '@/features/firmware/ClusterDiagnosticsModal'
 import { AdvancedSettingsModal } from '@/features/firmware/AdvancedSettingsModal'
 import { TimingDefaultsModal } from '@/features/firmware/TimingDefaultsModal'
 import { BehaviorDefsModal } from '@/features/firmware/BehaviorDefsModal'
@@ -97,6 +99,7 @@ export function Header(): JSX.Element {
     const showSaveControls = saveManaged && !autosave
     const autoSaveActive = saveManaged && autosave
     const [wirelessOpen, setWirelessOpen] = useState(false)
+    const [clusterOpen, setClusterOpen] = useState(false)
     const [advancedOpen, setAdvancedOpen] = useState(false)
     const [timingOpen, setTimingOpen] = useState(false)
     const [behaviorsOpen, setBehaviorsOpen] = useState(false)
@@ -418,6 +421,27 @@ export function Header(): JSX.Element {
                 <WirelessSettingsModal
                     opened={wirelessOpen}
                     onClose={(): void => setWirelessOpen(false)}
+                />
+                <FeatureGate feature="cluster">
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                disabled={!service}
+                                onClick={(): void => setClusterOpen(true)}
+                            >
+                                <Network aria-label="Cluster diagnostics" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>Cluster</p>
+                        </TooltipContent>
+                    </Tooltip>
+                </FeatureGate>
+                <ClusterDiagnosticsModal
+                    opened={clusterOpen}
+                    onClose={(): void => setClusterOpen(false)}
                 />
                 <FeatureGate feature="advanced">
                     <Tooltip>
