@@ -155,7 +155,21 @@ export async function connectHidDevice(
     if (!mod) {
         throw new Error('node-hid module unavailable')
     }
-    const device = new mod.HID(devicePath)
+    let device: HidLike
+    try {
+        device = new mod.HID(devicePath)
+    } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        // macOS 10.15+ gates some HID collections behind Input Monitoring
+        // (TCC); the open just fails with a generic error, so point the user
+        // at the actual remediation.
+        if (process.platform === 'darwin') {
+            throw new Error(
+                `Failed to open HID device: ${msg}. macOS may be blocking raw HID access — allow Remappr under System Settings → Privacy & Security → Input Monitoring, then relaunch the app.`,
+            )
+        }
+        throw new Error(`Failed to open HID device: ${msg}`)
+    }
     activeConnection = { device, path: devicePath, callbacks }
 
     device.on('data', (data: Buffer) => {

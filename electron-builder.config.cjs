@@ -86,12 +86,10 @@ module.exports = {
         // Intel and Apple Silicon Macs. Release CI runs on one `macos-latest`
         // (Apple Silicon) runner, so without an explicit arch electron-builder
         // defaults to an arm64-only app that Intel Macs reject with
-        // "not supported on this Mac". `zip` is kept alongside `dmg` for
-        // Squirrel.Mac auto-update artifacts.
-        target: [
-            { target: 'dmg', arch: ['universal'] },
-            { target: 'zip', arch: ['universal'] },
-        ],
+        // "not supported on this Mac". dmg only — there is no Squirrel.Mac /
+        // electron-updater in the app (updates are a GitHub releases check +
+        // notification), so a zip artifact would never be consumed.
+        target: [{ target: 'dmg', arch: ['universal'] }],
         // node-hid bundles prebuilt single-arch darwin binaries
         // (prebuilds/HID-darwin-{x64,arm64}/*.node) that are byte-identical in
         // the x64 and arm64 single-arch builds. @electron/universal refuses to
@@ -149,8 +147,8 @@ module.exports = {
     },
     npmRebuild: true,
     afterPack: path.join(__dirname, 'build', 'afterPack.cjs'),
-    publish: {
-        provider: 'generic',
-        url: 'https://example.com/auto-updates',
-    },
+    // No `publish` config on purpose: the app has no electron-updater /
+    // Squirrel — update-checker.ts polls GitHub releases and links the user
+    // there. A publish block would only emit dead latest*.yml metadata.
+    publish: null,
 }

@@ -1,5 +1,5 @@
 // pattern-check: skip — defensive Electron lifecycle hooks, no new abstraction
-import { app, BrowserWindow, shell } from 'electron'
+import { app, BrowserWindow, dialog, shell } from 'electron'
 import { join } from 'path'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
@@ -42,13 +42,17 @@ function createWindow(): void {
         useContentSize: true,
         show: false,
         autoHideMenuBar: true,
-        frame: false,
+        // macOS must NOT also set frame:false — a frameless window suppresses
+        // the native traffic lights, and the renderer hides its own window
+        // buttons on darwin, leaving the window with no controls at all. The
+        // supported frameless-with-traffic-lights recipe is titleBarStyle
+        // alone; Win/Linux stay fully frameless with custom WindowControls.
         ...(isMac
             ? {
-                  titleBarStyle: 'hiddenInset',
+                  titleBarStyle: 'hiddenInset' as const,
                   trafficLightPosition: { x: 12, y: 10 },
               }
-            : {}),
+            : { frame: false }),
         ...(isLinux ? { icon } : {}),
         webPreferences: {
             preload: join(__dirname, '../preload/index.mjs'),
@@ -126,11 +130,34 @@ function createWindow(): void {
 
     // ZMK Studio's BLE profile uses Just Works / no-input pairing. Auto-confirm
     // the simple-confirm path so paired-on-demand keyboards don't hang for 30s
-    // waiting on a UI we don't render. confirmPin / providePin paths fall
-    // through to deny so users see an explicit failure rather than a silent
-    // stall — those flows would need a real PIN dialog.
+    // waiting on a UI we don't render. confirmPin gets a native yes/no dialog
+    // showing the PIN; providePin (keyboard wants us to type a PIN) has no
+    // native input dialog, so deny it with a visible explanation instead of a
+    // silent stall.
     sess.setBluetoothPairingHandler((details, cb) => {
         if (details.pairingKind === 'confirm') return cb({ confirmed: true })
+        if (details.pairingKind === 'confirmPin') {
+            void dialog
+                .showMessageBox(mainWindow, {
+                    type: 'question',
+                    buttons: ['Pair', 'Cancel'],
+                    defaultId: 0,
+                    cancelId: 1,
+                    title: 'Bluetooth pairing',
+                    message: `Confirm pairing with "${details.deviceId}"`,
+                    detail: `Pair only if the device shows the PIN ${details.pin ?? ''}.`,
+                })
+                .then(({ response }) => cb({ confirmed: response === 0 }))
+                .catch(() => cb({ confirmed: false }))
+            return
+        }
+        // providePin — unsupported; tell the user why pairing failed.
+        void dialog.showMessageBox(mainWindow, {
+            type: 'warning',
+            title: 'Bluetooth pairing',
+            message: 'This device requires PIN entry, which is not supported.',
+            detail: 'Pair the keyboard in your OS Bluetooth settings first, then connect from Remappr.',
+        })
         cb({ confirmed: false })
     })
 

@@ -1,6 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
+  <!--
+    NOTE: with the current build config every key below is a NO-OP.
+    The cs.* keys only take effect under the hardened runtime
+    (hardenedRuntime is false in electron-builder.config.cjs — ad-hoc
+    signing, no Developer ID), and the device.* keys only apply inside the
+    App Sandbox (no com.apple.security.app-sandbox key here). Bluetooth
+    access on macOS is actually granted via TCC +
+    NSBluetoothAlwaysUsageDescription (extendInfo in the builder config).
+    The keys are kept as the correct starting set for a future
+    Developer-ID + notarization build; do not expect them to change
+    runtime behavior today.
+  -->
   <dict>
     <key>com.apple.security.cs.allow-jit</key>
     <true/>

@@ -203,6 +203,12 @@ export async function connectGattDevice(
     charUuid: string,
     callbacks: BluezEventCallbacks,
 ): Promise<string> {
+    // Mirror listGattDevices' guard: non-Linux platforms use renderer Web
+    // Bluetooth, never this BlueZ path. Fail loudly if routing ever regresses.
+    if (process.platform !== 'linux') {
+        throw new Error('BlueZ GATT transport is only available on Linux')
+    }
+
     if (active) {
         await disconnectGattDevice()
     }
