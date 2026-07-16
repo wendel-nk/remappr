@@ -23,10 +23,11 @@ let defaultLayerUnsub: (() => void) | null = null
 // defaultLayerUnsub, for the same reason.
 let configReseedUnsub: (() => void) | null = null
 
-// Seed (and later re-seed) the config store's source-of-truth from the device.
-// getConfigSource returns COMMITTED truth (staged edits excluded), so running this
-// after a commit mirrors the just-pushed blob into the export/builder views (which
-// read useConfigStore.config); the isCurrent guard drops a resolution that lands
+// Seed (and later re-seed, via reseedConfigIfStale) the config store's
+// source-of-truth from the device. getConfigSource returns COMMITTED truth
+// (staged edits excluded), so running this after a commit mirrors the
+// just-pushed blob into the export/builder views (which read
+// useConfigStore.config); the isCurrent guard drops a resolution that lands
 // after a service swap. No getConfigSource (QMK/VIA) → clear to null.
 function seedConfigFromService(
     service: KeyboardService,
@@ -80,6 +81,11 @@ interface ConnectionState {
     resetConnection: () => void
     showConnectionModal: boolean
     setShowConnectionModal: (visible: boolean) => void
+    /** Re-seed configStore from the device if a save landed since the last seed
+     *  (configStore.stale). Called by freshness-sensitive consumers (Download
+     *  modal, Builder) right before they read — keeps the post-save hot path free
+     *  of the full device config read. */
+    reseedConfigIfStale: () => void
     /** Open a read-only view of a behind-dongle node and make it the active
      *  service, stashing the current (dongle) service as `parentService`. */
     openNode: (id: number) => Promise<void>
@@ -215,12 +221,14 @@ const useConnectionStore = create<ConnectionState>()(
                     .catch((err) =>
                         console.warn('dynamicCatalog refresh failed', err),
                     )
-                // Seed the config source-of-truth from the device, then re-seed
-                // after every commit / discard so the export & builder views never
-                // drift from the last-pushed blob. Every commit path — Header save,
-                // the debounced autosave, and the config-blob editor modals — lands
-                // a pending-changes true→false edge on the concrete service, so a
-                // single subscription here is the cross-cutting choke point.
+                // Seed the config source-of-truth from the device once on
+                // connect. After that, every commit / discard (Header save, the
+                // debounced autosave, config-blob editor modals — each lands a
+                // pending-changes true→false edge) only MARKS the config stale;
+                // the actual re-read runs on demand (reseedConfigIfStale) when a
+                // freshness-sensitive view opens. Re-reading eagerly here queued
+                // a full device config read behind every save and stalled the
+                // next edit on the serialized RPC channel.
                 configReseedUnsub?.()
                 configReseedUnsub = null
                 if (service) {
@@ -229,13 +237,20 @@ const useConnectionStore = create<ConnectionState>()(
                         configReseedUnsub = service.onPendingChangesChanged(
                             (pending) => {
                                 if (!pending && isCurrent())
-                                    seedConfigFromService(service, isCurrent)
+                                    useConfigStore.getState().markStale()
                             },
                         )
                     }
                 } else {
                     useConfigStore.getState().reset()
                 }
+            },
+            reseedConfigIfStale: () => {
+                const { service } = get()
+                if (!service?.getConfigSource) return
+                if (!useConfigStore.getState().stale) return
+                const isCurrent = (): boolean => get().service === service
+                seedConfigFromService(service, isCurrent)
             },
             setLastConnectedDevice: (device) =>
                 set({ lastConnectedDevice: device }),

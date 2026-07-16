@@ -1,7 +1,7 @@
 // Pattern check: no GoF pattern (-) — rejected — modal wrapper; the tabbed
 // compile/preview/download body is the shared ExportPanel, this only frames it
 // with device status, native fallback, import + flash instructions.
-import { useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import {
     AlertTriangle,
     Copy,
@@ -30,8 +30,16 @@ interface DownloadProps {
 
 export function Download({ opened, onClose }: DownloadProps): JSX.Element {
     const { service } = useConnectionStore()
-    const { config, source, error, loadFromSource } = useConfigStore()
+    const { config, source, error, stale, loadFromSource } = useConfigStore()
     const fileInputRef = useRef<HTMLInputElement>(null)
+
+    // Saves only mark the config stale (the eager per-save device read stalled
+    // edits); pull the committed blob when the modal actually needs it.
+    useEffect(() => {
+        if (opened && stale) {
+            useConnectionStore.getState().reseedConfigIfStale()
+        }
+    }, [opened, stale])
 
     // The mock is a demo device — treat its 'mock' firmware as "no device pinned"
     // so the user can compile for any target. Real adapters report their family.

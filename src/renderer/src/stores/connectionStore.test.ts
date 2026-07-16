@@ -253,15 +253,43 @@ describe('connectionStore config re-seed', () => {
         useConnectionStore.getState().resetConnection()
     })
 
-    it('seeds config on connect, then re-seeds on the commit (pending → false) edge', async () => {
+    it('seeds config on connect; the commit (pending → false) edge only marks it stale', async () => {
+        const h = makeConfigService(KM('base'))
+        useConnectionStore.getState().setService(h.service)
+        await vi.waitFor(() => expect(currentLayerName()).toBe('base'))
+        expect(useConfigStore.getState().stale).toBe(false)
+
+        // A commit advances committed truth then flips pending false. The edge
+        // must NOT trigger a device read (that stalled the next edit behind the
+        // serialized RPC channel) — it only marks the config stale.
+        h.setCommitted(KM('raise'))
+        h.firePending(false)
+        await Promise.resolve()
+        expect(currentLayerName()).toBe('base')
+        expect(useConfigStore.getState().stale).toBe(true)
+    })
+
+    it('reseedConfigIfStale pulls the committed blob on demand, then clears stale', async () => {
         const h = makeConfigService(KM('base'))
         useConnectionStore.getState().setService(h.service)
         await vi.waitFor(() => expect(currentLayerName()).toBe('base'))
 
-        // A commit advances committed truth then flips pending false.
         h.setCommitted(KM('raise'))
         h.firePending(false)
+        useConnectionStore.getState().reseedConfigIfStale()
         await vi.waitFor(() => expect(currentLayerName()).toBe('raise'))
+        expect(useConfigStore.getState().stale).toBe(false)
+    })
+
+    it('reseedConfigIfStale is a no-op while fresh', async () => {
+        const h = makeConfigService(KM('base'))
+        useConnectionStore.getState().setService(h.service)
+        await vi.waitFor(() => expect(currentLayerName()).toBe('base'))
+
+        h.setCommitted(KM('raise')) // no pending edge → not stale
+        useConnectionStore.getState().reseedConfigIfStale()
+        await Promise.resolve()
+        expect(currentLayerName()).toBe('base')
     })
 
     it('ignores the pending → true edge (mid-edit, committed truth unchanged)', async () => {
@@ -273,9 +301,10 @@ describe('connectionStore config re-seed', () => {
         h.firePending(true) // an edit began; nothing pushed yet
         await Promise.resolve()
         expect(currentLayerName()).toBe('base')
+        expect(useConfigStore.getState().stale).toBe(false)
     })
 
-    it('unsubscribes the re-seed on disconnect; a late edge cannot resurrect config', async () => {
+    it('unsubscribes the stale-marking on disconnect; a late edge cannot resurrect config', async () => {
         const h = makeConfigService(KM('base'))
         useConnectionStore.getState().setService(h.service)
         await vi.waitFor(() => expect(currentLayerName()).toBe('base'))
@@ -286,6 +315,7 @@ describe('connectionStore config re-seed', () => {
 
         h.setCommitted(KM('raise'))
         h.firePending(false)
+        useConnectionStore.getState().reseedConfigIfStale()
         await Promise.resolve()
         expect(useConfigStore.getState().config).toBeNull()
     })
