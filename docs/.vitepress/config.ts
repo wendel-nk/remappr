@@ -42,6 +42,10 @@ export default defineConfig({
                             text: 'What is Remappr?',
                             link: '/guide/getting-started',
                         },
+                        {
+                            text: 'Installation',
+                            link: '/guide/installation',
+                        },
                         { text: 'Roadmap', link: '/guide/roadmap' },
                     ],
                 },
