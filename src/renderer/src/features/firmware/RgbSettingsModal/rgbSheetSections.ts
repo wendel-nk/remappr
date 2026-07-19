@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 
 import type { RgbSheetSection } from '@/stores/rgbSheetStore'
+import type { RgbApi } from '@firmware/service'
 
 export const SECTIONS: {
     id: RgbSheetSection
@@ -23,3 +24,23 @@ export const SECTIONS: {
     { id: 'indicator', label: 'Indicator Light', icon: CircleDot },
     { id: 'advanced', label: 'Advanced', icon: SlidersHorizontal },
 ]
+
+export function sectionsForRgb(rgb: RgbApi | undefined): typeof SECTIONS {
+    return SECTIONS.filter(({ id }) => {
+        if (!rgb) return id === 'backlight'
+        const isUnderglow = rgb.effectCatalog?.kind === 'zmk_underglow'
+        switch (id) {
+            case 'backlight':
+                return !!rgb.getEffect && !isUnderglow
+            case 'underglow':
+                return !!rgb.getEffect && isUnderglow
+            case 'perkey':
+                return !!rgb.getPerKeyColors && !!rgb.setPerKeyColors
+            case 'mix':
+            case 'advanced':
+                return !!rgb.getMixedRegions && !!rgb.setMixedRegions
+            case 'indicator':
+                return !!rgb.getIndicators && !!rgb.setIndicators
+        }
+    })
+}

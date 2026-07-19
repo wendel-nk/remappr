@@ -86,7 +86,7 @@
         "@typescript-eslint/eslint-plugin": "^8.54.0",
         "@typescript-eslint/parser": "^8.54.0",
         "@vitejs/plugin-react-swc": "^4.2.2",
-        "@zmkfirmware/zmk-studio-ts-client": "^0.0.18",
+        "@yiancar/zmk-studio-ts-client": "^0.1.0",
         "autoprefixer": "^10.4.24",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",

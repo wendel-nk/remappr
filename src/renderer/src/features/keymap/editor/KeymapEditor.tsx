@@ -10,7 +10,6 @@ import useUserSettingsStore from '@/stores/userSettingsStore'
 import useConnectionStore from '@/stores/connectionStore'
 import useLayerSelectionStore from '@/stores/layerSelectionStore'
 import useRgbSheetStore from '@/stores/rgbSheetStore'
-import useConfigStore from '@/stores/configStore'
 import useAdvancedSheetStore from '@/stores/advancedSheetStore'
 
 export type EncoderSelection = { slot: number; dir: 'cw' | 'ccw' }
@@ -73,12 +72,9 @@ export function KeymapEditor(): JSX.Element {
     }, [keymap, selectedLayerIndex])
     const paint = usePerKeyPaint(service, keyCountForPaint)
 
-    // ZMK exposes no runtime RGB protocol — keep the sheet closed for it even if
-    // some stale state slips through (the Header trigger is already disabled).
-    const rgbUnsupported = useConfigStore(
-        (s) => s.config?.meta.target === 'zmk',
-    )
-    const rgbSheetOpen = useRgbSheetStore((s) => s.open) && !rgbUnsupported
+    // Keep stale sheet state from leaking across reconnects. Capability probing
+    // controls availability, not the firmware name, so older ZMK stays compatible.
+    const rgbSheetOpen = useRgbSheetStore((s) => s.open) && !!service?.rgb
     const rgbSection = useRgbSheetStore((s) => s.section)
     const setRgbSheetOpen = useRgbSheetStore((s) => s.setOpen)
     // Per-key section: board clicks select keys to colour (no keymap picker).

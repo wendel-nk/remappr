@@ -69,6 +69,9 @@ export function useStageLighting(
             return
         }
         let cancelled = false
+        const off = rgb.onEffectChanged?.((state) => {
+            if (!cancelled) setCachedEffect(state)
+        })
         rgb.getEffect()
             .then((st) => {
                 if (!cancelled) setCachedEffect(st)
@@ -76,6 +79,7 @@ export function useStageLighting(
             .catch(() => {})
         return (): void => {
             cancelled = true
+            off?.()
         }
     }, [service, setDeviceLighting, setCachedEffect])
 
