@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <title>How to open Remappr on macOS</title>
+        <style>
+            body {
+                font-family:
+                    -apple-system,
+                    BlinkMacSystemFont,
+                    'Segoe UI',
+                    sans-serif;
+                max-width: 40rem;
+                margin: 2rem auto;
+                padding: 0 1rem;
+                line-height: 1.5;
+                color: #1d1d1f;
+            }
+            h1 {
+                font-size: 1.4rem;
+            }
+            h2 {
+                font-size: 1.05rem;
+                margin-top: 1.5rem;
+            }
+            code {
+                background: #f2f2f4;
+                padding: 0.1rem 0.35rem;
+                border-radius: 4px;
+                font-size: 0.9em;
+            }
+            .why {
+                color: #6e6e73;
+                font-size: 0.9rem;
+            }
+            @media (prefers-color-scheme: dark) {
+                body {
+                    background: #1d1d1f;
+                    color: #f5f5f7;
+                }
+                code {
+                    background: #333;
+                }
+                .why {
+                    color: #a1a1a6;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <h1>“Apple could not verify…” — how to open Remappr</h1>
+        <p>
+            Drag <strong>Remappr</strong> into <strong>Applications</strong>
+            first. The first launch is blocked by Gatekeeper because Remappr is
+            an open-source app without an Apple Developer ID, so it is not
+            notarized. The app is safe — you only need to allow it once.
+        </p>
+
+        <h2>macOS 15 (Sequoia) and later</h2>
+        <ol>
+            <li>
+                Double-click the app once. In the “could not verify” dialog
+                choose <strong>Done</strong> (not “Move to Trash”).
+            </li>
+            <li>
+                Open <strong>System Settings → Privacy &amp; Security</strong>,
+                scroll down to the <strong>Security</strong> section — it says
+                “Remappr was blocked…”. Click <strong>Open Anyway</strong>.
+            </li>
+            <li>Confirm with Touch&nbsp;ID or your password. Done — this is
+                only needed once.</li>
+        </ol>
+
+        <h2>macOS 14 (Sonoma) and earlier</h2>
+        <p>
+            Right-click (or <kbd>Ctrl</kbd>-click) the app in Applications,
+            choose <strong>Open</strong>, then <strong>Open</strong> again in
+            the dialog.
+        </p>
+
+        <h2>Any version — Terminal</h2>
+        <p>
+            <code>xattr -dr com.apple.quarantine
+                /Applications/Remappr.app</code>
+        </p>
+
+        <p class="why">
+            Why does this happen? Removing the warning entirely requires a paid
+            Apple Developer ID and notarization, which this free open-source
+            project does not have. The build is code-signed ad-hoc and published
+            openly at
+            <a href="https://github.com/Wolffyx/remappr/releases"
+                >github.com/Wolffyx/remappr</a
+            >.
+        </p>
+    </body>
+</html>

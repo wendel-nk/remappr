@@ -73,6 +73,16 @@ jobs:
               env:
                   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+            # electron-builder's pnpm node-modules collector has twice shipped
+            # an app.asar missing transitive runtime deps (debug -> ms, needed
+            # by serialport: #143, and again via the 26.8.1 lockfile pin in
+            # v0.0.16). Packaging succeeds anyway and the app only crashes on
+            # end-user machines — assert the packaged dependency closure is
+            # complete before uploading.
+            - name: Verify packaged runtime dependencies
+              shell: bash
+              run: node scripts/check-asar-deps.cjs dist
+
             # The runner is arm64; the x64 half of the universal app comes
             # from prebuilds / cross-compiled rebuilds of node-hid and
             # @serialport/bindings-cpp. If an x64 binary is ever missing the
