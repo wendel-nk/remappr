@@ -12,6 +12,7 @@ import { APP_VERSION, DISCORD_URL, DOCS_URL, REPO_URL } from '@/lib/constants'
 import { LicenseNoticeModal } from '@/components/modals/LicenseNoticeModal'
 import { Settings } from '@/components/modals/Settings'
 import { WindowControls } from '@/layout/WindowControls'
+import { TrafficLightInset } from '@/layout/TrafficLightInset'
 import { useConnection } from '@/hooks/use-connection'
 
 const DRAG_REGION = { WebkitAppRegion: 'drag' } as React.CSSProperties
@@ -70,6 +71,8 @@ export function StartPage({
                 className="relative z-[2] flex select-none items-center justify-between py-5 pl-7 pr-2"
                 style={DRAG_REGION}
             >
+                {/* clears macOS's native traffic lights; no-op elsewhere */}
+                <TrafficLightInset />
                 <div className="flex items-center gap-3" style={NO_DRAG}>
                     <span
                         className="grid size-[38px] place-items-center rounded-xl text-white"

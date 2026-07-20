@@ -51,6 +51,7 @@ import { FeatureGate } from '@/features/firmware/FeatureGate'
 import { useFeatureAvailable } from '@/features/firmware/useFeatureAvailable'
 import { LayoutSideloadAction } from '@/features/firmware/LayoutSideloadAction'
 import { WindowControls } from '@/layout/WindowControls'
+import { TrafficLightInset } from '@/layout/TrafficLightInset'
 
 const noDrag = { WebkitAppRegion: 'no-drag' } as React.CSSProperties
 
@@ -270,6 +271,10 @@ export function Header(): JSX.Element {
             className="flex h-(--header-height) shrink-0 select-none items-center gap-1 border-b bg-card pl-2 transition-[width,height] ease-linear"
             style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
         >
+            {/* macOS paints its traffic lights over this corner — keep the
+                toggle + brand clear of them (no-op on Windows/Linux). */}
+            <TrafficLightInset />
+
             {/* ===== left: sidebar toggle + brand ===== */}
             <div className="flex items-center gap-1" style={noDrag}>
                 <SidebarTrigger />
