@@ -65,7 +65,13 @@ export function useConnection(
         null,
     )
 
+    // Scan generation counter: mount, transport changes, auto-scan events and
+    // the Refresh button can overlap (the Electron BLE path holds a multi-second
+    // scan window) — only the latest call may write devices/refreshing, so a
+    // slower earlier scan can't clobber fresher results.
+    const scanReqRef = useRef(0)
     const loadDevices = useCallback(async (): Promise<void> => {
+        const reqId = ++scanReqRef.current
         setRefreshing(true)
         // Discovery filters (hidFilters/hidDiscovery) read the adapter registry,
         // which is now populated lazily — ensure clients are loaded first.
@@ -92,6 +98,7 @@ export function useConnection(
                 }
             }),
         )
+        if (reqId !== scanReqRef.current) return
         setDevices(results.flat())
         setRefreshing(false)
     }, [transports])

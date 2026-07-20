@@ -45,11 +45,22 @@ interface DynamicCatalogState {
     setComboLabel: (idx: number, label: string) => void
     setSideloadedComboEntries: (entries: CatalogEntry[]) => void
     refresh: (svc: KeyboardService | null) => Promise<void>
+    // Lazy variant of refresh: seeds the overlays/tiles once per service, on
+    // first demand (key-action picker open) instead of on connect — the
+    // per-index macro/combo reads are N+M serialized RPCs that would otherwise
+    // sit on the connect path for tiles the user may never open.
+    ensureLoaded: (svc: KeyboardService | null) => Promise<void>
     reset: () => void
 }
 
+// Which service the store was last seeded for (and which seed is in flight) —
+// module scope like connectionStore's subscription handles; the store is a
+// singleton.
+let seededFor: KeyboardService | null = null
+let seedingFor: KeyboardService | null = null
+
 const useDynamicCatalogStore = create<DynamicCatalogState>()(
-    devtools((set) => ({
+    devtools((set, get) => ({
         macroOverlays: {},
         comboOverlays: {},
         macroLabels: {},
@@ -67,6 +78,8 @@ const useDynamicCatalogStore = create<DynamicCatalogState>()(
             set({ sideloadedComboEntries }),
         refresh: async (svc) => {
             if (!svc) {
+                seededFor = null
+                seedingFor = null
                 set({
                     macroOverlays: {},
                     comboOverlays: {},
@@ -87,7 +100,21 @@ const useDynamicCatalogStore = create<DynamicCatalogState>()(
                 extraComboEntries: behaviorEntries.combos,
             })
         },
-        reset: () =>
+        ensureLoaded: async (svc) => {
+            if (!svc || seededFor === svc || seedingFor === svc) return
+            seedingFor = svc
+            try {
+                await get().refresh(svc)
+                seededFor = svc
+            } catch (err) {
+                console.warn('dynamicCatalog ensureLoaded failed', err)
+            } finally {
+                if (seedingFor === svc) seedingFor = null
+            }
+        },
+        reset: () => {
+            seededFor = null
+            seedingFor = null
             set({
                 macroOverlays: {},
                 comboOverlays: {},
@@ -96,7 +123,8 @@ const useDynamicCatalogStore = create<DynamicCatalogState>()(
                 extraMacroEntries: [],
                 extraComboEntries: [],
                 sideloadedComboEntries: [],
-            }),
+            })
+        },
     })),
 )
 

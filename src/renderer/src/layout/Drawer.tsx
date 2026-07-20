@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useLayout } from '@/hooks/use-layouts'
 import { PhysicalLayoutPicker } from '@/features/keymap/layout-picker/PhysicalLayoutPicker'
 import { LayerPicker } from '@/features/keymap/layer-picker/LayerPicker'
@@ -21,17 +21,24 @@ import { produce } from 'immer'
 
 // pattern-check: skip — mechanical lock-guard removal
 export function Drawer(): JSX.Element {
-    const { service } = useConnectionStore()
+    // Field-scoped selectors: a bare useXStore() subscribes to the whole store
+    // and re-renders the sidebar on every unrelated field change (lock state,
+    // key catalog, undo/redo stack pushes…).
+    const service = useConnectionStore((s) => s.service)
     // Read-only (behind-dongle node) views disable every layer-editing affordance.
     const editable = useFeatureAvailable('editable')
-    const { setSelectedLayerIndex } = useLayerSelectionStore()
-    const { keymap, setKeymap, resetKeymap } = useKeymapStore()
+    const setSelectedLayerIndex = useLayerSelectionStore(
+        (s) => s.setSelectedLayerIndex,
+    )
+    const keymap = useKeymapStore((s) => s.keymap)
+    const setKeymap = useKeymapStore((s) => s.setKeymap)
+    const resetKeymap = useKeymapStore((s) => s.resetKeymap)
     const {
         layouts,
         selectedPhysicalLayoutIndex,
         setSelectedPhysicalLayoutIndex,
     } = useLayout()
-    const { doIt } = undoRedoStore()
+    const doIt = undoRedoStore((s) => s.doIt)
 
     // Adapter for LayerPicker - converts immer-style updater to store-compatible function
     const layerPickerSetKeymap = useMemo(
@@ -88,8 +95,22 @@ export function Drawer(): JSX.Element {
         [doIt, selectedPhysicalLayoutIndex, setSelectedPhysicalLayoutIndex],
     )
 
+    // Guarded by (service, index): the `layouts` array gets a fresh identity on
+    // every layout-changed refetch, which used to re-issue the RPC (and replace
+    // the keymap) without the selection actually changing.
+    const appliedLayoutRef = useRef<{ svc: unknown; idx: number } | null>(null)
     useEffect(() => {
         if (!service || !layouts) return
+        if (
+            appliedLayoutRef.current?.svc === service &&
+            appliedLayoutRef.current.idx === selectedPhysicalLayoutIndex
+        ) {
+            return
+        }
+        appliedLayoutRef.current = {
+            svc: service,
+            idx: selectedPhysicalLayoutIndex,
+        }
 
         void (async () => {
             try {

@@ -6,6 +6,7 @@
 // config + GitHub Actions workflow + README — not a preview tab. A per-firmware
 // readiness checklist (checkCompleteness) surfaces what's still missing (controller,
 // USB ids, matrix pins, Vial UID/unlock) before the user pushes to a build.
+import { useMemo } from 'react'
 import {
     CheckCircle2,
     Copy,
@@ -69,9 +70,14 @@ export function ExportPanel({
     topActions,
 }: ExportPanelProps): JSX.Element {
     const id = configId(config)
-    const code = preferredSourceJson(config, source)
+    // JSON serialization + per-firmware completeness validation — memoized so
+    // unrelated parent re-renders (while the modal is open) don't re-run them.
+    const code = useMemo(
+        () => preferredSourceJson(config, source),
+        [config, source],
+    )
     const filename = `${id}.keymap.json`
-    const readiness = checkCompleteness(config)
+    const readiness = useMemo(() => checkCompleteness(config), [config])
 
     const handleCopy = async (): Promise<void> => {
         try {

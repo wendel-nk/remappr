@@ -44,9 +44,12 @@ interface UseLayerDragReorderResult {
 export function useLayerDragReorder({
     setKeymap,
 }: UseLayerDragReorderArgs): UseLayerDragReorderResult {
-    const { doIt } = undoRedoStore()
-    const { service } = useConnectionStore()
-    const { setSelectedLayerIndex } = useLayerSelectionStore()
+    // Field-scoped selectors — avoids re-rendering on unrelated store changes.
+    const doIt = undoRedoStore((s) => s.doIt)
+    const service = useConnectionStore((s) => s.service)
+    const setSelectedLayerIndex = useLayerSelectionStore(
+        (s) => s.setSelectedLayerIndex,
+    )
 
     const sourceRef = useRef<number | null>(null)
     const [dragSourceIndex, setDragSourceIndex] = useState<number | null>(null)

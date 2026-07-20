@@ -215,12 +215,18 @@ const useConnectionStore = create<ConnectionState>()(
                 } else {
                     set({ keyCatalog: null })
                 }
-                useDynamicCatalogStore
-                    .getState()
-                    .refresh(service)
-                    .catch((err) =>
-                        console.warn('dynamicCatalog refresh failed', err),
-                    )
+                // Dynamic catalog (macro/combo overlay tiles) is NOT seeded
+                // here: its per-index reads are N+M serialized RPCs. The
+                // key-action picker calls ensureLoaded on first open instead;
+                // a null service still clears stale entries immediately.
+                if (!service) {
+                    useDynamicCatalogStore
+                        .getState()
+                        .refresh(null)
+                        .catch((err) =>
+                            console.warn('dynamicCatalog clear failed', err),
+                        )
+                }
                 // Seed the config source-of-truth from the device once on
                 // connect. After that, every commit / discard (Header save, the
                 // debounced autosave, config-blob editor modals — each lands a

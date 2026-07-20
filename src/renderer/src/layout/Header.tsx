@@ -1,7 +1,6 @@
 // Pattern check: Observer (Tier 1) — extended — uses service.onPendingChangesChanged Observer instead of pub-sub bridge.
 // pattern-check: skip — toolbar JSX rebuild to the redesign spec; no new abstraction
-/* eslint-disable react-hooks/preserve-manual-memoization */
-import { useCallback, useEffect, useState } from 'react'
+import { lazy, useCallback, useEffect, useState } from 'react'
 import {
     BarChart3,
     Blocks,
@@ -25,13 +24,7 @@ import {
     Zap,
 } from 'lucide-react'
 import { applySaveMode, isSaveModeManaged } from '@/lib/saveMode'
-import { LoadStatsModal } from '@/features/keymap/keyboard/LoadStatsModal'
-import { WirelessSettingsModal } from '@/features/firmware/WirelessSettingsModal'
-import { ClusterDiagnosticsModal } from '@/features/firmware/ClusterDiagnosticsModal'
-import { AdvancedSettingsModal } from '@/features/firmware/AdvancedSettingsModal'
-import { TimingDefaultsModal } from '@/features/firmware/TimingDefaultsModal'
-import { BehaviorDefsModal } from '@/features/firmware/BehaviorDefsModal'
-import { ConditionalLayersModal } from '@/features/firmware/ConditionalLayersModal'
+import { MountOnDemand } from '@/components/MountOnDemand'
 import useRgbSheetStore from '@/stores/rgbSheetStore'
 import useAdvancedSheetStore from '@/stores/advancedSheetStore'
 import useConfigStore from '@/stores/configStore'
@@ -61,11 +54,60 @@ import { WindowControls } from '@/layout/WindowControls'
 
 const noDrag = { WebkitAppRegion: 'no-drag' } as React.CSSProperties
 
+// Toolbar dialogs are click-gated — lazy-load them (rendered behind
+// MountOnDemand) so they stay out of the editor's first-paint chunk.
+const LoadStatsModal = lazy(() =>
+    import('@/features/keymap/keyboard/LoadStatsModal').then((m) => ({
+        default: m.LoadStatsModal,
+    })),
+)
+const WirelessSettingsModal = lazy(() =>
+    import('@/features/firmware/WirelessSettingsModal').then((m) => ({
+        default: m.WirelessSettingsModal,
+    })),
+)
+const ClusterDiagnosticsModal = lazy(() =>
+    import('@/features/firmware/ClusterDiagnosticsModal').then((m) => ({
+        default: m.ClusterDiagnosticsModal,
+    })),
+)
+const AdvancedSettingsModal = lazy(() =>
+    import('@/features/firmware/AdvancedSettingsModal').then((m) => ({
+        default: m.AdvancedSettingsModal,
+    })),
+)
+const TimingDefaultsModal = lazy(() =>
+    import('@/features/firmware/TimingDefaultsModal').then((m) => ({
+        default: m.TimingDefaultsModal,
+    })),
+)
+const BehaviorDefsModal = lazy(() =>
+    import('@/features/firmware/BehaviorDefsModal').then((m) => ({
+        default: m.BehaviorDefsModal,
+    })),
+)
+const ConditionalLayersModal = lazy(() =>
+    import('@/features/firmware/ConditionalLayersModal').then((m) => ({
+        default: m.ConditionalLayersModal,
+    })),
+)
+
 // pattern-check: skip — wrap toolbar buttons in capability gate, no abstraction
 export function Header(): JSX.Element {
-    const { service, setService, communication, disconnect } =
-        useConnectionStore()
-    const { undo, redo, canUndo, canRedo, reset } = undoRedoStore()
+    // Field-scoped selectors: a bare useXStore() subscribes to the whole store,
+    // re-rendering this 700-line toolbar on every unrelated field change
+    // (lockState, keyCatalog, connection modal flags, undo/redo stack pushes).
+    const service = useConnectionStore((s) => s.service)
+    const setService = useConnectionStore((s) => s.setService)
+    const communication = useConnectionStore((s) => s.communication)
+    const disconnect = useConnectionStore((s) => s.disconnect)
+    const undo = undoRedoStore((s) => s.undo)
+    const redo = undoRedoStore((s) => s.redo)
+    const reset = undoRedoStore((s) => s.reset)
+    // Derived booleans (not the canUndo/canRedo getter fns) so the buttons
+    // still re-render exactly when the stacks flip empty ⇄ non-empty.
+    const canUndo = undoRedoStore((s) => s.undoStack.length > 0)
+    const canRedo = undoRedoStore((s) => s.redoStack.length > 0)
 
     const heatmapOn = useHeatmapStore((s) => s.enabled)
     const toggleHeatmap = useHeatmapStore((s) => s.toggle)
@@ -346,10 +388,12 @@ export function Header(): JSX.Element {
                         <p>Typing load stats</p>
                     </TooltipContent>
                 </Tooltip>
-                <LoadStatsModal
-                    opened={loadOpen}
-                    onClose={(): void => setLoadOpen(false)}
-                />
+                <MountOnDemand when={loadOpen}>
+                    <LoadStatsModal
+                        opened={loadOpen}
+                        onClose={(): void => setLoadOpen(false)}
+                    />
+                </MountOnDemand>
 
                 <Separator
                     orientation="vertical"
@@ -418,10 +462,12 @@ export function Header(): JSX.Element {
                         </TooltipContent>
                     </Tooltip>
                 </FeatureGate>
-                <WirelessSettingsModal
-                    opened={wirelessOpen}
-                    onClose={(): void => setWirelessOpen(false)}
-                />
+                <MountOnDemand when={wirelessOpen}>
+                    <WirelessSettingsModal
+                        opened={wirelessOpen}
+                        onClose={(): void => setWirelessOpen(false)}
+                    />
+                </MountOnDemand>
                 <FeatureGate feature="cluster">
                     <Tooltip>
                         <TooltipTrigger asChild>
@@ -439,10 +485,12 @@ export function Header(): JSX.Element {
                         </TooltipContent>
                     </Tooltip>
                 </FeatureGate>
-                <ClusterDiagnosticsModal
-                    opened={clusterOpen}
-                    onClose={(): void => setClusterOpen(false)}
-                />
+                <MountOnDemand when={clusterOpen}>
+                    <ClusterDiagnosticsModal
+                        opened={clusterOpen}
+                        onClose={(): void => setClusterOpen(false)}
+                    />
+                </MountOnDemand>
                 <FeatureGate feature="advanced">
                     <Tooltip>
                         <TooltipTrigger asChild>
@@ -460,10 +508,12 @@ export function Header(): JSX.Element {
                         </TooltipContent>
                     </Tooltip>
                 </FeatureGate>
-                <AdvancedSettingsModal
-                    opened={advancedOpen}
-                    onClose={(): void => setAdvancedOpen(false)}
-                />
+                <MountOnDemand when={advancedOpen}>
+                    <AdvancedSettingsModal
+                        opened={advancedOpen}
+                        onClose={(): void => setAdvancedOpen(false)}
+                    />
+                </MountOnDemand>
                 <FeatureGate feature="limits">
                     <Tooltip>
                         <TooltipTrigger asChild>
@@ -481,10 +531,12 @@ export function Header(): JSX.Element {
                         </TooltipContent>
                     </Tooltip>
                 </FeatureGate>
-                <TimingDefaultsModal
-                    opened={timingOpen}
-                    onClose={(): void => setTimingOpen(false)}
-                />
+                <MountOnDemand when={timingOpen}>
+                    <TimingDefaultsModal
+                        opened={timingOpen}
+                        onClose={(): void => setTimingOpen(false)}
+                    />
+                </MountOnDemand>
                 <FeatureGate feature="limits">
                     <Tooltip>
                         <TooltipTrigger asChild>
@@ -502,10 +554,12 @@ export function Header(): JSX.Element {
                         </TooltipContent>
                     </Tooltip>
                 </FeatureGate>
-                <BehaviorDefsModal
-                    opened={behaviorsOpen}
-                    onClose={(): void => setBehaviorsOpen(false)}
-                />
+                <MountOnDemand when={behaviorsOpen}>
+                    <BehaviorDefsModal
+                        opened={behaviorsOpen}
+                        onClose={(): void => setBehaviorsOpen(false)}
+                    />
+                </MountOnDemand>
                 <FeatureGate feature="limits">
                     <Tooltip>
                         <TooltipTrigger asChild>
@@ -523,10 +577,12 @@ export function Header(): JSX.Element {
                         </TooltipContent>
                     </Tooltip>
                 </FeatureGate>
-                <ConditionalLayersModal
-                    opened={condLayersOpen}
-                    onClose={(): void => setCondLayersOpen(false)}
-                />
+                <MountOnDemand when={condLayersOpen}>
+                    <ConditionalLayersModal
+                        opened={condLayersOpen}
+                        onClose={(): void => setCondLayersOpen(false)}
+                    />
+                </MountOnDemand>
                 {/* RGB lighting — opens the board-visible bottom sheet (device
                     controls when an RGB keyboard is connected, else the on-screen
                     simulation editor). Disabled when the target is ZMK (no runtime
@@ -630,7 +686,7 @@ export function Header(): JSX.Element {
                             <Button
                                 variant="ghost"
                                 size="icon"
-                                disabled={!canUndo()}
+                                disabled={!canUndo}
                                 onClick={undo}
                             >
                                 <Undo2 aria-label="Undo" />
@@ -647,7 +703,7 @@ export function Header(): JSX.Element {
                             <Button
                                 variant="ghost"
                                 size="icon"
-                                disabled={!canRedo()}
+                                disabled={!canRedo}
                                 onClick={redo}
                             >
                                 <Redo2 aria-label="Redo" />

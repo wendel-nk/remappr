@@ -1,7 +1,7 @@
 // Pattern check: no GoF pattern (-) — rejected — modal wrapper; the tabbed
 // compile/preview/download body is the shared ExportPanel, this only frames it
 // with device status, native fallback, import + flash instructions.
-import { useEffect, useMemo, useRef } from 'react'
+import { Suspense, lazy, useEffect, useMemo, useRef } from 'react'
 import {
     AlertTriangle,
     Copy,
@@ -19,7 +19,12 @@ import { downloadExports, exportedContentToString } from '@/lib/blob'
 import { type Target, resolveAllowedTargets } from '@firmware/config'
 import { connectMockWithConfig } from '@firmware'
 import { createLogger } from '@shared/logger'
-import { ExportPanel } from './ExportPanel'
+// The compile/preview/download body drags in the per-firmware compilers —
+// lazy-load it; Radix only mounts modal content while open, so the chunk is
+// fetched on first open.
+const ExportPanel = lazy(() =>
+    import('./ExportPanel').then((m) => ({ default: m.ExportPanel })),
+)
 
 const log = createLogger('Download')
 
@@ -29,8 +34,15 @@ interface DownloadProps {
 }
 
 export function Download({ opened, onClose }: DownloadProps): JSX.Element {
-    const { service } = useConnectionStore()
-    const { config, source, error, stale, loadFromSource } = useConfigStore()
+    // Field-scoped selectors — this component is mounted in the header at all
+    // times, so a bare store call would re-render it (closed) on every store
+    // change.
+    const service = useConnectionStore((s) => s.service)
+    const config = useConfigStore((s) => s.config)
+    const source = useConfigStore((s) => s.source)
+    const error = useConfigStore((s) => s.error)
+    const stale = useConfigStore((s) => s.stale)
+    const loadFromSource = useConfigStore((s) => s.loadFromSource)
     const fileInputRef = useRef<HTMLInputElement>(null)
 
     // Saves only mark the config stale (the eager per-save device read stalled
@@ -89,7 +101,16 @@ export function Download({ opened, onClose }: DownloadProps): JSX.Element {
         const file = e.target.files?.[0]
         e.target.value = '' // allow re-importing the same file
         if (!file) return
-        const text = await file.text()
+        let text: string
+        try {
+            text = await file.text()
+        } catch (err) {
+            // Fire-and-forget onChange handler — a read failure would surface
+            // as an unhandled rejection with no user feedback.
+            log.error('failed to read import file', err)
+            toast.error(`Failed to read ${file.name}`)
+            return
+        }
         if (!loadFromSource(text)) {
             toast.error('Invalid config — see error below')
             return
@@ -184,13 +205,15 @@ export function Download({ opened, onClose }: DownloadProps): JSX.Element {
         >
             <div className="min-w-0 space-y-6">
                 {config ? (
-                    <ExportPanel
-                        config={config}
-                        source={source}
-                        targets={allowed}
-                        header={statusBlock}
-                        topActions={importButton}
-                    />
+                    <Suspense fallback={null}>
+                        <ExportPanel
+                            config={config}
+                            source={source}
+                            targets={allowed}
+                            header={statusBlock}
+                            topActions={importButton}
+                        />
+                    </Suspense>
                 ) : (
                     <div className="space-y-6">
                         {statusBlock}

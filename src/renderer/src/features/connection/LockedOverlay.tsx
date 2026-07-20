@@ -4,8 +4,9 @@ import useConnectionStore from '@/stores/connectionStore'
 import { Lock } from 'lucide-react'
 
 export const LockedOverlay = (): JSX.Element => {
-    const { service } = useConnectionStore()
-    const isZmk = service?.deviceInfo.firmware === 'zmk'
+    const isZmk = useConnectionStore(
+        (s) => s.service?.deviceInfo.firmware === 'zmk',
+    )
 
     return (
         <div className="flex h-full w-full items-center justify-center bg-background p-6">

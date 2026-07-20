@@ -1,5 +1,12 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useEffect, useState } from 'react'
+import {
+    createContext,
+    useCallback,
+    useContext,
+    useEffect,
+    useMemo,
+    useState,
+} from 'react'
 
 export type Theme = 'dark' | 'light' | 'system'
 
@@ -86,18 +93,31 @@ export function ThemeProvider({
         }
     }, [themeName])
 
-    const value = {
-        theme,
-        setTheme: (theme: Theme): void => {
-            localStorage.setItem(storageKey, theme)
-            setTheme(theme)
+    // Stable context value — a fresh object every render would re-render all
+    // useTheme consumers whenever the provider re-renders.
+    const setThemePersisted = useCallback(
+        (next: Theme): void => {
+            localStorage.setItem(storageKey, next)
+            setTheme(next)
         },
-        themeName,
-        setThemeName: (name: ThemeName): void => {
+        [storageKey],
+    )
+    const setThemeNamePersisted = useCallback(
+        (name: ThemeName): void => {
             localStorage.setItem(nameStorageKey, name)
             setThemeName(name)
         },
-    }
+        [nameStorageKey],
+    )
+    const value = useMemo(
+        () => ({
+            theme,
+            setTheme: setThemePersisted,
+            themeName,
+            setThemeName: setThemeNamePersisted,
+        }),
+        [theme, themeName, setThemePersisted, setThemeNamePersisted],
+    )
 
     return (
         <ThemeProviderContext.Provider {...props} value={value}>

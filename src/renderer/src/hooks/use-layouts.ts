@@ -11,7 +11,7 @@ interface UseLayoutsReturn {
 }
 
 export function useLayout(): UseLayoutsReturn {
-    const { service } = useConnectionStore()
+    const service = useConnectionStore((s) => s.service)
 
     const [layouts, setLayouts] = useState<PhysicalLayout[] | undefined>(
         undefined,

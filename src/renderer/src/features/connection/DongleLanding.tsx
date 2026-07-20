@@ -26,8 +26,11 @@ import { Switch } from '@/ui/switch'
 import type { NodeView } from '@firmware/service'
 
 export function DongleLanding(): JSX.Element {
-    const { service, communication, openNode, disconnect } =
-        useConnectionStore()
+    // Field-scoped selectors — avoids re-rendering on unrelated store changes.
+    const service = useConnectionStore((s) => s.service)
+    const communication = useConnectionStore((s) => s.communication)
+    const openNode = useConnectionStore((s) => s.openNode)
+    const disconnect = useConnectionStore((s) => s.disconnect)
     const [nodes, setNodes] = useState<NodeView[]>([])
     const [loading, setLoading] = useState(true)
     const [pairing, setPairing] = useState(false)

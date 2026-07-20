@@ -1,6 +1,7 @@
 // Pattern check: no GoF pattern (-) — rejected — module-level Map memoization for hot-path O(1) lookup; not Singleton (no encapsulation/lifecycle), no abstraction.
-// import { UsagePages } from "./data/HidUsageTables-1.5.json";
-// Filtered with `cat src/HidUsageTables-1.5.json | jq '{ UsagePages: [.UsagePages[] | select([.Id] |inside([7, 12]))] }' > src/keyboard-and-consumer-usage-tables.json`
+// keyboard-and-consumer-usage-tables.json is pages 7 + 12 filtered out of the
+// full USB-IF HidUsageTables-1.5.json (https://usb.org/document-library/hid-usage-tables-15)
+// via: jq '{ UsagePages: [.UsagePages[] | select([.Id] | inside([7, 12]))] }'
 import { UsagePages } from '@/data/keyboard-and-consumer-usage-tables.json'
 import HidOverrides from '@firmware/catalog/hid-pages/overrides.json'
 import { abbreviateKeyName } from '@/lib/keyAbbreviations'
@@ -24,8 +25,19 @@ export interface UsagePageInfo {
     UsageIds: UsageId[]
 }
 
-const pagesById = new Map<number, UsagePageInfo>(
-    UsagePages.map((p: UsagePageInfo): [number, UsagePageInfo] => [p.Id, p]),
+// Nested page → id → name Map so the per-key label lookup is O(1); the
+// consumer page (0x0c) alone has ~670 usage ids, and a linear scan there ran
+// once per key per keymap render.
+const usageNamesByPage = new Map<number, Map<number, string>>(
+    UsagePages.map((p: UsagePageInfo): [number, Map<number, string>] => [
+        p.Id,
+        new Map(
+            (p.UsageIds ?? []).map((u: UsageId): [number, string] => [
+                u.Id,
+                u.Name,
+            ]),
+        ),
+    ]),
 )
 
 export const hidUsageFromPageAndId = (page: number, id: number): number =>
@@ -45,9 +57,7 @@ export const hid_usage_get_labels = (
     long?: string
 } =>
     overrides[usage_page.toString()]?.[usage_id.toString()] || {
-        short: pagesById
-            .get(usage_page)
-            ?.UsageIds?.find((u: UsageId): boolean => u.Id === usage_id)?.Name,
+        short: usageNamesByPage.get(usage_page)?.get(usage_id),
     }
 
 /**

@@ -38,8 +38,12 @@ const SECTION_META: Record<
 }
 
 /** Which sections the connected service supports, in nav order. */
-function availableSections(service: KeyboardService): AdvancedSheetSection[] {
-    const counts = service.dynamic?.getCounts()
+function availableSections(
+    service: KeyboardService,
+    counts:
+        | ReturnType<NonNullable<KeyboardService['dynamic']>['getCounts']>
+        | undefined,
+): AdvancedSheetSection[] {
     const out: AdvancedSheetSection[] = []
     if (counts?.tapDance) out.push('td')
     if (counts?.combo) out.push('combo')
@@ -55,11 +59,13 @@ export function AdvancedSheet({ onClose }: Props): JSX.Element | null {
     const setSection = useAdvancedSheetStore((s) => s.setSection)
 
     if (!service) return null
-    const sections = availableSections(service)
+    // getCounts once per render — availableSections and the section bodies
+    // below share the same result.
+    const counts = service.dynamic?.getCounts()
+    const sections = availableSections(service, counts)
     if (sections.length === 0) return null
 
     const activeSection = sections.includes(section) ? section : sections[0]
-    const counts = service.dynamic?.getCounts()
 
     return (
         <div className="p-2 w-full">

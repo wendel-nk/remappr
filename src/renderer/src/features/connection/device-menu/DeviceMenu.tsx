@@ -3,6 +3,7 @@ import { useCallback, useState } from 'react'
 import { RestoreStockModal } from './RestoreStockModal'
 import useConnectionStore from '@/stores/connectionStore'
 import undoRedoStore from '@/stores/undoRedoStore'
+import { useShallow } from 'zustand/react/shallow'
 import {
     ArrowLeft,
     Check,
@@ -23,6 +24,8 @@ import { toast } from 'sonner'
 import type { NodeView } from '@firmware/service'
 
 export const DeviceMenu = (): JSX.Element => {
+    // useShallow-scoped subscription — a bare useConnectionStore() re-renders
+    // the roster on every unrelated field change (lockState, keyCatalog…).
     const {
         service,
         parentService,
@@ -33,8 +36,20 @@ export const DeviceMenu = (): JSX.Element => {
         disconnect,
         openNode,
         returnToParent,
-    } = useConnectionStore()
-    const { reset } = undoRedoStore()
+    } = useConnectionStore(
+        useShallow((s) => ({
+            service: s.service,
+            parentService: s.parentService,
+            activeNodeId: s.activeNodeId,
+            setService: s.setService,
+            communication: s.communication,
+            deviceName: s.deviceName,
+            disconnect: s.disconnect,
+            openNode: s.openNode,
+            returnToParent: s.returnToParent,
+        })),
+    )
+    const reset = undoRedoStore((s) => s.reset)
     const [settingsOpen, setSettingsOpen] = useState(false)
     const [nodes, setNodes] = useState<NodeView[]>([])
     const [nodesLoading, setNodesLoading] = useState(false)

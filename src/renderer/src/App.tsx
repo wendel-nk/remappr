@@ -1,4 +1,4 @@
-import React, { JSX, useCallback, useEffect } from 'react'
+import React, { JSX, Suspense, lazy, useCallback, useEffect } from 'react'
 import type { Transport } from '@firmware'
 import { connectMock, isUnlocked, pickAdapter } from '@firmware'
 import { rememberConnectedDeviceName } from '@/transport/web-serial'
@@ -19,7 +19,6 @@ import { DevicePreviewCapture } from '@/features/connection/DevicePreviewCapture
 import { ErrorBoundary } from '@/ui/ErrorBoundary'
 import { toast } from 'sonner'
 import { StartPage } from '@/features/connection/start-page/StartPage'
-import { Builder } from '@/features/builder'
 import useBuilderStore from '@/stores/builderStore'
 import { CoachmarkTour } from '@/features/onboarding/CoachmarkTour'
 import { UpdateNotification } from '@/components/UpdateNotification'
@@ -28,6 +27,12 @@ import { isElectron as isElectronEnv } from '@/transport'
 import { useConfigRuntimeSync } from '@/hooks/use-config-runtime-sync'
 import { cacheKey, loadCached } from '@firmware/qmk/layoutSideload'
 import { withSaveMode } from '@/lib/saveMode'
+
+// Code-split the full-screen builder: it drags in Monaco (multi-MB), which
+// otherwise lands in the entry chunk for users who never open the builder.
+const Builder = lazy(() =>
+    import('@/features/builder').then((m) => ({ default: m.Builder })),
+)
 
 // Hoisted so it's a stable reference — an inline object here makes a fresh ref every
 // App render, forcing the whole editor subtree (Drawer + KeymapEditor + canvas) to
@@ -45,15 +50,15 @@ const CONNECT_TIMEOUT_MS = 15_000
 
 function App(): JSX.Element {
     // pattern-check: skip — UI sweep, replace store-connection with store-service
-    const {
-        service,
-        setService,
-        setDeviceName,
-        setLockState,
-        setConnectionAbort,
-        lockState,
-    } = useConnectionStore()
-    const { reset } = undoRedoStore()
+    // Field-scoped selectors — a bare useConnectionStore() re-renders the app
+    // shell (and the whole editor subtree) on every unrelated field change.
+    const service = useConnectionStore((s) => s.service)
+    const setService = useConnectionStore((s) => s.setService)
+    const setDeviceName = useConnectionStore((s) => s.setDeviceName)
+    const setLockState = useConnectionStore((s) => s.setLockState)
+    const setConnectionAbort = useConnectionStore((s) => s.setConnectionAbort)
+    const lockState = useConnectionStore((s) => s.lockState)
+    const reset = undoRedoStore((s) => s.reset)
 
     // Raise visual-editor edits back into the config (source of truth) so the
     // download modal compiles what the user sees. Mock/demo only.
@@ -214,7 +219,9 @@ function App(): JSX.Element {
                 <div className="flex-1 min-h-0 overflow-hidden">
                     {builderOpen ? (
                         <ErrorBoundary>
-                            <Builder />
+                            <Suspense fallback={null}>
+                                <Builder />
+                            </Suspense>
                         </ErrorBoundary>
                     ) : service ? (
                         service.capabilities.lock && !isUnlocked(lockState) ? (

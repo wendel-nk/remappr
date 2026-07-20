@@ -8,7 +8,6 @@ export const remapprDedupe = [
     'react',
     'react-dom',
     'zustand',
-    'next-themes',
     'react-aria-components',
     'cmdk',
     'sonner',

@@ -4,6 +4,7 @@ import tailwindcss from '@tailwindcss/vite'
 import path from 'path'
 import pkg from './package.json' with { type: 'json' }
 import { remapprDedupe } from './scripts/remappr-dedupe'
+import { vendorChunks } from './scripts/vendor-chunks'
 // https://vitejs.dev/config/
 export default defineConfig({
     base: '/', //todo remove it after finishing refactoring
@@ -27,8 +28,10 @@ export default defineConfig({
     envPrefix: ['VITE_'],
     build: {
         outDir: path.resolve(__dirname, 'dist'),
-        chunkSizeWarningLimit: 1000, // todo remove after refactoring
         target: 'esnext',
         minify: 'esbuild',
+        rollupOptions: {
+            output: { manualChunks: vendorChunks },
+        },
     },
 })

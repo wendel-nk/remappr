@@ -18,7 +18,11 @@ import { usageGlyph } from '@/lib/actions/hidUsages'
  */
 export function DevicePreviewCapture(): null {
     const { layouts, selectedPhysicalLayoutIndex } = useLayout()
-    const keymap = useKeymapStore((s) => s.keymap)
+    // Subscribe to the base-layer slice, not the whole keymap: immer edits on
+    // other layers keep layers[0]'s identity, so editing layer 3 no longer
+    // re-runs the (per-key) resolveBindingLabels pass below on every keystroke.
+    const baseLayer = useKeymapStore((s) => s.keymap?.layers[0])
+    const layerCount = useKeymapStore((s) => s.keymap?.layers.length ?? 0)
     const service = useConnectionStore((s) => s.service)
     const communication = useConnectionStore((s) => s.communication)
     const lastConnectedDevice = useConnectionStore((s) => s.lastConnectedDevice)
@@ -26,7 +30,10 @@ export function DevicePreviewCapture(): null {
     const lastSignature = useRef<string | null>(null)
 
     useEffect(() => {
-        if (!service || !layouts || !keymap) return
+        // The full keymap is read imperatively — the effect re-runs on the
+        // narrower baseLayer/layerCount subscriptions above.
+        const keymap = useKeymapStore.getState().keymap
+        if (!service || !layouts || !keymap || !baseLayer) return
         // Demo/mock keyboards never appear in the discovered-device list, so their
         // snapshots can't be shown — capturing one only risks clobbering a real slot.
         if (service.deviceInfo.firmware === 'mock') return
@@ -87,7 +94,8 @@ export function DevicePreviewCapture(): null {
     }, [
         service,
         layouts,
-        keymap,
+        baseLayer,
+        layerCount,
         selectedPhysicalLayoutIndex,
         communication,
         lastConnectedDevice,
