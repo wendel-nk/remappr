@@ -241,14 +241,25 @@ async function fetchBehaviorEntries(svc: KeyboardService): Promise<{
             if (subsumed.has(at.id)) continue
             const cls = classifyBehavior(at)
             if (cls === 'other') continue
+            // A behavior the firmware can't bind (settable: false — e.g. a ZMK
+            // parameterized macro reporting zero metadata sets; the device
+            // rejects every setLayerBinding with INVALID_PARAMETERS) still
+            // shows as a tile, but display-only with an explanatory toast
+            // instead of a doomed RPC.
+            const unsettable = at.settable === false
             const entry: CatalogEntry = {
                 id: `${cls}.behavior.${at.id}`,
                 label: at.displayName,
                 name: at.displayName,
                 description: at.description,
                 kinds: ['hid'],
-                behaviorRef: { kind: at.id },
                 ...(at.icon ? { icon: at.icon } : {}),
+                ...(unsettable
+                    ? {
+                          displayOnly: true,
+                          displayOnlyNote: `${at.displayName} takes parameters the firmware doesn't describe over the wire, so it can't be assigned from here — bind it in your .keymap instead.`,
+                      }
+                    : { behaviorRef: { kind: at.id } }),
             }
             if (cls === 'macro') macros.push(entry)
             else combos.push(entry)

@@ -228,7 +228,8 @@ export function KeycodePickerGrid({
                     const displayOnlyClick = entry.displayOnly
                         ? (): void => {
                               toast.info(
-                                  `${entry.label} is a sideloaded combo definition — assign it via the .keymap file, not the picker.`,
+                                  entry.displayOnlyNote ??
+                                      `${entry.label} is a sideloaded combo definition — assign it via the .keymap file, not the picker.`,
                               )
                           }
                         : undefined
