@@ -10,20 +10,22 @@ Remappr runs two ways:
 All desktop builds are published on the
 [GitHub Releases page](https://github.com/Wolffyx/remappr/releases/latest).
 Artifact names follow `remappr-electron-<version>.<ext>` (e.g.
-`remappr-electron-0.0.12.AppImage`).
+`remappr-electron-0.0.12.AppImage`). The Linux tarball additionally carries a
+`-linux` suffix (`remappr-electron-<version>-linux.tar.gz`) — it is **not** a
+macOS or Windows download.
 
 ## Linux
 
 Pick the package that matches your distribution. All of them install the same
 app; the AppImage and tarball are distro-agnostic fallbacks.
 
-| Distro          | Artifact    | Install command                          |
-| --------------- | ----------- | ---------------------------------------- |
-| Arch / Manjaro  | `.pacman`   | `sudo pacman -U <file>.pacman`           |
-| Debian / Ubuntu | `.deb`      | `sudo apt install ./<file>.deb`          |
-| Fedora / RHEL   | `.rpm`      | `sudo dnf install ./<file>.rpm`          |
-| Any             | `.AppImage` | `chmod +x`, then run                     |
-| Any             | `.tar.gz`   | extract, run the `remappr` binary inside |
+| Distro          | Artifact        | Install command                          |
+| --------------- | --------------- | ---------------------------------------- |
+| Arch / Manjaro  | `.pacman`       | `sudo pacman -U <file>.pacman`           |
+| Debian / Ubuntu | `.deb`          | `sudo apt install ./<file>.deb`          |
+| Fedora / RHEL   | `.rpm`          | `sudo dnf install ./<file>.rpm`          |
+| Any             | `.AppImage`     | `chmod +x`, then run                     |
+| Any             | `-linux.tar.gz` | extract, run the `remappr` binary inside |
 
 ### Arch Linux / Manjaro
 
@@ -74,8 +76,8 @@ As a last resort, `./remappr-….AppImage --appimage-extract` unpacks it and
 ### Tarball (any distro)
 
 ```bash
-tar -xzf remappr-electron-0.0.12.tar.gz
-cd remappr-electron-0.0.12 && ./remappr
+tar -xzf remappr-electron-0.0.12-linux.tar.gz
+cd remappr-0.0.12 && ./remappr
 ```
 
 No desktop integration (menu entry, icon) — prefer a native package or the
@@ -126,18 +128,33 @@ allows active desktop sessions to scan and pair.
 
 Download the `.dmg` (a single **universal** build — runs natively on both
 Intel and Apple Silicon), open it and drag **Remappr** into **Applications**.
+The `.dmg` is the **only** macOS download — the `…-linux.tar.gz` is a Linux
+build; opening the binary inside it fails with _"this application is not
+supported on this type of Mac"_.
 
-::: warning Gatekeeper — "Remappr is damaged" / "cannot be opened"
+::: warning Gatekeeper — "Apple could not verify…" / "Remappr is damaged"
 Remappr is an open-source project without an Apple Developer ID, so builds are
-not notarized. The first launch is blocked by Gatekeeper. Either:
+not notarized and the **first** launch is blocked by Gatekeeper. Allowing it
+once is enough. (The same steps ship inside the DMG as
+`how-to-open.html`.)
 
-- **Right-click** (or <kbd>Ctrl</kbd>-click) the app in Applications →
-  **Open** → **Open** (only needed once), or
-- clear the quarantine flag from a terminal:
+**macOS 15 (Sequoia) and later** — the right-click → Open bypass was removed
+in macOS 15, so:
 
-    ```bash
-    xattr -dr com.apple.quarantine /Applications/Remappr.app
-    ```
+1. Double-click the app once; in the "could not verify" dialog choose
+   **Done** (not "Move to Trash").
+2. Open **System Settings → Privacy & Security**, scroll to the **Security**
+   section — "Remappr was blocked…" — and click **Open Anyway**.
+3. Confirm with Touch ID / password.
+
+**macOS 14 (Sonoma) and earlier** — **right-click** (or
+<kbd>Ctrl</kbd>-click) the app in Applications → **Open** → **Open**.
+
+**Any version** — clear the quarantine flag from a terminal instead:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/Remappr.app
+```
 
 :::
 
