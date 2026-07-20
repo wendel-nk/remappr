@@ -13,6 +13,31 @@ if (!Array.isArray(languages) || languages.length === 0) {
     )
 }
 
+// Native-module prebuilds for platforms this build does not target are dead
+// weight, and on macOS they break the CI universal-lipo assertion (lipo reads
+// non-Mach-O files as "unreadable"). They MUST be excluded from the ONE
+// top-level `files` list: electron-builder 26.8.1 resolves a platform-level
+// `files` array into a second file matcher that silently drops every
+// top-level negation (verified via builder-debug.yml), re-including the whole
+// project. The config is a script, so derive the target platform from the CLI
+// flag (falling back to the host platform) and compute the excludes here.
+const target = process.argv.includes('--mac')
+    ? 'darwin'
+    : process.argv.includes('--win')
+      ? 'win32'
+      : process.argv.includes('--linux')
+        ? 'linux'
+        : process.platform
+const foreignPrebuilds = [
+    'android',
+    'freebsd',
+    ...(target === 'darwin'
+        ? ['linux', 'win32']
+        : target === 'win32'
+          ? ['darwin', 'linux']
+          : ['darwin', 'win32']),
+]
+
 /** @type {import('electron-builder').Configuration} */
 module.exports = {
     appId: 'dev.remappr.app',
@@ -69,15 +94,11 @@ module.exports = {
         '!**/{.editorconfig,.eslintrc*,.prettierrc*,.npmignore,.travis.yml,.gitattributes,tsconfig*.json,.nycrc,karma.conf.js}',
         '!**/{.github,.idea,.vscode}/**',
         '!**/*.{ts.map,js.map,css.map}',
-        // Native-module prebuilds for platforms no desktop build targets.
-        '!**/prebuilds/*android*/**',
-        '!**/prebuilds/*freebsd*/**',
+        ...foreignPrebuilds.map((p) => `!**/prebuilds/*${p}*/**`),
     ],
     asarUnpack: ['resources/**'],
     win: {
         executableName: 'app',
-        // Other-OS prebuilds are dead weight in the Windows package.
-        files: ['!**/prebuilds/*darwin*/**', '!**/prebuilds/*linux*/**'],
     },
     nsis: {
         artifactName: '${name}-electron-${version}-setup.${ext}',
@@ -133,10 +154,6 @@ module.exports = {
                 'Remappr uses Bluetooth to connect to keyboards over BLE.',
         },
         notarize: false,
-        // Other-OS prebuilds are not Mach-O: they can never load on macOS and
-        // they break the CI universal-lipo assertion (lipo reads them as
-        // "unreadable"). Strip them from the mac package.
-        files: ['!**/prebuilds/*linux*/**', '!**/prebuilds/*win32*/**'],
     },
     dmg: {
         artifactName: '${name}-electron-${version}.${ext}',
@@ -145,8 +162,6 @@ module.exports = {
         target: ['AppImage', 'deb', 'rpm', 'pacman', 'tar.gz'],
         maintainer: 'Wolffyx <wolffyx@wolffyx.com>',
         category: 'Utility',
-        // Other-OS prebuilds are dead weight in the Linux package.
-        files: ['!**/prebuilds/*darwin*/**', '!**/prebuilds/*win32*/**'],
     },
     appImage: {
         artifactName: '${name}-electron-${version}.${ext}',
