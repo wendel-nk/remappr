@@ -10,20 +10,22 @@ Remappr runs two ways:
 All desktop builds are published on the
 [GitHub Releases page](https://github.com/Wolffyx/remappr/releases/latest).
 Artifact names follow `remappr-electron-<version>.<ext>` (e.g.
-`remappr-electron-0.0.12.AppImage`).
+`remappr-electron-0.0.12.AppImage`). The Linux tarball additionally carries a
+`-linux` suffix (`remappr-electron-<version>-linux.tar.gz`) — it is **not** a
+macOS or Windows download.
 
 ## Linux
 
 Pick the package that matches your distribution. All of them install the same
 app; the AppImage and tarball are distro-agnostic fallbacks.
 
-| Distro          | Artifact    | Install command                          |
-| --------------- | ----------- | ---------------------------------------- |
-| Arch / Manjaro  | `.pacman`   | `sudo pacman -U <file>.pacman`           |
-| Debian / Ubuntu | `.deb`      | `sudo apt install ./<file>.deb`          |
-| Fedora / RHEL   | `.rpm`      | `sudo dnf install ./<file>.rpm`          |
-| Any             | `.AppImage` | `chmod +x`, then run                     |
-| Any             | `.tar.gz`   | extract, run the `remappr` binary inside |
+| Distro          | Artifact        | Install command                          |
+| --------------- | --------------- | ---------------------------------------- |
+| Arch / Manjaro  | `.pacman`       | `sudo pacman -U <file>.pacman`           |
+| Debian / Ubuntu | `.deb`          | `sudo apt install ./<file>.deb`          |
+| Fedora / RHEL   | `.rpm`          | `sudo dnf install ./<file>.rpm`          |
+| Any             | `.AppImage`     | `chmod +x`, then run                     |
+| Any             | `-linux.tar.gz` | extract, run the `remappr` binary inside |
 
 ### Arch Linux / Manjaro
 
@@ -74,8 +76,8 @@ As a last resort, `./remappr-….AppImage --appimage-extract` unpacks it and
 ### Tarball (any distro)
 
 ```bash
-tar -xzf remappr-electron-0.0.12.tar.gz
-cd remappr-electron-0.0.12 && ./remappr
+tar -xzf remappr-electron-0.0.12-linux.tar.gz
+cd remappr-0.0.12 && ./remappr
 ```
 
 No desktop integration (menu entry, icon) — prefer a native package or the
@@ -126,6 +128,9 @@ allows active desktop sessions to scan and pair.
 
 Download the `.dmg` (a single **universal** build — runs natively on both
 Intel and Apple Silicon), open it and drag **Remappr** into **Applications**.
+The `.dmg` is the **only** macOS download — the `…-linux.tar.gz` is a Linux
+build; opening the binary inside it fails with _"this application is not
+supported on this type of Mac"_.
 
 ::: warning Gatekeeper — "Remappr is damaged" / "cannot be opened"
 Remappr is an open-source project without an Apple Developer ID, so builds are

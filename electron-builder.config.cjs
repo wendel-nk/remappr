@@ -162,6 +162,14 @@ module.exports = {
         target: ['AppImage', 'deb', 'rpm', 'pacman', 'tar.gz'],
         maintainer: 'Wolffyx <wolffyx@wolffyx.com>',
         category: 'Utility',
+        // Applies only to the tar.gz archive — every other linux target has its
+        // own artifactName below, which takes precedence. Without this the
+        // tarball falls back to electron-builder's `${name}-${version}.${ext}`
+        // default (`remappr-0.0.16.tar.gz`): no platform marker at all, and it
+        // sorts first in the GitHub release asset list, so Mac users grab it,
+        // extract a Linux ELF binary, and get "this application is not
+        // supported on this type of Mac". The `-linux` suffix removes the trap.
+        artifactName: '${name}-electron-${version}-linux.${ext}',
     },
     appImage: {
         artifactName: '${name}-electron-${version}.${ext}',
