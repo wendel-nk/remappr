@@ -56,7 +56,9 @@ export function StartPage({
     }
 
     return (
-        <div className="workbench-bg flex h-full flex-col overflow-auto bg-background">
+        // Only the content below scrolls — the header carries the Electron drag
+        // region and window controls, so it has to stay pinned.
+        <div className="workbench-bg flex h-full flex-col overflow-hidden bg-background">
             {/* top hairline */}
             <div
                 className="h-[3px] shrink-0"
@@ -68,7 +70,7 @@ export function StartPage({
 
             {/* header */}
             <header
-                className="relative z-[2] flex select-none items-center justify-between py-5 pl-7 pr-2"
+                className="relative z-[2] flex shrink-0 select-none items-center justify-between py-5 pl-7 pr-2"
                 style={DRAG_REGION}
             >
                 {/* clears macOS's native traffic lights; no-op elsewhere */}
@@ -136,87 +138,94 @@ export function StartPage({
                 </div>
             </header>
 
-            {/* hero + content */}
-            <main className="relative z-[1] flex flex-1 flex-col items-center px-6 pb-16 pt-8">
-                <div className="fade-in mb-9 max-w-[560px] text-center">
-                    <div
-                        className="mb-5 inline-flex items-center gap-[7px] rounded-full border px-3 py-[5px] text-[12px] font-semibold text-primary"
-                        style={{
-                            background:
-                                'color-mix(in oklch, var(--primary) 14%, transparent)',
-                            borderColor:
-                                'color-mix(in oklch, var(--primary) 30%, transparent)',
-                        }}
-                    >
-                        <span className="size-[7px] rounded-full bg-primary" />
-                        QMK · VIA · ZMK compatible
+            {/* scroll area — everything except the pinned header */}
+            <div className="flex min-h-0 flex-1 flex-col overflow-auto">
+                {/* hero + content */}
+                <main className="relative z-[1] flex flex-1 flex-col items-center px-6 pb-16 pt-8">
+                    <div className="fade-in mb-9 max-w-[560px] text-center">
+                        <div
+                            className="mb-5 inline-flex items-center gap-[7px] rounded-full border px-3 py-[5px] text-[12px] font-semibold text-primary"
+                            style={{
+                                background:
+                                    'color-mix(in oklch, var(--primary) 14%, transparent)',
+                                borderColor:
+                                    'color-mix(in oklch, var(--primary) 30%, transparent)',
+                            }}
+                        >
+                            <span className="size-[7px] rounded-full bg-primary" />
+                            QMK · VIA · ZMK compatible
+                        </div>
+                        <h1 className="mb-3 text-[40px] font-extrabold leading-[1.05] tracking-tight">
+                            Configure Your Keyboard
+                        </h1>
+                        <p className="text-[16px] leading-normal text-muted-foreground">
+                            Connect your keyboard to customize keymaps and
+                            settings.
+                        </p>
                     </div>
-                    <h1 className="mb-3 text-[40px] font-extrabold leading-[1.05] tracking-tight">
-                        Configure Your Keyboard
-                    </h1>
-                    <p className="text-[16px] leading-normal text-muted-foreground">
-                        Connect your keyboard to customize keymaps and settings.
-                    </p>
-                </div>
 
-                <div className="fade-in w-full max-w-[720px]">
-                    <ConfigReadyBanner />
+                    <div className="fade-in w-full max-w-[720px]">
+                        <ConfigReadyBanner />
 
-                    <TransportSection
-                        transports={transports}
-                        devices={devices}
-                        hasListableTransports={hasListableTransports}
-                        hasSimpleConnectOnly={hasSimpleConnectOnly}
-                        refreshing={refreshing}
-                        connectingDeviceId={connectingDeviceId}
-                        onRefresh={refresh}
-                        onConnect={connect}
-                        onSimpleConnect={simpleConnect}
-                        onRequestNew={requestNew}
-                    />
-
-                    <BuilderCard />
-
-                    <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                        <FeatureCard
-                            icon={Sparkles}
-                            title="Try Demo Mode"
-                            description="Explore Remappr with a simulated keyboard — no device required."
-                            action={
-                                <Button
-                                    variant="secondary"
-                                    onClick={() => {
-                                        if (onDemoConnect) {
-                                            void onDemoConnect()
-                                            return
-                                        }
-                                        toast.info('Demo mode coming soon!', {
-                                            description:
-                                                'This feature is currently under development.',
-                                        })
-                                    }}
-                                >
-                                    Try Demo
-                                </Button>
-                            }
+                        <TransportSection
+                            transports={transports}
+                            devices={devices}
+                            hasListableTransports={hasListableTransports}
+                            hasSimpleConnectOnly={hasSimpleConnectOnly}
+                            refreshing={refreshing}
+                            connectingDeviceId={connectingDeviceId}
+                            onRefresh={refresh}
+                            onConnect={connect}
+                            onSimpleConnect={simpleConnect}
+                            onRequestNew={requestNew}
                         />
-                        <FeatureCard
-                            icon={Download}
-                            title="Get the desktop app"
-                            description="Download the latest Remappr build for your operating system."
-                            action={<DownloadLatestButton />}
-                        />
+
+                        <BuilderCard />
+
+                        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                            <FeatureCard
+                                icon={Sparkles}
+                                title="Try Demo Mode"
+                                description="Explore Remappr with a simulated keyboard — no device required."
+                                action={
+                                    <Button
+                                        variant="secondary"
+                                        onClick={() => {
+                                            if (onDemoConnect) {
+                                                void onDemoConnect()
+                                                return
+                                            }
+                                            toast.info(
+                                                'Demo mode coming soon!',
+                                                {
+                                                    description:
+                                                        'This feature is currently under development.',
+                                                },
+                                            )
+                                        }}
+                                    >
+                                        Try Demo
+                                    </Button>
+                                }
+                            />
+                            <FeatureCard
+                                icon={Download}
+                                title="Get the desktop app"
+                                description="Download the latest Remappr build for your operating system."
+                                action={<DownloadLatestButton />}
+                            />
+                        </div>
                     </div>
-                </div>
-            </main>
+                </main>
 
-            <footer className="border-t border-border py-5 text-center text-[12.5px] text-muted-foreground">
-                <span>
-                    &copy; {new Date().getFullYear()} — Remappr Contributors
-                </span>
-                {' · '}
-                <LicenseNoticeModal />
-            </footer>
+                <footer className="border-t border-border py-5 text-center text-[12.5px] text-muted-foreground">
+                    <span>
+                        &copy; {new Date().getFullYear()} — Remappr Contributors
+                    </span>
+                    {' · '}
+                    <LicenseNoticeModal />
+                </footer>
+            </div>
         </div>
     )
 }
