@@ -13,6 +13,31 @@ if (!Array.isArray(languages) || languages.length === 0) {
     )
 }
 
+// Native-module prebuilds for platforms this build does not target are dead
+// weight, and on macOS they break the CI universal-lipo assertion (lipo reads
+// non-Mach-O files as "unreadable"). They MUST be excluded from the ONE
+// top-level `files` list: electron-builder 26.8.1 resolves a platform-level
+// `files` array into a second file matcher that silently drops every
+// top-level negation (verified via builder-debug.yml), re-including the whole
+// project. The config is a script, so derive the target platform from the CLI
+// flag (falling back to the host platform) and compute the excludes here.
+const target = process.argv.includes('--mac')
+    ? 'darwin'
+    : process.argv.includes('--win')
+      ? 'win32'
+      : process.argv.includes('--linux')
+        ? 'linux'
+        : process.platform
+const foreignPrebuilds = [
+    'android',
+    'freebsd',
+    ...(target === 'darwin'
+        ? ['linux', 'win32']
+        : target === 'win32'
+          ? ['darwin', 'linux']
+          : ['darwin', 'win32']),
+]
+
 /** @type {import('electron-builder').Configuration} */
 module.exports = {
     appId: 'dev.remappr.app',
@@ -27,6 +52,10 @@ module.exports = {
     files: [
         '!**/.vscode/*',
         '!src/**',
+        // Build-time source cache from link-remappr.cjs — contains cloned repos
+        // whose committed symlinks dangle outside the app root; packaging them
+        // breaks the mac universal asar merge.
+        '!.remappr/**',
         '!.claude/**',
         '!.flowpatch/**',
         '!**/.flowpatch/**',
@@ -65,6 +94,7 @@ module.exports = {
         '!**/{.editorconfig,.eslintrc*,.prettierrc*,.npmignore,.travis.yml,.gitattributes,tsconfig*.json,.nycrc,karma.conf.js}',
         '!**/{.github,.idea,.vscode}/**',
         '!**/*.{ts.map,js.map,css.map}',
+        ...foreignPrebuilds.map((p) => `!**/prebuilds/*${p}*/**`),
     ],
     asarUnpack: ['resources/**'],
     win: {
@@ -77,6 +107,47 @@ module.exports = {
         createDesktopShortcut: 'always',
     },
     mac: {
+        // Canonical icon source is the 1024x1024 resources/icon.png;
+        // electron-builder generates the full multi-size .icns from it at build
+        // time. (The committed build/icon.icns only held a single 512px slice,
+        // which macOS renders as a generic icon.)
+        icon: 'resources/icon.png',
+        // Ship a single universal (x64 + arm64) build so the DMG runs on both
+        // Intel and Apple Silicon Macs. Release CI runs on one `macos-latest`
+        // (Apple Silicon) runner, so without an explicit arch electron-builder
+        // defaults to an arm64-only app that Intel Macs reject with
+        // "not supported on this Mac". dmg only — there is no Squirrel.Mac /
+        // electron-updater in the app (updates are a GitHub releases check +
+        // notification), so a zip artifact would never be consumed.
+        target: [{ target: 'dmg', arch: ['universal'] }],
+        // node-hid bundles prebuilt single-arch darwin binaries
+        // (prebuilds/HID-darwin-{x64,arm64}/*.node) that are byte-identical in
+        // the x64 and arm64 single-arch builds. @electron/universal refuses to
+        // merge a Mach-O file that is identical in both unless it is declared
+        // here — they are correct as-is (the arch-appropriate prebuild loads at
+        // runtime). Files that genuinely differ per arch (node-hid's rebuilt
+        // build/Release/HID.node) are still lipo-merged into a fat binary; this
+        // rule only whitelists the identical-in-both case, so it can't mask a
+        // broken single-arch merge of the real runtime binary.
+        x64ArchFiles:
+            '**/node_modules/{node-hid,@serialport/bindings-cpp}/**/*.node',
+        // Ad-hoc code signature ('-'). We have no Apple Developer ID (this is an
+        // open-source project), but macOS 15's TCC subsystem SIGABRTs an
+        // *unsigned* app the moment it touches Bluetooth (CoreBluetooth) — the
+        // renderer auto-scans BLE ~0.5s after load, so an unsigned build crashes
+        // ~6s into every launch despite the NSBluetooth* usage strings. An
+        // ad-hoc signature gives the app a stable cdhash so TCC can attribute the
+        // Bluetooth grant; verified to stop the crash. It does NOT satisfy
+        // Gatekeeper on download (users still right-click → Open once, or run
+        // `xattr -dr com.apple.quarantine`), which only Developer ID +
+        // notarization removes.
+        identity: '-',
+        // hardenedRuntime is only needed for notarization (which requires a
+        // Developer ID we don't have). With ad-hoc signing it forces library
+        // validation, which would reject our own non-Apple-signed native modules
+        // and fail launch unless further entitlements are added — so keep it off.
+        hardenedRuntime: false,
+        entitlements: 'build/entitlements.mac.plist',
         entitlementsInherit: 'build/entitlements.mac.plist',
         extendInfo: {
             NSBluetoothAlwaysUsageDescription:
@@ -106,8 +177,8 @@ module.exports = {
     },
     npmRebuild: true,
     afterPack: path.join(__dirname, 'build', 'afterPack.cjs'),
-    publish: {
-        provider: 'generic',
-        url: 'https://example.com/auto-updates',
-    },
+    // No `publish` config on purpose: the app has no electron-updater /
+    // Squirrel — update-checker.ts polls GitHub releases and links the user
+    // there. A publish block would only emit dead latest*.yml metadata.
+    publish: null,
 }

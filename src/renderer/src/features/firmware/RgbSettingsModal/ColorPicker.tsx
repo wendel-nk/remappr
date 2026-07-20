@@ -1,5 +1,5 @@
 // pattern-check: skip — controlled HSV picker widget; pointer-drag + conversions, no abstraction
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import type { HsvColor } from '@firmware/service'
 
@@ -30,9 +30,16 @@ export function ColorPicker({ value, onChange }: Props): JSX.Element {
     useEffect(() => setHexDraft(hex), [hex])
 
     // ----- drag plumbing -----
-    // pattern-check: skip — currentTarget-based pointer drag, no refs, no abstraction
-    // Tracks pointer over the element the gesture started on (via currentTarget,
-    // so no refs needed) and reports normalised 0..1 coordinates until release.
+    // pattern-check: skip — currentTarget-based pointer drag, no abstraction
+    // Tracks pointer over the element the gesture started on (via currentTarget)
+    // and reports normalised 0..1 coordinates until release. The active drag's
+    // teardown is kept in a ref so unmounting mid-drag (modal closed with the
+    // button still down) removes the window listeners instead of leaking them.
+    const dragCleanupRef = useRef<(() => void) | null>(null)
+    useEffect(() => (): void => dragCleanupRef.current?.(), [])
+    /* eslint-disable react-hooks/refs -- the ref reads/writes below live in the
+       pointerdown/pointerup handlers (event time), not render; the rule can't
+       see through the curried handler factory. */
     const startDrag =
         (apply: (x: number, y: number) => void) =>
         (e: React.PointerEvent<HTMLDivElement>): void => {
@@ -47,13 +54,17 @@ export function ColorPicker({ value, onChange }: Props): JSX.Element {
             }
             at(e.clientX, e.clientY)
             const move = (ev: PointerEvent): void => at(ev.clientX, ev.clientY)
-            const up = (): void => {
+            const stop = (): void => {
                 window.removeEventListener('pointermove', move)
-                window.removeEventListener('pointerup', up)
+                window.removeEventListener('pointerup', stop)
+                dragCleanupRef.current = null
             }
+            dragCleanupRef.current?.()
+            dragCleanupRef.current = stop
             window.addEventListener('pointermove', move)
-            window.addEventListener('pointerup', up)
+            window.addEventListener('pointerup', stop)
         }
+    /* eslint-enable react-hooks/refs */
 
     // SV drag preserves h, hue drag preserves s/v — those channels stay constant
     // during their own gesture, so closing over `value` directly is correct.

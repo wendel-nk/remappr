@@ -12,6 +12,8 @@ import { type HoldTapLabels, type KeyCapLegend } from './keyCapLegend'
 import { KeyLight } from '@/features/lighting/KeyLight'
 import type { KeyLightInput } from '@/features/lighting/engine'
 import { glyphNode } from './keyGlyph'
+import { LegendParts } from './LegendParts'
+import { hasResolvableIcon, legendPartsLength } from './legendIcons'
 import useUserSettingsStore, {
     type CapStyle,
     type KeyDisplayMode,
@@ -308,6 +310,8 @@ const KeyButtonViewImpl = ({
     seen = false,
     header,
     tapText,
+    tapParts,
+    valueTitle,
     actionLabel,
     oneU,
     hoverZoom = true,
@@ -335,11 +339,14 @@ const KeyButtonViewImpl = ({
     // a 2–3 char tap shrinks to 0.34U, longer to 0.24U. A tap that shares the cap
     // with a HOLD zone or modifier chips uses the reference's 0.30U key (0.22U for
     // longer text) — small enough to clear the divider, matching the mockup.
-    const tapLen = tapText
-        ? tapText.length
-        : typeof props.children === 'string'
-          ? props.children.length
-          : 1
+    const iconParts = hasResolvableIcon(tapParts) ? tapParts : undefined
+    const tapLen = iconParts
+        ? legendPartsLength(iconParts)
+        : tapText
+          ? tapText.length
+          : typeof props.children === 'string'
+            ? props.children.length
+            : 1
     const crowded = !!holdTap || !!(mods && mods.length)
     const mainSize = Math.max(
         11,
@@ -379,11 +386,29 @@ const KeyButtonViewImpl = ({
     ].filter(Boolean)
     const tooltip = tooltipParts.join(' — ')
 
-    // Rich-tooltip rows (label → value); only non-empty rows render.
+    // Rich-tooltip rows (label → value); only non-empty rows render. Show the
+    // full breakdown of the binding rather than a single mislabelled line.
     const tipRows: Array<[string, string]> = []
-    if (header) tipRows.push(['Tap', header])
-    if (actionLabel) tipRows.push(['Action', actionLabel])
-    if (holdTap?.tooltip) tipRows.push(['Hold', holdTap.tooltip])
+    if (holdTap?.tooltip) {
+        // A tap-hold's tooltip already reads "<Action>\nTap: ..\nHold: ..";
+        // split it into labelled rows (first line = the action-type name).
+        holdTap.tooltip.split('\n').forEach((line, i) => {
+            const sep = line.indexOf(': ')
+            if (sep > 0) tipRows.push([line.slice(0, sep), line.slice(sep + 2)])
+            else if (i === 0 && line) tipRows.push(['Action', line])
+        })
+    } else {
+        // Header is the behaviour/action name (e.g. "To Layer", "Bluetooth",
+        // "Macro"); tapText is its value glyph/legend (e.g. "L4", "BT 0",
+        // "m_hello", "Q"). Both together read as the full key.
+        if (header) tipRows.push(['Action', header])
+        // Prefer the full, untruncated value (valueTitle) — the cap legend may be
+        // an abbreviated glyph (e.g. "Erro…") while the tooltip shows it whole.
+        const valueText = valueTitle ?? tapText
+        if (valueText && valueText !== header && valueText !== '▽')
+            tipRows.push(['Value', valueText])
+        if (actionLabel) tipRows.push(['Binding', actionLabel])
+    }
     const typeLabel = CATEGORY_META[category]?.label
     if (typeLabel) tipRows.push(['Type', typeLabel])
     if (pressCount != null) tipRows.push(['Presses', String(pressCount)])
@@ -465,7 +490,13 @@ const KeyButtonViewImpl = ({
 
     // pattern-check: skip — render-body restructure (compose chips + tap-hold), no new abstraction
     const tapTop = tapPos !== 'bottom'
-    const tapNode = holdTap ? holdTap.tap : props.children
+    const tapNode = holdTap ? (
+        holdTap.tap
+    ) : iconParts ? (
+        <LegendParts parts={iconParts} title={valueTitle ?? tapText} />
+    ) : (
+        props.children
+    )
     const hasChips = !!(mods && mods.length)
 
     // Modifier chips (chord) — rendered ABOVE the tap legend, joined by "+".

@@ -73,6 +73,82 @@ jobs:
               env:
                   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+            # The runner is arm64; the x64 half of the universal app comes
+            # from prebuilds / cross-compiled rebuilds of node-hid and
+            # @serialport/bindings-cpp. If an x64 binary is ever missing the
+            # app would ship half-broken with no build error — assert every
+            # native module is either a fat binary or a per-arch prebuild
+            # pair before uploading.
+            - name: Verify universal macOS native modules
+              if: matrix.os == 'macos-latest'
+              shell: bash
+              run: |
+                  APP=$(find dist -maxdepth 2 -type d -name '*.app' -path '*universal*' | head -1)
+                  if [ -z "$APP" ]; then
+                    echo "::error::No universal .app found under dist/"
+                    exit 1
+                  fi
+                  echo "Checking native modules in $APP"
+                  FAIL=0
+                  FOUND=0
+                  while IFS= read -r -d '' f; do
+                    FOUND=1
+                    case "$f" in
+                      # Prebuilds for other OSes are never Mach-O and never
+                      # load on macOS. Packaging excludes them (electron-builder
+                      # files patterns); warn on stragglers instead of failing
+                      # lipo on non-Mach-O files.
+                      */prebuilds/*linux*|*/prebuilds/*win32*|*/prebuilds/*android*|*/prebuilds/*freebsd*)
+                        echo "::warning::non-darwin prebuild packaged (should be excluded): $f"
+                        ;;
+                      # A darwin-x64+arm64 prebuild dir holds one fat binary —
+                      # verify it with lipo like any regular file.
+                      *darwin-x64+arm64*|*darwin-arm64+x64*|*darwin-universal*)
+                        ARCHS=$(lipo -archs "$f" 2>/dev/null || echo "unreadable")
+                        echo "$f -> $ARCHS"
+                        case "$ARCHS" in
+                          *x86_64*arm64*|*arm64*x86_64*) ;;
+                          *)
+                            echo "::error::not universal: $f ($ARCHS)"
+                            FAIL=1
+                            ;;
+                        esac
+                        ;;
+                      # Per-arch prebuild dirs are single-arch by design —
+                      # require the sibling arch to exist instead.
+                      *darwin-x64*)
+                        sib="${f//darwin-x64/darwin-arm64}"
+                        if [ ! -f "$sib" ]; then
+                          echo "::error::missing arm64 sibling for $f"
+                          FAIL=1
+                        fi
+                        ;;
+                      *darwin-arm64*)
+                        sib="${f//darwin-arm64/darwin-x64}"
+                        if [ ! -f "$sib" ]; then
+                          echo "::error::missing x64 sibling for $f"
+                          FAIL=1
+                        fi
+                        ;;
+                      *)
+                        ARCHS=$(lipo -archs "$f" 2>/dev/null || echo "unreadable")
+                        echo "$f -> $ARCHS"
+                        case "$ARCHS" in
+                          *x86_64*arm64*|*arm64*x86_64*) ;;
+                          *)
+                            echo "::error::not universal: $f ($ARCHS)"
+                            FAIL=1
+                            ;;
+                        esac
+                        ;;
+                    esac
+                  done < <(find "$APP" -name '*.node' -print0)
+                  if [ "$FOUND" -eq 0 ]; then
+                    echo "::error::no .node native modules found in app — packaging layout changed?"
+                    exit 1
+                  fi
+                  exit $FAIL
+
             - name: Upload electron artifacts
               env:
                   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -81,7 +157,7 @@ jobs:
                   TAG="${{ github.event.release.tag_name }}"
                   shopt -s nullglob
                   ASSETS=()
-                  for f in dist/*.AppImage dist/*.deb dist/*.rpm dist/*.pacman dist/*.tar.gz dist/*.snap dist/*.exe dist/*.msi dist/*.dmg dist/*.zip; do
+                  for f in dist/*.AppImage dist/*.deb dist/*.rpm dist/*.pacman dist/*.tar.gz dist/*.snap dist/*.exe dist/*.msi dist/*.dmg; do
                     ASSETS+=("$f")
                   done
                   if [ ${#ASSETS[@]} -gt 0 ]; then
@@ -107,7 +183,7 @@ jobs:
                     | while read -r tag; do
                         echo "Inspecting release $tag"
                         gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' \
-                          | grep -E '\.(AppImage|deb|exe|dmg|msi|zip|rpm|snap|blockmap|sig)$' \
+                          | grep -E '\.(AppImage|deb|exe|dmg|msi|zip|rpm|snap|pacman|tar\.gz|blockmap|sig)$' \
                           | while read -r asset; do
                               echo "  deleting $asset from $tag"
                               gh release delete-asset "$tag" "$asset" --yes --repo "$GITHUB_REPOSITORY" || true

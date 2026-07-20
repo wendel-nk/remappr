@@ -1,8 +1,4 @@
-import {
-    hid_usage_get_labels,
-    hidUsagePageAndIdFromUsage,
-    usageGlyph,
-} from '@/lib/actions/hidUsages'
+import { hidUsageLongLabel, usageGlyph } from '@/lib/actions/hidUsages'
 import { glyphNode } from './keyGlyph'
 
 // pattern-check: skip — additive optional render flag on existing props interface
@@ -12,10 +8,6 @@ export interface HidUsageLabelProps {
     /** Suppress the inline modifier line (e.g. "CS") — used when the cap renders
      *  the chord modifiers as chips instead (KeyButton `mods`). */
     hideMods?: boolean
-}
-
-function remove_prefix(s?: string): string | undefined {
-    return s?.replace(/^Keyboard /, '')
 }
 
 const MOD_LABELS: Array<[number, string, string]> = [
@@ -42,12 +34,7 @@ export const HidUsageLabel = ({
     hid_usage,
     hideMods = false,
 }: HidUsageLabelProps): JSX.Element => {
-    const [pageMut, id] = hidUsagePageAndIdFromUsage(hid_usage)
-
-    const page = pageMut & 0xff
-
-    const labels = hid_usage_get_labels(page, id)
-    const baseLong = remove_prefix(labels.long || labels.med || labels.short)
+    const baseLong = hidUsageLongLabel(hid_usage)
     const mods = activeMods(hid_usage)
     const abbreviated = usageGlyph(hid_usage)
     const longTitle = mods.length

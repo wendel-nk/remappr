@@ -29,10 +29,16 @@ export function useLayerActions({
     keymap,
     setKeymap,
 }: UseLayerActionsArgs): UseLayerActionsResult {
-    const { doIt } = undoRedoStore()
-    const { service } = useConnectionStore()
-    const { selectedLayerIndex, setSelectedLayerIndex } =
-        useLayerSelectionStore()
+    // Field-scoped selectors — a bare store call re-renders every LayerPicker
+    // host on unrelated store changes (undo/redo pushes, lock state…).
+    const doIt = undoRedoStore((s) => s.doIt)
+    const service = useConnectionStore((s) => s.service)
+    const selectedLayerIndex = useLayerSelectionStore(
+        (s) => s.selectedLayerIndex,
+    )
+    const setSelectedLayerIndex = useLayerSelectionStore(
+        (s) => s.setSelectedLayerIndex,
+    )
 
     const add = useCallback((): void => {
         if (!service || !setKeymap) return

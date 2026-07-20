@@ -3,7 +3,7 @@ import { create } from 'zustand'
 import { createJSONStorage, devtools, persist } from 'zustand/middleware'
 
 export type KeyDisplayMode = 'displayName' | 'binding' | 'hidden'
-export type AdapterCategory = 'zmk' | 'qmk'
+export type AdapterCategory = 'zmk' | 'qmk' | 'remappr'
 export type CapStyle = 'flat' | 'sculpted' | 'mono' | 'glass'
 export type ColorCodingMode = 'off' | 'subtle' | 'vivid'
 export type WorkspaceMode = 'workbench' | 'inspector' | 'command'
@@ -98,7 +98,11 @@ const useUserSettingsStore = create<UserSettingsState>()(
                     }
                     if (version < 3) {
                         const cat = p.preferredAdapterCategory
-                        if (cat !== 'zmk' && cat !== 'qmk') {
+                        if (
+                            cat !== 'zmk' &&
+                            cat !== 'qmk' &&
+                            cat !== 'remappr'
+                        ) {
                             p.preferredAdapterCategory = 'zmk'
                         }
                     }

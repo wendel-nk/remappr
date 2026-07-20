@@ -1,8 +1,9 @@
-import React, { JSX, useCallback, useEffect } from 'react'
+import React, { JSX, Suspense, lazy, useCallback, useEffect } from 'react'
 import type { Transport } from '@firmware'
 import { connectMock, isUnlocked, pickAdapter } from '@firmware'
 import { rememberConnectedDeviceName } from '@/transport/web-serial'
 import { LockedOverlay } from '@/features/connection/LockedOverlay'
+import { DongleLanding } from '@/features/connection/DongleLanding'
 import useConnectionStore from '@/stores/connectionStore'
 import useUserSettingsStore from '@/stores/userSettingsStore'
 import undoRedoStore from '@/stores/undoRedoStore'
@@ -18,7 +19,6 @@ import { DevicePreviewCapture } from '@/features/connection/DevicePreviewCapture
 import { ErrorBoundary } from '@/ui/ErrorBoundary'
 import { toast } from 'sonner'
 import { StartPage } from '@/features/connection/start-page/StartPage'
-import { Builder } from '@/features/builder'
 import useBuilderStore from '@/stores/builderStore'
 import { CoachmarkTour } from '@/features/onboarding/CoachmarkTour'
 import { UpdateNotification } from '@/components/UpdateNotification'
@@ -26,6 +26,13 @@ import { TitleBar } from '@/layout/TitleBar'
 import { isElectron as isElectronEnv } from '@/transport'
 import { useConfigRuntimeSync } from '@/hooks/use-config-runtime-sync'
 import { cacheKey, loadCached } from '@firmware/qmk/layoutSideload'
+import { withSaveMode } from '@/lib/saveMode'
+
+// Code-split the full-screen builder: it drags in Monaco (multi-MB), which
+// otherwise lands in the entry chunk for users who never open the builder.
+const Builder = lazy(() =>
+    import('@/features/builder').then((m) => ({ default: m.Builder })),
+)
 
 // Hoisted so it's a stable reference — an inline object here makes a fresh ref every
 // App render, forcing the whole editor subtree (Drawer + KeymapEditor + canvas) to
@@ -36,17 +43,22 @@ const SIDEBAR_STYLE = {
     '--footer-height': 'calc(var(--spacing) * 8)',
 } as React.CSSProperties
 
+// Abort a connection attempt whose adapter handshake never answers (e.g. a
+// silent / half-flashed device) so the UI recovers instead of hanging on
+// "Connecting" forever. Generous enough not to trip a slow-but-valid BLE link.
+const CONNECT_TIMEOUT_MS = 15_000
+
 function App(): JSX.Element {
     // pattern-check: skip — UI sweep, replace store-connection with store-service
-    const {
-        service,
-        setService,
-        setDeviceName,
-        setLockState,
-        connectionAbort,
-        lockState,
-    } = useConnectionStore()
-    const { reset } = undoRedoStore()
+    // Field-scoped selectors — a bare useConnectionStore() re-renders the app
+    // shell (and the whole editor subtree) on every unrelated field change.
+    const service = useConnectionStore((s) => s.service)
+    const setService = useConnectionStore((s) => s.setService)
+    const setDeviceName = useConnectionStore((s) => s.setDeviceName)
+    const setLockState = useConnectionStore((s) => s.setLockState)
+    const setConnectionAbort = useConnectionStore((s) => s.setConnectionAbort)
+    const lockState = useConnectionStore((s) => s.lockState)
+    const reset = undoRedoStore((s) => s.reset)
 
     // Raise visual-editor edits back into the config (source of truth) so the
     // download modal compiles what the user sees. Mock/demo only.
@@ -86,16 +98,26 @@ function App(): JSX.Element {
     const onConnect = async (
         t: Transport,
         communication: 'serial' | 'ble' | 'hid',
-    ): Promise<void> => {
+    ): Promise<boolean> => {
         const adapter = await pickAdapter(t, { transportKind: communication })
         if (!adapter) {
             toast.error('Failed to connect to the selected device.', {
                 description: 'No firmware adapter handled the device.',
             })
-            return
+            return false
         }
+        // Fresh controller per attempt: the handshake below can hang on a silent
+        // device, so a timeout aborts it (adapter.connect honours the signal).
+        // A previously-aborted controller would poison the retry, so publish a
+        // new one to the store — disconnect still aborts whichever is live.
+        const abort = new AbortController()
+        setConnectionAbort(abort)
+        const timeout = setTimeout(
+            () => abort.abort(new Error('Connection timed out')),
+            CONNECT_TIMEOUT_MS,
+        )
         try {
-            const next = await adapter.connect(t, connectionAbort.signal)
+            const next = await adapter.connect(t, abort.signal)
             // Re-apply a previously imported QMK/VIA/Keychron layout BEFORE the
             // service is exposed, so the first keymap read (Drawer) already
             // reflects it. Doing it here — rather than in a sibling effect —
@@ -120,11 +142,24 @@ function App(): JSX.Element {
             if (communication === 'serial') {
                 rememberConnectedDeviceName(next.deviceInfo.name)
             }
-            setService(next, communication)
+            // Attach the save-mode controller (Settings → Communication →
+            // Auto-save, default off): automatic firmwares stage keymap edits
+            // until Save in manual mode; manual firmwares (ZMK/Remappr)
+            // auto-commit debounced in auto mode. Toggling later just flips
+            // the wrapper's flag — the service is never swapped.
+            const svc = withSaveMode(
+                next,
+                useUserSettingsStore.getState().autosave,
+            )
+            setService(svc, communication)
+            return true
         } catch (err) {
             toast.error('Failed to connect to the selected device.', {
                 description: err instanceof Error ? err.message : String(err),
             })
+            return false
+        } finally {
+            clearTimeout(timeout)
         }
     }
 
@@ -165,8 +200,13 @@ function App(): JSX.Element {
 
     const builderOpen = useBuilderStore((s) => s.open)
 
+    // A dongle has no keymap — it lands on the node roster (DongleLanding), which
+    // gets the standalone TitleBar like the locked/start states, not the editor
+    // chrome.
     const showEditor =
-        !!service && !(service.capabilities.lock && !isUnlocked(lockState))
+        !!service &&
+        service.kind !== 'dongle' &&
+        !(service.capabilities.lock && !isUnlocked(lockState))
 
     return (
         <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
@@ -179,12 +219,18 @@ function App(): JSX.Element {
                 <div className="flex-1 min-h-0 overflow-hidden">
                     {builderOpen ? (
                         <ErrorBoundary>
-                            <Builder />
+                            <Suspense fallback={null}>
+                                <Builder />
+                            </Suspense>
                         </ErrorBoundary>
                     ) : service ? (
                         service.capabilities.lock && !isUnlocked(lockState) ? (
                             <ErrorBoundary>
                                 <LockedOverlay />
+                            </ErrorBoundary>
+                        ) : service.kind === 'dongle' ? (
+                            <ErrorBoundary>
+                                <DongleLanding />
                             </ErrorBoundary>
                         ) : (
                             <ErrorBoundary>

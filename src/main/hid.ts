@@ -115,14 +115,21 @@ function buildLabel(d: NodeHidDevice): string {
     return parts.join(' · ')
 }
 
+// pattern-check: skip — signature change (single filter → filter array) on an
+// existing function; match-any enumeration, no GoF abstraction.
 export async function listHidDevices(
-    filter: HidDiscoveryFilter,
+    filters: HidDiscoveryFilter[],
 ): Promise<HidDeviceInfo[]> {
     const mod = await loadNodeHid()
     if (!mod) return []
     try {
         const all = mod.devices()
-        const matched = all.filter((d) => matchesFilter(d, filter))
+        // Match-any across every registered firmware family's filter (an empty
+        // list means no firmware is registered, so surface nothing rather than
+        // every HID device on the machine).
+        const matched = all.filter((d) =>
+            filters.some((f) => matchesFilter(d, f)),
+        )
         const devices = matched
             .filter((d): d is NodeHidDevice & { path: string } => !!d.path)
             .map((d) => ({ id: d.path, label: buildLabel(d) }))
@@ -148,7 +155,21 @@ export async function connectHidDevice(
     if (!mod) {
         throw new Error('node-hid module unavailable')
     }
-    const device = new mod.HID(devicePath)
+    let device: HidLike
+    try {
+        device = new mod.HID(devicePath)
+    } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        // macOS 10.15+ gates some HID collections behind Input Monitoring
+        // (TCC); the open just fails with a generic error, so point the user
+        // at the actual remediation.
+        if (process.platform === 'darwin') {
+            throw new Error(
+                `Failed to open HID device: ${msg}. macOS may be blocking raw HID access — allow Remappr under System Settings → Privacy & Security → Input Monitoring, then relaunch the app.`,
+            )
+        }
+        throw new Error(`Failed to open HID device: ${msg}`)
+    }
     activeConnection = { device, path: devicePath, callbacks }
 
     device.on('data', (data: Buffer) => {

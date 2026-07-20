@@ -1,7 +1,6 @@
 // Pattern check: Observer (Tier 1) — extended — uses service.onPendingChangesChanged Observer instead of pub-sub bridge.
 // pattern-check: skip — toolbar JSX rebuild to the redesign spec; no new abstraction
-/* eslint-disable react-hooks/preserve-manual-memoization */
-import { useCallback, useEffect, useState } from 'react'
+import { lazy, useCallback, useEffect, useState } from 'react'
 import {
     BarChart3,
     Blocks,
@@ -9,23 +8,27 @@ import {
     Flame,
     Gauge,
     Keyboard,
+    Layers,
     Lightbulb,
+    Network,
     Redo2,
     Save,
     ScanLine,
     Sliders,
+    SlidersHorizontal,
     Sparkles,
+    Timer,
     Trash2,
     Undo2,
     Wifi,
     Zap,
 } from 'lucide-react'
-import { LoadStatsModal } from '@/features/keymap/keyboard/LoadStatsModal'
-import { WirelessSettingsModal } from '@/features/firmware/WirelessSettingsModal'
-import { AdvancedSettingsModal } from '@/features/firmware/AdvancedSettingsModal'
+import { applySaveMode, isSaveModeManaged } from '@/lib/saveMode'
+import { MountOnDemand } from '@/components/MountOnDemand'
 import useRgbSheetStore from '@/stores/rgbSheetStore'
 import useAdvancedSheetStore from '@/stores/advancedSheetStore'
 import useConfigStore from '@/stores/configStore'
+import useUserSettingsStore from '@/stores/userSettingsStore'
 import useBuilderStore from '@/stores/builderStore'
 import { GitHubIcon } from '@/components/GitHubIcon'
 import { DiscordIcon } from '@/components/DiscordIcon'
@@ -38,23 +41,75 @@ import useKeyTestStore from '@/stores/keyTestStore'
 import useLoadStatsStore from '@/stores/loadStatsStore'
 import { Settings } from '../components/modals/Settings.tsx'
 import { Download as DownloadModal } from '../components/modals/Download.tsx'
-import { SidebarTrigger } from '@/ui/sidebar'
+import { SidebarTrigger, useSidebar } from '@/ui/sidebar'
 import { Button } from '@/ui/button'
 import { Separator } from '@/ui/separator'
 import { toast } from 'sonner'
+import { capabilityWarnings } from '@firmware/config'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/ui/tooltip'
 import { FeatureGate } from '@/features/firmware/FeatureGate'
 import { useFeatureAvailable } from '@/features/firmware/useFeatureAvailable'
 import { LayoutSideloadAction } from '@/features/firmware/LayoutSideloadAction'
 import { WindowControls } from '@/layout/WindowControls'
+import { TrafficLightInset } from '@/layout/TrafficLightInset'
 
 const noDrag = { WebkitAppRegion: 'no-drag' } as React.CSSProperties
 
+// Toolbar dialogs are click-gated — lazy-load them (rendered behind
+// MountOnDemand) so they stay out of the editor's first-paint chunk.
+const LoadStatsModal = lazy(() =>
+    import('@/features/keymap/keyboard/LoadStatsModal').then((m) => ({
+        default: m.LoadStatsModal,
+    })),
+)
+const WirelessSettingsModal = lazy(() =>
+    import('@/features/firmware/WirelessSettingsModal').then((m) => ({
+        default: m.WirelessSettingsModal,
+    })),
+)
+const ClusterDiagnosticsModal = lazy(() =>
+    import('@/features/firmware/ClusterDiagnosticsModal').then((m) => ({
+        default: m.ClusterDiagnosticsModal,
+    })),
+)
+const AdvancedSettingsModal = lazy(() =>
+    import('@/features/firmware/AdvancedSettingsModal').then((m) => ({
+        default: m.AdvancedSettingsModal,
+    })),
+)
+const TimingDefaultsModal = lazy(() =>
+    import('@/features/firmware/TimingDefaultsModal').then((m) => ({
+        default: m.TimingDefaultsModal,
+    })),
+)
+const BehaviorDefsModal = lazy(() =>
+    import('@/features/firmware/BehaviorDefsModal').then((m) => ({
+        default: m.BehaviorDefsModal,
+    })),
+)
+const ConditionalLayersModal = lazy(() =>
+    import('@/features/firmware/ConditionalLayersModal').then((m) => ({
+        default: m.ConditionalLayersModal,
+    })),
+)
+
 // pattern-check: skip — wrap toolbar buttons in capability gate, no abstraction
 export function Header(): JSX.Element {
-    const { service, setService, communication, disconnect } =
-        useConnectionStore()
-    const { undo, redo, canUndo, canRedo, reset } = undoRedoStore()
+    // Field-scoped selectors: a bare useXStore() subscribes to the whole store,
+    // re-rendering this 700-line toolbar on every unrelated field change
+    // (lockState, keyCatalog, connection modal flags, undo/redo stack pushes).
+    const { state: sidebarState } = useSidebar()
+    const service = useConnectionStore((s) => s.service)
+    const setService = useConnectionStore((s) => s.setService)
+    const communication = useConnectionStore((s) => s.communication)
+    const disconnect = useConnectionStore((s) => s.disconnect)
+    const undo = undoRedoStore((s) => s.undo)
+    const redo = undoRedoStore((s) => s.redo)
+    const reset = undoRedoStore((s) => s.reset)
+    // Derived booleans (not the canUndo/canRedo getter fns) so the buttons
+    // still re-render exactly when the stacks flip empty ⇄ non-empty.
+    const canUndo = undoRedoStore((s) => s.undoStack.length > 0)
+    const canRedo = undoRedoStore((s) => s.redoStack.length > 0)
 
     const heatmapOn = useHeatmapStore((s) => s.enabled)
     const toggleHeatmap = useHeatmapStore((s) => s.toggle)
@@ -74,8 +129,25 @@ export function Header(): JSX.Element {
     const setLoadOpen = useLoadStatsStore((s) => s.setOpen)
 
     const [unsaved, setUnsaved] = useState<boolean>(false)
+    // One Save button for every saveable firmware, driven by the Auto-save
+    // setting via the save-mode controller (lib/saveMode.ts — attached to
+    // every saveable service at connect; mock 'none' and read-only views stay
+    // unmanaged and get no save UI). Manual mode → Save/Discard (QMK-family
+    // stages client-side, ZMK stages on-device); auto mode → the same button
+    // is a pulsing Auto-save indicator (QMK-family writes through, ZMK
+    // auto-commits debounced). Derived from the SETTING, not the service
+    // proxy, so the UI flips in the same render as the switch. Undo/redo stay
+    // for all (client-side edit history).
+    const autosave = useUserSettingsStore((s) => s.autosave)
+    const saveManaged = !!service && isSaveModeManaged(service)
+    const showSaveControls = saveManaged && !autosave
+    const autoSaveActive = saveManaged && autosave
     const [wirelessOpen, setWirelessOpen] = useState(false)
+    const [clusterOpen, setClusterOpen] = useState(false)
     const [advancedOpen, setAdvancedOpen] = useState(false)
+    const [timingOpen, setTimingOpen] = useState(false)
+    const [behaviorsOpen, setBehaviorsOpen] = useState(false)
+    const [condLayersOpen, setCondLayersOpen] = useState(false)
     const rgbSheetOpen = useRgbSheetStore((s) => s.open)
     const toggleRgbSheet = useRgbSheetStore((s) => s.toggle)
     const setRgbSheetOpen = useRgbSheetStore((s) => s.setOpen)
@@ -141,9 +213,28 @@ export function Header(): JSX.Element {
         if (!service) return
         try {
             await service.commit()
+            // The push succeeded, but a remappr device silently ignores config
+            // fields its firmware is too old to honor (§7.4.1 feature bitmask).
+            // Warn so the user knows to update the firmware instead of chasing a
+            // "setting had no effect" ghost. `limits` is remappr-only + present
+            // only once GET_LIMITS answered, so other firmwares never warn.
+            const config = useConfigStore.getState().config
+            const featureBitmask = service.limits?.featureBitmask
+            if (config && featureBitmask !== undefined) {
+                const warnings = capabilityWarnings(config, featureBitmask)
+                if (warnings.length === 1) toast.warning(warnings[0].message)
+                else if (warnings.length > 1)
+                    toast.warning(
+                        `Saved — but this firmware ignores ${warnings.length} settings you configured. Update the firmware to use them.`,
+                    )
+            }
         } catch (e) {
             console.error('Failed to save changes', e)
-            toast.error(`Failed to save changes`)
+            // Adapters throw a descriptive reason (e.g. ZMK maps its
+            // SaveChangesErrorCode); surface it so the user knows WHY.
+            toast.error(
+                e instanceof Error ? e.message : 'Failed to save changes',
+            )
         }
     }, [service])
 
@@ -160,11 +251,33 @@ export function Header(): JSX.Element {
         setService(service, communication ?? undefined)
     }, [service, communication, reset, setService])
 
+    // Sync the live service's save-mode flag with the setting. No service
+    // swap, no reconnect work — the controller flips in place. Turning auto ON
+    // flushes staged edits first; on flush failure the setting reverts and the
+    // edits stay staged.
+    useEffect(() => {
+        if (!service || !isSaveModeManaged(service)) return
+        applySaveMode(service, autosave).catch((e: unknown) => {
+            toast.error(
+                e instanceof Error
+                    ? e.message
+                    : 'Failed to save staged changes',
+            )
+            useUserSettingsStore.getState().setAutosave(false)
+        })
+    }, [autosave, service])
+
     return (
         <header
             className="flex h-(--header-height) shrink-0 select-none items-center gap-1 border-b bg-card pl-2 transition-[width,height] ease-linear"
             style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
         >
+            {/* With the sidebar open, the window's top-left corner (and the
+                macOS traffic lights over it) belongs to the Drawer — only when
+                it's collapsed does this header reach the window edge and need
+                to clear them itself (no-op on Windows/Linux). */}
+            {sidebarState === 'collapsed' && <TrafficLightInset />}
+
             {/* ===== left: sidebar toggle + brand ===== */}
             <div className="flex items-center gap-1" style={noDrag}>
                 <SidebarTrigger />
@@ -283,10 +396,12 @@ export function Header(): JSX.Element {
                         <p>Typing load stats</p>
                     </TooltipContent>
                 </Tooltip>
-                <LoadStatsModal
-                    opened={loadOpen}
-                    onClose={(): void => setLoadOpen(false)}
-                />
+                <MountOnDemand when={loadOpen}>
+                    <LoadStatsModal
+                        opened={loadOpen}
+                        onClose={(): void => setLoadOpen(false)}
+                    />
+                </MountOnDemand>
 
                 <Separator
                     orientation="vertical"
@@ -355,10 +470,35 @@ export function Header(): JSX.Element {
                         </TooltipContent>
                     </Tooltip>
                 </FeatureGate>
-                <WirelessSettingsModal
-                    opened={wirelessOpen}
-                    onClose={(): void => setWirelessOpen(false)}
-                />
+                <MountOnDemand when={wirelessOpen}>
+                    <WirelessSettingsModal
+                        opened={wirelessOpen}
+                        onClose={(): void => setWirelessOpen(false)}
+                    />
+                </MountOnDemand>
+                <FeatureGate feature="cluster">
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                disabled={!service}
+                                onClick={(): void => setClusterOpen(true)}
+                            >
+                                <Network aria-label="Cluster diagnostics" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>Cluster</p>
+                        </TooltipContent>
+                    </Tooltip>
+                </FeatureGate>
+                <MountOnDemand when={clusterOpen}>
+                    <ClusterDiagnosticsModal
+                        opened={clusterOpen}
+                        onClose={(): void => setClusterOpen(false)}
+                    />
+                </MountOnDemand>
                 <FeatureGate feature="advanced">
                     <Tooltip>
                         <TooltipTrigger asChild>
@@ -376,10 +516,81 @@ export function Header(): JSX.Element {
                         </TooltipContent>
                     </Tooltip>
                 </FeatureGate>
-                <AdvancedSettingsModal
-                    opened={advancedOpen}
-                    onClose={(): void => setAdvancedOpen(false)}
-                />
+                <MountOnDemand when={advancedOpen}>
+                    <AdvancedSettingsModal
+                        opened={advancedOpen}
+                        onClose={(): void => setAdvancedOpen(false)}
+                    />
+                </MountOnDemand>
+                <FeatureGate feature="limits">
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                disabled={!service}
+                                onClick={(): void => setTimingOpen(true)}
+                            >
+                                <Timer aria-label="Timing & defaults" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>Timing &amp; Defaults</p>
+                        </TooltipContent>
+                    </Tooltip>
+                </FeatureGate>
+                <MountOnDemand when={timingOpen}>
+                    <TimingDefaultsModal
+                        opened={timingOpen}
+                        onClose={(): void => setTimingOpen(false)}
+                    />
+                </MountOnDemand>
+                <FeatureGate feature="limits">
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                disabled={!service}
+                                onClick={(): void => setBehaviorsOpen(true)}
+                            >
+                                <SlidersHorizontal aria-label="Behaviors" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>Behaviors</p>
+                        </TooltipContent>
+                    </Tooltip>
+                </FeatureGate>
+                <MountOnDemand when={behaviorsOpen}>
+                    <BehaviorDefsModal
+                        opened={behaviorsOpen}
+                        onClose={(): void => setBehaviorsOpen(false)}
+                    />
+                </MountOnDemand>
+                <FeatureGate feature="limits">
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                disabled={!service}
+                                onClick={(): void => setCondLayersOpen(true)}
+                            >
+                                <Layers aria-label="Conditional layers" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>Conditional Layers</p>
+                        </TooltipContent>
+                    </Tooltip>
+                </FeatureGate>
+                <MountOnDemand when={condLayersOpen}>
+                    <ConditionalLayersModal
+                        opened={condLayersOpen}
+                        onClose={(): void => setCondLayersOpen(false)}
+                    />
+                </MountOnDemand>
                 {/* RGB lighting — opens the board-visible bottom sheet (device
                     controls when an RGB keyboard is connected, else the on-screen
                     simulation editor). Disabled when the target is ZMK (no runtime
@@ -483,7 +694,7 @@ export function Header(): JSX.Element {
                             <Button
                                 variant="ghost"
                                 size="icon"
-                                disabled={!canUndo()}
+                                disabled={!canUndo}
                                 onClick={undo}
                             >
                                 <Undo2 aria-label="Undo" />
@@ -500,7 +711,7 @@ export function Header(): JSX.Element {
                             <Button
                                 variant="ghost"
                                 size="icon"
-                                disabled={!canRedo()}
+                                disabled={!canRedo}
                                 onClick={redo}
                             >
                                 <Redo2 aria-label="Redo" />
@@ -511,43 +722,58 @@ export function Header(): JSX.Element {
                         <p>Redo</p>
                     </TooltipContent>
                 </Tooltip>
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <span>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                disabled={!unsaved}
-                                onClick={discard}
+                {showSaveControls && (
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <span>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    disabled={!unsaved}
+                                    onClick={discard}
+                                >
+                                    <Trash2 aria-label="Discard" />
+                                </Button>
+                            </span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>Discard changes</p>
+                        </TooltipContent>
+                    </Tooltip>
+                )}
+                {(showSaveControls || autoSaveActive) && (
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <button
+                                type="button"
+                                disabled={
+                                    autoSaveActive || !unsaved || !service
+                                }
+                                onClick={save}
+                                data-dirty={unsaved && !autoSaveActive}
+                                data-autosave={autoSaveActive}
+                                className="ml-1 inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-[13px] font-semibold transition-colors data-[dirty=false]:border-border data-[dirty=false]:bg-secondary data-[dirty=false]:text-muted-foreground data-[dirty=true]:border-transparent data-[dirty=true]:bg-primary data-[dirty=true]:text-primary-foreground data-[autosave=true]:animate-pulse data-[autosave=true]:border-primary/40 data-[autosave=true]:bg-primary/10 data-[autosave=true]:text-primary disabled:cursor-default disabled:opacity-100"
                             >
-                                <Trash2 aria-label="Discard" />
-                            </Button>
-                        </span>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                        <p>Discard changes</p>
-                    </TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <button
-                            type="button"
-                            disabled={!unsaved || !service}
-                            onClick={save}
-                            data-dirty={unsaved}
-                            className="ml-1 inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-[13px] font-semibold transition-colors data-[dirty=false]:border-border data-[dirty=false]:bg-secondary data-[dirty=false]:text-muted-foreground data-[dirty=true]:border-transparent data-[dirty=true]:bg-primary data-[dirty=true]:text-primary-foreground disabled:cursor-default disabled:opacity-100"
-                        >
-                            <Save className="size-3.5" />
-                            {unsaved ? 'Save' : 'Saved'}
-                            {unsaved && (
-                                <span className="size-1.5 rounded-full bg-current" />
-                            )}
-                        </button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                        <p>Save keymap to keyboard</p>
-                    </TooltipContent>
-                </Tooltip>
+                                <Save className="size-3.5" />
+                                {autoSaveActive
+                                    ? 'Auto-save'
+                                    : unsaved
+                                      ? 'Save'
+                                      : 'Saved'}
+                                {unsaved && !autoSaveActive && (
+                                    <span className="size-1.5 rounded-full bg-current" />
+                                )}
+                            </button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>
+                                {autoSaveActive
+                                    ? 'Auto-save is on — every change is written to the keyboard immediately. Toggle it in Settings → Communication.'
+                                    : 'Save keymap to keyboard'}
+                            </p>
+                        </TooltipContent>
+                    </Tooltip>
+                )}
             </div>
 
             {/* native window controls (Electron, non-mac) merged into the bar */}

@@ -38,6 +38,8 @@ export type KeyPosition = PropsWithChildren<{
     id?: string
     header?: string
     tapText?: string
+    /** Full value for the hover tooltip when tapText is an abbreviated glyph. */
+    valueTitle?: string
     actionLabel?: string
     holdTap?: HoldTapLabels
     /** Chord modifier names (e.g. ["Ctrl","Shift"]) → chips above the legend. */
@@ -222,6 +224,13 @@ const PhysicalLayoutCanvasImpl = ({
         [positions],
     )
 
+    // pattern-check: skip — debounce wrapper around the existing refit callbacks
+    // Refits re-render the whole board (every cap + glow layer re-rasterizes),
+    // so a continuous resize — the sidebar's 200ms width transition, dragging
+    // the window edge — must NOT refit per ResizeObserver frame. First fit is
+    // immediate; bursts settle with one trailing refit once the size is stable.
+    const REFIT_SETTLE_MS = 120
+
     useLayoutEffect((): (() => void) | void => {
         // Pannable stage: fit by sizing oneU (caps render at real size → crisp).
         if (pannable) {
@@ -237,9 +246,16 @@ const PhysicalLayoutCanvasImpl = ({
                 }
             }
             fit()
-            const ro = new ResizeObserver(fit)
+            let settle: number | undefined
+            const ro = new ResizeObserver((): void => {
+                window.clearTimeout(settle)
+                settle = window.setTimeout(fit, REFIT_SETTLE_MS)
+            })
             ro.observe(vp)
-            return (): void => ro.disconnect()
+            return (): void => {
+                window.clearTimeout(settle)
+                ro.disconnect()
+            }
         }
 
         // Non-pannable preview: keep the fixed oneU and fit via transform scale.
@@ -264,10 +280,17 @@ const PhysicalLayoutCanvasImpl = ({
             }
         }
         calculateScale()
-        const resizeObserver = new ResizeObserver(calculateScale)
+        let settle: number | undefined
+        const resizeObserver = new ResizeObserver((): void => {
+            window.clearTimeout(settle)
+            settle = window.setTimeout(calculateScale, REFIT_SETTLE_MS)
+        })
         resizeObserver.observe(element)
         resizeObserver.observe(parent)
-        return (): void => resizeObserver.disconnect()
+        return (): void => {
+            window.clearTimeout(settle)
+            resizeObserver.disconnect()
+        }
     }, [zoom, pannable, rightMost, bottomMost])
 
     // Pannable caps render at the fitted oneU; previews use the fixed prop.

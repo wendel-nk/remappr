@@ -1,3 +1,6 @@
+// Pattern check: Command (Tier 2) — extended — keeps the existing Do/Undo
+// callback pairs (Command objects with execute/undo); this change only swaps
+// the concurrency guard from a drop-edits lock to promise-chain serialization.
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
 
@@ -5,7 +8,6 @@ export type UndoCallback = () => Promise<void>
 export type DoCallback = () => Promise<UndoCallback>
 
 interface UndoRedoState {
-    locked: boolean
     undoStack: Array<[DoCallback, UndoCallback]>
     redoStack: Array<DoCallback>
     canUndo: () => boolean
@@ -17,55 +19,75 @@ interface UndoRedoState {
 }
 
 const useUndoRedoStore = create<UndoRedoState>()(
-    devtools((set, get) => ({
-        locked: false,
-        undoStack: [],
-        redoStack: [],
-
-        canUndo: () => !get().locked && get().undoStack.length > 0,
-        canRedo: () => !get().locked && get().redoStack.length > 0,
-
-        doIt: async (doCb, preserveRedo = false) => {
-            if (get().locked) return
-            set({ locked: true })
-            const undo = await doCb()
-
-            set((state) => ({ undoStack: [[doCb, undo], ...state.undoStack] }))
-            if (!preserveRedo) {
-                set({ redoStack: [] })
+    devtools((set, get) => {
+        // Ops are SERIALIZED on a promise chain instead of guarded by a lock:
+        // a second edit arriving while one is in flight is queued, never
+        // silently dropped, and canUndo/canRedo don't flicker for the duration
+        // of a device RPC (the old `locked` flag disabled the Header buttons
+        // for the whole setKey round-trip). A doCb that throws aborts its op
+        // (nothing is pushed) without breaking the chain — the caller has
+        // already surfaced the error and reverted its optimistic state.
+        let chain: Promise<void> = Promise.resolve()
+        const enqueue = (op: () => Promise<void>): Promise<void> => {
+            const run = async (): Promise<void> => {
+                try {
+                    await op()
+                } catch (e) {
+                    console.error('undoRedo op failed', e)
+                }
             }
-            set({ locked: false })
-        },
+            chain = chain.then(run, run)
+            return chain
+        }
 
-        undo: async () => {
-            const { locked, undoStack, redoStack } = get()
-            if (locked || undoStack.length === 0)
-                throw new Error(
-                    'undo invoked when existing operation in progress or empty stack',
-                )
-            set({ locked: true })
-            const [doCb, undoCb] = undoStack[0]
-            set({
-                undoStack: undoStack.slice(1),
-                redoStack: [doCb, ...redoStack],
-            })
-            await undoCb()
-            set({ locked: false })
-        },
+        return {
+            undoStack: [],
+            redoStack: [],
 
-        redo: async () => {
-            const { locked, redoStack } = get()
-            if (locked || redoStack.length === 0)
-                throw new Error(
-                    'redo invoked when existing operation in progress or empty stack',
-                )
-            const doCb = redoStack[0]
-            set({ redoStack: redoStack.slice(1) })
-            await get().doIt(doCb, true)
-        },
+            canUndo: () => get().undoStack.length > 0,
+            canRedo: () => get().redoStack.length > 0,
 
-        reset: () => set({ redoStack: [], undoStack: [] }),
-    })),
+            doIt: (doCb, preserveRedo = false) =>
+                enqueue(async () => {
+                    const undo = await doCb()
+                    set((state) => ({
+                        undoStack: [[doCb, undo], ...state.undoStack],
+                    }))
+                    if (!preserveRedo) {
+                        set({ redoStack: [] })
+                    }
+                }),
+
+            // Stacks are read at RUN time (inside the queued op), not at call
+            // time — an undo clicked while an edit is still in flight pops the
+            // entry that edit pushed, not a stale snapshot.
+            undo: () =>
+                enqueue(async () => {
+                    const { undoStack, redoStack } = get()
+                    if (undoStack.length === 0) return
+                    const [doCb, undoCb] = undoStack[0]
+                    set({
+                        undoStack: undoStack.slice(1),
+                        redoStack: [doCb, ...redoStack],
+                    })
+                    await undoCb()
+                }),
+
+            redo: () =>
+                enqueue(async () => {
+                    const { redoStack } = get()
+                    if (redoStack.length === 0) return
+                    const doCb = redoStack[0]
+                    set({ redoStack: redoStack.slice(1) })
+                    const undo = await doCb()
+                    set((state) => ({
+                        undoStack: [[doCb, undo], ...state.undoStack],
+                    }))
+                }),
+
+            reset: () => set({ redoStack: [], undoStack: [] }),
+        }
+    }),
 )
 
 export default useUndoRedoStore

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useLayout } from '@/hooks/use-layouts'
 import { PhysicalLayoutPicker } from '@/features/keymap/layout-picker/PhysicalLayoutPicker'
 import { LayerPicker } from '@/features/keymap/layer-picker/LayerPicker'
@@ -14,21 +14,32 @@ import {
     SidebarFooter,
 } from '@/ui/sidebar'
 import { DeviceMenu } from '@/features/connection/device-menu/DeviceMenu'
+import { TrafficLightInset } from '@/layout/TrafficLightInset'
+import { useFeatureAvailable } from '@/features/firmware/useFeatureAvailable'
 // pattern-check: skip — drop dead lock guards now that App-shell render-gates locked state
 import type { Keymap } from '@firmware/types'
 import { produce } from 'immer'
 
 // pattern-check: skip — mechanical lock-guard removal
 export function Drawer(): JSX.Element {
-    const { service } = useConnectionStore()
-    const { setSelectedLayerIndex } = useLayerSelectionStore()
-    const { keymap, setKeymap, resetKeymap } = useKeymapStore()
+    // Field-scoped selectors: a bare useXStore() subscribes to the whole store
+    // and re-renders the sidebar on every unrelated field change (lock state,
+    // key catalog, undo/redo stack pushes…).
+    const service = useConnectionStore((s) => s.service)
+    // Read-only (behind-dongle node) views disable every layer-editing affordance.
+    const editable = useFeatureAvailable('editable')
+    const setSelectedLayerIndex = useLayerSelectionStore(
+        (s) => s.setSelectedLayerIndex,
+    )
+    const keymap = useKeymapStore((s) => s.keymap)
+    const setKeymap = useKeymapStore((s) => s.setKeymap)
+    const resetKeymap = useKeymapStore((s) => s.resetKeymap)
     const {
         layouts,
         selectedPhysicalLayoutIndex,
         setSelectedPhysicalLayoutIndex,
     } = useLayout()
-    const { doIt } = undoRedoStore()
+    const doIt = undoRedoStore((s) => s.doIt)
 
     // Adapter for LayerPicker - converts immer-style updater to store-compatible function
     const layerPickerSetKeymap = useMemo(
@@ -85,8 +96,22 @@ export function Drawer(): JSX.Element {
         [doIt, selectedPhysicalLayoutIndex, setSelectedPhysicalLayoutIndex],
     )
 
+    // Guarded by (service, index): the `layouts` array gets a fresh identity on
+    // every layout-changed refetch, which used to re-issue the RPC (and replace
+    // the keymap) without the selection actually changing.
+    const appliedLayoutRef = useRef<{ svc: unknown; idx: number } | null>(null)
     useEffect(() => {
         if (!service || !layouts) return
+        if (
+            appliedLayoutRef.current?.svc === service &&
+            appliedLayoutRef.current.idx === selectedPhysicalLayoutIndex
+        ) {
+            return
+        }
+        appliedLayoutRef.current = {
+            svc: service,
+            idx: selectedPhysicalLayoutIndex,
+        }
 
         void (async () => {
             try {
@@ -103,6 +128,10 @@ export function Drawer(): JSX.Element {
     return (
         <Sidebar collapsible="offcanvas" variant="sidebar">
             <SidebarContent className="pt-2">
+                {/* macOS traffic lights float over the window's top-left —
+                    which in the editor is THIS sidebar, not the header. Push
+                    the layout picker below them (no-op elsewhere). */}
+                <TrafficLightInset variant="block" />
                 <SidebarGroup>
                     {layouts && (
                         <PhysicalLayoutPicker
@@ -120,8 +149,13 @@ export function Drawer(): JSX.Element {
                             layers={keymap.layers}
                             keymap={keymap}
                             setKeymap={layerPickerSetKeymap}
-                            canAdd={(keymap.availableLayers || 0) > 0}
-                            canRemove={(keymap.layers?.length || 0) > 1}
+                            editable={editable}
+                            canAdd={
+                                editable && (keymap.availableLayers || 0) > 0
+                            }
+                            canRemove={
+                                editable && (keymap.layers?.length || 0) > 1
+                            }
                         />
                     )}
                 </SidebarGroup>
