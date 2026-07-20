@@ -14,6 +14,7 @@ import {
     SidebarFooter,
 } from '@/ui/sidebar'
 import { DeviceMenu } from '@/features/connection/device-menu/DeviceMenu'
+import { TrafficLightInset } from '@/layout/TrafficLightInset'
 import { useFeatureAvailable } from '@/features/firmware/useFeatureAvailable'
 // pattern-check: skip — drop dead lock guards now that App-shell render-gates locked state
 import type { Keymap } from '@firmware/types'
@@ -127,6 +128,10 @@ export function Drawer(): JSX.Element {
     return (
         <Sidebar collapsible="offcanvas" variant="sidebar">
             <SidebarContent className="pt-2">
+                {/* macOS traffic lights float over the window's top-left —
+                    which in the editor is THIS sidebar, not the header. Push
+                    the layout picker below them (no-op elsewhere). */}
+                <TrafficLightInset variant="block" />
                 <SidebarGroup>
                     {layouts && (
                         <PhysicalLayoutPicker

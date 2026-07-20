@@ -29,6 +29,17 @@ silenceConsoleInProduction()
 // and BLE device discovery silently fails in the renderer.
 app.commandLine.appendSwitch('enable-experimental-web-platform-features')
 
+// Chromium's Wayland color-management protocol (HDR plumbing) misbehaves with
+// KWin/KDE compositors: every surface commit retries a failing image-description
+// round-trip ("wayland_wp_color_manager.cc: Unable to set image transfer
+// function" spam) and SDR output can render with a wrong transfer curve — the
+// visible symptoms are a laggy window and washed-out/over-contrasted colors.
+// We render SDR UI only, so drop the protocol on Linux (no-op under X11).
+// See https://issues.chromium.org/issues/476172415
+if (process.platform === 'linux') {
+    app.commandLine.appendSwitch('disable-features', 'WaylandWpColorManagerV1')
+}
+
 function createWindow(): void {
     // Create the browser window.
     const isMac = process.platform === 'darwin'

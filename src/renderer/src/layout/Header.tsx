@@ -41,7 +41,7 @@ import useKeyTestStore from '@/stores/keyTestStore'
 import useLoadStatsStore from '@/stores/loadStatsStore'
 import { Settings } from '../components/modals/Settings.tsx'
 import { Download as DownloadModal } from '../components/modals/Download.tsx'
-import { SidebarTrigger } from '@/ui/sidebar'
+import { SidebarTrigger, useSidebar } from '@/ui/sidebar'
 import { Button } from '@/ui/button'
 import { Separator } from '@/ui/separator'
 import { toast } from 'sonner'
@@ -98,6 +98,7 @@ export function Header(): JSX.Element {
     // Field-scoped selectors: a bare useXStore() subscribes to the whole store,
     // re-rendering this 700-line toolbar on every unrelated field change
     // (lockState, keyCatalog, connection modal flags, undo/redo stack pushes).
+    const { state: sidebarState } = useSidebar()
     const service = useConnectionStore((s) => s.service)
     const setService = useConnectionStore((s) => s.setService)
     const communication = useConnectionStore((s) => s.communication)
@@ -271,9 +272,11 @@ export function Header(): JSX.Element {
             className="flex h-(--header-height) shrink-0 select-none items-center gap-1 border-b bg-card pl-2 transition-[width,height] ease-linear"
             style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
         >
-            {/* macOS paints its traffic lights over this corner — keep the
-                toggle + brand clear of them (no-op on Windows/Linux). */}
-            <TrafficLightInset />
+            {/* With the sidebar open, the window's top-left corner (and the
+                macOS traffic lights over it) belongs to the Drawer — only when
+                it's collapsed does this header reach the window edge and need
+                to clear them itself (no-op on Windows/Linux). */}
+            {sidebarState === 'collapsed' && <TrafficLightInset />}
 
             {/* ===== left: sidebar toggle + brand ===== */}
             <div className="flex items-center gap-1" style={noDrag}>

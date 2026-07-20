@@ -15,13 +15,31 @@ import { getApi, getPlatform } from '@/electron/api'
  * Renders nothing outside Electron and on Windows/Linux, where the same corner
  * is free and {@link WindowControls} handles the buttons on the right instead.
  */
-export function TrafficLightInset(): JSX.Element | null {
+// pattern-check: skip — variant prop on the existing presentational spacer
+interface TrafficLightInsetProps {
+    /**
+     * `row` (default) — horizontal spacer for a header bar the lights overlap
+     * from the left. `block` — vertical spacer for a full-height column that
+     * occupies the window's top-left corner (the editor sidebar): there the
+     * lights overlap from the top, so the clearance is height, not width.
+     */
+    variant?: 'row' | 'block'
+}
+
+export function TrafficLightInset({
+    variant = 'row',
+}: TrafficLightInsetProps): JSX.Element | null {
     const api = getApi()
     const platform = getPlatform()
 
     if (!api || platform !== 'darwin') return null
 
-    // 12px offset + three 12px buttons + two 8px gaps ≈ 64px, plus a small gap
-    // before the header's own content.
-    return <div aria-hidden className="h-full w-[68px] shrink-0" />
+    // row: 12px offset + three 12px buttons + two 8px gaps ≈ 64px, plus a
+    // small gap before the header's own content.
+    // block: lights sit at y≈10..22 — 36px clears them with a little air.
+    return variant === 'row' ? (
+        <div aria-hidden className="h-full w-[68px] shrink-0" />
+    ) : (
+        <div aria-hidden className="h-9 w-full shrink-0" />
+    )
 }
