@@ -1,10 +1,10 @@
 // Pattern check: no GoF pattern (-) — rejected — presentational min/max/close buttons
 // wired straight to the existing window-control IPC; extracted from TitleBar so the
 // editor header and start page can both host them. No abstraction warranted.
-import { useEffect, useState } from 'react'
 import { Copy, Minus, Square, X } from 'lucide-react'
 import { IpcChannels } from '../../../shared/ipc-types'
 import { getApi, getPlatform } from '@/electron/api'
+import { useWindowMaximized } from '@/hooks/use-window-maximized'
 
 /**
  * Native window min/max/close controls for the custom (frameless) Electron titlebar.
@@ -14,29 +14,19 @@ import { getApi, getPlatform } from '@/electron/api'
 export function WindowControls(): JSX.Element | null {
     const api = getApi()
     const platform = getPlatform()
-    const [maximized, setMaximized] = useState(false)
-
-    useEffect(() => {
-        if (!api) return
-        let cancelled = false
-        api.invoke(IpcChannels.WINDOW_IS_MAXIMIZED).then((v) => {
-            if (!cancelled) setMaximized(Boolean(v))
-        })
-        return () => {
-            cancelled = true
-        }
-    }, [api])
+    // Tracks OS-side maximize/restore too (double-click, snap) — the icon used
+    // to go stale because the state was only read once on mount.
+    const maximized = useWindowMaximized()
 
     if (!api || platform === 'darwin') return null
 
     const onMin = (): void => {
         void api.invoke(IpcChannels.WINDOW_MINIMIZE)
     }
-    const onMaxToggle = async (): Promise<void> => {
-        const next = (await api.invoke(
-            IpcChannels.WINDOW_MAXIMIZE_TOGGLE,
-        )) as boolean
-        setMaximized(next)
+    const onMaxToggle = (): void => {
+        // The resize triggered by the toggle re-queries the state via
+        // useWindowMaximized — no local bookkeeping needed.
+        void api.invoke(IpcChannels.WINDOW_MAXIMIZE_TOGGLE)
     }
     const onClose = (): void => {
         void api.invoke(IpcChannels.WINDOW_CLOSE)

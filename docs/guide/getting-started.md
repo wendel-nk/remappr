@@ -51,6 +51,7 @@ device — a good way to learn the editor before you connect hardware.
 
 | You want to…                        | Read                                                       |
 | ----------------------------------- | ---------------------------------------------------------- |
+| Install the desktop app             | [Installation](/guide/installation)                        |
 | Design a board from scratch         | [Builder overview](/guide/builder/overview)                |
 | Lay out keys / wire the matrix      | [Building the layout](/guide/builder/layout)               |
 | Set up layers and key bindings      | [Layers & bindings](/guide/builder/layers-and-bindings)    |

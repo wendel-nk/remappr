@@ -36,36 +36,39 @@ export function useKeymapMutations({
 
     const dispatchSetKey = useCallback(
         (position: number, action: KeyAction): void => {
-            if (!service || !keymap) return
+            if (!service || service.capabilities.readOnly || !keymap) return
             const layer = effectiveLayerIndex
             const layerEntry = keymap.layers[layer]
             if (!layerEntry) return
             const layerId = layerEntry.id
             const oldAction = layerEntry.keys[position]
+            // pattern-check: skip — optimistic reorder of existing store write vs RPC, no abstraction
+            const applyToStore = (a: KeyAction): void =>
+                setKeymapInStore((prev) => {
+                    if (!prev) return prev
+                    return produce(prev, (d) => {
+                        d.layers[layer].keys[position] = a
+                    })
+                })
             doIt?.(async (): Promise<() => Promise<void>> => {
+                // Optimistic: store first, RPC after; revert + rethrow on
+                // failure so no undo entry is pushed.
+                applyToStore(action)
                 try {
                     await service.setKey(layerId, position, action)
-                    setKeymapInStore((prev) => {
-                        if (!prev) return prev
-                        return produce(prev, (d) => {
-                            d.layers[layer].keys[position] = action
-                        })
-                    })
                 } catch (e) {
                     toast.error('Failed to set action')
                     console.error('contextmenu setKey failed', e)
+                    applyToStore(oldAction)
+                    throw e
                 }
                 return async (): Promise<void> => {
+                    applyToStore(oldAction)
                     try {
                         await service.setKey(layerId, position, oldAction)
-                        setKeymapInStore((prev) => {
-                            if (!prev) return prev
-                            return produce(prev, (d) => {
-                                d.layers[layer].keys[position] = oldAction
-                            })
-                        })
                     } catch (e) {
                         console.error('Failed to undo contextmenu setKey', e)
+                        applyToStore(action)
                     }
                 }
             })
@@ -75,44 +78,69 @@ export function useKeymapMutations({
 
     const dispatchSetKeys = useCallback(
         (positions: number[], action: KeyAction): void => {
-            if (!service || !keymap || positions.length === 0) return
+            if (
+                !service ||
+                service.capabilities.readOnly ||
+                !keymap ||
+                positions.length === 0
+            )
+                return
             const layer = effectiveLayerIndex
             const layerEntry = keymap.layers[layer]
             if (!layerEntry) return
             const layerId = layerEntry.id
             const olds = new Map(positions.map((p) => [p, layerEntry.keys[p]]))
+            // pattern-check: skip — optimistic reorder of existing store write vs RPC, no abstraction
+            const applyAll = (a: KeyAction): void =>
+                setKeymapInStore(
+                    (prev) =>
+                        prev &&
+                        produce(prev, (d) => {
+                            for (const p of positions)
+                                d.layers[layer].keys[p] = a
+                        }),
+                )
+            const applyOlds = (): void =>
+                setKeymapInStore(
+                    (prev) =>
+                        prev &&
+                        produce(prev, (d) => {
+                            for (const p of positions) {
+                                const old = olds.get(p)
+                                if (old) d.layers[layer].keys[p] = old
+                            }
+                        }),
+                )
             doIt?.(async (): Promise<() => Promise<void>> => {
+                // Optimistic: store first, RPCs after; revert + rethrow on
+                // failure so no undo entry is pushed. setKeys (not a setKey
+                // loop) lets the save-mode controller stage the batch in one
+                // op and batch-capable firmwares send one write.
+                applyAll(action)
                 try {
-                    for (const p of positions) {
-                        await service.setKey(layerId, p, action)
-                    }
-                    setKeymapInStore(
-                        (prev) =>
-                            prev &&
-                            produce(prev, (d) => {
-                                for (const p of positions)
-                                    d.layers[layer].keys[p] = action
-                            }),
+                    await service.setKeys(
+                        positions.map((p) => ({
+                            layerId,
+                            position: p,
+                            action,
+                        })),
                     )
                 } catch (e) {
                     toast.error('Failed to set actions')
                     console.error('multi setKey failed', e)
+                    applyOlds()
+                    throw e
                 }
                 return async (): Promise<void> => {
+                    applyOlds()
                     try {
-                        for (const p of positions) {
-                            const old = olds.get(p)
-                            if (old) await service.setKey(layerId, p, old)
-                        }
-                        setKeymapInStore(
-                            (prev) =>
-                                prev &&
-                                produce(prev, (d) => {
-                                    for (const p of positions) {
-                                        const old = olds.get(p)
-                                        if (old) d.layers[layer].keys[p] = old
-                                    }
-                                }),
+                        await service.setKeys(
+                            positions.flatMap((p) => {
+                                const old = olds.get(p)
+                                return old
+                                    ? [{ layerId, position: p, action: old }]
+                                    : []
+                            }),
                         )
                     } catch (e) {
                         console.error('Failed to undo multi setKey', e)

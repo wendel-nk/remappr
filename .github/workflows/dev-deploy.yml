@@ -1,0 +1,74 @@
+name: Dev site (Cloudflare Pages)
+
+# Staging deploy. Every push to `dev` (i.e. every PR merged into dev) rebuilds
+# the web app and ships it to dev.remappr.com. Production (remappr.com) stays
+# on main via main.yml — promote dev -> main when you're happy with staging.
+on:
+    push:
+        branches: [dev]
+    workflow_dispatch:
+
+# One dev deploy at a time; newer pushes cancel in-flight builds.
+concurrency:
+    group: dev-deploy
+    cancel-in-progress: true
+
+permissions:
+    contents: read
+    deployments: write
+
+jobs:
+    deploy:
+        # `remappr` environment holds REMAPPR_GIT_TOKEN + REMAPPR_*_URL vars and
+        # the CLOUDFLARE_* secrets, same as main.yml / pr-preview.yml.
+        environment: remappr
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+
+            - name: Set up pnpm
+              uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+
+            - name: Set up Node
+              uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+              with:
+                  node-version-file: '.nvmrc'
+                  cache: 'pnpm'
+
+            - name: Install dependencies
+              # --ignore-scripts skips the electron-builder install-app-deps
+              # postinstall (native modules need system libs the runner lacks);
+              # the web build doesn't use them.
+              run: pnpm install --frozen-lockfile --ignore-scripts
+
+            - name: Fetch @remappr projects
+              run: node scripts/link-remappr.cjs
+              env:
+                  # Staging pulls each project's `dev` branch so dev.remappr.com
+                  # tests the integrated dev state (firmware + ui + builder). The
+                  # linker falls back to a project's default branch if it hasn't
+                  # cut `dev` yet, so this is safe before those branches exist.
+                  # main.yml / pr-preview.yml set no ref -> they stay on default.
+                  REMAPPR_REF: dev
+                  REMAPPR_FIRMWARE_URL: ${{ vars.REMAPPR_FIRMWARE_URL }}
+                  REMAPPR_UI_URL: ${{ vars.REMAPPR_UI_URL }}
+                  REMAPPR_BUILDER_URL: ${{ vars.REMAPPR_BUILDER_URL }}
+                  REMAPPR_GIT_TOKEN: ${{ secrets.REMAPPR_GIT_TOKEN }}
+
+            - name: Build
+              run: pnpm build
+
+            - name: Deploy to Cloudflare Pages (dev)
+              id: cf
+              uses: cloudflare/wrangler-action@9acf94ace14e7dc412b076f2c5c20b8ce93c79cd # v3.15.0
+              with:
+                  apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+                  accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+                  # --branch is the Cloudflare deployment label, NOT the git
+                  # branch (this job is already gated to git `dev` by `on:`).
+                  # It must equal the remappr-dev project's Production branch —
+                  # Cloudflare defaults that to `main` — so the deploy is treated
+                  # as production and served at dev.remappr.com. A mismatch lands
+                  # it as a preview and the custom domain won't update.
+                  command: pages deploy dist --project-name=remappr-dev --branch=main

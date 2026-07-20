@@ -17,6 +17,11 @@ interface ConfigState {
     source: string | null
     /** Last parse failure message, or `null` when the current config is valid. */
     error: string | null
+    /** Device committed truth may have drifted from `config` (a save landed since
+     *  the last seed). Consumers that need freshness (Download modal, Builder)
+     *  call connectionStore.reseedConfigIfStale() before reading. */
+    stale: boolean
+    markStale: () => void
     /** Parse + validate + normalize JSON; on success replaces config + clears error.
      *  Returns whether the source was accepted (errors are surfaced, never thrown). */
     loadFromSource: (source: string) => boolean
@@ -29,10 +34,12 @@ const useConfigStore = create<ConfigState>()(
         config: null,
         source: null,
         error: null,
+        stale: false,
+        markStale: () => set({ stale: true }),
         loadFromSource: (source) => {
             try {
                 const config = parseKeymap(source)
-                set({ config, source, error: null })
+                set({ config, source, error: null, stale: false })
                 return true
             } catch (e) {
                 set({ error: e instanceof Error ? e.message : String(e) })
@@ -40,7 +47,8 @@ const useConfigStore = create<ConfigState>()(
             }
         },
         setConfig: (config) => set({ config }),
-        reset: () => set({ config: null, source: null, error: null }),
+        reset: () =>
+            set({ config: null, source: null, error: null, stale: false }),
     })),
 )
 

@@ -26,10 +26,12 @@ interface KeycodePickerGridProps {
     highlightedKeys?: number[]
     onValueChanged?: (value?: number) => void
     // Fired when the user clicks a tile carrying entry.behaviorRef
-    // (ZMK runtime &macro_* / &combo_* tiles). The picker bypasses
-    // the slot/value flow and emits the behavior id directly so the
-    // caller can switch the bound action type wholesale.
-    onActionChosen?: (kind: string) => void
+    // (ZMK runtime &macro_* / &combo_* tiles, Remappr §24 named macros).
+    // The picker bypasses the slot/value flow and emits the behavior id
+    // directly so the caller can switch the bound action type wholesale.
+    // `params` carries the composite pool index for Remappr macros; ZMK
+    // behaviors omit it (the caller fills slot defaults).
+    onActionChosen?: (kind: string, params?: number[]) => void
     // Optional codec override. The editor leaves this unset and the grid
     // reads the connected device's codec from the store; the deviceless
     // Keyboard Builder injects a codec (the HID-usage mockCodec) so the
@@ -94,6 +96,25 @@ export function KeycodePickerGrid({
         return map
     }, [pages, valueByEntryId])
 
+    // O(1) page resolution for the active-tab sync below (was a nested
+    // findIndex/some scan over every entry per selection change).
+    const pageIndexByEntryId = useMemo(() => {
+        const map = new Map<string, number>()
+        pages.forEach((page, idx) => {
+            for (const entry of page.entries) {
+                if (!map.has(entry.id)) map.set(entry.id, idx)
+            }
+        })
+        return map
+    }, [pages])
+
+    // Masked highlight values as a Set — isKeySelected runs per rendered tile,
+    // so a linear highlightedKeys scan there is O(entries × highlights).
+    const highlightedValues = useMemo(
+        () => new Set((highlightedKeys ?? []).map((k) => maskMods(k))),
+        [highlightedKeys],
+    )
+
     const handleKeySelect = useCallback(
         (e: Key | null) => {
             if (typeof e !== 'number') {
@@ -140,12 +161,10 @@ export function KeycodePickerGrid({
         const masked = maskMods(value)
         const entry = valueToEntry.get(masked)
         if (entry) {
-            const idx = pages.findIndex((p) =>
-                p.entries.some((e) => e.id === entry.id),
-            )
-            if (idx >= 0) setActiveTab(idx.toString())
+            const idx = pageIndexByEntryId.get(entry.id)
+            if (idx !== undefined) setActiveTab(idx.toString())
         }
-    }, [value, pages, valueToEntry, setActiveTab])
+    }, [value, pageIndexByEntryId, valueToEntry, setActiveTab])
 
     function isKeySelected(entryValue: number | undefined): boolean {
         if (entryValue === undefined) return false
@@ -154,8 +173,7 @@ export function KeycodePickerGrid({
             return (modFlags & idToModBit(id)) !== 0
         }
         if (baseKey !== undefined && baseKey === entryValue) return true
-        if (highlightedKeys?.some((k) => maskMods(k) === entryValue))
-            return true
+        if (highlightedValues.has(entryValue)) return true
         return false
     }
 
@@ -210,14 +228,19 @@ export function KeycodePickerGrid({
                     const displayOnlyClick = entry.displayOnly
                         ? (): void => {
                               toast.info(
-                                  `${entry.label} is a sideloaded combo definition — assign it via the .keymap file, not the picker.`,
+                                  entry.displayOnlyNote ??
+                                      `${entry.label} is a sideloaded combo definition — assign it via the .keymap file, not the picker.`,
                               )
                           }
                         : undefined
                     const overrideClick =
                         displayOnlyClick ??
                         (behaviorKind
-                            ? () => onActionChosen?.(behaviorKind)
+                            ? () =>
+                                  onActionChosen?.(
+                                      behaviorKind,
+                                      entry.behaviorRef?.params,
+                                  )
                             : undefined)
                     return (
                         <KeycodeButton
@@ -225,6 +248,7 @@ export function KeycodePickerGrid({
                             value={entryValue ?? 0}
                             label={entry.label}
                             name={entry.name}
+                            icon={entry.icon}
                             aliases={entry.aliases}
                             notes={entry.notes}
                             colorMode={colorMode}

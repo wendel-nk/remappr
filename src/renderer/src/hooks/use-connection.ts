@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import type { Transport } from '@firmware'
 import { UserCancelledError } from '@firmware'
 import type { TransportFactory } from '@/transport/types'
+import { ensureFirmwareClientsLoaded } from '@/transport/adapter/firmwareClients'
 import { getTransports, subscribeToTransportChanges } from '@/lib/transports'
 import useConnectionStore from '@/stores/connectionStore'
 import type {
@@ -37,7 +38,9 @@ export function useConnection(
     onTransportCreated: (
         t: Transport,
         communication: 'serial' | 'ble' | 'hid',
-    ) => void,
+        // Resolves true once the adapter handshake succeeds, false when it
+        // fails/times out — lets the caller clear a device's "connecting" state.
+    ) => Promise<boolean>,
 ): UseConnectionResult {
     const transports = useMemo(() => getTransports(), [])
 
@@ -62,8 +65,17 @@ export function useConnection(
         null,
     )
 
+    // Scan generation counter: mount, transport changes, auto-scan events and
+    // the Refresh button can overlap (the Electron BLE path holds a multi-second
+    // scan window) — only the latest call may write devices/refreshing, so a
+    // slower earlier scan can't clobber fresher results.
+    const scanReqRef = useRef(0)
     const loadDevices = useCallback(async (): Promise<void> => {
+        const reqId = ++scanReqRef.current
         setRefreshing(true)
+        // Discovery filters (hidFilters/hidDiscovery) read the adapter registry,
+        // which is now populated lazily — ensure clients are loaded first.
+        await ensureFirmwareClientsLoaded()
         const listable = transports.filter((t): boolean => !!t.pick_and_connect)
         const results = await Promise.all(
             listable.map(async (t): Promise<DeviceWithTransport[]> => {
@@ -86,6 +98,7 @@ export function useConnection(
                 }
             }),
         )
+        if (reqId !== scanReqRef.current) return
         setDevices(results.flat())
         setRefreshing(false)
     }, [transports])
@@ -142,12 +155,21 @@ export function useConnection(
             setConnectingDeviceId(device.id)
             setStatus(device.id, 'connecting')
             try {
+                await ensureFirmwareClientsLoaded()
                 const rpc = await transport.pick_and_connect!.connect(device)
                 useConnectionStore.getState().setLastConnectedDevice({
                     id: device.id,
                     label: device.label,
                 })
-                onTransportCreated(rpc, transport.communication)
+                // The transport opened, but the adapter handshake still runs
+                // inside onTransportCreated and can fail or hang there. Await it
+                // and, if it doesn't reach a connected service, drop the card
+                // back to "available" so it never sticks on "Connecting".
+                const connected = await onTransportCreated(
+                    rpc,
+                    transport.communication,
+                )
+                if (!connected) setStatus(device.id, 'available')
             } catch (e) {
                 console.error('Connection error:', e)
                 reportConnectError(
@@ -169,9 +191,10 @@ export function useConnection(
                 return
             }
             try {
+                await ensureFirmwareClientsLoaded()
                 const rpc = await transport.connect()
                 useConnectionStore.getState().setLastConnectedDevice(null)
-                if (rpc) onTransportCreated(rpc, transport.communication)
+                if (rpc) await onTransportCreated(rpc, transport.communication)
             } catch (e) {
                 reportConnectError(
                     e,
@@ -189,9 +212,10 @@ export function useConnection(
                 return
             }
             try {
+                await ensureFirmwareClientsLoaded()
                 const rpc = await transport.request_new()
                 useConnectionStore.getState().setLastConnectedDevice(null)
-                if (rpc) onTransportCreated(rpc, transport.communication)
+                if (rpc) await onTransportCreated(rpc, transport.communication)
             } catch (e) {
                 if (
                     e instanceof UserCancelledError ||

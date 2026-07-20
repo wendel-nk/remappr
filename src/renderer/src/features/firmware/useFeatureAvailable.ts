@@ -12,11 +12,19 @@ export const FEATURE_PROBES = {
     wireless: (s) => s.wireless,
     rgb: (s) => s.rgb,
     advanced: (s) => s.advanced,
+    // §N4b-3: cluster-diag + role-event facade — present only on a node whose
+    // firmware wired a cluster-diag source (Cap.CLUSTER_DIAG).
+    cluster: (s) => s.cluster,
+    // remappr-only: GET_LIMITS answered → config-blob timing/defaults editable.
+    limits: (s) => s.limits,
     lock: (s) => s.capabilities.lock,
     rename: (s) => s.capabilities.rename,
     reorderLayers: (s) => s.capabilities.reorderLayers,
     variableLayerCount: (s) => s.capabilities.variableLayerCount,
     layoutSideloadable: (s) => s.capabilities.layoutSideloadable,
+    // Inverse of capabilities.readOnly: a behind-dongle node view is read-only,
+    // so every keymap-editing affordance gates on `editable`.
+    editable: (s) => !s.capabilities.readOnly,
 } satisfies Record<string, ServiceProbe>
 
 export type Feature = keyof typeof FEATURE_PROBES

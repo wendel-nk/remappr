@@ -35,6 +35,12 @@ export function AboutSection(): JSX.Element {
                     description: result.error ?? 'Unknown error',
                 })
             }
+        } catch (e) {
+            // Fire-and-forget onClick handler — a rejected IPC invoke would
+            // otherwise surface as an unhandled rejection with no user feedback.
+            toast.error('Could not check for updates', {
+                description: e instanceof Error ? e.message : String(e),
+            })
         } finally {
             setChecking(false)
         }

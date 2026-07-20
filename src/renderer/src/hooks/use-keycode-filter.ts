@@ -1,5 +1,5 @@
 // Pattern check: no GoF pattern (-) — rejected — derive active tab instead of set-state-in-effect, single-hook refactor
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { CATALOG_PAGES } from '@firmware/catalog/pages'
 import type {
     CatalogEntry,
@@ -49,7 +49,10 @@ const filterPagesByBehaviorFlags = (
 // when no overlay exists for an idx.
 const enrichMacroEntries = (
     entries: CatalogEntry[],
-    state: ReturnType<typeof useDynamicCatalogStore.getState>,
+    state: Pick<
+        ReturnType<typeof useDynamicCatalogStore.getState>,
+        'macroOverlays' | 'macroLabels'
+    >,
 ): CatalogEntry[] =>
     entries.map((e) => {
         const m = e.id.match(/^macro\.user\.(\d+)$/)
@@ -144,12 +147,26 @@ export function useKeycodeFilter(
     const behaviorFlags = useConnectionStore(
         (s) => s.service?.capabilities.behaviors,
     )
-    const dynamicCatalog = useDynamicCatalogStore()
+    const service = useConnectionStore((s) => s.service)
+    // Seed the macro/combo overlay tiles on first picker open (once per
+    // service) — deferred off the connect path, see dynamicCatalogStore.
+    useEffect(() => {
+        void useDynamicCatalogStore.getState().ensureLoaded(service)
+    }, [service])
+    // pattern-check: skip — mechanical zustand slice-selector scoping, no abstraction
+    // Slice-scoped selectors: subscribing to the whole dynamic-catalog store
+    // both re-rendered every picker host and busted the `pages` memo on any
+    // unrelated field change (combo labels, overlays being wiped, …).
+    const macroOverlays = useDynamicCatalogStore((s) => s.macroOverlays)
+    const macroLabels = useDynamicCatalogStore((s) => s.macroLabels)
+    const extraMacroEntries = useDynamicCatalogStore((s) => s.extraMacroEntries)
+    const extraComboEntries = useDynamicCatalogStore((s) => s.extraComboEntries)
+    const sideloadedComboEntries = useDynamicCatalogStore(
+        (s) => s.sideloadedComboEntries,
+    )
 
     const pages: CatalogPage[] = useMemo(() => {
         const base = keyCatalog?.pages ?? CATALOG_PAGES
-        const { extraMacroEntries, extraComboEntries, sideloadedComboEntries } =
-            dynamicCatalog
         const gated = filterPagesByBehaviorFlags(base, behaviorFlags)
         return mergeBehaviorEntries(
             gated,
@@ -160,11 +177,22 @@ export function useKeycodeFilter(
             p.id === 'macros'
                 ? {
                       ...p,
-                      entries: enrichMacroEntries(p.entries, dynamicCatalog),
+                      entries: enrichMacroEntries(p.entries, {
+                          macroOverlays,
+                          macroLabels,
+                      }),
                   }
                 : p,
         )
-    }, [keyCatalog, dynamicCatalog, behaviorFlags])
+    }, [
+        keyCatalog,
+        behaviorFlags,
+        macroOverlays,
+        macroLabels,
+        extraMacroEntries,
+        extraComboEntries,
+        sideloadedComboEntries,
+    ])
 
     const pagesWithMatches = useMemo(() => {
         return pages.map((page, index) => {

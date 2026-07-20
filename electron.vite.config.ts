@@ -3,6 +3,7 @@ import { defineConfig } from 'electron-vite'
 import react from '@vitejs/plugin-react-swc'
 import pkg from './package.json' with { type: 'json' }
 import { remapprDedupe } from './scripts/remappr-dedupe'
+import { vendorChunks } from './scripts/vendor-chunks'
 
 const versionDefine = { __APP_VERSION__: JSON.stringify(pkg.version) }
 
@@ -30,5 +31,10 @@ export default defineConfig({
             },
         },
         plugins: [react()],
+        build: {
+            rollupOptions: {
+                output: { manualChunks: vendorChunks },
+            },
+        },
     },
 })

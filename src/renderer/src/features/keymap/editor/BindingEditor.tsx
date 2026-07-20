@@ -70,6 +70,9 @@ export function BindingEditor({
 }: BindingEditorProps): JSX.Element {
     const doIt = undoRedoStore((s) => s.doIt)
     const { service } = useConnectionStore()
+    // Read-only services (behind-dongle node views) serve reads but reject edits;
+    // the picker is replaced with a notice and doUpdateAction no-ops.
+    const readOnly = !!service?.capabilities.readOnly
     const { selectedLayerIndex } = useLayerSelectionStore()
     const [actionTypes, setActionTypes] = useState<ActionType[]>([])
 
@@ -99,7 +102,7 @@ export function BindingEditor({
 
     const doUpdateAction = useCallback(
         (draft: KeyActionDraft): void => {
-            if (!service || !keymap) return
+            if (!service || service.capabilities.readOnly || !keymap) return
 
             const layer = effectiveLayerIndex
             const layerId = keymap.layers[layer].id
@@ -115,23 +118,30 @@ export function BindingEditor({
                 const setEncoder = service.encoders.setEncoder.bind(
                     service.encoders,
                 )
+                // pattern-check: skip — optimistic reorder of existing store write vs RPC, no abstraction
+                const applyEncoder = (action: KeyAction): void =>
+                    setKeymap((prev) => {
+                        if (!prev) return prev
+                        return produce(prev, (d) => {
+                            const e = d.layers[layer].encoders?.[slot]
+                            if (!e) return
+                            if (dir === 'cw') e.cw = action
+                            else e.ccw = action
+                        })
+                    })
                 doIt?.(async (): Promise<() => Promise<void>> => {
+                    // Optimistic — mirror the key branch below.
+                    applyEncoder(newAction)
                     try {
                         await setEncoder(layerId, slot, direction, newAction)
-                        setKeymap((prev) => {
-                            if (!prev) return prev
-                            return produce(prev, (d) => {
-                                const e = d.layers[layer].encoders?.[slot]
-                                if (!e) return
-                                if (dir === 'cw') e.cw = newAction
-                                else e.ccw = newAction
-                            })
-                        })
                     } catch (e) {
                         toast.error('Failed to set encoder action')
                         console.error('Encoder set failed:', e)
+                        applyEncoder(oldAction)
+                        throw e
                     }
                     return async (): Promise<void> => {
+                        applyEncoder(oldAction)
                         try {
                             await setEncoder(
                                 layerId,
@@ -139,17 +149,9 @@ export function BindingEditor({
                                 direction,
                                 oldAction,
                             )
-                            setKeymap((prev) => {
-                                if (!prev) return prev
-                                return produce(prev, (d) => {
-                                    const e = d.layers[layer].encoders?.[slot]
-                                    if (!e) return
-                                    if (dir === 'cw') e.cw = oldAction
-                                    else e.ccw = oldAction
-                                })
-                            })
                         } catch (e) {
                             console.error('Failed to undo encoder set', e)
+                            applyEncoder(newAction)
                         }
                     }
                 })
@@ -164,18 +166,22 @@ export function BindingEditor({
             const keyPosition = selectedKeyPosition
             const oldAction = keymap.layers[layer].keys[keyPosition]
 
+            // pattern-check: skip — optimistic reorder of existing store write vs RPC, no abstraction
+            const applyToStore = (action: KeyAction): void =>
+                setKeymap((prev: Keymap | undefined): Keymap | undefined => {
+                    if (!prev) return prev
+                    return produce(prev, (draftKeymap) => {
+                        draftKeymap.layers[layer].keys[keyPosition] = action
+                    })
+                })
+
             doIt?.(async (): Promise<() => Promise<void>> => {
+                // Optimistic: the keycap reflects the edit immediately; the
+                // RPC follows. On failure revert + surface, and rethrow so the
+                // undo entry is never pushed.
+                applyToStore(newAction)
                 try {
                     await service.setKey(layerId, keyPosition, newAction)
-                    setKeymap(
-                        (prev: Keymap | undefined): Keymap | undefined => {
-                            if (!prev) return prev
-                            return produce(prev, (draftKeymap) => {
-                                draftKeymap.layers[layer].keys[keyPosition] =
-                                    newAction
-                            })
-                        },
-                    )
                 } catch (e) {
                     toast.error('Failed to set action')
                     console.error('Failed action details:', {
@@ -185,24 +191,19 @@ export function BindingEditor({
                         error: e,
                         oldAction,
                     })
+                    applyToStore(oldAction)
+                    throw e
                 }
 
                 return async (): Promise<void> => {
                     if (!service) return
+                    applyToStore(oldAction)
                     try {
                         await service.setKey(layerId, keyPosition, oldAction)
-                        setKeymap(
-                            (prev: Keymap | undefined): Keymap | undefined => {
-                                if (!prev) return prev
-                                return produce(prev, (draftKeymap) => {
-                                    draftKeymap.layers[layer].keys[
-                                        keyPosition
-                                    ] = oldAction
-                                })
-                            },
-                        )
                     } catch (e) {
                         console.error('Failed to undo set action', e)
+                        // Device kept the newer binding — reflect it back.
+                        applyToStore(newAction)
                     }
                 }
             })
@@ -282,17 +283,24 @@ export function BindingEditor({
                     {selectedEncoder.dir.toUpperCase()}
                 </div>
             )}
-            <div className="flex flex-row gap-4 w-full">
-                {selectedAction && (
-                    <KeyActionPicker
-                        action={selectedAction}
-                        actionTypes={actionTypes}
-                        layers={layerList}
-                        onChange={doUpdateAction}
-                    />
-                )}
-            </div>
-            {canEditTapDance && (
+            {readOnly ? (
+                <div className="rounded-md border border-dashed border-border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+                    This keyboard is read-only — it’s a node behind a dongle.
+                    Editing isn’t available yet.
+                </div>
+            ) : (
+                <div className="flex flex-row gap-4 w-full">
+                    {selectedAction && (
+                        <KeyActionPicker
+                            action={selectedAction}
+                            actionTypes={actionTypes}
+                            layers={layerList}
+                            onChange={doUpdateAction}
+                        />
+                    )}
+                </div>
+            )}
+            {!readOnly && canEditTapDance && (
                 <div className="mt-2">
                     <Button
                         variant="outline"
