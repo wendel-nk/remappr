@@ -15,6 +15,8 @@
  * 7. Renderer proceeds with GATT connection using the resolved BluetoothDevice
  */
 
+// pattern-check: skip — system_profiler query + TTL cache helpers, no abstraction
+import { execFile } from 'child_process'
 import { type BrowserWindow, ipcMain } from 'electron'
 import {
     type AvailableDevice,
@@ -28,6 +30,67 @@ const log = createLogger('ble-manager')
 /** Pending device selection callback from Electron's select-bluetooth-device event */
 let pendingDeviceCallback: ((deviceId: string) => void) | null = null
 
+/* --- macOS: OS-connected Bluetooth device names -------------------------- */
+
+// Web Bluetooth discovery on macOS is acceptAllDevices (ZMK doesn't advertise
+// its Studio service UUID), so Chromium reports EVERY advertising device in
+// range — neighbours' headphones, TVs, beacons. The keyboard being configured
+// is virtually always already paired+connected to the OS, so we narrow the
+// chooser to system-connected devices, resolved via `system_profiler` (ships
+// with macOS; no native module). Names are the only join key — Chromium's
+// deviceId is an opaque token, not the MAC.
+let connectedNamesCache: { names: Set<string>; at: number } | null = null
+const CONNECTED_NAMES_TTL_MS = 10_000
+
+function fetchMacConnectedBtNames(): Promise<Set<string>> {
+    return new Promise((resolve) => {
+        execFile(
+            'system_profiler',
+            ['SPBluetoothDataType', '-json'],
+            { timeout: 8000, maxBuffer: 4 * 1024 * 1024 },
+            (err, stdout) => {
+                if (err) {
+                    log.warn('system_profiler failed:', err.message)
+                    resolve(new Set())
+                    return
+                }
+                try {
+                    const parsed = JSON.parse(stdout) as {
+                        SPBluetoothDataType?: Array<{
+                            device_connected?: Array<Record<string, unknown>>
+                        }>
+                    }
+                    const names = new Set<string>()
+                    for (const section of parsed.SPBluetoothDataType ?? []) {
+                        for (const entry of section.device_connected ?? []) {
+                            // Each entry is { "<Device Name>": {…attrs} }.
+                            for (const name of Object.keys(entry)) {
+                                names.add(name.trim())
+                            }
+                        }
+                    }
+                    resolve(names)
+                } catch (e) {
+                    log.warn('system_profiler parse failed:', e)
+                    resolve(new Set())
+                }
+            },
+        )
+    })
+}
+
+async function getMacConnectedBtNames(): Promise<Set<string>> {
+    if (
+        connectedNamesCache &&
+        Date.now() - connectedNamesCache.at < CONNECTED_NAMES_TTL_MS
+    ) {
+        return connectedNamesCache.names
+    }
+    const names = await fetchMacConnectedBtNames()
+    connectedNamesCache = { names, at: Date.now() }
+    return names
+}
+
 /**
  * Set up the Web Bluetooth device selection handler on a BrowserWindow.
  * Must be called for each window that will use BLE.
@@ -37,9 +100,10 @@ let pendingDeviceCallback: ((deviceId: string) => void) | null = null
  * and forwards them to the renderer for user selection.
  */
 export function setupBleDeviceSelection(window: BrowserWindow): void {
+    // pattern-check: skip — darwin connected-only filter inside existing handler
     window.webContents.on(
         'select-bluetooth-device',
-        (event, devices, callback) => {
+        async (event, devices, callback) => {
             event.preventDefault()
 
             log.info(
@@ -60,12 +124,34 @@ export function setupBleDeviceSelection(window: BrowserWindow): void {
             // device and label name-less / "Unknown or Unsupported" entries
             // by id so the user can still pick. Chromium uses the format
             // "Unknown or Unsupported Device (MAC)"; surface as "BLE <id>".
-            const availableDevices: AvailableDevice[] = devices.map((d) => {
+            let candidates = devices.map((d) => {
                 const raw = (d.deviceName || '').trim()
                 const isUnknown = !raw || /^Unknown or Unsupported/i.test(raw)
                 const label = isUnknown ? `BLE ${d.deviceId}` : raw
-                return { label, id: d.deviceId }
+                return { label, id: d.deviceId, named: !isUnknown }
             })
+
+            // macOS: acceptAllDevices discovery reports every advertising
+            // device in range. Drop named devices that are NOT connected at
+            // the OS level (advertising neighbours); nameless entries stay —
+            // they can't be matched by name and may be the paired-ZMK edge
+            // case above. If system_profiler yields nothing, skip filtering.
+            if (process.platform === 'darwin') {
+                const connected = await getMacConnectedBtNames()
+                if (connected.size > 0) {
+                    const before = candidates.length
+                    candidates = candidates.filter(
+                        (d) => !d.named || connected.has(d.label.trim()),
+                    )
+                    log.info(
+                        `darwin connected-only filter: ${before} → ${candidates.length}`,
+                    )
+                }
+            }
+
+            const availableDevices: AvailableDevice[] = candidates.map(
+                ({ label, id }) => ({ label, id }),
+            )
 
             log.info('forwarding to renderer, kept:', availableDevices.length)
 
@@ -88,6 +174,11 @@ export function registerBleIpcHandlers(): void {
     ipcMain.handle(IpcChannels.BLE_START_SCAN, async () => {
         log.info('BLE_START_SCAN received')
         pendingDeviceCallback = null
+        // Warm the connected-names cache so the first discovery event doesn't
+        // stall on a cold system_profiler run (~1s).
+        if (process.platform === 'darwin') {
+            void getMacConnectedBtNames()
+        }
     })
 
     ipcMain.handle(IpcChannels.BLE_STOP_SCAN, async () => {
