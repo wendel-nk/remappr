@@ -30,7 +30,6 @@ import { createLogger } from '@shared/logger'
 const log = createLogger('ExportPanel')
 
 const TARGET_LABELS: Record<Target, string> = {
-    remappr: 'Remappr',
     zmk: 'ZMK',
     qmk: 'QMK',
     keychron: 'Keychron',
