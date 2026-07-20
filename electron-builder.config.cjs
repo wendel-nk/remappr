@@ -157,6 +157,20 @@ module.exports = {
     },
     dmg: {
         artifactName: '${name}-electron-${version}.${ext}',
+        // Without notarization (no Apple Developer ID) Gatekeeper blocks the
+        // first launch, and macOS 15 removed the right-click → Open bypass —
+        // ship the unblock instructions inside the DMG where the user is
+        // already looking.
+        contents: [
+            { x: 130, y: 220 },
+            { x: 410, y: 220, type: 'link', path: '/Applications' },
+            {
+                x: 270,
+                y: 90,
+                type: 'file',
+                path: path.join(__dirname, 'build', 'how-to-open.html'),
+            },
+        ],
     },
     linux: {
         target: ['AppImage', 'deb', 'rpm', 'pacman', 'tar.gz'],

@@ -132,17 +132,29 @@ The `.dmg` is the **only** macOS download — the `…-linux.tar.gz` is a Linux
 build; opening the binary inside it fails with _"this application is not
 supported on this type of Mac"_.
 
-::: warning Gatekeeper — "Remappr is damaged" / "cannot be opened"
+::: warning Gatekeeper — "Apple could not verify…" / "Remappr is damaged"
 Remappr is an open-source project without an Apple Developer ID, so builds are
-not notarized. The first launch is blocked by Gatekeeper. Either:
+not notarized and the **first** launch is blocked by Gatekeeper. Allowing it
+once is enough. (The same steps ship inside the DMG as
+`how-to-open.html`.)
 
-- **Right-click** (or <kbd>Ctrl</kbd>-click) the app in Applications →
-  **Open** → **Open** (only needed once), or
-- clear the quarantine flag from a terminal:
+**macOS 15 (Sequoia) and later** — the right-click → Open bypass was removed
+in macOS 15, so:
 
-    ```bash
-    xattr -dr com.apple.quarantine /Applications/Remappr.app
-    ```
+1. Double-click the app once; in the "could not verify" dialog choose
+   **Done** (not "Move to Trash").
+2. Open **System Settings → Privacy & Security**, scroll to the **Security**
+   section — "Remappr was blocked…" — and click **Open Anyway**.
+3. Confirm with Touch ID / password.
+
+**macOS 14 (Sonoma) and earlier** — **right-click** (or
+<kbd>Ctrl</kbd>-click) the app in Applications → **Open** → **Open**.
+
+**Any version** — clear the quarantine flag from a terminal instead:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/Remappr.app
+```
 
 :::
 
