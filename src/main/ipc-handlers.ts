@@ -8,7 +8,11 @@
  */
 
 import { type BrowserWindow, ipcMain } from 'electron'
-import { IpcChannels, IpcEvents } from '../shared/ipc-types'
+import {
+    type BleDiscoveryPayload,
+    IpcChannels,
+    IpcEvents,
+} from '../shared/ipc-types'
 import { createLogger } from '../shared/logger'
 import { validateAvailableDevice, validateUint8Array } from './ipc-validation'
 import {
@@ -25,6 +29,13 @@ import {
     writeGatt,
 } from './bluez'
 import {
+    connectMacosBleDevice,
+    disconnectMacosBleDevice,
+    hasActiveMacosBleConnection,
+    listMacosBleDevices,
+    writeMacosBle,
+} from './macos-ble'
+import {
     connectHidDevice,
     disconnectHidDevice,
     hasActiveHidConnection,
@@ -39,19 +50,33 @@ const log = createLogger('ipc')
 
 // pattern-check: skip — local IPC payload validator, no abstraction.
 interface DiscoveryPayload {
+    adapterId?: unknown
     serviceUuid?: unknown
     charUuid?: unknown
 }
 
 // pattern-check: skip — local IPC payload validator, no abstraction.
-function parseDiscovery(
-    arg: unknown,
-): { serviceUuid: string; charUuid: string } | null {
+function parseDiscovery(arg: unknown): BleDiscoveryPayload | null {
     if (!arg || typeof arg !== 'object') return null
     const a = arg as DiscoveryPayload
+    if (typeof a.adapterId !== 'string' || !a.adapterId) return null
     if (typeof a.serviceUuid !== 'string' || !a.serviceUuid) return null
     if (typeof a.charUuid !== 'string' || !a.charUuid) return null
-    return { serviceUuid: a.serviceUuid, charUuid: a.charUuid }
+    return {
+        adapterId: a.adapterId,
+        serviceUuid: a.serviceUuid,
+        charUuid: a.charUuid,
+    }
+}
+
+// Keep the IPC surface bounded and validate every renderer-supplied endpoint.
+function parseDiscoveries(arg: unknown): BleDiscoveryPayload[] {
+    if (!arg || typeof arg !== 'object') return []
+    const raw = (arg as { endpoints?: unknown }).endpoints
+    if (!Array.isArray(raw) || raw.length === 0 || raw.length > 16) return []
+    const parsed = raw.map(parseDiscovery)
+    if (parsed.some((d) => d === null)) return []
+    return parsed as BleDiscoveryPayload[]
 }
 
 // pattern-check: skip — local IPC payload validator, no abstraction.
@@ -82,7 +107,7 @@ function parseHidDiscovery(arg: unknown): HidDiscoveryFilter[] {
 // Tracks which transport currently owns send/close. Set when a transport
 // connects, cleared on disconnect/error. Lets TRANSPORT_SEND_DATA and
 // TRANSPORT_CLOSE route to whichever transport is active.
-type ActiveKind = 'serial' | 'bluez' | 'hid' | null
+type ActiveKind = 'serial' | 'bluez' | 'macos-ble' | 'hid' | null
 let activeKind: ActiveKind = null
 
 /** Send an event to all renderer windows */
@@ -140,40 +165,76 @@ export function registerIpcHandlers(getWindows: () => BrowserWindow[]): void {
     // --- BlueZ direct handlers (Linux) ---
 
     ipcMain.handle(IpcChannels.BLUEZ_LIST_DEVICES, async (_, arg: unknown) => {
-        const d = parseDiscovery(arg)
-        if (!d) return []
-        return await listGattDevices(d.serviceUuid)
+        const endpoints = parseDiscoveries(arg)
+        if (endpoints.length === 0) return []
+        return await listGattDevices(endpoints)
     })
 
     ipcMain.handle(IpcChannels.BLUEZ_CONNECT, async (_, arg: unknown) => {
-        const a = arg as { devicePath?: unknown } & DiscoveryPayload
+        const a = arg as { devicePath?: unknown }
         const devicePath = a?.devicePath
         if (typeof devicePath !== 'string' || !devicePath) {
             return { ok: false, error: 'Invalid device path' }
         }
-        const d = parseDiscovery(arg)
-        if (!d) {
+        const endpoints = parseDiscoveries(arg)
+        if (endpoints.length === 0) {
             return { ok: false, error: 'Invalid discovery payload' }
         }
         try {
-            const label = await connectGattDevice(
-                devicePath,
-                d.serviceUuid,
-                d.charUuid,
-                {
-                    onData: (data) =>
-                        ipcHandlerContext.emitConnectionData(data),
-                    onDisconnected: () => {
-                        activeKind = null
-                        ipcHandlerContext.emitConnectionDisconnected()
-                    },
+            const connected = await connectGattDevice(devicePath, endpoints, {
+                onData: (data) => ipcHandlerContext.emitConnectionData(data),
+                onDisconnected: () => {
+                    activeKind = null
+                    ipcHandlerContext.emitConnectionDisconnected()
                 },
-            )
+            })
             activeKind = 'bluez'
-            return { ok: true, label }
+            return {
+                ok: true,
+                label: connected.label,
+                firmwareAdapterId: connected.firmwareAdapterId,
+            }
         } catch (e) {
             const msg = e instanceof Error ? e.message : String(e)
             log.error('BLUEZ_CONNECT failed:', msg)
+            return { ok: false, error: msg }
+        }
+    })
+
+    // --- Native CoreBluetooth direct handlers (macOS) ---
+
+    ipcMain.handle(
+        IpcChannels.MACOS_BLE_LIST_DEVICES,
+        async (_, arg: unknown) => {
+            const endpoints = parseDiscoveries(arg)
+            if (endpoints.length === 0) return []
+            return await listMacosBleDevices(endpoints)
+        },
+    )
+
+    ipcMain.handle(IpcChannels.MACOS_BLE_CONNECT, async (_, arg: unknown) => {
+        const a = arg as { deviceId?: unknown }
+        const deviceId = a?.deviceId
+        if (typeof deviceId !== 'string' || !deviceId) {
+            return { ok: false, error: 'Invalid CoreBluetooth device ID' }
+        }
+        const endpoints = parseDiscoveries(arg)
+        if (endpoints.length === 0) {
+            return { ok: false, error: 'Invalid discovery payload' }
+        }
+        try {
+            const connected = await connectMacosBleDevice(deviceId, endpoints, {
+                onData: (data) => ipcHandlerContext.emitConnectionData(data),
+                onDisconnected: () => {
+                    activeKind = null
+                    ipcHandlerContext.emitConnectionDisconnected()
+                },
+            })
+            activeKind = 'macos-ble'
+            return { ok: true, ...connected }
+        } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e)
+            log.error('MACOS_BLE_CONNECT failed:', msg)
             return { ok: false, error: msg }
         }
     })
@@ -217,6 +278,8 @@ export function registerIpcHandlers(getWindows: () => BrowserWindow[]): void {
             const validData = validateUint8Array(data)
             if (activeKind === 'bluez') {
                 await writeGatt(validData)
+            } else if (activeKind === 'macos-ble') {
+                await writeMacosBle(validData)
             } else if (activeKind === 'hid') {
                 await writeHid(validData)
             } else {
@@ -228,6 +291,11 @@ export function registerIpcHandlers(getWindows: () => BrowserWindow[]): void {
     ipcMain.handle(IpcChannels.TRANSPORT_CLOSE, async () => {
         if (activeKind === 'bluez' || hasActiveBluezConnection()) {
             await disconnectGattDevice()
+        } else if (
+            activeKind === 'macos-ble' ||
+            hasActiveMacosBleConnection()
+        ) {
+            await disconnectMacosBleDevice()
         } else if (activeKind === 'hid' || hasActiveHidConnection()) {
             await disconnectHidDevice()
         } else {

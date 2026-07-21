@@ -207,7 +207,8 @@ export function lightingFromDevice(
     catalog: LightingCatalog,
 ): UnifiedLighting {
     const effect = deviceEffect(effectName)
-    if (effect === 'off' || state.brightness <= 0) return DISABLED
+    if (state.enabled === false || effect === 'off' || state.brightness <= 0)
+        return DISABLED
     const n = effectName.toLowerCase()
     const multiHue = /rainbow|spectrum|cycle|hue/.test(n)
     return {

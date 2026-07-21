@@ -20,6 +20,8 @@ export interface RgbControlsModel {
     saturation: number // 0..100
     speed: number // 0..100
     hue: number // 0..360
+    /** Runtime master switch when the connected firmware advertises one. */
+    enabled?: boolean
     /** Colour controls relevant for the current effect (hue/sat). */
     hasColor: boolean
     /** Animation speed adjustable. */
@@ -40,7 +42,7 @@ interface Props {
         patch: Partial<
             Pick<
                 RgbControlsModel,
-                'brightness' | 'saturation' | 'speed' | 'hue'
+                'brightness' | 'saturation' | 'speed' | 'hue' | 'enabled'
             >
         >,
     ) => void
@@ -64,6 +66,14 @@ export function RgbControls({
     return (
         <div className="flex flex-col gap-4 text-sm">
             {note && <p className="text-xs text-muted-foreground">{note}</p>}
+
+            {model.enabled !== undefined && (
+                <RgbToggle
+                    on={model.enabled}
+                    onToggle={(enabled) => onChange({ enabled })}
+                    label="Lighting enabled"
+                />
+            )}
 
             {/* Effect */}
             <div>

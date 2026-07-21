@@ -24,6 +24,8 @@ export interface PlatformIpc {
 export interface IpcConnectResult {
     /** Display name from the device, falls back to the dev.label passed to the adapter. */
     label?: string
+    /** Firmware adapter owning the GATT endpoint selected by the native shell. */
+    firmwareAdapterId?: string
 }
 
 /**
@@ -89,6 +91,7 @@ export abstract class IpcTransportAdapter extends TransportAdapter {
             abortController: this.abortController,
             readable,
             writable,
+            firmwareAdapterId: result.firmwareAdapterId,
         }
     }
 }

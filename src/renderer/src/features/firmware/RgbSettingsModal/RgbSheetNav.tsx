@@ -1,18 +1,20 @@
 // pattern-check: skip — presentational tab-strip over a section config list, no abstraction
 import type { RgbSheetSection } from '@/stores/rgbSheetStore'
 import { cn } from '@/lib/cn'
-import { SECTIONS } from './rgbSheetSections'
+import type { SECTIONS } from './rgbSheetSections'
 
 export function RgbSheetNav({
     activeSection,
     setSection,
+    sections,
 }: {
     activeSection: RgbSheetSection
     setSection: (id: RgbSheetSection) => void
+    sections: typeof SECTIONS
 }): JSX.Element {
     return (
         <nav className="flex flex-wrap gap-1">
-            {SECTIONS.map(({ id, label, icon: Icon }) => (
+            {sections.map(({ id, label, icon: Icon }) => (
                 <button
                     key={id}
                     type="button"

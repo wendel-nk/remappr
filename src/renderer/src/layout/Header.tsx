@@ -152,20 +152,17 @@ export function Header(): JSX.Element {
     const toggleRgbSheet = useRgbSheetStore((s) => s.toggle)
     const setRgbSheetOpen = useRgbSheetStore((s) => s.setOpen)
 
-    // ZMK has no runtime RGB-settings protocol — underglow/backlight are
-    // compile-time only. Gate the toolbar trigger (and force the sheet shut)
-    // when the active firmware target is ZMK. Other targets keep the button.
-    const rgbUnsupported = useConfigStore(
-        (s) => s.config?.meta.target === 'zmk',
-    )
+    // Capability-driven: modern ZMK firmware exposes service.rgb, while older
+    // Studio versions simply omit it and keep the rest of the editor usable.
+    const rgbAvailable = useFeatureAvailable('rgb')
 
     // Only when the editor was reached via the builder's "Editor" handoff do we
     // offer a way back. A directly-connected device never shows this.
     const cameFromBuilder = useBuilderStore((s) => s.cameFromBuilder)
     const returnToBuilder = useBuilderStore((s) => s.returnToBuilder)
     useEffect((): void => {
-        if (rgbUnsupported && rgbSheetOpen) setRgbSheetOpen(false)
-    }, [rgbUnsupported, rgbSheetOpen, setRgbSheetOpen])
+        if (!rgbAvailable && rgbSheetOpen) setRgbSheetOpen(false)
+    }, [rgbAvailable, rgbSheetOpen, setRgbSheetOpen])
 
     // Dynamic entries + macros share one bottom-dock sheet (advancedSheetStore),
     // mutually exclusive with the RGB sheet. The two triggers open it at their
@@ -593,14 +590,14 @@ export function Header(): JSX.Element {
                 </MountOnDemand>
                 {/* RGB lighting — opens the board-visible bottom sheet (device
                     controls when an RGB keyboard is connected, else the on-screen
-                    simulation editor). Disabled when the target is ZMK (no runtime
-                    RGB protocol). The sheet itself renders in KeymapEditor. */}
+                    simulation editor). Runtime facade detection keeps it hidden
+                    on older/unsupported firmware. The sheet renders in KeymapEditor. */}
                 <Tooltip>
                     <TooltipTrigger asChild>
                         <Button
                             variant={rgbSheetOpen ? 'secondary' : 'ghost'}
                             size="icon"
-                            disabled={!service || rgbUnsupported}
+                            disabled={!service || !rgbAvailable}
                             onClick={(): void => {
                                 setAdvSheetOpen(false)
                                 toggleRgbSheet()
@@ -611,9 +608,9 @@ export function Header(): JSX.Element {
                     </TooltipTrigger>
                     <TooltipContent>
                         <p>
-                            {rgbUnsupported
-                                ? 'RGB lighting not supported on ZMK'
-                                : 'RGB lighting'}
+                            {rgbAvailable
+                                ? 'RGB lighting'
+                                : 'RGB lighting not supported by this firmware'}
                         </p>
                     </TooltipContent>
                 </Tooltip>

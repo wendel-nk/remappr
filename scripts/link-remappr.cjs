@@ -36,7 +36,7 @@ const targets = [
         link: 'src/firmware',
         repoDir: 'remapprClientFirmware',
         srcSub: 'src',
-        url: 'https://github.com/Wolffyx/remapprClientFirmware.git',
+        url: 'https://github.com/yiancar/remapprClientFirmware.git',
     },
     {
         name: 'ui',
@@ -67,6 +67,10 @@ function authUrl(url) {
         /^https:\/\/github\.com\//,
         `https://x-access-token:${gitToken}@github.com/`,
     )
+}
+
+function unauthenticatedUrl(url) {
+    return url.replace(/^https:\/\/[^@/]+@github\.com\//, 'https://github.com/')
 }
 
 function wireSymlink(linkAbs, targetAbs) {
@@ -107,7 +111,23 @@ function tryClone(t) {
     const ref = refFor(t)
     // Cache per ref so switching branches locally doesn't serve a stale clone.
     const dest = path.join(cacheRoot, ref ? `${t.repoDir}@${ref}` : t.repoDir)
-    if (fs.existsSync(path.join(dest, t.srcSub))) return dest // cached
+    const baseUrl = process.env[`REMAPPR_${t.name.toUpperCase()}_URL`] || t.url
+    if (fs.existsSync(path.join(dest, t.srcSub))) {
+        // A cached clone may predate a source/fork change. Reuse it only while
+        // its origin still matches the configured URL; otherwise re-clone so an
+        // old Wolffyx firmware cache cannot silently mask the yiancar adapter.
+        try {
+            const origin = execSync(`git -C "${dest}" remote get-url origin`, {
+                encoding: 'utf8',
+                stdio: ['ignore', 'pipe', 'ignore'],
+            }).trim()
+            if (unauthenticatedUrl(origin) === baseUrl) return dest
+        } catch {
+            // Invalid/incomplete cache: replace it below.
+        }
+        if (noFetch) return null
+        fs.rmSync(dest, { recursive: true, force: true })
+    }
     if (noFetch) return null
     // Private projects need a token; without one, skip (optional -> stub).
     if (t.private && !gitToken) {
@@ -116,7 +136,6 @@ function tryClone(t) {
         )
         return null
     }
-    const baseUrl = process.env[`REMAPPR_${t.name.toUpperCase()}_URL`] || t.url
     const url = authUrl(baseUrl)
     fs.mkdirSync(cacheRoot, { recursive: true })
     fs.rmSync(dest, { recursive: true, force: true })

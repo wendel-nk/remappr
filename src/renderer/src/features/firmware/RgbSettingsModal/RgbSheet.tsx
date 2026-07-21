@@ -6,26 +6,31 @@
 //   • Backlight        — global effect (DeviceRgbControls / SimulationPanel)
 //   • Per-key RGB      — select key(s) on the board, then colour them
 //   • Mix RGB          — 2-zone timeline (placeholder, not yet implemented)
-//   • Underglow        — RGB underglow / ZMK (placeholder)
+//   • Underglow        — capability-driven ZMK Studio lighting
 //   • Indicator Light  — caps/layer indicators (placeholder)
 //   • Advanced         — raw Mix-region + Indicator byte editors (power users)
-import { Save, X } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { RotateCcw, Save, X } from 'lucide-react'
+import { toast } from 'sonner'
 
 import useConnectionStore from '@/stores/connectionStore'
 import useRgbSheetStore from '@/stores/rgbSheetStore'
-import { saveWithToast } from '@/lib/saveWithToast'
+import useRgbEffectStore from '@/stores/rgbEffectStore'
 import { Button } from '@/ui/button'
 import { Card, CardContent } from '@/ui/card'
 
 import type { PaintApi } from '@/features/keymap/keyboard/stage/usePerKeyPaint'
-import { DeviceRgbControls } from './DeviceRgbControls'
+import {
+    DeviceRgbControls,
+    type DeviceRgbControlsHandle,
+} from './DeviceRgbControls'
 import { SimulationPanel } from './SimulationPanel'
 import { IndicatorPanel } from './IndicatorPanel'
 import { ComingSoon } from './ComingSoonSection'
 import { PerKeyColorEditor } from './PerKeyColorEditor'
 import { AdvancedPanels } from './AdvancedRgbPanels'
 import { RgbSheetNav } from './RgbSheetNav'
-import { SECTIONS } from './rgbSheetSections'
+import { sectionsForRgb } from './rgbSheetSections'
 
 interface Props {
     paint: PaintApi
@@ -43,10 +48,75 @@ export function RgbSheet({
     const rgb = useConnectionStore((s) => s.service?.rgb)
     const section = useRgbSheetStore((s) => s.section)
     const setSection = useRgbSheetStore((s) => s.setSection)
+    const setCachedEffect = useRgbEffectStore((s) => s.setEffect)
+    const controlsRef = useRef<DeviceRgbControlsHandle>(null)
+    const [pendingState, setPendingState] = useState<{
+        source: NonNullable<typeof rgb>
+        value: boolean
+    } | null>(null)
+    const [busy, setBusy] = useState(false)
 
-    const activeSection = SECTIONS.some((s) => s.id === section)
+    const sections = useMemo(() => sectionsForRgb(rgb), [rgb])
+    const activeSection = sections.some((s) => s.id === section)
         ? section
-        : 'backlight'
+        : (sections[0]?.id ?? 'backlight')
+    const tracksPending = !!rgb?.hasPendingChanges
+    const pending =
+        pendingState && pendingState.source === rgb
+            ? pendingState.value
+            : (rgb?.hasPendingChanges?.() ?? true)
+
+    useEffect(() => {
+        if (!rgb) return
+        const report = (value: boolean): void =>
+            setPendingState({ source: rgb, value })
+        const off = rgb.onPendingChangesChanged?.(report)
+        void rgb
+            .refreshPendingChanges?.()
+            .then(report)
+            .catch((error) =>
+                console.warn('RGB pending-state read failed', error),
+            )
+        return off
+    }, [rgb])
+
+    const save = async (): Promise<void> => {
+        if (!rgb || busy) return
+        setBusy(true)
+        try {
+            await controlsRef.current?.flushPreview()
+            await rgb.save()
+            setPendingState({ source: rgb, value: false })
+            toast.success('RGB settings saved to keyboard')
+        } catch (error) {
+            const detail =
+                error instanceof Error ? error.message : String(error)
+            toast.error(`Save failed: ${detail}`)
+            console.error(error)
+        } finally {
+            setBusy(false)
+        }
+    }
+
+    const discard = async (): Promise<void> => {
+        if (!rgb?.discard || busy) return
+        setBusy(true)
+        try {
+            await controlsRef.current?.cancelPreview()
+            const restored = await rgb.discard()
+            if (restored) setCachedEffect(restored)
+            else if (rgb.getEffect) setCachedEffect(await rgb.getEffect())
+            setPendingState({ source: rgb, value: false })
+            toast.success('RGB preview discarded')
+        } catch (error) {
+            const detail =
+                error instanceof Error ? error.message : String(error)
+            toast.error(`Discard failed: ${detail}`)
+            console.error(error)
+        } finally {
+            setBusy(false)
+        }
+    }
 
     return (
         <div className="p-2 w-full">
@@ -56,6 +126,7 @@ export function RgbSheet({
                         <RgbSheetNav
                             activeSection={activeSection}
                             setSection={setSection}
+                            sections={sections}
                         />
                         <div className="ml-auto flex items-center gap-1.5">
                             {rgb && (
@@ -63,16 +134,27 @@ export function RgbSheet({
                                     size="sm"
                                     variant="outline"
                                     className="flex items-center gap-1.5"
-                                    onClick={(): void => {
-                                        void saveWithToast(
-                                            () => rgb.save(),
-                                            'RGB settings saved to keyboard',
-                                            'Save failed',
-                                        )
-                                    }}
+                                    disabled={
+                                        busy || (tracksPending && !pending)
+                                    }
+                                    onClick={(): void => void save()}
                                 >
                                     <Save className="size-3.5" />
                                     Save
+                                </Button>
+                            )}
+                            {rgb?.discard && (
+                                <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="flex items-center gap-1.5"
+                                    disabled={
+                                        busy || (tracksPending && !pending)
+                                    }
+                                    onClick={(): void => void discard()}
+                                >
+                                    <RotateCcw className="size-3.5" />
+                                    Discard
                                 </Button>
                             )}
                             <Button
@@ -92,7 +174,10 @@ export function RgbSheet({
                     <div className="max-h-[40vh] overflow-y-auto pr-2">
                         {activeSection === 'backlight' &&
                             (rgb ? (
-                                <DeviceRgbControls rgb={rgb} />
+                                <DeviceRgbControls
+                                    ref={controlsRef}
+                                    rgb={rgb}
+                                />
                             ) : (
                                 <SimulationPanel />
                             ))}
@@ -109,12 +194,18 @@ export function RgbSheet({
                                 note="Split the keyboard into two zones, each with its own looping effect timeline. Coming soon."
                             />
                         )}
-                        {activeSection === 'underglow' && (
-                            <ComingSoon
-                                title="Underglow"
-                                note="RGB underglow control (ZMK / QMK rgblight). Coming soon."
-                            />
-                        )}
+                        {activeSection === 'underglow' &&
+                            (rgb ? (
+                                <DeviceRgbControls
+                                    ref={controlsRef}
+                                    rgb={rgb}
+                                />
+                            ) : (
+                                <ComingSoon
+                                    title="Underglow"
+                                    note="RGB underglow is not exposed by this firmware build."
+                                />
+                            ))}
                         {activeSection === 'indicator' &&
                             (rgb ? (
                                 <IndicatorPanel rgb={rgb} />

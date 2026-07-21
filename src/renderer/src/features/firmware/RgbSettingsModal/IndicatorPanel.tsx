@@ -37,12 +37,15 @@ const INDICATORS: { key: keyof IndicatorFlags; label: string }[] = [
 
 export function IndicatorPanel({ rgb }: Props): JSX.Element {
     const [cfg, setCfg] = useState<IndicatorConfig | null>(null)
+    const getIndicators = rgb.getIndicators
+    const setIndicators = rgb.setIndicators
 
     useEffect(() => {
+        if (!getIndicators) return
         let cancelled = false
         void (async () => {
             const r = await saveWithToast(
-                () => rgb.getIndicators(),
+                () => getIndicators.call(rgb),
                 null,
                 'Indicators read failed',
             )
@@ -51,17 +54,18 @@ export function IndicatorPanel({ rgb }: Props): JSX.Element {
         return (): void => {
             cancelled = true
         }
-    }, [rgb])
+    }, [getIndicators, rgb])
 
     // Debounced device write: a colour drag updates the UI every frame but writes
     // to the keyboard at most once per WRITE_DEBOUNCE_MS; toggles write at once.
     const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
     const write = useCallback(
         (next: IndicatorConfig, immediate: boolean): void => {
+            if (!setIndicators) return
             if (timer.current) clearTimeout(timer.current)
             const send = (): void => {
                 void saveWithToast(
-                    () => rgb.setIndicators(next),
+                    () => setIndicators.call(rgb, next),
                     null,
                     'Indicators write failed',
                 )
@@ -69,7 +73,7 @@ export function IndicatorPanel({ rgb }: Props): JSX.Element {
             if (immediate) send()
             else timer.current = setTimeout(send, WRITE_DEBOUNCE_MS)
         },
-        [rgb],
+        [rgb, setIndicators],
     )
     useEffect(
         () => (): void => {
@@ -77,6 +81,14 @@ export function IndicatorPanel({ rgb }: Props): JSX.Element {
         },
         [],
     )
+
+    if (!getIndicators || !setIndicators) {
+        return (
+            <div className="text-xs text-muted-foreground">
+                Indicator controls are not exposed by this firmware build.
+            </div>
+        )
+    }
 
     if (!cfg) {
         return (
