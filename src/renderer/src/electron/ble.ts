@@ -3,6 +3,7 @@
  * Electron BLE — two adapters under one descriptor.
  *
  * Linux: ElectronBluezAdapter (IPC to main-process BlueZ D-Bus client).
+ * macOS/Windows: native CoreBluetooth/WinRT helpers over IPC.
  * Other: ElectronWebBluetoothAdapter (navigator.bluetooth in renderer).
  *
  * Discovery is platform-branched too: BlueZ paired-device list on Linux,
@@ -22,6 +23,7 @@ import { registerTransport } from '../transport/adapter/registry'
 import type { BleDiscovery } from '../transport/adapter/discovery'
 import {
     bleOptionalServices,
+    electronBleBackend,
     resolveBleEndpoint,
 } from '../transport/bleEndpoints'
 
@@ -78,6 +80,19 @@ async function listMacosBleDevices(
         })) as AvailableDevice[]
     } catch (e) {
         console.error('[electron/ble] MACOS_BLE_LIST_DEVICES failed:', e)
+        return []
+    }
+}
+
+async function listWindowsBleDevices(
+    endpoints: readonly BleDiscovery[],
+): Promise<AvailableDevice[]> {
+    try {
+        return (await window.api.invoke(IpcChannels.WINDOWS_BLE_LIST_DEVICES, {
+            endpoints,
+        })) as AvailableDevice[]
+    } catch (e) {
+        console.error('[electron/ble] WINDOWS_BLE_LIST_DEVICES failed:', e)
         return []
     }
 }
@@ -232,10 +247,16 @@ async function runScan(
 export async function list_devices(
     endpoints: readonly BleDiscovery[],
 ): Promise<AvailableDevice[]> {
-    const platform = await getPlatform()
-    if (platform === 'linux') return listBluezDevices(endpoints)
-    if (platform === 'darwin') return listMacosBleDevices(endpoints)
-    return listWebBluetoothDevices(endpoints)
+    switch (electronBleBackend(await getPlatform())) {
+        case 'bluez':
+            return listBluezDevices(endpoints)
+        case 'corebluetooth':
+            return listMacosBleDevices(endpoints)
+        case 'winrt':
+            return listWindowsBleDevices(endpoints)
+        case 'web-bluetooth':
+            return listWebBluetoothDevices(endpoints)
+    }
 }
 
 /* --- adapters ----------------------------------------------------------- */
@@ -289,6 +310,39 @@ export class ElectronMacosBleAdapter extends IpcTransportAdapter {
         if (!result.ok) {
             throw new Error(
                 result.error ?? 'Failed to connect through CoreBluetooth',
+            )
+        }
+        return {
+            label: result.label ?? this.dev.label ?? 'BLE Device',
+            firmwareAdapterId: result.firmwareAdapterId,
+        }
+    }
+}
+
+export class ElectronWindowsBleAdapter extends IpcTransportAdapter {
+    constructor(
+        private readonly dev: AvailableDevice,
+        private readonly endpoints: readonly BleDiscovery[],
+    ) {
+        super(electronIpc, dev.label ?? 'BLE Device')
+    }
+
+    protected async connectIpc(): Promise<IpcConnectResult> {
+        const result = (await window.api.invoke(
+            IpcChannels.WINDOWS_BLE_CONNECT,
+            {
+                deviceId: this.dev.id,
+                endpoints: this.endpoints,
+            },
+        )) as {
+            ok: boolean
+            label?: string
+            firmwareAdapterId?: string
+            error?: string
+        }
+        if (!result.ok) {
+            throw new Error(
+                result.error ?? 'Failed to connect through Windows Bluetooth',
             )
         }
         return {
@@ -478,14 +532,16 @@ async function pickBleAdapter(
     dev: AvailableDevice,
     endpoints: readonly BleDiscovery[],
 ): Promise<Transport> {
-    const platform = await getPlatform()
-    if (platform === 'linux') {
-        return new ElectronBluezAdapter(dev, endpoints).connect()
+    switch (electronBleBackend(await getPlatform())) {
+        case 'bluez':
+            return new ElectronBluezAdapter(dev, endpoints).connect()
+        case 'corebluetooth':
+            return new ElectronMacosBleAdapter(dev, endpoints).connect()
+        case 'winrt':
+            return new ElectronWindowsBleAdapter(dev, endpoints).connect()
+        case 'web-bluetooth':
+            return new ElectronWebBluetoothAdapter(dev, endpoints).connect()
     }
-    if (platform === 'darwin') {
-        return new ElectronMacosBleAdapter(dev, endpoints).connect()
-    }
-    return new ElectronWebBluetoothAdapter(dev, endpoints).connect()
 }
 
 registerTransport({

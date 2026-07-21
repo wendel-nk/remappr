@@ -15,6 +15,9 @@ out-types
 src/data
 out
 /build/macos-ble-helper
+/build/windows-ble-helper.exe
+/src/native/windows-ble-helper/bin/
+/src/native/windows-ble-helper/obj/
 .DS_Store
 .eslintcache
 *.log*

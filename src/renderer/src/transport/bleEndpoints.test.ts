@@ -1,7 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import type { BleDiscovery } from './adapter/discovery'
-import { bleOptionalServices, resolveBleEndpoint } from './bleEndpoints'
+import {
+    bleOptionalServices,
+    electronBleBackend,
+    resolveBleEndpoint,
+} from './bleEndpoints'
 
 const endpoints: BleDiscovery[] = [
     {
@@ -17,6 +21,13 @@ const endpoints: BleDiscovery[] = [
 ]
 
 describe('BLE endpoint selection', () => {
+    it('routes desktop platforms to their native BLE backends', () => {
+        expect(electronBleBackend('linux')).toBe('bluez')
+        expect(electronBleBackend('darwin')).toBe('corebluetooth')
+        expect(electronBleBackend('win32')).toBe('winrt')
+        expect(electronBleBackend('freebsd')).toBe('web-bluetooth')
+    })
+
     it('grants every unique firmware service UUID', () => {
         expect(
             bleOptionalServices([

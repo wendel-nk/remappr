@@ -57,7 +57,14 @@ module.exports = {
                       to: 'macos-ble-helper',
                   },
               ]
-            : [],
+            : target === 'win32'
+              ? [
+                    {
+                        from: 'build/windows-ble-helper.exe',
+                        to: 'windows-ble-helper.exe',
+                    },
+                ]
+              : [],
     files: [
         '!**/.vscode/*',
         '!src/**',

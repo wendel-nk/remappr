@@ -36,6 +36,13 @@ import {
     writeMacosBle,
 } from './macos-ble'
 import {
+    connectWindowsBleDevice,
+    disconnectWindowsBleDevice,
+    hasActiveWindowsBleConnection,
+    listWindowsBleDevices,
+    writeWindowsBle,
+} from './windows-ble'
+import {
     connectHidDevice,
     disconnectHidDevice,
     hasActiveHidConnection,
@@ -107,7 +114,13 @@ function parseHidDiscovery(arg: unknown): HidDiscoveryFilter[] {
 // Tracks which transport currently owns send/close. Set when a transport
 // connects, cleared on disconnect/error. Lets TRANSPORT_SEND_DATA and
 // TRANSPORT_CLOSE route to whichever transport is active.
-type ActiveKind = 'serial' | 'bluez' | 'macos-ble' | 'hid' | null
+type ActiveKind =
+    | 'serial'
+    | 'bluez'
+    | 'macos-ble'
+    | 'windows-ble'
+    | 'hid'
+    | null
 let activeKind: ActiveKind = null
 
 /** Send an event to all renderer windows */
@@ -239,6 +252,49 @@ export function registerIpcHandlers(getWindows: () => BrowserWindow[]): void {
         }
     })
 
+    // --- Native WinRT Bluetooth direct handlers (Windows) ---
+
+    ipcMain.handle(
+        IpcChannels.WINDOWS_BLE_LIST_DEVICES,
+        async (_, arg: unknown) => {
+            const endpoints = parseDiscoveries(arg)
+            if (endpoints.length === 0) return []
+            return await listWindowsBleDevices(endpoints)
+        },
+    )
+
+    ipcMain.handle(IpcChannels.WINDOWS_BLE_CONNECT, async (_, arg: unknown) => {
+        const a = arg as { deviceId?: unknown }
+        const deviceId = a?.deviceId
+        if (typeof deviceId !== 'string' || !deviceId) {
+            return { ok: false, error: 'Invalid Windows Bluetooth device ID' }
+        }
+        const endpoints = parseDiscoveries(arg)
+        if (endpoints.length === 0) {
+            return { ok: false, error: 'Invalid discovery payload' }
+        }
+        try {
+            const connected = await connectWindowsBleDevice(
+                deviceId,
+                endpoints,
+                {
+                    onData: (data) =>
+                        ipcHandlerContext.emitConnectionData(data),
+                    onDisconnected: () => {
+                        activeKind = null
+                        ipcHandlerContext.emitConnectionDisconnected()
+                    },
+                },
+            )
+            activeKind = 'windows-ble'
+            return { ok: true, ...connected }
+        } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e)
+            log.error('WINDOWS_BLE_CONNECT failed:', msg)
+            return { ok: false, error: msg }
+        }
+    })
+
     ipcMain.handle(IpcChannels.GET_PLATFORM, async () => process.platform)
 
     // --- HID handlers (raw USB HID via node-hid) ---
@@ -280,6 +336,8 @@ export function registerIpcHandlers(getWindows: () => BrowserWindow[]): void {
                 await writeGatt(validData)
             } else if (activeKind === 'macos-ble') {
                 await writeMacosBle(validData)
+            } else if (activeKind === 'windows-ble') {
+                await writeWindowsBle(validData)
             } else if (activeKind === 'hid') {
                 await writeHid(validData)
             } else {
@@ -296,6 +354,11 @@ export function registerIpcHandlers(getWindows: () => BrowserWindow[]): void {
             hasActiveMacosBleConnection()
         ) {
             await disconnectMacosBleDevice()
+        } else if (
+            activeKind === 'windows-ble' ||
+            hasActiveWindowsBleConnection()
+        ) {
+            await disconnectWindowsBleDevice()
         } else if (activeKind === 'hid' || hasActiveHidConnection()) {
             await disconnectHidDevice()
         } else {

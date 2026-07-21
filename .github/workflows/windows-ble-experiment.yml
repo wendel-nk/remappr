@@ -1,0 +1,95 @@
+name: Windows BLE experiment
+
+on:
+    workflow_dispatch:
+    pull_request:
+        branches: [main]
+        paths:
+            - '.github/workflows/windows-ble-experiment.yml'
+            - 'electron-builder.config.cjs'
+            - 'package.json'
+            - 'pnpm-lock.yaml'
+            - 'scripts/build-windows-ble-helper.cjs'
+            - 'src/main/ipc-handlers.ts'
+            - 'src/main/windows-ble.ts'
+            - 'src/native/windows-ble-helper/**'
+            - 'src/renderer/src/electron/ble.ts'
+            - 'src/shared/ipc-types.ts'
+
+permissions:
+    contents: read
+
+jobs:
+    build-windows:
+        runs-on: windows-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+
+            - name: Set up pnpm
+              uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+
+            - name: Set up Node
+              uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+              with:
+                  node-version-file: '.nvmrc'
+                  cache: 'pnpm'
+
+            - name: Set up .NET
+              uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+              with:
+                  dotnet-version: '8.0.x'
+
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
+
+            - name: Fetch @remappr projects
+              run: node scripts/link-remappr.cjs
+
+            - name: Build Windows installer
+              run: pnpm build:win
+
+            - name: Verify packaged runtime dependencies
+              run: node scripts/check-asar-deps.cjs dist
+
+            - name: Verify installed BLE helper
+              shell: pwsh
+              run: |
+                  $ErrorActionPreference = 'Stop'
+                  $staged = 'dist/win-unpacked/resources/windows-ble-helper.exe'
+                  if (-not (Test-Path $staged)) {
+                      Get-ChildItem dist -Recurse | Select-Object FullName
+                      throw "Bundled WinRT BLE helper not found at $staged"
+                  }
+                  $config = '{"mode":"self-test","endpoints":[{"adapterId":"zmk","serviceUuid":"00000000-0000-0000-0000-000000000001","charUuid":"00000000-0000-0000-0000-000000000002"}]}'
+                  $selfTest = $config | & $staged
+                  if ($LASTEXITCODE -ne 0 -or $selfTest -notmatch '"ok":true') {
+                      throw "WinRT BLE helper self-test failed: $selfTest"
+                  }
+                  $installers = @(Get-ChildItem dist -Filter '*-setup.exe')
+                  if ($installers.Count -ne 1) {
+                      throw "Expected one Windows installer, found $($installers.Count)"
+                  }
+                  $installDir = Join-Path $env:RUNNER_TEMP 'remappr-ci'
+                  $process = Start-Process `
+                      -FilePath $installers[0].FullName `
+                      -ArgumentList '/S', "/D=$installDir" `
+                      -Wait `
+                      -PassThru
+                  if ($process.ExitCode -ne 0) {
+                      throw "Windows installer exited $($process.ExitCode)"
+                  }
+                  $installed = Join-Path $installDir 'resources/windows-ble-helper.exe'
+                  if (-not (Test-Path $installed)) {
+                      throw "Installed app omitted the BLE helper at $installed"
+                  }
+                  Write-Host "Helper: $((Get-Item $installed).Length) bytes"
+                  Write-Host "Installer: $($($installers[0]).FullName)"
+
+            - name: Upload Windows installer
+              uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+              with:
+                  name: remappr-windows-native-ble
+                  path: dist/*-setup.exe
+                  if-no-files-found: error
+                  retention-days: 14
