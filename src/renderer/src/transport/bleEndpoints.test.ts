@@ -47,6 +47,39 @@ describe('BLE endpoint selection', () => {
         expect(getPrimaryService).toHaveBeenCalledTimes(2)
     })
 
+    it('falls through a service permission error when a later endpoint works', async () => {
+        const characteristic = { startNotifications: vi.fn() }
+        const getPrimaryService = vi.fn(async (uuid: string) => {
+            if (uuid === 'REMAPPR-SERVICE') {
+                throw new DOMException('not granted', 'SecurityError')
+            }
+            return {
+                getCharacteristic: vi.fn(async () => characteristic),
+            }
+        })
+
+        const resolved = await resolveBleEndpoint(
+            { getPrimaryService } as unknown as BluetoothRemoteGATTServer,
+            endpoints,
+        )
+
+        expect(resolved.endpoint.adapterId).toBe('zmk')
+    })
+
+    it('reports a permission error if no endpoint can be accessed', async () => {
+        const permissionError = new DOMException('not granted', 'SecurityError')
+        const server = {
+            getPrimaryService: vi.fn(async (uuid: string) => {
+                if (uuid === 'REMAPPR-SERVICE') throw permissionError
+                throw new DOMException('missing', 'NotFoundError')
+            }),
+        } as unknown as BluetoothRemoteGATTServer
+
+        await expect(resolveBleEndpoint(server, endpoints)).rejects.toBe(
+            permissionError,
+        )
+    })
+
     it('does not hide a real GATT connection failure', async () => {
         const error = new DOMException('connection lost', 'NetworkError')
         const server = {

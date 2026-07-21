@@ -27,6 +27,7 @@ export async function resolveBleEndpoint(
     server: BluetoothRemoteGATTServer,
     endpoints: readonly BleDiscovery[],
 ): Promise<ResolvedBleEndpoint> {
+    let permissionError: unknown
     for (const endpoint of endpoints) {
         try {
             const service = await server.getPrimaryService(endpoint.serviceUuid)
@@ -35,9 +36,19 @@ export async function resolveBleEndpoint(
             )
             return { endpoint, characteristic }
         } catch (error) {
+            if (
+                typeof error === 'object' &&
+                error !== null &&
+                'name' in error &&
+                error.name === 'SecurityError'
+            ) {
+                permissionError = error
+                continue
+            }
             if (!isNotFound(error)) throw error
         }
     }
+    if (permissionError) throw permissionError
     throw new DOMException(
         'The selected device exposes no supported firmware configuration service.',
         'NotFoundError',

@@ -1,7 +1,11 @@
 import type { Transport } from '@firmware'
 import { UserCancelledError } from '@firmware'
 import type { AvailableDevice } from '@/transport/types'
+import type { BleDiscovery } from './adapter/discovery'
+import { registerTransport } from './adapter/registry'
+import { bleOptionalServices, resolveBleEndpoint } from './bleEndpoints'
 
+const WRITE_CHUNK_SIZE = 20
 const deviceRegistry = new Map<string, BluetoothDevice>()
 
 function makeId(dev: BluetoothDevice): string {
@@ -12,202 +16,240 @@ function makeLabel(dev: BluetoothDevice): string {
     return dev.name || 'Unknown BLE Device'
 }
 
-async function openTransport(
-    dev: BluetoothDevice,
-    serviceUuid: string,
-    charUuid: string,
-): Promise<Transport> {
-    if (!dev.gatt) throw new Error('No GATT server on selected device')
-
-    const abortController = new AbortController()
-    const label = makeLabel(dev)
-
-    if (!dev.gatt.connected) {
-        console.log('[web-ble] connecting GATT...')
-        await dev.gatt.connect()
-    }
-
-    let svc: BluetoothRemoteGATTService
-    try {
-        svc = await dev.gatt.getPrimaryService(serviceUuid)
-    } catch (e) {
-        console.error(
-            '[web-ble] device does not expose firmware studio service',
-            serviceUuid,
-            e,
-        )
-        dev.gatt.disconnect()
-        throw new Error(
-            'Selected device does not expose the firmware studio service. ' +
-                'Make sure the firmware is built with the studio service enabled and the device is unlocked.',
-        )
-    }
-
-    const char = await svc.getCharacteristic(charUuid)
-
-    let onValueChanged: ((ev: Event) => void) | null = null
-    let onDisconnected: (() => void) | null = null
-
-    const readable = new ReadableStream<Uint8Array>({
-        async start(controller) {
-            await char.stopNotifications().catch(() => undefined)
-            await char.startNotifications()
-
-            // B7: respect view byteOffset/byteLength — value is a DataView
-            onValueChanged = (ev: Event): void => {
-                const target = ev.target as BluetoothRemoteGATTCharacteristic
-                const v = target?.value
-                if (!v) return
-                controller.enqueue(
-                    new Uint8Array(v.buffer, v.byteOffset, v.byteLength),
-                )
-            }
-            char.addEventListener('characteristicvaluechanged', onValueChanged)
-
-            onDisconnected = (): void => {
-                if (onValueChanged) {
-                    char.removeEventListener(
-                        'characteristicvaluechanged',
-                        onValueChanged,
-                    )
-                }
-                if (onDisconnected) {
-                    dev.removeEventListener(
-                        'gattserverdisconnected',
-                        onDisconnected,
-                    )
-                }
-                controller.close()
-            }
-            dev.addEventListener('gattserverdisconnected', onDisconnected)
-        },
-        // B5: clean up listeners if consumer cancels before disconnect fires
-        cancel(): void {
-            if (onValueChanged) {
-                char.removeEventListener(
-                    'characteristicvaluechanged',
-                    onValueChanged,
-                )
-                onValueChanged = null
-            }
-            if (onDisconnected) {
-                dev.removeEventListener(
-                    'gattserverdisconnected',
-                    onDisconnected,
-                )
-                onDisconnected = null
-            }
-        },
-    })
-
-    const writable = new WritableStream<Uint8Array>({
-        write(chunk) {
-            return char.writeValueWithoutResponse(
-                chunk.buffer.slice(
-                    chunk.byteOffset,
-                    chunk.byteOffset + chunk.byteLength,
-                ) as ArrayBuffer,
-            )
-        },
-    })
-
-    const sig = abortController.signal
-    const abort_cb = async (): Promise<void> => {
-        sig.removeEventListener('abort', abort_cb)
-        dev.gatt?.disconnect()
-    }
-    sig.addEventListener('abort', abort_cb)
-
-    return { label, abortController, readable, writable }
+export function hasWebBluetooth(): boolean {
+    return (
+        typeof navigator !== 'undefined' &&
+        'bluetooth' in navigator &&
+        typeof navigator.bluetooth?.requestDevice === 'function'
+    )
 }
 
-/**
- * Returns BLE devices the origin has previously been granted access to
- * (Chrome 92+: navigator.bluetooth.getDevices). Empty for first-time
- * users — they pair via requestAndConnect() to populate the list.
- */
+export function webBluetoothRequestOptions(
+    endpoints: readonly BleDiscovery[],
+): RequestDeviceOptions {
+    return {
+        // Some ZMK builds expose Studio without including its service UUID in
+        // advertisements, so filtering by service would hide a valid keyboard.
+        acceptAllDevices: true,
+        optionalServices: bleOptionalServices(endpoints),
+    }
+}
+
+async function openTransport(
+    dev: BluetoothDevice,
+    endpoints: readonly BleDiscovery[],
+): Promise<Transport> {
+    if (!dev.gatt) throw new Error('No GATT server on selected device')
+    if (endpoints.length === 0) {
+        throw new Error('No firmware Bluetooth endpoints are registered')
+    }
+
+    const abortController = new AbortController()
+    const server = dev.gatt.connected ? dev.gatt : await dev.gatt.connect()
+
+    let resolved: Awaited<ReturnType<typeof resolveBleEndpoint>>
+    try {
+        resolved = await resolveBleEndpoint(server, endpoints)
+    } catch (error) {
+        if (dev.gatt.connected) dev.gatt.disconnect()
+        if (error instanceof DOMException && error.name === 'SecurityError') {
+            throw new Error(
+                'Bluetooth service permission is stale. Forget this device in Remappr, pair it again, and grant access to the Studio service.',
+                { cause: error },
+            )
+        }
+        if (error instanceof DOMException && error.name === 'NotFoundError') {
+            throw new Error(
+                'The selected device does not expose a supported firmware configuration service.',
+                { cause: error },
+            )
+        }
+        throw error
+    }
+
+    const { endpoint, characteristic } = resolved
+    const { writable: responseWritable, readable } =
+        new TransformStream<Uint8Array>()
+    const responseWriter = responseWritable.getWriter()
+    let detached = false
+
+    const onValueChanged = async (event: Event): Promise<void> => {
+        const target = event.target as BluetoothRemoteGATTCharacteristic
+        const value = target?.value
+        if (!value) return
+        try {
+            await responseWriter.write(
+                new Uint8Array(
+                    value.buffer,
+                    value.byteOffset,
+                    value.byteLength,
+                ),
+            )
+        } catch {
+            // The consumer closed while a final notification was in flight.
+        }
+    }
+
+    const detach = (): void => {
+        if (detached) return
+        detached = true
+        characteristic.removeEventListener(
+            'characteristicvaluechanged',
+            onValueChanged,
+        )
+        dev.removeEventListener('gattserverdisconnected', onDisconnected)
+    }
+
+    const onDisconnected = (): void => {
+        detach()
+        responseWriter.close().catch(() => undefined)
+    }
+
+    characteristic.addEventListener(
+        'characteristicvaluechanged',
+        onValueChanged,
+    )
+    dev.addEventListener('gattserverdisconnected', onDisconnected)
+    try {
+        await characteristic.startNotifications()
+    } catch (error) {
+        detach()
+        if (dev.gatt.connected) dev.gatt.disconnect()
+        throw error
+    }
+
+    const writable = new WritableStream<Uint8Array>({
+        async write(chunk) {
+            for (
+                let offset = 0;
+                offset < chunk.byteLength;
+                offset += WRITE_CHUNK_SIZE
+            ) {
+                await characteristic.writeValueWithoutResponse(
+                    chunk.slice(offset, offset + WRITE_CHUNK_SIZE),
+                )
+            }
+        },
+    })
+
+    const onAbort = async (): Promise<void> => {
+        abortController.signal.removeEventListener('abort', onAbort)
+        detach()
+        try {
+            await characteristic.stopNotifications()
+        } catch {
+            // Device may already be disconnected.
+        }
+        responseWriter.close().catch(() => undefined)
+        if (dev.gatt?.connected) dev.gatt.disconnect()
+    }
+    abortController.signal.addEventListener('abort', onAbort)
+
+    return {
+        label: makeLabel(dev),
+        abortController,
+        readable,
+        writable,
+        firmwareAdapterId: endpoint.adapterId,
+    }
+}
+
+/** Devices previously granted to this web origin. This does not start a scan,
+ * so it is the path that may recover an already-connected HID keyboard after
+ * the user grants permission once through requestDevice(). */
 export async function listGrantedDevices(): Promise<AvailableDevice[]> {
-    if (typeof navigator === 'undefined' || !('bluetooth' in navigator))
-        return []
+    if (!hasWebBluetooth()) return []
     const getDevices = (
         navigator.bluetooth as Bluetooth & {
             getDevices?: () => Promise<BluetoothDevice[]>
         }
     ).getDevices
-    if (typeof getDevices !== 'function') return []
-    try {
-        const devs = await getDevices.call(navigator.bluetooth)
-        deviceRegistry.clear()
-        return devs.map((d) => {
-            const id = makeId(d)
-            deviceRegistry.set(id, d)
-            return { id, label: makeLabel(d) }
-        })
-    } catch (e) {
-        console.warn('[web-ble] getDevices failed', e)
-        return []
+    if (typeof getDevices !== 'function') {
+        return [...deviceRegistry.entries()].map(([id, device]) => ({
+            id,
+            label: makeLabel(device),
+        }))
     }
+
+    const devices = await getDevices.call(navigator.bluetooth)
+    deviceRegistry.clear()
+    return devices.map((device) => {
+        const id = makeId(device)
+        deviceRegistry.set(id, device)
+        return { id, label: makeLabel(device) }
+    })
 }
 
 export async function connectToGrantedDevice(
     device: AvailableDevice,
-    serviceUuid: string,
-    charUuid: string,
+    endpoints: readonly BleDiscovery[],
 ): Promise<Transport> {
-    const dev = deviceRegistry.get(device.id)
-    if (!dev) {
+    const granted = deviceRegistry.get(device.id)
+    if (!granted) {
         throw new Error(
-            'Selected BLE device is no longer available. Refresh the list.',
+            'The browser no longer exposes this Bluetooth permission. Refresh the list or pair the keyboard again.',
         )
     }
-    return openTransport(dev, serviceUuid, charUuid)
+    return openTransport(granted, endpoints)
 }
 
-/**
- * Triggers the browser BLE chooser. Uses acceptAllDevices because some
- * ZMK firmware builds expose the Studio GATT service without including
- * it in the advertising payload — strict service filter shows empty.
- */
 export async function requestAndConnect(
-    serviceUuid: string,
-    charUuid: string,
+    endpoints: readonly BleDiscovery[],
 ): Promise<Transport> {
-    const dev = await navigator.bluetooth
-        .requestDevice({
-            acceptAllDevices: true,
-            optionalServices: [serviceUuid],
-        })
-        .catch((e: unknown) => {
-            if (e instanceof DOMException && e.name === 'NotFoundError') {
+    if (!hasWebBluetooth()) {
+        throw new Error('Web Bluetooth is not available in this browser')
+    }
+    if (endpoints.length === 0) {
+        throw new Error('No firmware Bluetooth endpoints are registered')
+    }
+
+    const device = await navigator.bluetooth
+        .requestDevice(webBluetoothRequestOptions(endpoints))
+        .catch((error: unknown) => {
+            if (
+                error instanceof DOMException &&
+                error.name === 'NotFoundError'
+            ) {
                 throw new UserCancelledError(
-                    'User cancelled the connection attempt',
-                    { cause: e },
+                    'User cancelled the Bluetooth chooser',
+                    { cause: error },
                 )
             }
-            throw e
+            throw error
         })
 
-    console.log('[web-ble] device picked', {
-        name: dev.name,
-        id: dev.id,
-        hasGatt: !!dev.gatt,
-    })
-
-    deviceRegistry.set(makeId(dev), dev)
-    return openTransport(dev, serviceUuid, charUuid)
+    deviceRegistry.set(makeId(device), device)
+    return openTransport(device, endpoints)
 }
 
-// Back-compat alias for the original single-call connect().
-export const connect = requestAndConnect
-
-// pattern-check: skip — sibling capability utility, no abstraction
 export async function forgetGrantedDevice(deviceId: string): Promise<void> {
-    const dev = deviceRegistry.get(deviceId)
-    if (!dev) return
-    const forget = (dev as BluetoothDevice & { forget?: () => Promise<void> })
-        .forget
+    const device = deviceRegistry.get(deviceId)
+    if (!device) return
+    const forget = (
+        device as BluetoothDevice & { forget?: () => Promise<void> }
+    ).forget
     if (typeof forget === 'function') {
-        await forget.call(dev).catch(() => undefined)
+        await forget.call(device).catch(() => undefined)
     }
     deviceRegistry.delete(deviceId)
 }
+
+registerTransport({
+    id: 'web:ble',
+    envs: 'web',
+    create(ctx) {
+        if (!hasWebBluetooth()) return null
+        return {
+            label: 'BLE',
+            communication: 'ble',
+            isWireless: true,
+            pick_and_connect: {
+                list: listGrantedDevices,
+                connect: (device) =>
+                    connectToGrantedDevice(device, ctx.bleDiscoveryAll()),
+            },
+            request_new: () => requestAndConnect(ctx.bleDiscoveryAll()),
+            forgetDevice: (device) => forgetGrantedDevice(device.id),
+        }
+    },
+})

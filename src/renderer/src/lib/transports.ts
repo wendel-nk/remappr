@@ -26,8 +26,6 @@ import '../electron/ble'
 import '../electron/hid'
 import '../transport/web-serial'
 import '../transport/web-hid'
-// Web Bluetooth disabled in browser builds — keep file referenced via
-// build-time import resolution but don't register a descriptor.
 import '../transport/web-ble'
 
 export { isElectron }
