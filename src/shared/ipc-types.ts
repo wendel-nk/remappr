@@ -15,8 +15,15 @@ export interface AvailableDevice {
  * to keep the shell firmware-neutral.
  */
 export interface BleDiscoveryPayload {
+    adapterId: string
     serviceUuid: string
     charUuid: string
+}
+
+/** All firmware BLE endpoints available to the shell. A device matches when it
+ * exposes any endpoint; the matching adapter ID is returned on the transport. */
+export interface BleDiscoverySetPayload {
+    endpoints: BleDiscoveryPayload[]
 }
 
 // pattern-check: skip — flat IPC DTO, no behavior
@@ -52,6 +59,11 @@ export const IpcChannels = {
     // BlueZ direct (Linux only) — bypasses Web Bluetooth, sees paired devices
     BLUEZ_LIST_DEVICES: 'bluez:list-devices',
     BLUEZ_CONNECT: 'bluez:connect',
+
+    // Native CoreBluetooth (macOS only) — retrieves Studio peripherals that
+    // are already connected to the OS as BLE HID keyboards.
+    MACOS_BLE_LIST_DEVICES: 'macos-ble:list-devices',
+    MACOS_BLE_CONNECT: 'macos-ble:connect',
 
     // HID device operations (raw USB HID via node-hid)
     HID_LIST_DEVICES: 'hid:list-devices',
@@ -141,12 +153,30 @@ export interface IpcInvokeMap {
         result: boolean
     }
     [IpcChannels.BLUEZ_LIST_DEVICES]: {
-        params: BleDiscoveryPayload
+        params: BleDiscoverySetPayload
         result: AvailableDevice[]
     }
     [IpcChannels.BLUEZ_CONNECT]: {
-        params: { devicePath: string } & BleDiscoveryPayload
-        result: { ok: boolean; label?: string; error?: string }
+        params: { devicePath: string } & BleDiscoverySetPayload
+        result: {
+            ok: boolean
+            label?: string
+            firmwareAdapterId?: string
+            error?: string
+        }
+    }
+    [IpcChannels.MACOS_BLE_LIST_DEVICES]: {
+        params: BleDiscoverySetPayload
+        result: AvailableDevice[]
+    }
+    [IpcChannels.MACOS_BLE_CONNECT]: {
+        params: { deviceId: string } & BleDiscoverySetPayload
+        result: {
+            ok: boolean
+            label?: string
+            firmwareAdapterId?: string
+            error?: string
+        }
     }
     [IpcChannels.HID_LIST_DEVICES]: {
         params: HidDiscoveryPayload

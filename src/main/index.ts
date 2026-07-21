@@ -105,7 +105,7 @@ function createWindow(): void {
         const t = details.deviceType as string
         return (
             isAllowedOrigin(details.origin) &&
-            (t === 'serial' || t === 'usb' || t === 'hid')
+            (t === 'bluetooth' || t === 'serial' || t === 'usb' || t === 'hid')
         )
     })
 

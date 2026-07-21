@@ -42,12 +42,10 @@ export function setupBleDeviceSelection(window: BrowserWindow): void {
         (event, devices, callback) => {
             event.preventDefault()
 
+            // Do not dump nearby device names/addresses into development logs.
             log.info(
-                'select-bluetooth-device fired, devices:',
+                'select-bluetooth-device fired, device count:',
                 devices.length,
-                devices.map(
-                    (d) => `${d.deviceName || '(no-name)'}@${d.deviceId}`,
-                ),
             )
 
             // Store the callback so we can resolve it when the user picks a device

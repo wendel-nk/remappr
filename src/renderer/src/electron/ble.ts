@@ -19,6 +19,11 @@ import {
     IpcTransportAdapter,
 } from '../transport/adapter/ipc-adapter'
 import { registerTransport } from '../transport/adapter/registry'
+import type { BleDiscovery } from '../transport/adapter/discovery'
+import {
+    bleOptionalServices,
+    resolveBleEndpoint,
+} from '../transport/bleEndpoints'
 
 /* --- module state for Web Bluetooth chooser flow ------------------------ */
 
@@ -26,6 +31,8 @@ let pendingDevicePromise: Promise<BluetoothDevice> | null = null
 const SCAN_COLLECTION_MS = 5000
 let scanToken = 0
 let lastSelectedDeviceId: string | null = null
+const deviceRegistry = new Map<string, BluetoothDevice>()
+const pendingDeviceIds = new Set<string>()
 
 /**
  * Shared promise for an in-flight Web Bluetooth scan. React StrictMode
@@ -48,13 +55,12 @@ async function getPlatform(): Promise<string> {
 /* --- discovery ---------------------------------------------------------- */
 
 async function listBluezDevices(
-    serviceUuid: string,
-    charUuid: string,
+    endpoints: readonly BleDiscovery[],
 ): Promise<AvailableDevice[]> {
     try {
         const devices = (await window.api.invoke(
             IpcChannels.BLUEZ_LIST_DEVICES,
-            { serviceUuid, charUuid },
+            { endpoints },
         )) as AvailableDevice[]
         return devices
     } catch (e) {
@@ -63,13 +69,28 @@ async function listBluezDevices(
     }
 }
 
+async function listMacosBleDevices(
+    endpoints: readonly BleDiscovery[],
+): Promise<AvailableDevice[]> {
+    try {
+        return (await window.api.invoke(IpcChannels.MACOS_BLE_LIST_DEVICES, {
+            endpoints,
+        })) as AvailableDevice[]
+    } catch (e) {
+        console.error('[electron/ble] MACOS_BLE_LIST_DEVICES failed:', e)
+        return []
+    }
+}
+
 async function listWebBluetoothDevices(
-    serviceUuid: string,
+    endpoints: readonly BleDiscovery[],
 ): Promise<AvailableDevice[]> {
     if (!navigator.bluetooth) {
         console.warn('[electron/ble] navigator.bluetooth missing')
         return []
     }
+
+    const granted = await listGrantedWebBluetoothDevices()
 
     // Skip the scan entirely without a transient user activation —
     // requestDevice would reject with SecurityError and we'd waste a
@@ -80,24 +101,52 @@ async function listWebBluetoothDevices(
         typeof navigator.userActivation !== 'undefined' &&
         !navigator.userActivation.isActive
     ) {
-        return []
+        return granted
     }
 
     // Dedupe concurrent callers within the same gesture window.
     if (inFlightScan) return inFlightScan
-    inFlightScan = runScan(serviceUuid).finally(() => {
+    inFlightScan = runScan(endpoints).finally(() => {
         inFlightScan = null
     })
-    return inFlightScan
+    const scanned = await inFlightScan
+    const merged = new Map(granted.map((d) => [d.id, d]))
+    for (const device of scanned) merged.set(device.id, device)
+    return [...merged.values()]
 }
 
-async function runScan(serviceUuid: string): Promise<AvailableDevice[]> {
+async function listGrantedWebBluetoothDevices(): Promise<AvailableDevice[]> {
+    const getDevices = (
+        navigator.bluetooth as Bluetooth & {
+            getDevices?: () => Promise<BluetoothDevice[]>
+        }
+    ).getDevices
+    if (typeof getDevices !== 'function') return []
+    try {
+        const devices = await getDevices.call(navigator.bluetooth)
+        return devices.map((device) => {
+            deviceRegistry.set(device.id, device)
+            return {
+                id: device.id,
+                label: device.name || 'BLE Device',
+            }
+        })
+    } catch (error) {
+        console.warn('[electron/ble] getDevices failed:', error)
+        return []
+    }
+}
+
+async function runScan(
+    endpoints: readonly BleDiscovery[],
+): Promise<AvailableDevice[]> {
     const myToken = ++scanToken
 
     if (pendingDevicePromise) {
         window.api.invoke(IpcChannels.BLE_STOP_SCAN).catch(() => {})
         pendingDevicePromise = null
     }
+    pendingDeviceIds.clear()
 
     // Do NOT await — Chromium consumes the user-activation token across
     // awaits, which would make requestDevice() throw.
@@ -114,7 +163,7 @@ async function runScan(serviceUuid: string): Promise<AvailableDevice[]> {
     try {
         pendingDevicePromise = navigator.bluetooth.requestDevice({
             acceptAllDevices: true,
-            optionalServices: [serviceUuid],
+            optionalServices: bleOptionalServices(endpoints),
         })
     } catch (e) {
         console.error('[electron/ble] requestDevice threw:', e)
@@ -147,6 +196,7 @@ async function runScan(serviceUuid: string): Promise<AvailableDevice[]> {
         // Scan/Refresh button to retry inside a gesture.
         pendingDevicePromise!.catch((e: unknown) => {
             pendingDevicePromise = null
+            pendingDeviceIds.clear()
             if (e instanceof DOMException && e.name === 'SecurityError') {
                 console.info(
                     '[electron/ble] BLE scan needs a user gesture — click Scan / Refresh',
@@ -168,6 +218,10 @@ async function runScan(serviceUuid: string): Promise<AvailableDevice[]> {
                     return
                 }
                 latestDevices = args[0] as AvailableDevice[]
+                pendingDeviceIds.clear()
+                for (const device of latestDevices) {
+                    pendingDeviceIds.add(device.id)
+                }
             },
         )
 
@@ -176,12 +230,12 @@ async function runScan(serviceUuid: string): Promise<AvailableDevice[]> {
 }
 
 export async function list_devices(
-    serviceUuid: string,
-    charUuid: string,
+    endpoints: readonly BleDiscovery[],
 ): Promise<AvailableDevice[]> {
     const platform = await getPlatform()
-    if (platform === 'linux') return listBluezDevices(serviceUuid, charUuid)
-    return listWebBluetoothDevices(serviceUuid)
+    if (platform === 'linux') return listBluezDevices(endpoints)
+    if (platform === 'darwin') return listMacosBleDevices(endpoints)
+    return listWebBluetoothDevices(endpoints)
 }
 
 /* --- adapters ----------------------------------------------------------- */
@@ -189,8 +243,7 @@ export async function list_devices(
 export class ElectronBluezAdapter extends IpcTransportAdapter {
     constructor(
         private readonly dev: AvailableDevice,
-        private readonly serviceUuid: string,
-        private readonly charUuid: string,
+        private readonly endpoints: readonly BleDiscovery[],
     ) {
         super(electronIpc, dev.label ?? 'BLE Device')
     }
@@ -198,21 +251,57 @@ export class ElectronBluezAdapter extends IpcTransportAdapter {
     protected async connectIpc(): Promise<IpcConnectResult> {
         const result = (await window.api.invoke(IpcChannels.BLUEZ_CONNECT, {
             devicePath: this.dev.id,
-            serviceUuid: this.serviceUuid,
-            charUuid: this.charUuid,
-        })) as { ok: boolean; label?: string; error?: string }
+            endpoints: this.endpoints,
+        })) as {
+            ok: boolean
+            label?: string
+            firmwareAdapterId?: string
+            error?: string
+        }
         if (!result.ok) {
             throw new Error(result.error ?? 'Failed to connect via BlueZ')
         }
-        return { label: result.label ?? this.dev.label ?? 'BLE Device' }
+        return {
+            label: result.label ?? this.dev.label ?? 'BLE Device',
+            firmwareAdapterId: result.firmwareAdapterId,
+        }
+    }
+}
+
+export class ElectronMacosBleAdapter extends IpcTransportAdapter {
+    constructor(
+        private readonly dev: AvailableDevice,
+        private readonly endpoints: readonly BleDiscovery[],
+    ) {
+        super(electronIpc, dev.label ?? 'BLE Device')
+    }
+
+    protected async connectIpc(): Promise<IpcConnectResult> {
+        const result = (await window.api.invoke(IpcChannels.MACOS_BLE_CONNECT, {
+            deviceId: this.dev.id,
+            endpoints: this.endpoints,
+        })) as {
+            ok: boolean
+            label?: string
+            firmwareAdapterId?: string
+            error?: string
+        }
+        if (!result.ok) {
+            throw new Error(
+                result.error ?? 'Failed to connect through CoreBluetooth',
+            )
+        }
+        return {
+            label: result.label ?? this.dev.label ?? 'BLE Device',
+            firmwareAdapterId: result.firmwareAdapterId,
+        }
     }
 }
 
 export class ElectronWebBluetoothAdapter extends TransportAdapter {
     constructor(
         private readonly dev: AvailableDevice,
-        private readonly serviceUuid: string,
-        private readonly charUuid: string,
+        private readonly endpoints: readonly BleDiscovery[],
     ) {
         super()
         this.label = dev.label ?? 'BLE Device'
@@ -225,24 +314,45 @@ export class ElectronWebBluetoothAdapter extends TransportAdapter {
             )
         }
 
-        const selected = await window.api.invoke(
-            IpcChannels.BLE_SELECT_DEVICE,
-            this.dev.id,
-        )
-        if (!selected) throw new Error('Failed to select BLE device')
-        lastSelectedDeviceId = this.dev.id
+        const usePendingSelection =
+            pendingDevicePromise !== null && pendingDeviceIds.has(this.dev.id)
+        let device: BluetoothDevice | undefined
+        if (usePendingSelection) {
+            const currentRequest = pendingDevicePromise
+            if (!currentRequest) {
+                throw new Error(
+                    'BLE scan expired. Refresh the device list and try again.',
+                )
+            }
+            const selected = await window.api.invoke(
+                IpcChannels.BLE_SELECT_DEVICE,
+                this.dev.id,
+            )
+            if (!selected) throw new Error('Failed to select BLE device')
+            lastSelectedDeviceId = this.dev.id
+            device = await currentRequest
+            pendingDevicePromise = null
+            pendingDeviceIds.clear()
+            deviceRegistry.set(device.id, device)
 
-        if (!pendingDevicePromise) {
-            throw new Error('No pending BLE scan — call list_devices() first')
+            if (lastSelectedDeviceId !== this.dev.id) {
+                throw new Error(
+                    'BLE device selection mismatch — refresh and try again',
+                )
+            }
+        } else {
+            device = deviceRegistry.get(this.dev.id)
+            if (!device) {
+                throw new Error(
+                    'BLE scan expired. Refresh the device list and try again.',
+                )
+            }
         }
 
-        const device = await pendingDevicePromise
-        pendingDevicePromise = null
-
-        if (lastSelectedDeviceId !== this.dev.id) {
-            throw new Error(
-                'BLE device selection mismatch — list_devices() ran again before connect',
-            )
+        if (!usePendingSelection && pendingDevicePromise) {
+            await window.api.invoke(IpcChannels.BLE_STOP_SCAN)
+            pendingDevicePromise = null
+            pendingDeviceIds.clear()
         }
 
         if (!device.gatt)
@@ -250,12 +360,19 @@ export class ElectronWebBluetoothAdapter extends TransportAdapter {
 
         let server: BluetoothRemoteGATTServer
         try {
-            server = await device.gatt.connect()
+            server = device.gatt.connected
+                ? device.gatt
+                : await device.gatt.connect()
         } catch (e) {
             // Windows holds the GATT exclusively when the keyboard is
             // connected at the OS level — Web Bluetooth gets NetworkError.
             // Translate the message so users know what to do.
-            if (e instanceof DOMException && e.name === 'NetworkError') {
+            const platform = await getPlatform()
+            if (
+                platform === 'win32' &&
+                e instanceof DOMException &&
+                e.name === 'NetworkError'
+            ) {
                 throw new Error(
                     'GATT connect failed. On Windows, disconnect the keyboard from Bluetooth settings (Settings → Bluetooth & devices → … → Disconnect, do NOT remove), then retry.',
                     { cause: e },
@@ -263,8 +380,23 @@ export class ElectronWebBluetoothAdapter extends TransportAdapter {
             }
             throw e
         }
-        const service = await server.getPrimaryService(this.serviceUuid)
-        const characteristic = await service.getCharacteristic(this.charUuid)
+        let resolved: Awaited<ReturnType<typeof resolveBleEndpoint>>
+        try {
+            resolved = await resolveBleEndpoint(server, this.endpoints)
+        } catch (error) {
+            if (
+                error instanceof DOMException &&
+                error.name === 'SecurityError'
+            ) {
+                deviceRegistry.delete(device.id)
+                throw new Error(
+                    'Bluetooth service permission is stale. Refresh the device list and select the keyboard again.',
+                    { cause: error },
+                )
+            }
+            throw error
+        }
+        const { endpoint, characteristic } = resolved
         await characteristic.startNotifications()
 
         const { writable: respWritable, readable } =
@@ -335,6 +467,7 @@ export class ElectronWebBluetoothAdapter extends TransportAdapter {
             abortController: this.abortController,
             readable,
             writable,
+            firmwareAdapterId: endpoint.adapterId,
         }
     }
 }
@@ -343,30 +476,32 @@ export class ElectronWebBluetoothAdapter extends TransportAdapter {
 
 async function pickBleAdapter(
     dev: AvailableDevice,
-    serviceUuid: string,
-    charUuid: string,
+    endpoints: readonly BleDiscovery[],
 ): Promise<Transport> {
     const platform = await getPlatform()
     if (platform === 'linux') {
-        return new ElectronBluezAdapter(dev, serviceUuid, charUuid).connect()
+        return new ElectronBluezAdapter(dev, endpoints).connect()
     }
-    return new ElectronWebBluetoothAdapter(dev, serviceUuid, charUuid).connect()
+    if (platform === 'darwin') {
+        return new ElectronMacosBleAdapter(dev, endpoints).connect()
+    }
+    return new ElectronWebBluetoothAdapter(dev, endpoints).connect()
 }
 
 registerTransport({
     id: 'electron:ble',
     envs: 'electron',
     create(ctx) {
-        const ble = ctx.bleDiscovery()
-        if (!ble) return null
         return {
             label: 'BLE',
             communication: 'ble',
             isWireless: true,
             pick_and_connect: {
-                list: () => list_devices(ble.serviceUuid, ble.charUuid),
-                connect: (dev) =>
-                    pickBleAdapter(dev, ble.serviceUuid, ble.charUuid),
+                // Firmware clients are loaded asynchronously. Resolve their BLE
+                // endpoints at use time so a client registered after Electron's
+                // transport registry was built is still discoverable.
+                list: () => list_devices(ctx.bleDiscoveryAll()),
+                connect: (dev) => pickBleAdapter(dev, ctx.bleDiscoveryAll()),
             },
         }
     },

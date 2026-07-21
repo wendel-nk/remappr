@@ -49,6 +49,15 @@ module.exports = {
     directories: {
         buildResources: 'build',
     },
+    extraResources:
+        target === 'darwin'
+            ? [
+                  {
+                      from: 'build/macos-ble-helper',
+                      to: 'macos-ble-helper',
+                  },
+              ]
+            : [],
     files: [
         '!**/.vscode/*',
         '!src/**',

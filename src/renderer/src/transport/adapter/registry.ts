@@ -3,6 +3,7 @@ import type { TransportFactory } from '../types'
 import type { Env } from './env'
 import {
     bleDiscovery,
+    bleDiscoveryAll,
     hidDiscovery,
     hidDiscoveryAll,
     hidFilters,
@@ -18,6 +19,8 @@ import {
 export interface TransportContext {
     env: Env
     bleDiscovery: () => BleDiscovery | null
+    /** All registered firmware BLE endpoints, primary firmware first. */
+    bleDiscoveryAll: () => BleDiscovery[]
     hidDiscovery: () => HidDiscovery | null
     /** Every registered adapter's HID filter (Electron match-any enumeration). */
     hidDiscoveryAll: () => HidDiscovery[]
@@ -53,7 +56,14 @@ function matchesEnv(d: TransportDescriptor, env: Env): boolean {
 }
 
 export function buildContext(env: Env): TransportContext {
-    return { env, bleDiscovery, hidDiscovery, hidDiscoveryAll, hidFilters }
+    return {
+        env,
+        bleDiscovery,
+        bleDiscoveryAll,
+        hidDiscovery,
+        hidDiscoveryAll,
+        hidFilters,
+    }
 }
 
 export function getRegisteredTransports(env: Env): TransportFactory[] {

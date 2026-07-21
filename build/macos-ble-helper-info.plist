@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>CFBundleIdentifier</key>
+    <string>dev.remappr.app.ble-helper</string>
+    <key>CFBundleName</key>
+    <string>Remappr BLE Helper</string>
+    <key>NSBluetoothAlwaysUsageDescription</key>
+    <string>Remappr uses Bluetooth to connect to keyboards over BLE.</string>
+  </dict>
+</plist>
