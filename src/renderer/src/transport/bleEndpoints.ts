@@ -5,6 +5,21 @@ export interface ResolvedBleEndpoint {
     characteristic: BluetoothRemoteGATTCharacteristic
 }
 
+export type ElectronBleBackend =
+    | 'bluez'
+    | 'corebluetooth'
+    | 'winrt'
+    | 'web-bluetooth'
+
+/** Keep platform selection pure and covered by tests: Windows must use the
+ * native WinRT bridge rather than silently falling back to Chromium GATT. */
+export function electronBleBackend(platform: string): ElectronBleBackend {
+    if (platform === 'linux') return 'bluez'
+    if (platform === 'darwin') return 'corebluetooth'
+    if (platform === 'win32') return 'winrt'
+    return 'web-bluetooth'
+}
+
 export function bleOptionalServices(
     endpoints: readonly BleDiscovery[],
 ): string[] {

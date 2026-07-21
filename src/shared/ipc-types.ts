@@ -65,6 +65,11 @@ export const IpcChannels = {
     MACOS_BLE_LIST_DEVICES: 'macos-ble:list-devices',
     MACOS_BLE_CONNECT: 'macos-ble:connect',
 
+    // Native WinRT Bluetooth (Windows only) — accesses the Studio service on
+    // keyboards already connected to Windows as BLE HID devices.
+    WINDOWS_BLE_LIST_DEVICES: 'windows-ble:list-devices',
+    WINDOWS_BLE_CONNECT: 'windows-ble:connect',
+
     // HID device operations (raw USB HID via node-hid)
     HID_LIST_DEVICES: 'hid:list-devices',
     HID_CONNECT: 'hid:connect',
@@ -170,6 +175,19 @@ export interface IpcInvokeMap {
         result: AvailableDevice[]
     }
     [IpcChannels.MACOS_BLE_CONNECT]: {
+        params: { deviceId: string } & BleDiscoverySetPayload
+        result: {
+            ok: boolean
+            label?: string
+            firmwareAdapterId?: string
+            error?: string
+        }
+    }
+    [IpcChannels.WINDOWS_BLE_LIST_DEVICES]: {
+        params: BleDiscoverySetPayload
+        result: AvailableDevice[]
+    }
+    [IpcChannels.WINDOWS_BLE_CONNECT]: {
         params: { deviceId: string } & BleDiscoverySetPayload
         result: {
             ok: boolean
