@@ -11,6 +11,7 @@ import { DownloadLatestButton } from '@/components/DownloadLatestButton'
 import { APP_VERSION, DISCORD_URL, DOCS_URL, REPO_URL } from '@/lib/constants'
 import { LicenseNoticeModal } from '@/components/modals/LicenseNoticeModal'
 import { Settings } from '@/components/modals/Settings'
+import { SupportModal } from '@/components/modals/SupportModal'
 import { WindowControls } from '@/layout/WindowControls'
 import { TrafficLightInset } from '@/layout/TrafficLightInset'
 import { useConnection } from '@/hooks/use-connection'
@@ -130,6 +131,16 @@ export function StartPage({
                             <p>Documentation</p>
                         </TooltipContent>
                     </Tooltip>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <div>
+                                <SupportModal />
+                            </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>Support this project</p>
+                        </TooltipContent>
+                    </Tooltip>
                     {/* native window controls (Electron, non-mac) merged into
                         the bar so the start page is a single top bar. */}
                     <div className="ml-1 flex h-9 items-stretch">
@@ -156,10 +167,10 @@ export function StartPage({
                             QMK · VIA · ZMK compatible
                         </div>
                         <h1 className="mb-3 text-[40px] font-extrabold leading-[1.05] tracking-tight">
-                            Configure Your Keyboard
+                            Configure Your Device
                         </h1>
                         <p className="text-[16px] leading-normal text-muted-foreground">
-                            Connect your keyboard to customize keymaps and
+                            Connect your device to customize keymaps and
                             settings.
                         </p>
                     </div>

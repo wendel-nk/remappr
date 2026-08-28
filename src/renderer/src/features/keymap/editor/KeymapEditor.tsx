@@ -10,6 +10,8 @@ import useUserSettingsStore from '@/stores/userSettingsStore'
 import useConnectionStore from '@/stores/connectionStore'
 import useLayerSelectionStore from '@/stores/layerSelectionStore'
 import useRgbSheetStore from '@/stores/rgbSheetStore'
+import { supportsRuntimeLighting } from '@firmware/config'
+import useConfigStore from '@/stores/configStore'
 import useAdvancedSheetStore from '@/stores/advancedSheetStore'
 
 export type EncoderSelection = { slot: number; dir: 'cw' | 'ccw' }
@@ -72,9 +74,17 @@ export function KeymapEditor(): JSX.Element {
     }, [keymap, selectedLayerIndex])
     const paint = usePerKeyPaint(service, keyCountForPaint)
 
-    // Keep stale sheet state from leaking across reconnects. Capability probing
-    // controls availability, not the firmware name, so older ZMK stays compatible.
-    const rgbSheetOpen = useRgbSheetStore((s) => s.open) && !!service?.rgb
+    // Some firmwares drive lighting at compile time only — they expose no
+    // runtime RGB-settings protocol, so the live controls cannot work against
+    // them. Gated on the target's declared capability, never on its name.
+    const rgbUnsupported = useConfigStore((s) => {
+        const target = s.config?.meta.target
+        return target ? !supportsRuntimeLighting(target) : false
+    })
+    const rgbSheetOpen =
+        useRgbSheetStore((s) => s.open) &&
+        !!service?.rgb &&
+        !rgbUnsupported
     const rgbSection = useRgbSheetStore((s) => s.section)
     const setRgbSheetOpen = useRgbSheetStore((s) => s.setOpen)
     // Per-key section: board clicks select keys to colour (no keymap picker).
