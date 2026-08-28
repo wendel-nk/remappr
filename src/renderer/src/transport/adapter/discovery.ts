@@ -19,7 +19,6 @@ function adaptersByPriority(): readonly FirmwareAdapter[] {
 }
 
 export interface BleDiscovery {
-    adapterId: string
     serviceUuid: string
     charUuid: string
 }
@@ -38,28 +37,11 @@ export interface HidFilter {
 }
 
 export function bleDiscovery(): BleDiscovery | null {
-    return bleDiscoveryAll()[0] ?? null
-}
-
-/** Every registered firmware BLE endpoint, in deterministic probe priority.
- * A single BLE shell transport grants all service UUIDs, then tags the byte
- * stream with the adapter whose service/characteristic actually opened. */
-export function bleDiscoveryAll(): BleDiscovery[] {
-    const out: BleDiscovery[] = []
-    const seen = new Set<string>()
     for (const adapter of adaptersByPriority()) {
         const ble = adapter.discovery.ble
-        if (!ble) continue
-        const key = `${ble.serviceUuid.toLowerCase()}\0${ble.charUuid.toLowerCase()}`
-        if (seen.has(key)) continue
-        seen.add(key)
-        out.push({
-            adapterId: adapter.id,
-            serviceUuid: ble.serviceUuid,
-            charUuid: ble.charUuid,
-        })
+        if (ble) return { serviceUuid: ble.serviceUuid, charUuid: ble.charUuid }
     }
-    return out
+    return null
 }
 
 export function hidDiscovery(): HidDiscovery | null {

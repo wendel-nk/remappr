@@ -23,7 +23,7 @@
 // lazily — exclusively on Linux, behind the platform guards below.
 import { createRequire } from 'node:module'
 import type dbus from 'dbus-next'
-import type { AvailableDevice, BleDiscoveryPayload } from '../shared/ipc-types'
+import type { AvailableDevice } from '../shared/ipc-types'
 import { createLogger } from '../shared/logger'
 
 const requireDbus = createRequire(import.meta.url)
@@ -54,7 +54,6 @@ interface ActiveBluezConnection {
     deviceMatchRule: string
     onCharProps: (msg: { body: unknown[] }) => void
     onDeviceProps: (msg: { body: unknown[] }) => void
-    disconnectOnClose: boolean
 }
 
 let active: ActiveBluezConnection | null = null
@@ -84,7 +83,7 @@ function variantValue<T = unknown>(v: dbus.Variant | undefined): T | undefined {
  * Returns AvailableDevice list keyed by D-Bus object path.
  */
 export async function listGattDevices(
-    endpoints: readonly BleDiscoveryPayload[],
+    serviceUuid: string,
 ): Promise<AvailableDevice[]> {
     if (process.platform !== 'linux') return []
 
@@ -103,11 +102,8 @@ export async function listGattDevices(
             if (!dev) continue
 
             const uuids = variantValue<string[]>(dev['UUIDs']) ?? []
-            const matches = endpoints.some((endpoint) =>
-                uuids.some(
-                    (u) =>
-                        u.toLowerCase() === endpoint.serviceUuid.toLowerCase(),
-                ),
+            const matches = uuids.some(
+                (u) => u.toLowerCase() === serviceUuid.toLowerCase(),
             )
             if (!matches) continue
 
@@ -181,25 +177,19 @@ async function findCharPath(
 async function waitForCharResolution(
     bus: dbus.MessageBus,
     devicePath: string,
-    endpoints: readonly BleDiscoveryPayload[],
+    serviceUuid: string,
+    charUuid: string,
     timeoutMs: number,
-): Promise<{ charPath: string; endpoint: BleDiscoveryPayload } | undefined> {
+): Promise<string | null> {
     const deadline = Date.now() + timeoutMs
     let delay = 100
     while (Date.now() < deadline) {
-        for (const endpoint of endpoints) {
-            const charPath = await findCharPath(
-                bus,
-                devicePath,
-                endpoint.serviceUuid,
-                endpoint.charUuid,
-            )
-            if (charPath) return { charPath, endpoint }
-        }
+        const p = await findCharPath(bus, devicePath, serviceUuid, charUuid)
+        if (p) return p
         await new Promise((r) => setTimeout(r, delay))
         delay = Math.min(delay * 2, 500)
     }
-    return undefined
+    return null
 }
 
 /**
@@ -209,9 +199,10 @@ async function waitForCharResolution(
  */
 export async function connectGattDevice(
     devicePath: string,
-    endpoints: readonly BleDiscoveryPayload[],
+    serviceUuid: string,
+    charUuid: string,
     callbacks: BluezEventCallbacks,
-): Promise<{ label: string; firmwareAdapterId: string }> {
+): Promise<string> {
     // Mirror listGattDevices' guard: non-Linux platforms use renderer Web
     // Bluetooth, never this BlueZ path. Fail loudly if routing ever regresses.
     if (process.platform !== 'linux') {
@@ -261,18 +252,18 @@ export async function connectGattDevice(
 
     // Find characteristic. Even if already connected, BlueZ may need a
     // moment to expose GATT child objects.
-    const resolved = await waitForCharResolution(
+    const charPath = await waitForCharResolution(
         bus,
         devicePath,
-        endpoints,
+        serviceUuid,
+        charUuid,
         8000,
     )
-    if (!resolved) {
+    if (!charPath) {
         throw new Error(
-            `[bluez] no supported firmware characteristic found under ${devicePath}`,
+            `[bluez] characteristic ${charUuid} not found under ${devicePath}`,
         )
     }
-    const { charPath, endpoint } = resolved
     log.info(`resolved char path=${charPath}`)
 
     const charObj = await bus.getProxyObject(BLUEZ_BUS, charPath)
@@ -479,10 +470,9 @@ export async function connectGattDevice(
         deviceMatchRule,
         onCharProps,
         onDeviceProps,
-        disconnectOnClose: !alreadyConnected,
     }
 
-    return { label, firmwareAdapterId: endpoint.adapterId }
+    return label
 }
 
 export async function writeGatt(data: Uint8Array): Promise<void> {
@@ -531,14 +521,12 @@ export async function disconnectGattDevice(): Promise<void> {
     } catch {
         /* ignore — device may already be gone */
     }
-    if (a.disconnectOnClose) {
-        try {
-            const devObj = await a.bus.getProxyObject(BLUEZ_BUS, a.devicePath)
-            const device = devObj.getInterface(IFACE_DEVICE)
-            await device.Disconnect()
-        } catch {
-            /* ignore */
-        }
+    try {
+        const devObj = await a.bus.getProxyObject(BLUEZ_BUS, a.devicePath)
+        const device = devObj.getInterface(IFACE_DEVICE)
+        await device.Disconnect()
+    } catch {
+        /* ignore */
     }
 }
 

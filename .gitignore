@@ -14,7 +14,6 @@ out-types
 *.local
 src/data
 out
-/build/macos-ble-helper
 .DS_Store
 .eslintcache
 *.log*
